@@ -8,7 +8,7 @@ This service is ran with AWS using serverless architecture.
 
 ### Built With
 
-Node.js v24.11 (LTS)
+Node.js v24.11.1 (LTS)
 NPM v11.6
 
 ## Installation
