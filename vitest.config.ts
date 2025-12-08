@@ -6,7 +6,6 @@ export default defineConfig({
         include:['**/*.{test,test.unit}.ts'],
 
         coverage: {
-            enabled: true, 
             provider: 'v8', 
             thresholds: { 
                 statements: 80, 
