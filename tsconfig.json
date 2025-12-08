@@ -23,7 +23,7 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "types": [],
+    "types": [ "node", "vitest/globals" ],
     "paths": {
       "@common/*": ["./src/common/*"],
       "@common": ["./src/common"],
