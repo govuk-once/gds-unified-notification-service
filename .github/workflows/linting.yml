@@ -1,0 +1,42 @@
+name: Linting
+
+on:
+  # Trigger the workflow on pull request
+  pull_request
+
+jobs:
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      # To be refactored
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1 
+        with:
+          node-version: 24
+
+      - name: Install Dependencies
+        run: npm ci
+      # To be refactored
+
+      - name: Run Lint Script
+        run: npm run lint
+
+      - uses: terraform-linters/setup-tflint@v6
+        name: Setup TFLint
+        with:
+          tflint_version: v0.52.0
+          cache: true
+
+      - name: Show version
+        run: tflint --version
+
+      - name: Init TFLint
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run TFLint
+        run: tflint -f compact
