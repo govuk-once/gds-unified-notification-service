@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "allowUmdGlobalAccess": false,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "exactOptionalPropertyTypes": true,
+    "isolatedModules": true,
+    "baseUrl": "./",
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2022",
+    "lib": ["ES2022.Error"],
+    "sourceMap": true,
+    "outDir": "./dist",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": [],
+    "paths": {
+      "@common/*": ["./src/common/*"],
+      "@common": ["./src/common"],
+      "@project/*": ["./src/*"],
+      "@project": ["./src"]
+    }
+  },
+  "exclude": ["node_modules"]
+}
