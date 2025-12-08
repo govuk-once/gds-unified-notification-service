@@ -5,7 +5,23 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "npx eslint .  --fix",
+    "prettier": "npx prettier . --write",
+    "format": "npm run prettier && npm run lint",
     "build": ""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/parser": "^8.48.1",
+    "@types/aws-lambda": "^8.10.159",
+    "@types/http-errors": "^2.0.5",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.5.0",
+    "prettier": "3.7.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1"
   },
   "dependencies": {
     "@aws-lambda-powertools/jmespath": "^2.29.0",
@@ -26,9 +42,5 @@
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
     "zod": "^4.1.13"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.159",
-    "@types/http-errors": "^2.0.5"
   }
 }
