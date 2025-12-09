@@ -1,9 +1,9 @@
-import esbuild from 'esbuild';
-import path from 'path';
-import { globSync } from 'glob';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
 import archiver from 'archiver';
+import esbuild from 'esbuild';
+import fs from 'fs';
+import { globSync } from 'glob';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,7 +11,6 @@ const __dirname = path.dirname(__filename);
 const LAMBDAS_DIR = path.resolve(__dirname, 'src', 'lambdas');
 const OUT_DIR = path.resolve(__dirname, 'dist');
 const ARTIFACT_DIR = path.resolve(__dirname, 'artifacts');
-const ZIP_OUTPUT_FILE = path.resolve(ARTIFACT_DIR, 'deployment.zip');
 
 const removeDir = (dirPath) => {
     if (fs.existsSync(dirPath)) {
@@ -54,30 +53,33 @@ const entryPoints = globSync('**/*.ts', {
 });
 
 if (entryPoints.length === 0) {
-    console.error(`No lambda entry points found in: {ENTRY_POINTS}`);
+    console.error(`No lambda entry points found in: ${LAMBDAS_DIR}`);
     process.exit(1);
 }
 
 removeDir(OUT_DIR);
 removeDir(ARTIFACT_DIR);
 
-esbuild.build({
-    entryPoints: entryPoints,
-    outdir: OUT_DIR,
-    outbase: 'src',
-    bundle: true,
-    minify: true,
-    platform: 'node',
-    target: 'node20',
-    format: 'cjs',
-    sourcemap: 'linked',
-    external: ['@aws-sdk/*', 'aws-sdk']
-
-}).then(() => {
-    console.log(`esbuild successful`);
-    createZipArchive(OUT_DIR, ZIP_OUTPUT_FILE);
-
-}).catch((error) => {
+(async () => {
+  try {
+    for(const entrypoint of entryPoints) {
+      const id = path.basename(path.dirname(entrypoint));
+      await esbuild.build({
+          entryPoints: [entrypoint],
+          outdir: path.join(OUT_DIR, id),
+          bundle: true,
+          minify: true,
+          platform: 'node',
+          target: 'node24',
+          format: 'cjs',
+          sourcemap: 'linked'
+      })
+      const ZIP_OUTPUT_FILE = path.resolve(ARTIFACT_DIR, `${id}.zip`);
+      await createZipArchive(OUT_DIR, ZIP_OUTPUT_FILE)
+      console.log(`${id} built successfully`)
+    }
+  } catch(error) {
     console.log("esbuild failure", error);
     process.exit(1);
-});
+  }
+})();
