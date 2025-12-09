@@ -4,11 +4,12 @@
   "author": "",
   "type": "module",
   "scripts": {
-    "lint": "npx eslint .  --fix",
-    "prettier": "npx prettier . --write",
-    "format": "npm run prettier && npm run lint",
     "build": "",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
+    "format": "npm run prettier && npm run lint",
+    "lint": "npx eslint .  --fix",
+    "prettier": "npx prettier . --write",
+    "prettier:check": "npx prettier . --check",
     "test": "vitest",
     "test:coverage": "vitest run --coverage"
   },
