@@ -1,0 +1,57 @@
+{
+  // Prevent ignored files from appeared under file pallette
+  "search.useIgnoreFiles": true,
+  // Enforce formatting on save
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  // Indent config, 2 spaces
+  "editor.indentSize": "tabSize",
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "editor.autoIndent": "advanced",
+  "editor.insertSpaces": true,
+  "editor.rulers": [
+    120
+  ],
+  "files.insertFinalNewline": true,
+  // No sideways scrolling
+  "editor.wordWrap": "on",
+  // Show gitignored files from explorer
+  "explorer.excludeGitIgnore": false,
+  // Inlay type hints -
+  "editor.inlayHints.enabled": "on",
+  "typescript.inlayHints.enumMemberValues.enabled": false,
+  "typescript.inlayHints.parameterNames.enabled": "none",
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": false,
+  "typescript.inlayHints.variableTypes.enabled": false,
+  "typescript.inlayHints.parameterTypes.enabled": false,
+  "typescript.inlayHints.propertyDeclarationTypes.enabled": false,
+  // Prefer barrel imports oven relative
+  "typescript.preferences.importModuleSpecifierEnding": "auto",
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  // Fix all and organise imports, remove unused
+  "editor.codeActionsOnSave": {
+    "source.formatAll.terraform": "always",
+    "source.fixAll": "always",
+    "source.organizeImports": "always",
+    "source.sortImports": "always",
+    "source.removeUnusedImports": "never"
+  },
+  "eslint.format.enable": true,
+  // Set formatters per language
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  },
+  "[terraform]": {
+    "editor.defaultFormatter": "hashicorp.terraform"
+  },
+  // Use typescript library defined in package.json
+  "typescript.tsdk": "./node_modules/typescript/lib"
+}

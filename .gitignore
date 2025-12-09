@@ -1,1 +1,14 @@
 node_modules
+coverage
+
+# Local configuration / system files
+.env
+.DS_Store
+
+# Terraform
+**/.terraform
+**/.terraform.lock.hcl
+**/.terraform/**/*
+**/**.tfvars
+**/**.tfstate
+**/**.tfenv
