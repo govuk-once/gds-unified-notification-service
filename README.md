@@ -13,11 +13,14 @@ NPM v11.6
 
 ## Installation
 
-1. Clone the repository: 
+1. Clone the repository:
+
 ```
 git clone git@github.com:govuk-once/gds-unified-notification-service.git
 ```
-2. Install dependencies: 
+
+2. Install dependencies:
+
 ```
 npm install
 ```
