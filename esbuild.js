@@ -1,5 +1,4 @@
 import esbuild from 'esbuild';
-import { rimrafSync } from 'rimraf';
 import path from 'path';
 import { globSync } from 'glob';
 import { fileURLToPath } from 'url';
@@ -11,8 +10,16 @@ const __dirname = path.dirname(__filename);
 
 const LAMBDAS_DIR = path.resolve(__dirname, 'src', 'lambdas');
 const OUT_DIR = path.resolve(__dirname, 'dist');
-const ARTIFACT_DIR = path.resolve(__dirname, 'artifacts')
-const ZIP_OUTPUT_FILE = path.resolve(ARTIFACT_DIR, 'deployment.zip')
+const ARTIFACT_DIR = path.resolve(__dirname, 'artifacts');
+const ZIP_OUTPUT_FILE = path.resolve(ARTIFACT_DIR, 'deployment.zip');
+
+const removeDir = (dirPath) => {
+    if (fs.existsSync(dirPath)) {
+        fs.rmSync(dirPath, { 
+            recursive: true
+        });
+    }
+}
 
 const createZipArchive = (sourceDir, targetFile) => {
     return new Promise((resolve, reject) => {
@@ -51,8 +58,8 @@ if (entryPoints.length === 0) {
     process.exit(1);
 }
 
-rimrafSync(OUT_DIR);
-rimrafSync(ARTIFACT_DIR);
+removeDir(OUT_DIR);
+removeDir(ARTIFACT_DIR);
 
 esbuild.build({
     entryPoints: entryPoints,
