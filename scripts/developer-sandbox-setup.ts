@@ -4,7 +4,7 @@
 // If AWS environment variables are present 
 // - prompts the creation if tfstate bucket does not exist
 // - prompts terraform initiation
-import { CreateBucketCommand, ListBucketsCommand, S3Client } from "@aws-sdk/client-s3";
+import { CreateBucketCommand, ListBucketsCommand, PutBucketVersioningCommand, S3Client } from "@aws-sdk/client-s3";
 import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
@@ -70,6 +70,19 @@ id             = "${id}"`);
         return console.error(`Failed creation of a ${bucket}: ${createBucketError.message}`);
       }
       console.log(`Created ${bucket} in ${createBucketResult.Location} ARN: ${createBucketResult.BucketArn}`);
+      
+      // Enable versioning on the bucket
+      const [putBucketVersioningResult, putBucketVersioningError] = await unwrap(s3Client.send(new PutBucketVersioningCommand({
+        Bucket: bucket,
+        VersioningConfiguration: {
+          Status: "Enabled"
+        }
+      })));
+
+      if(putBucketVersioningResult == undefined) {
+        return console.error(`Failed enabling of versioning on ${bucket}: ${putBucketVersioningError.message}`);
+      }
+      console.log(`Enabled versioning on the bucket`);
     }
   } else {
     console.log(`Developer tfstate bucket ${bucket} already exists in current ${accountIdHashed}`)
