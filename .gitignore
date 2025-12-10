@@ -1,5 +1,6 @@
 node_modules
 coverage
+artifacts
 
 # Local configuration / system files
 .env
