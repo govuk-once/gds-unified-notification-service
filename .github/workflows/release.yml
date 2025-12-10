@@ -1,6 +1,7 @@
-name: Semantic Release
+name: Release
 
 on:
+  # Trigger the workflow on push to main
   push:
     branches: 
       - main
@@ -26,6 +27,10 @@ jobs:
         with:
           node-version-file: '.node-version'
 
-      - run: npm run semantic:release
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Semantic Release 
+        run: npm run semantic:release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

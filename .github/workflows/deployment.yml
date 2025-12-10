@@ -1,11 +1,11 @@
-name: Deployment Pipeline
+name: Deployment
 
 on:
   # Trigger the workflow on pull request
   pull_request
 
 jobs:
-  linting:
+  Deployment:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
