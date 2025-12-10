@@ -19,12 +19,7 @@ import httpErrorHandler from '@middy/http-error-handler';
 import httpEventNormalizer from '@middy/http-event-normalizer';
 import httpHeaderNormalizer from '@middy/http-header-normalizer';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
-import type {
-  ALBEvent,
-  APIGatewayEvent,
-  APIGatewayProxyEventV2,
-  Context,
-} from 'aws-lambda';
+import type { ALBEvent, APIGatewayEvent, APIGatewayProxyEventV2, Context } from 'aws-lambda';
 import { inject } from 'tsyringe';
 import type { ZodType, z } from 'zod';
 
@@ -43,7 +38,7 @@ export abstract class APIHandler<
   constructor(
     @inject('Logger') public logger: Logger,
     @inject('Metrics') public metrics: Metrics,
-    @inject('Tracer') public tracer: Tracer,
+    @inject('Tracer') public tracer: Tracer
   ) {
     console.log(`Initialized!`);
     console.log(...arguments);
@@ -51,7 +46,7 @@ export abstract class APIHandler<
 
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,
-    context: Context,
+    context: Context
   ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
     throw new Error('Not Implemented');
   }
@@ -74,7 +69,7 @@ export abstract class APIHandler<
       .use(
         httpJsonBodyParser({
           disableContentTypeError: true,
-        }),
+        })
       )
       .use(httpEventNormalizer())
       .use(serializeBodyToJson())
@@ -89,14 +84,14 @@ export abstract class APIHandler<
       .use(
         injectLambdaContext(this.logger, {
           correlationIdPath: 'requestContext.requestId',
-        }),
+        })
       )
       .use(captureLambdaHandler(this.tracer))
       .use(
         logMetrics(this.metrics, {
           captureColdStartMetric: true,
           throwOnEmptyMetrics: false,
-        }),
+        })
       );
   }
 
@@ -115,7 +110,7 @@ export abstract class APIHandler<
     return this.middlewares(middy()).handler(async (event, context) => {
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,
-        context,
+        context
       )) as IRequestResponse;
     });
   }

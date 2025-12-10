@@ -33,10 +33,14 @@
   "editor.codeActionsOnSave": {
     "source.formatAll.terraform": "always",
     "source.fixAll": "always",
+    "source.fixAll.eslint": "always",
     "source.organizeImports": "always",
     "source.sortImports": "always",
     "source.removeUnusedImports": "never"
   },
+  "eslint.validate": [
+    "typescript"
+  ],
   "eslint.format.enable": true,
   // Set formatters per language
   "editor.defaultFormatter": "dbaeumer.vscode-eslint",
@@ -47,7 +51,7 @@
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
   "[terraform]": {
     "editor.defaultFormatter": "hashicorp.terraform"
