@@ -1,14 +1,15 @@
-name: Linting
+name: PR pipeline
 
 on:
   # Trigger the workflow on pull request
   pull_request
 
 jobs:
-  linting:
+  pr:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+
     steps:
-      # To be refactored
       - name: Checkout Code
         uses: actions/checkout@v6
 
@@ -19,7 +20,6 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
-      # To be refactored
 
       - name: Run Lint Script
         run: npm run format
