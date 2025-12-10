@@ -6,17 +6,16 @@
     "exactOptionalPropertyTypes": true,
     "isolatedModules": true,
     "baseUrl": "./",
+    "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "esModuleInterop": true,
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "esnext",
-    "lib": [
-      "ES2022.Error"
-    ],
+    "lib": ["ESNext.Error"],
     "sourceMap": true,
     "outDir": "./dist",
     "incremental": true,
@@ -26,26 +25,13 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "types": [
-      "node",
-      "vitest/globals"
-    ],
+    "types": ["node", "vitest/globals"],
     "paths": {
-      "@common/*": [
-        "./src/common/*"
-      ],
-      "@common": [
-        "./src/common"
-      ],
-      "@project/*": [
-        "./src/*"
-      ],
-      "@project": [
-        "./src"
-      ]
+      "@common/*": ["./src/common/*"],
+      "@common": ["./src/common"],
+      "@project/*": ["./src/*"],
+      "@project": ["./src"]
     }
   },
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

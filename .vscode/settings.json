@@ -10,9 +10,7 @@
   "editor.detectIndentation": false,
   "editor.autoIndent": "advanced",
   "editor.insertSpaces": true,
-  "editor.rulers": [
-    120
-  ],
+  "editor.rulers": [120],
   "files.insertFinalNewline": true,
   // No sideways scrolling
   "editor.wordWrap": "on",
@@ -38,9 +36,7 @@
     "source.sortImports": "always",
     "source.removeUnusedImports": "never"
   },
-  "eslint.validate": [
-    "typescript"
-  ],
+  "eslint.validate": ["typescript"],
   "eslint.format.enable": true,
   // Set formatters per language
   "editor.defaultFormatter": "dbaeumer.vscode-eslint",

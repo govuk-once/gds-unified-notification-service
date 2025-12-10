@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { MockMessageService } from './app.ts';
+import { describe, expect, it } from 'vitest';
+import { MockMessageService } from './app';
 
 describe('MockMessageService', () => {
   let mockMessageService: MockMessageService;
