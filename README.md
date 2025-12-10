@@ -37,6 +37,7 @@ npm install
 5. Initialize terraform - relies on gds-cli being already configured
 
 This guided wizard will create a tfstate bucket within AWS based on your developer email, and initialize TF on your behalf.
+
 ```sh
 eval $(gds-cli aws {name_of_sandbox_or_dev_account} -e --skip-ip-range-checks)
 npm run development:sandbox:setup

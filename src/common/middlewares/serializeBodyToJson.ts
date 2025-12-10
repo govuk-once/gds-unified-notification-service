@@ -1,14 +1,7 @@
-import type {
-  IRequestEvent,
-  ITypedRequestResponse,
-} from '@common/middlewares/interfaces';
+import type { IRequestEvent, ITypedRequestResponse } from '@common/middlewares/interfaces';
 import type { MiddlewareObj } from '@middy/core';
 
-export const serializeBodyToJson = (): MiddlewareObj<
-  IRequestEvent,
-  ITypedRequestResponse<string>,
-  Error
-> => ({
+export const serializeBodyToJson = (): MiddlewareObj<IRequestEvent, ITypedRequestResponse<string>, Error> => ({
   after: async (request): Promise<void> => {
     if (
       request.response &&
