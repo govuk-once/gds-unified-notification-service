@@ -1,8 +1,5 @@
 import type { MiddlewareObj } from '@middy/core';
-import type {
-  APIGatewayEvent,
-  APIGatewayProxyStructuredResultV2,
-} from 'aws-lambda';
+import type { APIGatewayEvent, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 
 export const deserializeBodyFromJson = (): MiddlewareObj<
   APIGatewayEvent,

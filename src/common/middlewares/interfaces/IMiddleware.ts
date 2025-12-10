@@ -3,10 +3,4 @@ import type { IRequestResponse } from '@common/middlewares/interfaces/IRequestRe
 import type { MiddyfiedHandler } from '@middy/core';
 import type { Context } from 'aws-lambda';
 
-export type IMiddleware = MiddyfiedHandler<
-  IRequestEvent,
-  IRequestResponse,
-  Error,
-  Context,
-  {}
->;
+export type IMiddleware = MiddyfiedHandler<IRequestEvent, IRequestResponse, Error, Context, Record<string, unknown>>;
