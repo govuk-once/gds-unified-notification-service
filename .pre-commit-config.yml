@@ -1,0 +1,17 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  # Terraform security and linting
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.104.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+      - id: terraform_tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_checkov
+        args:
+          - --args=--quiet
+          - --args=--compact
+          - --args=--skip-check=CKV_AWS_338,CKV_AWS_158,CKV_AWS_26,CKV_AWS_50,CKV_AWS_117,CKV_AWS_116,CKV_AWS_272,CKV_AWS_115
