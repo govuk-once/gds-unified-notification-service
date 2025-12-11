@@ -68,7 +68,7 @@ removeDir(ARTIFACT_DIR);
         entryPoints: [entrypoint],
         outfile: path.join(OUT_DIR, id, 'index.mjs'),
         bundle: true,
-        minify: false,
+        minify: true,
         platform: 'node',
         target: 'node24',
         format: 'esm',
