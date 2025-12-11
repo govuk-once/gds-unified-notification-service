@@ -3,7 +3,7 @@
 ** Draft / Work in progress **
 
 - Resource naming convention `{project}-{env}-{resourceType}-{identifier}`:
-  - Project - `gdsudp`
+  - Project - `gdsuns`
   - Env - Shorthand name `dev`, `uat`, `stg`, `prod` or developer sandbox id (generated via `npm run developer:sandbox:setup` based off their email)
   - Resource type abbreviation - trying to keep it less than 4 characters if possible
   -
