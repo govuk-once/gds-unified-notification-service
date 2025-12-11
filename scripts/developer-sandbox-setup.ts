@@ -55,11 +55,11 @@ env             = "${env}"`);
     return console.error(`Failed to fetch account ID :${identityError.message}`);
   }
   // Only log last 4 digits of account id
-  const accountIdHashed = identityResult.Account?.substring(8).padStart(identityResult.Account.length, '*')!;
+  const accountIdHashed = identityResult.Account!.substring(8).padStart(identityResult.Account!.length, '*');
 
   // Detect if the env variables point outside of development account
-  if(accountIdHashed?.endsWith("7518") == false) {
-    if(await confirm({message:`AWS Account ${accountIdHashed} does not end with 7518 (development account), are you sure you want to continue?`}) == false) {
+  if(accountIdHashed.endsWith("7518") == false) {
+    if((await confirm({message:`AWS Account ${accountIdHashed} does not end with 7518 (development account), are you sure you want to continue?`})) == false) {
       return console.log(`Exiting`);
     }
   }
