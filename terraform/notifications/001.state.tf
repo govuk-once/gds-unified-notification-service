@@ -10,7 +10,7 @@ variable "region" {
   type = string
 }
 
-variable "id" {
+variable "env" {
   type = string
 }
 
