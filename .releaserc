@@ -1,0 +1,41 @@
+{
+  "branches": [
+    "main"
+  ],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "angular",
+        "releaseRules": [
+          {
+            "type": "BREAKING",
+            "release": "major"
+          },
+          {
+            "type": "BREAKING CHANGE",
+            "release": "major"
+          },
+          {
+            "type": "feat",
+            "release": "minor"
+          },
+          {
+            "type": "*",
+            "release": "patch"
+          },
+          {
+            "message": "*",
+            "release": "patch"
+          }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
+        "npmPublish": false
+      }
+    ]
+  ]
+}
