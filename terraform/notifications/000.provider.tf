@@ -8,3 +8,5 @@ terraform {
     }
   }
 }
+
+data "aws_caller_identity" "aws" {}
