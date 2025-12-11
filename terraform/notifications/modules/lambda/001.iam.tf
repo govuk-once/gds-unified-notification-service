@@ -37,13 +37,13 @@ data "aws_iam_policy_document" "lambda_kms" {
   }
 }
 
-resource "aws_iam_policy" "lambda_mks" {
+resource "aws_iam_policy" "lambda_kms_policy" {
   name   = join("-", [var.prefix, "iamp", var.function_name])
   policy = data.aws_iam_policy_document.lambda_kms.json
 }
 
-resource "aws_iam_policy_attachment" "terraform_lambda_kms_policy_attachment" {
+resource "aws_iam_policy_attachment" "lambda_kms_policy_attachment" {
   name       = join("-", [var.prefix, "iampa", var.function_name])
   roles      = [aws_iam_role.lambda.name]
-  policy_arn = aws_iam_policy.terraform_lambda_kms_policy.arn
+  policy_arn = aws_iam_policy.lambda_kms_policy.arn
 }
