@@ -19,5 +19,5 @@ export const iocGetMetrics = () =>
   new Metrics({
     namespace: process.env.NAMESPACE_NAME ?? 'undefined',
     serviceName: process.env.SERVICE_NAME ?? 'undefined',
-    defaultDimensions: { },
+    defaultDimensions: {},
   });

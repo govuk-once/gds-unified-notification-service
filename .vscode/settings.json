@@ -10,7 +10,9 @@
   "editor.detectIndentation": false,
   "editor.autoIndent": "advanced",
   "editor.insertSpaces": true,
-  "editor.rulers": [120],
+  "editor.rulers": [
+    120
+  ],
   "files.insertFinalNewline": true,
   // No sideways scrolling
   "editor.wordWrap": "on",
@@ -29,15 +31,22 @@
   "typescript.preferences.importModuleSpecifier": "non-relative",
   // Fix all and organise imports, remove unused
   "editor.codeActionsOnSave": {
+    "source.fixAll.prettier": "explicit",
+    "source.fixAll.eslint": "explicit",
     "source.formatAll.terraform": "always",
     "source.fixAll": "always",
-    "source.fixAll.eslint": "always",
     "source.organizeImports": "always",
     "source.sortImports": "always",
-    "source.removeUnusedImports": "never"
+    "source.removeUnusedImports": "never",
+    "source.fixAll.ts": "always"
   },
-  "eslint.validate": ["typescript"],
+  "eslint.codeActionsOnSave.mode": "all",
+  "eslint.lintTask.enable": true,
+  "eslint.validate": [
+    "typescript"
+  ],
   "eslint.format.enable": true,
+  "eslint.lintTask.command": "eslint",
   // Set formatters per language
   "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   "[jsonc]": {
