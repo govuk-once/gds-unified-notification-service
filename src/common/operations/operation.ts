@@ -4,6 +4,7 @@ import type { Metrics } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
+import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 import {
   type IMiddleware,
   type IRequestEvent,
@@ -20,7 +21,6 @@ import httpEventNormalizer from '@middy/http-event-normalizer';
 import httpHeaderNormalizer from '@middy/http-header-normalizer';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
 import type { ALBEvent, APIGatewayEvent, APIGatewayProxyEventV2, Context } from 'aws-lambda';
-import { inject } from 'tsyringe';
 import type { ZodType, z } from 'zod';
 
 export type RequestEvent = APIGatewayEvent | APIGatewayProxyEventV2 | ALBEvent;
@@ -35,11 +35,11 @@ export abstract class APIHandler<
   public abstract requestBodySchema: InputSchema;
   public abstract responseBodySchema: OutputSchema;
 
-  constructor(
-    @inject('Logger') public logger: Logger,
-    @inject('Metrics') public metrics: Metrics,
-    @inject('Tracer') public tracer: Tracer
-  ) {
+  public logger: Logger = iocGetLogger();
+  public metrics: Metrics = iocGetMetrics();
+  public tracer: Tracer = iocGetTracer();
+
+  constructor() {
     console.log(`Initialized!`);
     console.log(...arguments);
   }
@@ -106,7 +106,6 @@ export abstract class APIHandler<
 
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
-    console.log('Hmm');
     return this.middlewares(middy()).handler(async (event, context) => {
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,
