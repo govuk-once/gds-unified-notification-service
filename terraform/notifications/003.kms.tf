@@ -1,5 +1,3 @@
-
-
 resource "aws_kms_key" "main" {
   description             = join("-", [local.prefix, "kms", "key"])
   deletion_window_in_days = 30
