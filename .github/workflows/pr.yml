@@ -32,7 +32,7 @@ jobs:
         run: terraform fmt -check
 
       - name: TF Sec
-        uses: aquasecurity/tfsec-action@v1
+        uses: aquasecurity/tfsec-action@v1.0.0
 
       - name: Checkov GitHub Action
         uses: bridgecrewio/checkov-action@v12
