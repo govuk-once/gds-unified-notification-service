@@ -32,7 +32,7 @@ jobs:
         run: terraform fmt -check
 
       - name: TF Sec
-        uses: aquasecurity/tfsec-action@v1.0.0
+        uses: aquasecurity/tfsec-action@v1
 
       - name: Checkov GitHub Action
         uses: bridgecrewio/checkov-action@v12
@@ -41,7 +41,7 @@ jobs:
           output_file_path: console,results.sarif
         
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         if: success() || failure()
         with:
           sarif_file: results.sarif
