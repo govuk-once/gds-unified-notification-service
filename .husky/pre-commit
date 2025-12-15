@@ -1,2 +1,2 @@
-npm test
-tflint --config .tflint.hcl
+npm run test
+tflint --config "$(pwd)/.tflint.hcl"
