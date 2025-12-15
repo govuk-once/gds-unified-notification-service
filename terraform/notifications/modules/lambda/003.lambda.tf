@@ -27,4 +27,9 @@ resource "aws_lambda_function" "this" {
       NAMESPACE_NAME = "global"
     }
   }
+
+  // Enable X-Ray tracing 
+  tracing_config {
+     mode = "Active"
+   }
 }
