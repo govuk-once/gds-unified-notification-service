@@ -4,11 +4,6 @@ variable "queue_name" {
   description = "Name of the queue."
 }
 
-variable "queue_name" {
-  type        = string
-  description = "Name of the queue."
-}
-
 variable "tags" {
   description = "Tags to apply to the resource."
   type        = map(string)
@@ -44,5 +39,4 @@ variable "redrive_policy_max_receives" {
 variable "visibility_timeout_seconds" {
   description = "The length of time during which a message will be unavailable after a consumer receives it."
   type        = number
-  default     = 30
 }
