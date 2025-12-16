@@ -43,6 +43,12 @@ eval $(gds-cli aws {name_of_sandbox_or_dev_account} -e --skip-ip-range-checks)
 npm run development:sandbox:setup
 ```
 
+## Pre-commit hooks
+
+* Husky - Automatically lint commit messages. [Husky]https://typicode.github.io/husky/
+* commitlint - Lint commit messages to adhere to a commit convention. [commitlint]https://github.com/conventional-changelog/commitlint
+* TFLint - Framework for terraform to find possible errors for Major Cloud providers. [TFLint]https://github.com/terraform-linters/tflint
+
 ## Contact
 
 Solution Architect: Nathaniel Greenwood
