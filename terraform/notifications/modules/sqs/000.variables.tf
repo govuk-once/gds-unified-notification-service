@@ -11,22 +11,22 @@ variable "tags" {
 }
 
 variable "delay_seconds" {
-  type = number
+  type        = number
   description = "The time in seconds that the delivery of all messages in the queue will be delayed"
 }
 
 variable "max_message_size" {
-  type = number
+  type        = number
   description = "The limit of how many bytes a message can contain before Amazon SQS rejects it"
 }
 
 variable "message_retention_seconds" {
-  type = number
+  type        = number
   description = "The number of seconds Amazon SQS retains a message."
 }
 
 variable "receive_wait_time_seconds" {
-  type = number
+  type        = number
   description = "The time for which a ReceiveMessage call will wait for a message."
 }
 
@@ -39,4 +39,15 @@ variable "redrive_policy_max_receives" {
 variable "visibility_timeout_seconds" {
   description = "The length of time during which a message will be unavailable after a consumer receives it."
   type        = number
+}
+
+variable "kms_master_key_id" {
+  description = "The ID of an AWS-managed customer master key (CMK) for Amazon SQS."
+  type        = string
+}
+
+variable "kms_data_key_reuse_period_seconds" {
+  description = "The length of time, in seconds, for which a data key can be reused to encrypt or decrypt messages before calling AWS KMS again."
+  type        = number
+  default     = 300
 }
