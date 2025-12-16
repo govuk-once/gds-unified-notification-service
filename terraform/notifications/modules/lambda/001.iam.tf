@@ -32,7 +32,7 @@ data "aws_iam_policy_document" "lambda_kms" {
     ]
 
     resources = [
-      "*",
+      var.kms_key_arn,
     ]
   }
 }
