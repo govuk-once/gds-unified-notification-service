@@ -46,6 +46,23 @@ variable "kms_key_arn" {
 }
 
 
+variable "queue_name" {
+  description = "Path to lambda source code zip"
+  type        = string
+}
+
+variable "batch_size" {
+  description = "Largest number of records that Lambda will retrieve from your event source at the time of invocation"
+  type        = number
+  default = 10
+}
+
+variable "maximum_concurrency" {
+  description = "Limits the number of concurrent instances that the event source can invoke"
+  type        = number
+  default = 100
+}
+
 /** Code **/
 variable "bundle_path" {
   description = "Path to lambda source code zip"
