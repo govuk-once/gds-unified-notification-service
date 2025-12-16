@@ -30,6 +30,6 @@ resource "aws_lambda_function" "this" {
 
   // Enable X-Ray tracing 
   tracing_config {
-     mode = "Active"
-   }
+    mode = "Active"
+  }
 }

@@ -1,7 +1,7 @@
 // Deploy SQS Queue
 resource "aws_sqs_queue" "this" {
   // Metadata
-  name = var.queue_name
+  name = join("-", [var.prefix, "sqs", var.queue_name])
   tags = var.tags
 
   // Configure instance
@@ -11,7 +11,7 @@ resource "aws_sqs_queue" "this" {
   receive_wait_time_seconds  = var.receive_wait_time_seconds
   visibility_timeout_seconds = var.visibility_timeout_seconds
 
-  // Encryption
-  kms_master_key_id                 = var.kms_master_key_id
+  // Encrypt at rest
+  kms_master_key_id                 = var.kms_key_arn
   kms_data_key_reuse_period_seconds = var.kms_data_key_reuse_period_seconds
 }
