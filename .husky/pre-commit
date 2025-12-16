@@ -1,2 +1,2 @@
 npm run test
-tflint --chdir=terraform/notifications  --config .tflint.hcl
+npm run tflint

@@ -9,6 +9,7 @@
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
     "format": "npm run prettier && npm run lint",
     "lint": "npx eslint .  --fix",
+    "tflint": "tflint --chdir=terraform/notifications  --config .tflint.hcl",
     "prettier": "npx prettier . --write",
     "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
     "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",

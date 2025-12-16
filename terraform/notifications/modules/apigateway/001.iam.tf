@@ -1,6 +1,3 @@
-resource "aws_api_gateway_account" "apigw" {
-  cloudwatch_role_arn = aws_iam_role.cloudwatch.arn
-}
 
 # Gateway role assumption
 data "aws_iam_policy_document" "assume_role" {
@@ -15,29 +12,24 @@ data "aws_iam_policy_document" "assume_role" {
     actions = ["sts:AssumeRole"]
   }
 }
-resource "aws_iam_role" "cloudwatch" {
-  name               = "api_gateway_cloudwatch_global"
+resource "aws_iam_role" "apigw_role" {
+  name               = join("-", [var.prefix, "iamr", "apigw", var.name])
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
-# CW Role
-data "aws_iam_policy_document" "cloudwatch" {
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:DescribeLogGroups",
-      "logs:DescribeLogStreams",
-      "logs:PutLogEvents",
-      "logs:GetLogEvents",
-      "logs:FilterLogEvents",
-    ]
-    resources = ["*"]
-  }
+// Allow usage of lambdas
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
+  role       = aws_iam_role.apigw_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
-resource "aws_iam_role_policy" "cloudwatch" {
-  name   = "default"
-  role   = aws_iam_role.cloudwatch.id
-  policy = data.aws_iam_policy_document.cloudwatch.json
+
+// Allow pushing to cloudwatch logs
+resource "aws_iam_role_policy_attachment" "cloudwatch_basic" {
+  role       = aws_iam_role.apigw_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
+
+resource "aws_api_gateway_account" "apigw" {
+  cloudwatch_role_arn = aws_iam_role.apigw_role.arn
+}
+
