@@ -4,7 +4,7 @@
   "author": "",
   "type": "module",
   "scripts": {
-    "build": "node esbuild.js",
+    "build": "bun scripts/build.ts",
     "commit": "cz",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
     "format": "npm run prettier && npm run lint",
