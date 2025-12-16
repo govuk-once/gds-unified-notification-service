@@ -1,0 +1,16 @@
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  // Trigger
+  for_each = var.trigger_queue_name != null ? { trigger : true } : {}
+  enabled          = true
+
+  // Metadata
+  event_source_arn = var.trigger_queue_name
+  function_name    = var.function_name
+  tags = var.tags
+
+  // Configure instance
+  batch_size       = var.batch_size
+  scaling_config {
+    maximum_concurrency = var.maximum_concurrency
+  }
+}
