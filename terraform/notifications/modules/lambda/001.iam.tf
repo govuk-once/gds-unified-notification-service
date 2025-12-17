@@ -23,7 +23,7 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role " {
+resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role" {
   count = var.trigger_queue_name != null ? 1 : 0
 
   role       = aws_iam_role.lambda.name
