@@ -7,6 +7,9 @@ resource "aws_api_gateway_resource" "this" {
 
 // Define method
 resource "aws_api_gateway_method" "this" {
+  #checkov:skip=CKV_AWS_59: "Ensure there is no open access to back-end resources through API" - TODO - Is being built as part of the mTLS implementation - NOT-52, NOT-53
+  #checkov:skip=CKV2_AWS_53: "Ensure AWS API gateway request is validated" - Re-evaluate - request body schemas to be defined at later date
+
   resource_id = aws_api_gateway_resource.this.id
   rest_api_id = aws_api_gateway_resource.this.rest_api_id
   http_method = var.method
