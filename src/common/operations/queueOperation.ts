@@ -5,30 +5,14 @@ import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
-import {
-  type IMiddleware,
-  type IRequestEvent,
-  type IRequestResponse,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
-  requestValidatorMiddleware,
-  responseValidatorMiddleware,
-} from '@common/middlewares';
-import middy, { type MiddyfiedHandler } from '@middy/core';
+import { type IMiddleware } from '@common/middlewares';
+import middy, { MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent } from 'aws-lambda';
-import type { ZodType, z } from 'zod';
 
 export type QueueEvent = SQSEvent;
 
-export abstract class QueueHandler<
-  InputSchema extends ZodType,
-  OutputSchema extends ZodType,
-  InferredInputSchema = z.infer<InputSchema>,
-  InferredOutputSchema = z.infer<OutputSchema>,
-> {
+export abstract class QueueHandler {
   public abstract operationId: string;
-  public abstract requestBodySchema: InputSchema;
-  public abstract responseBodySchema: OutputSchema;
 
   public logger: Logger = iocGetLogger();
   public metrics: Metrics = iocGetMetrics();
@@ -39,16 +23,12 @@ export abstract class QueueHandler<
     console.log(...arguments);
   }
 
-  public implementation(
-    event: ITypedRequestEvent<InferredInputSchema>,
-    context: Context
-  ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
+  public async implementation(event: QueueEvent, context: Context) {
     throw new Error('Not Implemented');
   }
 
   protected middlewares(middy: IMiddleware): IMiddleware {
     middy = this.observabilityMiddlewares(middy);
-    middy = this.validationMiddlewares(middy);
     return middy;
   }
 
@@ -71,22 +51,10 @@ export abstract class QueueHandler<
       );
   }
 
-  /**
-   * Adds layers of structure enforcement for incoming and outcoming data
-   */
-  protected validationMiddlewares(middy: IMiddleware): IMiddleware {
-    return middy
-      .use(requestValidatorMiddleware(this.requestBodySchema))
-      .use(responseValidatorMiddleware(this.responseBodySchema));
-  }
-
   // Wrapper FN to consistently initialize operations
-  public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
+  public handler(): MiddyfiedHandler<SQSEvent, void> {
     return this.middlewares(middy()).handler(async (event, context) => {
-      return (await this.implementation(
-        event as unknown as ITypedRequestEvent<InferredInputSchema>,
-        context
-      )) as IRequestResponse;
+      return await this.implementation(event as unknown as QueueEvent, context);
     });
   }
 }

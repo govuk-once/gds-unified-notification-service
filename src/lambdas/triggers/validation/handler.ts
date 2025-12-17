@@ -5,7 +5,7 @@ import z from 'zod';
 const requestBodySchema = z.any();
 const responseBodySchema = z.object({ status: z.string() });
 
-export class Validation extends QueueHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class Validation extends QueueHandler {
   public operationId: string = 'validation';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
@@ -15,9 +15,8 @@ export class Validation extends QueueHandler<typeof requestBodySchema, typeof re
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+  ) {
     this.logger.trace('Lambda triggered');
     return {
       body: {
