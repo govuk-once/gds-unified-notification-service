@@ -5,7 +5,7 @@ import { globSync } from 'glob';
 import path from 'path';
 
 const ROOT = path.dirname(import.meta.dir);
-const LAMBDAS_DIR = path.resolve(ROOT, 'src', 'lambdas', 'http');
+const LAMBDAS_DIR = path.resolve(ROOT, 'src', 'lambdas');
 const OUT_DIR = path.resolve(ROOT, 'dist');
 const ARTIFACT_DIR = path.resolve(ROOT, 'artifacts');
 
