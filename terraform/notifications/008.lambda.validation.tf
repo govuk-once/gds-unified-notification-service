@@ -3,6 +3,6 @@ module "lambda_validation" {
   bundle_path        = "../../artifacts/validation.zip"
   prefix             = local.prefix
   function_name      = "validation"
-  trigger_queue_name = module.sqs_incomingMessage.queue_arn
+  trigger_queue_name = module.sqs_incomingMessage.sqs_queue_arn
   kms_key_arn        = aws_kms_key.main.arn
 }
