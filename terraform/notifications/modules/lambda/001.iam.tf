@@ -24,8 +24,9 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 }
 
 resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role" {
-  count      = var.trigger_queue_name != null ? 1 : 0
-    
+  count = var.trigger_queue_name != null ? 1 : 0
+
+  // TODO: Reduce the permissions on lambdas
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
 }
