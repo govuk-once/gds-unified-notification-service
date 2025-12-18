@@ -1,6 +1,6 @@
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   // Trigger
-  count   = var.trigger_queue_name != null ? { trigger : true } : {}
+  count   = var.trigger_queue_name != null ? 1 : 0
   enabled = true
 
   // Metadata
