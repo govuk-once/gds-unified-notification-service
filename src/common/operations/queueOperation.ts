@@ -5,13 +5,34 @@ import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
-import middy, { MiddyfiedHandler } from '@middy/core';
-import type { Context, SQSEvent } from 'aws-lambda';
+import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
+import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
-export type QueueEvent = SQSEvent;
-export type IQueueMiddleware = MiddyfiedHandler<QueueEvent, void, Error, Context, Record<string, unknown>>;
+export type QueueEvent<RecordBodyType> = Omit<SQSEvent, 'Records'> & {
+  Records: (Omit<SQSRecord, 'body'> & { body: RecordBodyType })[];
+};
 
-export abstract class QueueHandler {
+export type IQueueMiddleware<InputType, OutputType> = MiddyfiedHandler<
+  QueueEvent<InputType>,
+  OutputType,
+  Error,
+  Context,
+  Record<string, unknown>
+>;
+
+export const deserializeRecordBodyFromJson = <OutputType>(): MiddlewareObj<
+  SQSEvent,
+  QueueEvent<OutputType>,
+  Error
+> => ({
+  before: async (request): Promise<void> => {
+    for (let i = 0; i < request.event.Records.length; i++) {
+      request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
+    }
+  },
+});
+
+export abstract class QueueHandler<InputType, OutputType = void> {
   public abstract operationId: string;
 
   public logger: Logger = iocGetLogger();
@@ -23,19 +44,23 @@ export abstract class QueueHandler {
     console.log(...arguments);
   }
 
-  public async implementation(event: QueueEvent, context: Context): Promise<void> {
+  public async implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
     throw new Error('Not Implemented');
   }
 
-  protected middlewares(middy: IQueueMiddleware): IQueueMiddleware {
-    middy = this.observabilityMiddlewares(middy);
-    return middy;
+  protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
+    return this.observabilityMiddlewares(middy).use(deserializeRecordBodyFromJson()) as IQueueMiddleware<
+      InputType,
+      OutputType
+    >;
   }
 
   /**
    * Adds Observability middlewares
    */
-  protected observabilityMiddlewares(middy: IQueueMiddleware): IQueueMiddleware {
+  protected observabilityMiddlewares(
+    middy: IQueueMiddleware<string, OutputType>
+  ): IQueueMiddleware<string, OutputType> {
     return middy
       .use(
         injectLambdaContext(this.logger, {
@@ -52,9 +77,9 @@ export abstract class QueueHandler {
   }
 
   // Wrapper FN to consistently initialize operations
-  public handler(): MiddyfiedHandler<SQSEvent, void> {
-    return this.middlewares(middy()).handler(async (event: SQSEvent, context: Context) => {
-      return await this.implementation(event as unknown as QueueEvent, context);
+  public handler(): MiddyfiedHandler<QueueEvent<InputType>, OutputType> {
+    return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
+      return await this.implementation(event as QueueEvent<InputType>, context);
     });
   }
 }
