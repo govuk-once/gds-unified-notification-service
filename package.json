@@ -13,6 +13,7 @@
     "prettier": "npx prettier . --write",
     "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
     "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
+    "development:organize:tf": "bun scripts/developer-organize-tf.ts",
     "prettier:check": "npx prettier . --check",
     "semantic:release": "semantic-release",
     "test": "vitest",
