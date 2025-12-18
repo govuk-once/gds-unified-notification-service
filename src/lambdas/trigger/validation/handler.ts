@@ -1,7 +1,7 @@
 import { QueueEvent, QueueHandler } from '@common';
 import { Context } from 'aws-lambda';
 
-export class Validation extends QueueHandler {
+export class Validation extends QueueHandler<unknown, void> {
   public operationId: string = 'validation';
 
   constructor() {
@@ -9,7 +9,7 @@ export class Validation extends QueueHandler {
   }
 
   public async implementation(
-    event: QueueEvent,
+    event: QueueEvent<unknown>,
     context: Context
   ) {
     this.logger.trace('Lambda triggered');
