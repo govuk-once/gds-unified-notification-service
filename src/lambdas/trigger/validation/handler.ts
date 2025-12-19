@@ -1,4 +1,5 @@
-import { QueueEvent, QueueHandler } from '@common';
+
+import { QueueEvent, QueueHandler } from '@common/operations';
 import { Context } from 'aws-lambda';
 
 export class Validation extends QueueHandler<unknown, void> {
