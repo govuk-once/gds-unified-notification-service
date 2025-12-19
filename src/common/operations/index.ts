@@ -1,1 +1,2 @@
-export * from './operation';
+export * from './httpOperation';
+export * from './queueOperation';
