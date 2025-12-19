@@ -14,3 +14,10 @@ dist
 **/**.tfvars
 **/**.tfstate
 **/**.tfenv
+
+# End of https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode,terraform
+
+
+
+.nx/cache
+.nx/workspace-data
