@@ -70,11 +70,6 @@ variable "bundle_path" {
   type        = string
 }
 
-variable "xray_group_name" {
-  type        = string
-  description = "Name of the X-Ray group"
-}
-
 variable "xray_filter_expression" {
   type        = string
   description = "The filter expression for xray"

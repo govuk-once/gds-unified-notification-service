@@ -1,7 +1,7 @@
 // Creates an x-ray group
 resource "aws_xray_group" "lambda" {
   // Metadata
-  group_name        = join("-", [var.prefix, "xray", var.xray_group_name])
+  group_name        = join("-", [var.prefix, "xray", aws_lambda_function.this.function_name])
   filter_expression = var.xray_filter_expression
   tags              = var.tags
 
