@@ -1,9 +1,8 @@
-#checkov:skip:CKV_GHA_7: GitHub Actions contain workflow_dispatch inputs parameters - in this case parameters are locked down to environments available in GH - invalid flag.
-
 name: Deployment pipeline
 
 on:
   workflow_dispatch:
+    #checkov:skip=CKV_GHA_7: "GitHub Actions contain workflow_dispatch inputs parameters" - in this case parameters are locked down to environments available in GH - invalid flag.
     inputs:
       environment:
         description: 'Environment to deploy to'
