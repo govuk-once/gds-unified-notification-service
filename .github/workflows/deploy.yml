@@ -17,15 +17,9 @@ permissions: read-all
 
 jobs:
   deploy:
-    environment: ${{ inputs.environment }}
+    environment: Dev
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      AWS_REGION: ${{ vars.TF_region }}
-      TF_region: ${{ vars.TF_region }}
-      TF_bucket: ${{ secrets.TF_STATE_BUCKET }}
-      TF_key: ${{ vars.TF_key }}
-      TF_env: ${{ vars.TF_env }}
 
     steps:
       - name: Checkout Code
@@ -47,7 +41,13 @@ jobs:
 
       - name: Terraform initialize
         working-directory: ./terraform/notifications
-        run: terraform init -backend-config "bucket=${{ secrets.TF_STATE_BUCKET }}" -backend-config "key=${{ vars.TF_key }}" -backend-config "region=${{ vars.TF_region }}"
+        run: terraform init -backend-config "bucket=$TF_bucket" -backend-config "key=$TF_key" -backend-config "region=$TF_region"
+        env:
+          AWS_REGION: ${{ vars.TF_region }}
+          TF_region: ${{ vars.TF_region }}
+          TF_bucket: ${{ secrets.TF_STATE_BUCKET }}
+          TF_key: ${{ vars.TF_key }}
+          TF_env: ${{ vars.TF_env }}
 
       - name: Terraform plan
         working-directory: ./terraform/notifications
