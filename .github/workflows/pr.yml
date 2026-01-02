@@ -27,9 +27,13 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Terraform init (no backend)
+        working-directory: ./terraform/notifications
+        run: terraform init -backend=false
+
       - name: Terraform Formatting
         working-directory: ./terraform/notifications
-        run: terraform fmt -check
+        run: terraform fmt -check -diff -recursive
 
       - name: Terraform validate
         working-directory: ./terraform/notifications

@@ -6,19 +6,19 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "commit": "cz",
+    "development:organize:tf": "bun scripts/developer-organize-tf.ts",
+    "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
+    "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
     "format": "npm run prettier && npm run lint",
     "lint": "npx eslint .  --fix",
-    "tflint": "tflint --chdir=terraform/notifications  --config .tflint.hcl",
-    "prettier": "npx prettier . --write",
-    "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
-    "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
-    "development:organize:tf": "bun scripts/developer-organize-tf.ts",
+    "prepare": "husky",
     "prettier:check": "npx prettier . --check",
+    "prettier": "npx prettier . --write",
     "semantic:release": "semantic-release",
-    "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky"
+    "test": "vitest",
+    "tflint": "tflint --chdir=terraform/notifications --config .tflint.hcl && cd terraform/notifications && terraform format -check -diff -recursive && terraform validate"
   },
   "devDependencies": {
     "@aws-sdk/client-kms": "3.948.0",
