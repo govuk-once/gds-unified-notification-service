@@ -1,14 +1,15 @@
 name: Deployment
 
 on:
-  workflow_dispatch:
-    #checkov:skip=CKV_GHA_7: "GitHub Actions contain workflow_dispatch inputs parameters" - in this case parameters are locked down to environments available in GH - invalid flag.
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        type: environment
-        required: true
-        default: Dev
+  # Work in progress - workflow_dispatch should allow for manual deployments and environment picker
+  # # # workflow_dispatch:
+  # # #   #checkov:skip=CKV_GHA_7: "GitHub Actions contain workflow_dispatch inputs parameters" - in this case parameters are locked down to environments available in GH - invalid flag.
+  # # #   inputs:
+  # # #     environment:
+  # # #       description: 'Environment to deploy to'
+  # # #       type: environment
+  # # #       required: true
+  # # #       default: Dev
   push:
     branches:
       - 'feat/NOT-81**'
@@ -36,14 +37,14 @@ jobs:
       - name: Build bundles
         run: npm run build
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.TF_region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
       - name: Terraform initialize
         working-directory: ./terraform/notifications
