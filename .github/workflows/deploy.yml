@@ -46,7 +46,8 @@ jobs:
         run: npm ci
 
       - name: Build bundles
-        run: npm run Build
+        run: npm run build
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 

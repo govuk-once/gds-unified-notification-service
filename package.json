@@ -18,7 +18,8 @@
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage",
     "test": "vitest",
-    "tflint": "tflint --chdir=terraform/notifications --config .tflint.hcl && cd terraform/notifications && terraform format -check -diff -recursive && terraform validate"
+    "tflint": "tflint --chdir=terraform/notifications --config .tflint.hcl && cd terraform/notifications && terraform fmt -check -diff -recursive && terraform validate",
+    "tflint:fix": "cd terraform/notifications && terraform fmt -diff -recursive"
   },
   "devDependencies": {
     "@aws-sdk/client-kms": "3.948.0",
