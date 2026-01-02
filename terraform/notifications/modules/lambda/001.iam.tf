@@ -56,21 +56,8 @@ resource "aws_iam_policy_attachment" "lambda_kms_policy_attachment" {
   policy_arn = aws_iam_policy.lambda_kms_policy.arn
 }
 
-// Explicit SSM Access
-
-data "aws_iam_policy_document" "lambda_ssm" {
-  version = "2012-10-17"
-
-  statement {
-    actions   = [
-      "ssm:GetParameter"
-    ]
-    resources = ["arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.prefix}/*"]
-  }
-}
-
-resource "aws_iam_role_policy" "lambda_ssm_policy" {
-  name   = join("-", [var.prefix, "iamp", var.function_name])
-  role   = aws_iam_role.lambda.id
-  policy = data.aws_iam_policy_document.lambda_ssm.json
+# Allow X-Ray to relay raw trace segments data to the service's API and retrieve sampling data
+resource "aws_iam_role_policy_attachment" "lambda_xray_daemon" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
