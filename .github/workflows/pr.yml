@@ -28,8 +28,12 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Formatting
-        id: fmt
+        working-directory: ./terraform/notifications
         run: terraform fmt -check
+
+      - name: Terraform validate
+        working-directory: ./terraform/notifications
+        run: terraform validate
 
       - name: TF Sec
         uses: aquasecurity/tfsec-action@v1.0.0
@@ -40,7 +44,7 @@ jobs:
           output_format: cli,sarif
           output_file_path: console,results.sarif
           soft_fail: true
-        
+
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v4
         if: success() || failure()
