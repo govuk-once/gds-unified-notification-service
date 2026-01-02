@@ -39,6 +39,12 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.TF_region }}
+
       - name: Terraform initialize
         working-directory: ./terraform/notifications
         run: terraform init -backend-config "bucket=$TF_bucket" -backend-config "key=$TF_key" -backend-config "region=$TF_region"
