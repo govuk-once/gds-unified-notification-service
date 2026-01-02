@@ -3,7 +3,7 @@ name: Release
 on:
   # Trigger the workflow on push to main
   push:
-    branches: 
+    branches:
       - main
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Semantic Release 
+      - name: Run Semantic Release
         run: npm run semantic:release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
