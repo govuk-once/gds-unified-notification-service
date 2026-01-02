@@ -1,20 +1,17 @@
-resource "aws_ssm_parameter" "secret" {
-  // Metadata
-  name        = "/${var.namespace}/${var.value}"
-  description = var.description
-  tags        = var.tags
-  type        = "SecureString"
-  value       = var.value
+resource "aws_ssm_parameter" "this" {
+  for_each = var.parameters
 
-  // Validation
-  allowed_pattern = var.allowed_pattern
+  // Metadata
+  name  = "/${var.namespace}/${each.key}"
+  type  = "SecureString"
+  value = each.value
 
   // Encrypt at rest
   key_id = var.kms_key_arn
 
-  // Lifecycle
   lifecycle {
-    ignore_changes = [value, tags]
+    ignore_changes = [
+      value,
+    ]
   }
 }
-
