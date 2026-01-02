@@ -11,16 +11,16 @@ describe('Configuration', () => {
   });
 
   it("should secret from parameter store with namespace and value", async () => {
-    // arrange
+    // Arrange
     const secretValue = "secret"
     ssmMock.on(GetParameterCommand).resolves({
       Parameter: { Value: secretValue},
     });
 
-    // act
+    // Act
     const parameter = await config.getParameter("testNameSpace", "testValue");
 
-    // assert
+    // Assert
     expect(parameter).toEqual(secretValue)
   });
 
