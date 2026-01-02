@@ -69,15 +69,3 @@ variable "bundle_path" {
   description = "Path to lambda source code zip"
   type        = string
 }
-
-variable "insights_enabled" {
-  type    = bool
-  default = true
-  description = "Enables insights for xray"
-}
-
-variable "notifications_enabled" {
-  type    = bool
-  default = false
-  description = "Enables notifications for xray"
-}
