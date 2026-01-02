@@ -55,3 +55,9 @@ resource "aws_iam_policy_attachment" "lambda_kms_policy_attachment" {
   roles      = [aws_iam_role.lambda.name]
   policy_arn = aws_iam_policy.lambda_kms_policy.arn
 }
+
+# Allow X-Ray to relay raw trace segments data to the service's API and retrieve sampling data
+resource "aws_iam_role_policy_attachment" "lambda_xray_daemon" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
