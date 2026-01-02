@@ -1,6 +1,9 @@
 name: Deployment
 
 on:
+  push:
+    branches:
+      - 'feat/NOT-81**'
   # Work in progress - workflow_dispatch should allow for manual deployments and environment picker
   # # # workflow_dispatch:
   # # #   #checkov:skip=CKV_GHA_7: "GitHub Actions contain workflow_dispatch inputs parameters" - in this case parameters are locked down to environments available in GH - invalid flag.
@@ -10,11 +13,10 @@ on:
   # # #       type: environment
   # # #       required: true
   # # #       default: Dev
-  push:
-    branches:
-      - 'feat/NOT-81**'
 
-permissions: read-all
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read
 
 jobs:
   deploy:
@@ -23,6 +25,15 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-2
+          mask-aws-account-id: true
+          disable-retry: true
+
       - name: Checkout Code
         uses: actions/checkout@v6
 
@@ -35,14 +46,7 @@ jobs:
         run: npm ci
 
       - name: Build bundles
-        run: npm run build
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.TF_region }}
-
+        run: npm run Build
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
