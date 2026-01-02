@@ -9,6 +9,7 @@ module "parameter_store" {
     "/config/ingest/enabled" = "true"
     "/config/process/enabled" = "true"
     "/config/dispatch/enabled" = "true"
+    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "/config/dispatch/onetrust/apikey" = "placeholder"
   }
 }
