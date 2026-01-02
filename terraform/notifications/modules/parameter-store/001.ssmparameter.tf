@@ -4,7 +4,7 @@ resource "aws_ssm_parameter" "this" {
   // Metadata
   name  = "/${var.namespace}/${each.key}"
   type  = "SecureString"
-  value = each.value
+  value = sensitive(each.value)
 
   // Encrypt at rest
   key_id = var.kms_key_arn

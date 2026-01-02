@@ -16,9 +16,9 @@ export class Configuration {
     this.client = new SSMClient({ region: "eu-west-2" });
   }
 
-  public async getParameter(namespace: string, value: string) {
+  public async getParameter(namespace: string, key: string): Promise<string | undefined> {
     const params = {
-      Name: `${namespace}/${value}`,
+      Name: `${namespace}/${key}`,
       WithDecryption: true,
     };
 
@@ -29,7 +29,39 @@ export class Configuration {
 
       return data.Parameter?.Value
     } catch (error) {
-      this.logger.trace(`Error: ${error}`);
+      this.logger.trace(`Failed fetching value from SSM: ${error}`);
+      throw error
     }
+  }
+
+  public async getBooleanParameter(namespace: string, key: string): Promise<boolean> {
+    const parameterValue = await this.getParameter(namespace, key);
+
+    switch (parameterValue?.toLowerCase()) {
+      case 'true':
+        return true
+      case 'false':
+        return false
+      default:
+        const errorMsg = `Could not parse parameter ${namespace}/${key} to a boolean`
+        this.logger.trace(errorMsg);
+        throw new Error(errorMsg)
+    }
+  }
+
+  public async getNumericParameter(namespace: string, key: string): Promise<number> {
+    const parameterValue = await this.getParameter(namespace, key);
+
+    if (parameterValue !== undefined) {
+      const num = Number(parameterValue);
+      
+      if (!Number.isNaN(num)) {
+        return num;
+      }
+    }
+
+    const errorMsg = `Could not parse parameter ${namespace}/${key} to a number`
+    this.logger.trace(errorMsg);
+    throw new Error(errorMsg)
   }
 }
