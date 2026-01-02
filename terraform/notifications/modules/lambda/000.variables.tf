@@ -70,11 +70,6 @@ variable "bundle_path" {
   type        = string
 }
 
-variable "xray_filter_expression" {
-  type        = string
-  description = "The filter expression for xray"
-}
-
 variable "insights_enabled" {
   type    = bool
   default = true
