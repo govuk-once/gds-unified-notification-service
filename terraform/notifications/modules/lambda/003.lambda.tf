@@ -28,12 +28,23 @@ resource "aws_lambda_function" "this" {
   source_kms_key_arn      = var.kms_key_arn
   code_signing_config_arn = var.codesigning_config_id
 
+
+  # Use official otel layer from AWS https://aws.amazon.com/otel/ / https://aws-otel.github.io/docs/getting-started/lambda
+  layers = [
+    "arn:aws:lambda:eu-west-2:615299751070:layer:AWSOpenTelemetryDistroJs:10"
+  ]
+
   // Enable source maps on all
   environment {
     variables = {
       NODE_OPTIONS   = "--enable-source-maps",
       SERVICE_NAME   = "UNS",
       NAMESPACE_NAME = "global"
+
+      # Open Telemetry instrumentation vars
+      AWS_LAMBDA_EXEC_WRAPPER              = "/opt/otel-instrument"
+      OTEL_AWS_APPLICATION_SIGNALS_ENABLED = "false"
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS  = "none"
     }
   }
 

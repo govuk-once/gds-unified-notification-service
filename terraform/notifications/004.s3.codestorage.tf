@@ -31,7 +31,7 @@ resource "aws_s3_bucket_versioning" "code_storage" {
 
 # Define lifecycle for contents - as these are ephemeral we can delete all artifacts after 30 days
 resource "aws_s3_bucket_lifecycle_configuration" "example" {
-  bucket = aws_s3_bucket.bucket.code_storage
+  bucket = aws_s3_bucket.code_storage.bucket
 
   rule {
     id     = "delete-artifacts"
@@ -67,7 +67,7 @@ resource "aws_signer_signing_profile" "code_signing" {
   platform_id = "AWSLambda-SHA384-ECDSA"
 
   # invalid value for name (must be alphanumeric with max length of 64 characters)
-  name = replace(join("-", [local.prefix, "codesigning"]), "-", "")
+  name = replace(join("-", [local.prefix, "codesign"]), "-", "")
 
   signature_validity_period {
     value = 3
@@ -81,6 +81,6 @@ resource "aws_lambda_code_signing_config" "code_signing" {
   }
 
   policies {
-    untrusted_artifact_on_deployment = "Enforce"
+    untrusted_artifact_on_deployment = "Warn"
   }
 }

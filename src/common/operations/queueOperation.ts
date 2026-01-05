@@ -39,10 +39,7 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   public metrics: Metrics = iocGetMetrics();
   public tracer: Tracer = iocGetTracer();
 
-  constructor() {
-    console.log(`Initialized!`);
-    console.log(...arguments);
-  }
+  constructor() {}
 
   public async implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
     throw new Error('Not Implemented');

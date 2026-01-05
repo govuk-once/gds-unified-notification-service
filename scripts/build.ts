@@ -37,7 +37,7 @@ const buildHandlers = async (dir: string) => {
         bundle: true,
         minify: true,
         platform: 'node',
-        target: 'node24',
+        target: 'node22',
         format: 'esm',
         sourcemap: 'external',
         banner: {
