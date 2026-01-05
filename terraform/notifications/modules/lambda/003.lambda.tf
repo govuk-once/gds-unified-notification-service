@@ -18,14 +18,15 @@ resource "aws_lambda_function" "this" {
   memory_size = var.memory_size
   timeout     = var.timeout
 
-  // Encrypt at rest
+  // Encryption at rest support for environment variables
   kms_key_arn = var.kms_key_arn
 
-  // Code - encrypt it at rest
-  handler            = "index.handler"
-  filename           = var.bundle_path
-  source_code_hash   = filebase64sha512(var.bundle_path)
-  source_kms_key_arn = var.kms_key_arn
+  // Code - encrypted at rest, explicitly signed
+  handler                 = "index.handler"
+  s3_bucket               = aws_signer_signing_job.code_signing.signed_object[0].s3[0].bucket
+  s3_key                  = aws_signer_signing_job.code_signing.signed_object[0].s3[0].key
+  source_kms_key_arn      = var.kms_key_arn
+  code_signing_config_arn = var.codesigning_config_id
 
   // Enable source maps on all
   environment {
@@ -40,4 +41,7 @@ resource "aws_lambda_function" "this" {
   tracing_config {
     mode = "Active"
   }
+
+  # Ensure we completed code signing job before
+  depends_on = [aws_signer_signing_job.code_signing]
 }
