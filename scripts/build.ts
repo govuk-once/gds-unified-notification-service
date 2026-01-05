@@ -1,6 +1,6 @@
+import { Glob } from 'bun';
 import esbuild from 'esbuild';
 import { existsSync, rmSync } from 'fs';
-import { globSync } from 'glob';
 import path from 'path';
 
 const ROOT = path.dirname(import.meta.dir);
@@ -17,10 +17,12 @@ const buildHandlers = async (dir: string) => {
   try {
     const LAMBDAS_DIR = dir;
     console.log(`Building lamdas in ${LAMBDAS_DIR}`);
-    const entryPoints = globSync('**/*.ts', {
-      cwd: LAMBDAS_DIR,
-      absolute: true,
-    }).filter((name) => name.endsWith('test.unit.ts') == false);
+    const entryPoints = [
+      ...new Glob('**/*.ts').scanSync({
+        cwd: LAMBDAS_DIR,
+        absolute: true,
+      }),
+    ].filter((name) => name.endsWith('test.unit.ts') == false);
 
     if (entryPoints.length === 0) {
       console.error(`No lambda entry points found in: ${LAMBDAS_DIR}`);

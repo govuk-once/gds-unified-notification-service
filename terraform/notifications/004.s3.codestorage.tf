@@ -3,6 +3,9 @@
 # TODO - Create logging bucket for storing access logs
 #tfsec:ignore:aws-s3-enable-bucket-logging
 resource "aws_s3_bucket" "code_storage" {
+  #checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled" - TODO
+  #checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled" - Not needed
+  #checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled" - Not needed, as this is only storing code bundles and not data
   bucket = join("-", [local.prefix, "s3", "codestorage"])
   tags   = local.defaultTags
 }
@@ -22,6 +25,21 @@ resource "aws_s3_bucket_versioning" "code_storage" {
   bucket = aws_s3_bucket.code_storage.id
   versioning_configuration {
     status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "example" {
+  bucket = aws_s3_bucket.bucket.code_storage
+
+
+  rule {
+    id     = "delete-artifacts"
+    status = "Enabled"
+
+    # Auto delete artifacts after 30 days
+    expiration {
+      days = 30
+    }
   }
 }
 
