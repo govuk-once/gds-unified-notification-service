@@ -1,59 +1,28 @@
-import archiver from 'archiver';
+import { Glob } from 'bun';
 import esbuild from 'esbuild';
-import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
-import { globSync } from 'glob';
+import { existsSync, rmSync } from 'fs';
 import path from 'path';
 
 const ROOT = path.dirname(import.meta.dir);
 const OUT_DIR = path.resolve(ROOT, 'dist');
-const ARTIFACT_DIR = path.resolve(ROOT, 'artifacts');
 
 // Remove previous build artifacts
-for (const dir of [ARTIFACT_DIR, OUT_DIR]) {
-  if (existsSync(dir)) {
-    rmSync(dir, {
-      recursive: true,
-    });
-  }
-}
-
-// Util for zipping archives
-const createZipArchive = (sourceDir: string, targetFile: string) => {
-  return new Promise<void>((resolve, reject) => {
-    mkdirSync(ARTIFACT_DIR, {
-      recursive: true,
-    });
-
-    const output = createWriteStream(targetFile);
-    output.on('close', () => {
-      resolve();
-    });
-
-    const archive = archiver('zip', {
-      zlib: {
-        level: 9,
-      },
-    });
-    archive.on('error', (error) => {
-      reject(error);
-    });
-
-    archive.pipe(output);
-    for (const file of readdirSync(sourceDir)) {
-      archive.file(path.join(sourceDir, file), { name: file });
-    }
-    archive.finalize();
+if (existsSync(OUT_DIR)) {
+  rmSync(OUT_DIR, {
+    recursive: true,
   });
-};
+}
 
 const buildHandlers = async (dir: string) => {
   try {
     const LAMBDAS_DIR = dir;
     console.log(`Building lamdas in ${LAMBDAS_DIR}`);
-    const entryPoints = globSync('**/*.ts', {
-      cwd: LAMBDAS_DIR,
-      absolute: true,
-    });
+    const entryPoints = [
+      ...new Glob('**/*.ts').scanSync({
+        cwd: LAMBDAS_DIR,
+        absolute: true,
+      }),
+    ].filter((name) => name.endsWith('test.unit.ts') == false);
 
     if (entryPoints.length === 0) {
       console.error(`No lambda entry points found in: ${LAMBDAS_DIR}`);
@@ -79,8 +48,6 @@ const buildHandlers = async (dir: string) => {
           ].join('\n'),
         },
       });
-      const ZIP_OUTPUT_FILE = path.resolve(ARTIFACT_DIR, `${id}.zip`);
-      await createZipArchive(path.join(OUT_DIR, id), ZIP_OUTPUT_FILE);
       console.log(`${id} built successfully`);
     }
   } catch (error) {
