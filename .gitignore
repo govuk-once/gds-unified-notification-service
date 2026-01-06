@@ -117,6 +117,6 @@ dist
 **/**.tfstate
 **/**.tfenv
 
-
+coverage.md
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode,terraform

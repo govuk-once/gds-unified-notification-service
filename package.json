@@ -66,6 +66,7 @@
     "@middy/http-json-body-parser": "^6.4.5",
     "@middy/http-urlencode-body-parser": "^6.4.5",
     "@middy/secrets-manager": "^6.4.5",
+    "axios": "1.13.2",
     "http-errors": "^2.0.1",
     "reflect-metadata": "^0.2.2",
     "zod": "^4.1.13"

@@ -19,7 +19,7 @@ variable "tags" {
 variable "runtime" {
   description = "Lambda runtime"
   type        = string
-  default     = "nodejs24.x"
+  default     = "nodejs22.x"
 }
 
 variable "memory_size" {
