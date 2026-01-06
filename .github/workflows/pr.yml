@@ -52,6 +52,7 @@ jobs:
           echo 'report<<EOF' >> $GITHUB_OUTPUT
           cat coverage.md >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
+
       - name: Create Comment with Test results
         uses: hasura/comment-progress@v2.3.0
         with:

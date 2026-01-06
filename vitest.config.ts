@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     globals: true,
     include: ['**/*.{test,test.unit}.ts'],
-
+    silent: true,
     coverage: {
       provider: 'v8',
       thresholds: {
@@ -24,7 +24,7 @@ export default defineConfig({
       },
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.{test,test.unit}.ts'],
-      reporter: 'text-summary',
+      reporter: ['text-summary', 'lcov'],
     },
   },
 });
