@@ -1,3 +1,4 @@
+/** Metadata **/
 variable "project_name" {
   description       = "GDS-Unified-Notifications-Service"
   type              = string
@@ -19,8 +20,26 @@ variable "range" {
   default           = null
 }
 
-variable "global_tags" {
+variable "tags" {
   description       = ""
   type              = map(string)
   default           = {}
+}
+
+variable "read_capacity" {
+  description       = ""
+  type              = number
+  default           = 20
+}
+
+variable "write_capacity" {
+  description       = ""
+  type              = number
+  default           = 20
+}
+
+variable deletion_window_in_days {
+  description       = ""
+  type              = number
+  default           = 10
 }
