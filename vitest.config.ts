@@ -1,10 +1,19 @@
+import path from 'path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@common/*': path.resolve(__dirname, './src/common/*'),
+      '@common': path.resolve(__dirname, './src/common'),
+      '@project/*': path.resolve(__dirname, './src/*'),
+      '@project': path.resolve(__dirname, './src'),
+    },
+  },
   test: {
     globals: true,
     include: ['**/*.{test,test.unit}.ts'],
-
+    silent: true,
     coverage: {
       provider: 'v8',
       thresholds: {
@@ -15,6 +24,7 @@ export default defineConfig({
       },
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.{test,test.unit}.ts'],
+      reporter: ['text-summary', 'lcov'],
     },
   },
 });

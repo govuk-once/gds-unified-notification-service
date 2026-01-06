@@ -1,67 +1,34 @@
-import archiver from 'archiver';
+import { Glob } from 'bun';
 import esbuild from 'esbuild';
-import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
-import { globSync } from 'glob';
+import { existsSync, rmSync } from 'fs';
 import path from 'path';
 
 const ROOT = path.dirname(import.meta.dir);
-const LAMBDAS_DIR = path.resolve(ROOT, 'src', 'lambdas', 'http');
 const OUT_DIR = path.resolve(ROOT, 'dist');
-const ARTIFACT_DIR = path.resolve(ROOT, 'artifacts');
 
-const removeDir = (dirPath: string) => {
-  if (existsSync(dirPath)) {
-    rmSync(dirPath, {
-      recursive: true,
-    });
-  }
-};
-
-const createZipArchive = (sourceDir: string, targetFile: string) => {
-  return new Promise<void>((resolve, reject) => {
-    mkdirSync(ARTIFACT_DIR, {
-      recursive: true,
-    });
-
-    const output = createWriteStream(targetFile);
-
-    const archive = archiver('zip', {
-      zlib: {
-        level: 9,
-      },
-    });
-
-    output.on('close', () => {
-      resolve();
-    });
-
-    archive.on('error', (error) => {
-      reject(error);
-    });
-
-    archive.pipe(output);
-    for (const file of readdirSync(sourceDir)) {
-      archive.file(path.join(sourceDir, file), { name: file });
-    }
-    archive.finalize();
+// Remove previous build artifacts
+if (existsSync(OUT_DIR)) {
+  rmSync(OUT_DIR, {
+    recursive: true,
   });
-};
-
-const entryPoints = globSync('**/*.ts', {
-  cwd: LAMBDAS_DIR,
-  absolute: true,
-});
-
-if (entryPoints.length === 0) {
-  console.error(`No lambda entry points found in: ${LAMBDAS_DIR}`);
-  process.exit(1);
 }
 
-removeDir(OUT_DIR);
-removeDir(ARTIFACT_DIR);
-
-(async () => {
+const buildHandlers = async (dir: string) => {
   try {
+    const LAMBDAS_DIR = dir;
+    console.log(`Building lamdas in ${LAMBDAS_DIR}`);
+    const entryPoints = [
+      ...new Glob('**/*.ts').scanSync({
+        cwd: LAMBDAS_DIR,
+        absolute: true,
+      }),
+    ].filter((name) => name.endsWith('test.unit.ts') == false);
+
+    if (entryPoints.length === 0) {
+      console.error(`No lambda entry points found in: ${LAMBDAS_DIR}`);
+      return;
+    }
+
     for (const entrypoint of entryPoints) {
       const id = path.basename(path.dirname(entrypoint));
       await esbuild.build({
@@ -70,7 +37,7 @@ removeDir(ARTIFACT_DIR);
         bundle: true,
         minify: true,
         platform: 'node',
-        target: 'node24',
+        target: 'node22',
         format: 'esm',
         sourcemap: 'external',
         banner: {
@@ -81,12 +48,16 @@ removeDir(ARTIFACT_DIR);
           ].join('\n'),
         },
       });
-      const ZIP_OUTPUT_FILE = path.resolve(ARTIFACT_DIR, `${id}.zip`);
-      await createZipArchive(path.join(OUT_DIR, id), ZIP_OUTPUT_FILE);
       console.log(`${id} built successfully`);
     }
   } catch (error) {
     console.log('esbuild failure', error);
     process.exit(1);
   }
+};
+
+(async () => {
+  await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'http'));
+  console.log('');
+  await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'trigger'));
 })();

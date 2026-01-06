@@ -19,7 +19,7 @@ variable "tags" {
 variable "runtime" {
   description = "Lambda runtime"
   type        = string
-  default     = "nodejs24.x"
+  default     = "nodejs22.x"
 }
 
 variable "memory_size" {
@@ -65,6 +65,20 @@ variable "maximum_concurrency" {
 }
 
 /** Code **/
+variable "codesigning_config_id" {
+  description = "ID of codesigning config"
+  type        = string
+}
+variable "codesigning_profile_id" {
+  description = "ID of codesigning profile"
+  type        = string
+}
+
+variable "s3_bucket_id" {
+  description = "ID of s3 bucket to store signed lambda code in"
+  type        = string
+}
+
 variable "bundle_path" {
   description = "Path to lambda source code zip"
   type        = string
