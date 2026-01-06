@@ -1,50 +1,40 @@
 /** Metadata **/
-variable "project_name" {
-  description       = "GDS-Unified-Notifications-Service"
-  type              = string
+variable "prefix" {
+  description = "GDS-Unified-Notifications-Service"
+  type        = string
 }
 
 variable "table_name" {
-  description       = "Alpha"
-  type              = string
+  description = "Alpha"
+  type        = string
+  default     = "123"
 }
 
 variable "hash_key" {
-  description       = ""
-  type              = string
+  description = ""
+  type        = string
+  default     = "123"
 }
 
-variable "range" {
-  description       = ""
-  type              = string
-  default           = null
+variable "range_key" {
+  description = ""
+  type        = string
+  default     = "123"
 }
 
 variable "tags" {
-  description       = ""
-  type              = map(string)
-  default           = {}
+  description = ""
+  type        = map(string)
+  default     = {}
 }
 
-variable "read_capacity" {
-  description       = ""
-  type              = number
-  default           = 20
-}
-
-variable "write_capacity" {
-  description       = ""
-  type              = number
-  default           = 20
-}
-
-variable deletion_window_in_days {
-  description       = ""
-  type              = number
-  default           = 10
+variable "deletion_window_in_days" {
+  description = ""
+  type        = number
+  default     = 10
 }
 
 variable "kms_key_arn" {
-  type = string 
-  description = "Existing KMS key from 003.kms.tf"
+  type        = string
+  description = "Existing KMS key"
 }

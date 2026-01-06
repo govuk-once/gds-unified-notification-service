@@ -6,6 +6,8 @@ module "sqs_incomingMessage" {
 }
 
 module "aws_dynamodb_table" {
-  source = "./dynamo"
+  source      = "./modules/dynamo"
+  hash_key    = "123"
+  prefix      = local.prefix
   kms_key_arn = aws_kms_key.main.arn
 }

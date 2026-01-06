@@ -1,14 +1,12 @@
 resource "aws_dynamodb_table" "this" {
-  name           = join("-", [var.project.name, var.table.name])
-  billing_mode   = "PAY_PER_REQUEST"
-  read_capacity  = var.read_capacity
-  write_capacity = var.write_capacity
-  hash_key       = var.hash_key
-  range_key      = var.range_key
+  name         = join("-", [var.prefix, var.table_name])
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = var.hash_key
+  range_key    = var.range_key
 
   attribute {
-    name         = var.hash_key
-    type         = "S"
+    name = var.hash_key
+    type = "S"
   }
 
   point_in_time_recovery {
@@ -16,15 +14,9 @@ resource "aws_dynamodb_table" "this" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
     kms_key_arn = var.kms_key_arn
   }
 
-  tags      = merge(var.tags, {
-  Name      = join("-", [var.project.name, var.table.name])
-  })
-}
-
-point_in_time_recovery {
-  enabled = true
+  tags = var.tags
 }
