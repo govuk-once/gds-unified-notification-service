@@ -1,9 +1,3 @@
-resource "aws_kms_key" "dynamo_db_kms_key" {
-  description = "KMS key for DynamoDB encryption"
-  deletion_window_in_days = var.deletion_window_in_days
-  enable_key_rotation = true
-}
-
 resource "aws_dynamodb_table" "this" {
   name           = join("-", [var.project.name, var.table.name])
   billing_mode   = "PAY_PER_REQUEST"
@@ -23,7 +17,7 @@ resource "aws_dynamodb_table" "this" {
 
   server_side_encryption {
     enabled = true
-    kms_key_arn = aws_kms_key.dynamo_db_kms_key.arn
+    kms_key_arn = var.kms_key_arn
   }
 
   tags      = merge(var.tags, {

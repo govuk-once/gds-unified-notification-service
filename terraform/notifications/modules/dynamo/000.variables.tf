@@ -43,3 +43,8 @@ variable deletion_window_in_days {
   type              = number
   default           = 10
 }
+
+variable "kms_key_arn" {
+  type = string 
+  description = "Existing KMS key from 003.kms.tf"
+}
