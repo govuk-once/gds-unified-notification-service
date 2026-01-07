@@ -60,5 +60,3 @@ resource "aws_kms_alias" "main" {
   name          = replace(join("/", ["alias", local.prefix, "kms", "key"]), "-", "/")
   target_key_id = aws_kms_key.main.key_id
 }
-
-
