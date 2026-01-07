@@ -4,7 +4,7 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   enabled = true
 
   // Metadata
-  event_source_arn = var.trigger_queue_name
+  event_source_arn = try(var.trigger_queue_name, null)
   function_name    = aws_lambda_function.this.arn
   tags             = var.tags
 
