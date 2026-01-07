@@ -33,9 +33,20 @@ jobs:
       - name: Run Lint Script
         run: npm run format
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init (no backend)
+        working-directory: ./terraform/notifications
+        run: terraform init -backend=false
+
       - name: Terraform Formatting
-        id: fmt
-        run: terraform fmt -check
+        working-directory: ./terraform/notifications
+        run: terraform fmt -check -diff -recursive
+
+      - name: Terraform validate
+        working-directory: ./terraform/notifications
+        run: terraform validate
 
       # Testing
       - name: Run Unit tests

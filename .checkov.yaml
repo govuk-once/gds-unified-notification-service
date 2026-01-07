@@ -1,0 +1,5 @@
+skip-check:
+  # CKV_GHA_7: GitHub Actions workflow_dispatch inputs validation
+  # Skip reason: triggered in .github/workflows/deploy.yml - in this case parameters are locked down to environments available in GH - invalid flag.
+  # Check is stored in this file as checkov doesnt support inline ignores in GH Action files
+  - CKV_GHA_7
