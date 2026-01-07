@@ -1,8 +1,8 @@
-import { Logger } from "@aws-lambda-powertools/logger";
-import { Tracer } from "@aws-lambda-powertools/tracer";
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Metrics } from '@aws-lambda-powertools/metrics';
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
-import { iocGetLogger, iocGetMetrics, iocGetTracer } from "@common/ioc";
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 
 export class Configuration {
   private client;
@@ -12,25 +12,24 @@ export class Configuration {
   public tracer: Tracer = iocGetTracer();
 
   constructor() {
-    console.log(`Initialized!`);
-    this.client = new SSMClient({ region: "eu-west-2" });
+    this.client = new SSMClient({ region: 'eu-west-2' });
   }
 
   public async getParameter(namespace: string, key: string): Promise<string | undefined> {
-    const params = {
+    const param = {
       Name: `${namespace}/${key}`,
       WithDecryption: true,
     };
 
-    const command = new GetParameterCommand(params);
+    const command = new GetParameterCommand(param);
 
     try {
-      const data = await this.client.send(command)
+      const data = await this.client.send(command);
 
-      return data.Parameter?.Value
+      return data.Parameter?.Value;
     } catch (error) {
       this.logger.trace(`Failed fetching value from SSM: ${error}`);
-      throw error
+      throw error;
     }
   }
 
@@ -39,13 +38,13 @@ export class Configuration {
 
     switch (parameterValue?.toLowerCase()) {
       case 'true':
-        return true
+        return true;
       case 'false':
-        return false
+        return false;
       default:
-        const errorMsg = `Could not parse parameter ${namespace}/${key} to a boolean`
+        const errorMsg = `Could not parse parameter ${namespace}/${key} to a boolean`;
         this.logger.trace(errorMsg);
-        throw new Error(errorMsg)
+        throw new Error(errorMsg);
     }
   }
 
@@ -54,14 +53,14 @@ export class Configuration {
 
     if (parameterValue !== undefined) {
       const num = Number(parameterValue);
-      
+
       if (!Number.isNaN(num)) {
         return num;
       }
     }
 
-    const errorMsg = `Could not parse parameter ${namespace}/${key} to a number`
+    const errorMsg = `Could not parse parameter ${namespace}/${key} to a number`;
     this.logger.trace(errorMsg);
-    throw new Error(errorMsg)
+    throw new Error(errorMsg);
   }
 }

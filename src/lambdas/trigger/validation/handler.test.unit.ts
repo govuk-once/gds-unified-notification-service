@@ -1,5 +1,5 @@
-import { QueueEvent } from "@common/operations";
-import { Validation } from "@project/lambdas/trigger/validation/handler";
+import { QueueEvent } from '@common/operations';
+import { Validation } from '@project/lambdas/trigger/validation/handler';
 import { Context } from 'aws-lambda';
 
 describe('Validation QueueHandler', () => {
@@ -9,7 +9,7 @@ describe('Validation QueueHandler', () => {
 
   beforeEach(() => {
     instance = new Validation();
-  
+
     // Mock AWS Lambda Context
     mockContext = {
       functionName: 'validation',
@@ -27,7 +27,7 @@ describe('Validation QueueHandler', () => {
 
   it('should log "Lambda triggered" when implementation is called', async () => {
     // Arrange
-    vi.spyOn(instance.logger, "trace");
+    vi.spyOn(instance.logger, 'trace');
 
     // Act
     await instance.implementation(mockEvent, mockContext);
