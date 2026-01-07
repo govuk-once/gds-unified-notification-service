@@ -2,7 +2,7 @@ resource "aws_ssm_parameter" "this" {
   for_each = var.parameters
 
   // Metadata
-  name  = "/${var.namespace}/${each.key}"
+  name  = "/${var.namespace}${each.key}"
   type  = "SecureString"
   value = sensitive(each.value)
 
