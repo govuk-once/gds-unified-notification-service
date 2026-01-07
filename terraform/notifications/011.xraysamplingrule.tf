@@ -5,5 +5,5 @@ module "xray_sampling_rule_global" {
   rule_name  = "global"
   priority   = 9999
   reservoir  = 1
-  fixed_rate = 0.05
+  fixed_rate = 1
 }

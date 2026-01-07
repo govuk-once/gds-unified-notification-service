@@ -62,5 +62,11 @@
     "editor.defaultFormatter": "hashicorp.terraform"
   },
   // Use typescript library defined in package.json
-  "typescript.tsdk": "./node_modules/typescript/lib"
+  "typescript.tsdk": "./node_modules/typescript/lib",
+  // Coverage gutters config
+  "coverage-gutters.coverageBaseDir": "coverage",
+  "coverage-gutters.coverageReportFileName": "coverage/**/index.html",
+  "coverage-gutters.showRulerCoverage": true,
+  "coverage-gutters.showGutterCoverage": true,
+  "coverage-gutters.showLineCoverage": false
 }

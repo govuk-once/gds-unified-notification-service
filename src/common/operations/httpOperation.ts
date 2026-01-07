@@ -39,10 +39,7 @@ export abstract class APIHandler<
   public metrics: Metrics = iocGetMetrics();
   public tracer: Tracer = iocGetTracer();
 
-  constructor() {
-    console.log(`Initialized!`);
-    console.log(...arguments);
-  }
+  constructor() {}
 
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,
@@ -80,6 +77,9 @@ export abstract class APIHandler<
    * Adds Observability middlewares
    */
   protected observabilityMiddlewares(middy: IMiddleware): IMiddleware {
+    // TODO: Look into removing slight overlap between powertools observability (xray sdk) and otel (AWS's new preference)
+    // https://github.com/aws-powertools/powertools-lambda/discussions/90
+    // May need to re-write these middlewares to strip powertools and use @opentelemetry instances instead
     return middy
       .use(
         injectLambdaContext(this.logger, {

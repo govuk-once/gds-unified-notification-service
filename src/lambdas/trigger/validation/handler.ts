@@ -1,4 +1,3 @@
-
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Context } from 'aws-lambda';
 
@@ -9,10 +8,7 @@ export class Validation extends QueueHandler<unknown, void> {
     super();
   }
 
-  public async implementation(
-    event: QueueEvent<unknown>,
-    context: Context
-  ) {
+  public async implementation(event: QueueEvent<unknown>, context: Context) {
     this.logger.trace('Lambda triggered');
   }
 }
