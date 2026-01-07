@@ -1,37 +1,31 @@
 /** Metadata **/
 variable "prefix" {
-  description = "GDS-Unified-Notifications-Service"
+  description = "Prefix to be used when naming resources"
   type        = string
 }
 
 variable "table_name" {
-  description = "Alpha"
+  description = "Name of dynamodb table"
   type        = string
-  default     = "123"
-}
-
-variable "hash_key" {
-  description = ""
-  type        = string
-  default     = "123"
-}
-
-variable "range_key" {
-  description = ""
-  type        = string
-  default     = "123"
 }
 
 variable "tags" {
-  description = ""
+  description = "Tags to apply to the resource"
   type        = map(string)
   default     = {}
 }
 
-variable "deletion_window_in_days" {
-  description = ""
-  type        = number
-  default     = 10
+/** Instance config **/
+variable "hash_key" {
+  description = "Main primary key to use within tables, i.e. id"
+  type        = string
+  nullable    = true
+}
+
+variable "range_key" {
+  description = "Main sorting key to use within tables i.e. date"
+  type        = string
+  nullable    = true
 }
 
 variable "kms_key_arn" {

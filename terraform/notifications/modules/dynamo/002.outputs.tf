@@ -1,9 +1,9 @@
 output "table_arn" {
-  description = "GDS DynamoDB table"
+  description = "DynamoDB table ARN"
   value       = aws_dynamodb_table.this.arn
 }
 
-output "alpha_table" {
-  description = "Alpha DynamoDB table"
+output "table_name" {
+  description = "DynamoDB table name"
   value       = aws_dynamodb_table.this.name
 }
