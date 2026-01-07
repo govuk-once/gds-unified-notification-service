@@ -1,8 +1,9 @@
 module "lambda_validation" {
-  source             = "./modules/lambda"
-  prefix             = local.prefix
-  function_name      = "validation"
-  trigger_queue_name = module.sqs_incomingMessage.sqs_queue_arn
+  source        = "./modules/lambda"
+  prefix        = local.prefix
+  function_name = "validation"
+  // TODO: Look into a neater solution that avoids the issue raised in https://github.com/govuk-once/gds-unified-notification-service/pull/32
+  trigger_queue_name = join("", [module.sqs_incomingMessage.sqs_queue_arn])
   kms_key_arn        = aws_kms_key.main.arn
 
   # Using code signing 
