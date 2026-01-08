@@ -20,6 +20,8 @@ resource "aws_iam_role" "lambda" {
 
 # Gives the Lambda identity permission to interact with SQS
 resource "aws_iam_role_policy" "lambda_to_queue" {
+  count = length(var.publish_queue_arns) > 0 ? 1 : 0 # TODO: Should this policy be conditional?
+
   name = join("-", [var.prefix, "iamr", var.function_name, "to-queue"])
   role = aws_iam_role.lambda.id
 
@@ -30,7 +32,7 @@ resource "aws_iam_role_policy" "lambda_to_queue" {
       {
         Effect = "Allow"
         Action = ["sqs:SendMessage"]
-        Resource = [var.publish_queue_arn]
+        Resource = var.publish_queue_arns
       },
     ]
   })
