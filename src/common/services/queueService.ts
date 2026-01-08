@@ -26,7 +26,7 @@ export class QueueService {
     sqsQueueUrl: string,
     messageTitle: string,
     messageAuthor: string,
-    messageBody: string,
+    messageBody: string, // TODO: Does this need to be an interface
     delaySeconds = 0
   ) {
     const params: SendMessageCommandInput = {

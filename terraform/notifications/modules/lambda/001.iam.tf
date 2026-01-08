@@ -18,8 +18,7 @@ resource "aws_iam_role" "lambda" {
   tags = var.tags
 }
 
-# Permission Policy attached to the role
-# https://docs.aws.amazon.com/AmazonS3/latest/userguide/grant-destinations-permissions-to-s3.html#grant-sns-sqs-permission-for-s3
+# Gives the Lambda identity permission to interact with SQS
 resource "aws_iam_role_policy" "lambda_to_queue" {
   name = join("-", [var.prefix, "iamr", var.function_name, "to-queue"])
   role = aws_iam_role.lambda.id
