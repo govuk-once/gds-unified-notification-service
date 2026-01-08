@@ -18,13 +18,32 @@ resource "aws_iam_role" "lambda" {
   tags = var.tags
 }
 
+# Permission Policy attached to the role
+# https://docs.aws.amazon.com/AmazonS3/latest/userguide/grant-destinations-permissions-to-s3.html#grant-sns-sqs-permission-for-s3
+resource "aws_iam_role_policy" "lambda_to_queue" {
+  name = join("-", [var.prefix, "iamr", var.function_name, "to-queue"])
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      // Allow role assumptions
+      {
+        Effect = "Allow"
+        Action = ["sqs:SendMessage"]
+        Resource = var.publish_queue_arn
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role" {
-  count = var.trigger_queue_name != null ? 1 : 0
+  count = var.trigger_queue_arn != null ? 1 : 0
 
   // TODO: Reduce the permissions on lambdas
   role       = aws_iam_role.lambda.name
@@ -61,3 +80,5 @@ resource "aws_iam_role_policy_attachment" "lambda_xray_daemon" {
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
+
+

@@ -1,7 +1,7 @@
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 import { QueueService } from '@common/services/queueService';
 import { mockClient } from 'aws-sdk-client-mock';
+import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 
 expect.extend({
   toHaveReceivedCommandWith,

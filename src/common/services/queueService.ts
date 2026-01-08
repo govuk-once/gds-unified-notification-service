@@ -19,7 +19,7 @@ export class QueueService {
   public tracer: Tracer = iocGetTracer();
 
   constructor() {
-    this.client = new SQSClient({ region: 'eu-west-2' }); // Is region init from env variable?
+    this.client = new SQSClient({ region: 'eu-west-2' }); // TODO: Is region init from env variable?
   }
 
   public async publishMessage(
@@ -31,15 +31,15 @@ export class QueueService {
   ) {
     const params: SendMessageCommandInput = {
       QueueUrl: sqsQueueUrl,
-      DelaySeconds: delaySeconds, // Does there need to be a delay?
+      DelaySeconds: delaySeconds, // TODO: Does there need to be a delay?
       MessageAttributes: {
         Title: {
-          // Does there need to be a title for every message?
+          // TODO: Does there need to be a title for every message?
           DataType: 'String',
           StringValue: messageTitle,
         },
         Author: {
-          // Does there need to be an author for every message?
+          // TODO: Does there need to be an author for every message?
           DataType: 'String',
           StringValue: messageAuthor,
         },
@@ -51,7 +51,7 @@ export class QueueService {
       const command = new SendMessageCommand(params);
       const response = await this.client.send(command);
 
-      this.logger.trace(`Successfully published message ID: ${response.MessageId}`); // What tracing do we want of the response
+      this.logger.trace(`Successfully published message ID: ${response.MessageId}`); // TODO: What tracing do we want of the response
     } catch (error) {
       this.logger.trace(`SQS Publish Error: ${error}`);
       throw error;
@@ -77,7 +77,7 @@ export class QueueService {
       MessageAttributes: {
         Title: {
           DataType: 'String',
-          StringValue: messageTitle, // Does each message need a different title?
+          StringValue: messageTitle, // TODO: Does each message need a different title?
         },
         Author: {
           DataType: 'String',
@@ -97,10 +97,10 @@ export class QueueService {
       const response = await this.client.send(command);
 
       if (response.Successful) {
-        this.logger.trace(`Successfully published ${response.Successful.length} messages.`); // What tracing do we want of the response
+        this.logger.trace(`Successfully published ${response.Successful.length} messages.`); // TODO: What tracing do we want of the response
       }
       if (response.Failed) {
-        this.logger.trace(`Failed to publish ${response.Failed.length} messages.`); // What tracing do we want of the response
+        this.logger.trace(`Failed to publish ${response.Failed.length} messages.`); // TODO: What tracing do we want of the response
       }
     } catch (error) {
       this.logger.trace(`SQS Publish Error: ${error}`);
