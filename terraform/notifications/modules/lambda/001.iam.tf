@@ -20,7 +20,7 @@ resource "aws_iam_role" "lambda" {
 
 # Gives the Lambda identity permission to interact with SQS
 resource "aws_iam_role_policy" "lambda_to_queue" {
-  count = length(var.publish_queue_arns) > 0 ? 1 : 0 # TODO: Should this policy be conditional?
+  count = length(var.publish_queue_arns) > 0 ? 1 : 0
 
   name = join("-", [var.prefix, "iamr", var.function_name, "to-queue"])
   role = aws_iam_role.lambda.id
@@ -56,7 +56,7 @@ data "aws_iam_policy_document" "lambda_kms" {
   version = "2012-10-17"
   statement {
     actions = [
-      "kms:Decrypt"
+      "kms:Decrypt", "kms:GenerateDataKey"
     ]
 
     resources = [

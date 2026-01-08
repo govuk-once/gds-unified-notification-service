@@ -8,7 +8,8 @@ expect.extend({
 });
 
 const sqsMock = mockClient(SQSClient);
-const config = new QueueService();
+const mockQueueUrl = 'testQueueUrl';
+const config = new QueueService(mockQueueUrl);
 
 describe('QueueService', () => {
   beforeEach(() => {
@@ -18,9 +19,7 @@ describe('QueueService', () => {
   describe('publishMessage', () => {
     it('should send a message when given the message params.', async () => {
       // Arrange
-      const mockQueueUrl = 'testQueueUrl';
-      const mockMessageTitle = 'testMessageTitle';
-      const mockMessageAuthor = 'testMessageAuthor';
+      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       sqsMock.on(SendMessageCommand).resolves({
@@ -28,25 +27,20 @@ describe('QueueService', () => {
       });
 
       // Act
-      await config.publishMessage(mockQueueUrl, mockMessageTitle, mockMessageAuthor, mockMessageBody);
+      await config.publishMessage(mockMessageAttribute, mockMessageBody);
 
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageCommand, {
         QueueUrl: mockQueueUrl,
         DelaySeconds: 0,
         MessageBody: mockMessageBody,
-        MessageAttributes: {
-          Title: { DataType: 'String', StringValue: mockMessageTitle },
-          Author: { DataType: 'String', StringValue: mockMessageAuthor },
-        },
+        MessageAttributes: mockMessageAttribute,
       });
     });
 
     it('should throw an error and log when the send message command fails', async () => {
       // Arrange
-      const mockQueueUrl = 'testQueueUrl';
-      const mockMessageTitle = 'testMessageTitle';
-      const mockMessageAuthor = 'testMessageAuthor';
+      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       vi.spyOn(config.logger, 'trace');
@@ -54,7 +48,7 @@ describe('QueueService', () => {
       sqsMock.on(SendMessageCommand).rejects(error);
 
       // Act
-      const result = config.publishMessage(mockQueueUrl, mockMessageTitle, mockMessageAuthor, mockMessageBody);
+      const result = config.publishMessage(mockMessageAttribute, mockMessageBody);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -65,9 +59,7 @@ describe('QueueService', () => {
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params.', async () => {
       // Arrange
-      const mockQueueUrl = 'testQueueUrl';
-      const mockMessageTitle = 'testMessageTitle';
-      const mockMessageAuthor = 'testMessageAuthor';
+      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       sqsMock.on(SendMessageBatchCommand).resolves({
@@ -75,7 +67,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await config.publishMessageBatch(mockQueueUrl, mockMessageTitle, mockMessageAuthor, [mockMessageBody]);
+      await config.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
 
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
@@ -85,10 +77,7 @@ describe('QueueService', () => {
             Id: 'msg_0',
             DelaySeconds: 0,
             MessageBody: mockMessageBody,
-            MessageAttributes: {
-              Title: { DataType: 'String', StringValue: mockMessageTitle },
-              Author: { DataType: 'String', StringValue: mockMessageAuthor },
-            },
+            MessageAttributes: mockMessageAttribute,
           },
         ],
       });
@@ -97,9 +86,7 @@ describe('QueueService', () => {
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
       // Arrange
-      const mockQueueUrl = 'testQueueUrl';
-      const mockMessageTitle = 'testMessageTitle';
-      const mockMessageAuthor = 'testMessageAuthor';
+      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody_0 = 'testMessageBody';
       const mockMessageBody_1 = 'testMessageBody';
 
@@ -109,9 +96,9 @@ describe('QueueService', () => {
       });
 
       // Act
-      await config.publishMessageBatch(mockQueueUrl, mockMessageTitle, mockMessageAuthor, [
-        mockMessageBody_0,
-        mockMessageBody_1,
+      await config.publishMessageBatch([
+        [mockMessageAttribute, mockMessageBody_0],
+        [mockMessageAttribute, mockMessageBody_1],
       ]);
 
       // Assert
@@ -122,19 +109,13 @@ describe('QueueService', () => {
             Id: 'msg_0',
             DelaySeconds: 0,
             MessageBody: mockMessageBody_0,
-            MessageAttributes: {
-              Title: { DataType: 'String', StringValue: mockMessageTitle },
-              Author: { DataType: 'String', StringValue: mockMessageAuthor },
-            },
+            MessageAttributes: mockMessageAttribute,
           },
           {
             Id: 'msg_1',
             DelaySeconds: 0,
             MessageBody: mockMessageBody_1,
-            MessageAttributes: {
-              Title: { DataType: 'String', StringValue: mockMessageTitle },
-              Author: { DataType: 'String', StringValue: mockMessageAuthor },
-            },
+            MessageAttributes: mockMessageAttribute,
           },
         ],
       });
@@ -143,15 +124,14 @@ describe('QueueService', () => {
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {
       // Arrange
-      const mockQueueUrl = 'testQueueUrl';
-      const mockMessageTitle = 'testMessageTitle';
-      const mockMessageAuthor = 'testMessageAuthor';
-      const mockMessageBodyList = Array(11).fill('testMessageBody');
+      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
+      const mockMessageBody = 'testMessageBody';
+      const mockMessageList = Array(11).fill([mockMessageAttribute, mockMessageBody]);
 
       const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
 
       // Act
-      const result = config.publishMessageBatch(mockQueueUrl, mockMessageTitle, mockMessageAuthor, mockMessageBodyList);
+      const result = config.publishMessageBatch(mockMessageList);
 
       // Assert
       await expect(result).rejects.toThrow(Error(errorMsg));
@@ -160,9 +140,7 @@ describe('QueueService', () => {
 
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
-      const mockQueueUrl = 'testQueueUrl';
-      const mockMessageTitle = 'testMessageTitle';
-      const mockMessageAuthor = 'testMessageAuthor';
+      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       vi.spyOn(config.logger, 'trace');
@@ -170,7 +148,7 @@ describe('QueueService', () => {
       sqsMock.on(SendMessageBatchCommand).rejects(error);
 
       // Act
-      const result = config.publishMessageBatch(mockQueueUrl, mockMessageTitle, mockMessageAuthor, [mockMessageBody]);
+      const result = config.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
 
       // Assert
       await expect(result).rejects.toThrow(error);
