@@ -30,7 +30,7 @@ resource "aws_iam_role_policy" "lambda_to_queue" {
       {
         Effect = "Allow"
         Action = ["sqs:SendMessage"]
-        Resource = var.publish_queue_arn
+        Resource = [var.publish_queue_arn]
       },
     ]
   })

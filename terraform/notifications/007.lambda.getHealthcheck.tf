@@ -11,5 +11,4 @@ module "lambda_getHealthcheck" {
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
   trigger_queue_arn = null
-  publish_queue_arn = null
 }

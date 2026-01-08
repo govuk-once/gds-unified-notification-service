@@ -10,9 +10,7 @@
   "editor.detectIndentation": false,
   "editor.autoIndent": "advanced",
   "editor.insertSpaces": true,
-  "editor.rulers": [
-    120
-  ],
+  "editor.rulers": [120],
   "files.insertFinalNewline": true,
   // No sideways scrolling
   "editor.wordWrap": "on",
@@ -42,9 +40,7 @@
   },
   "eslint.codeActionsOnSave.mode": "all",
   "eslint.lintTask.enable": true,
-  "eslint.validate": [
-    "typescript"
-  ],
+  "eslint.validate": ["typescript"],
   "eslint.format.enable": true,
   "eslint.lintTask.command": "eslint",
   // Set formatters per language
@@ -56,7 +52,7 @@
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "prettier.prettier-vscode"
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
   "[terraform]": {
     "editor.defaultFormatter": "hashicorp.terraform"

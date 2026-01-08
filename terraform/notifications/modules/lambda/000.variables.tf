@@ -85,5 +85,6 @@ variable "bundle_path" {
 
 variable "publish_queue_arn" {
   description = "The ARN of the SQS Queue to publish messages to."
-  type        = string
+  type        = map(string)
+  default     = {}
 }

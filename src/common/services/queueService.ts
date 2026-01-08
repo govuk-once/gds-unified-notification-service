@@ -66,13 +66,13 @@ export class QueueService {
     delaySeconds = 0
   ) {
     if (messageBodies.length > 10) {
-      const errorMsg = "A single message batch request can include a maximum of 10 messages."
-      this.logger.trace(errorMsg)
+      const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
+      this.logger.trace(errorMsg);
       throw new Error(errorMsg);
     }
-    
+
     const entries: SendMessageBatchRequestEntry[] = messageBodies.map((body, index) => ({
-      Id: `msg_${index}`, 
+      Id: `msg_${index}`,
       DelaySeconds: delaySeconds,
       MessageAttributes: {
         Title: {

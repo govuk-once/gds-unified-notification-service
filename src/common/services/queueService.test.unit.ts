@@ -148,7 +148,7 @@ describe('QueueService', () => {
       const mockMessageAuthor = 'testMessageAuthor';
       const mockMessageBodyList = Array(11).fill('testMessageBody');
 
-      const errorMsg = 'A single message batch request can include a maximum of 10 messages.'
+      const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
 
       // Act
       const result = config.publishMessageBatch(mockQueueUrl, mockMessageTitle, mockMessageAuthor, mockMessageBodyList);

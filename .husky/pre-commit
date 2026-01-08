@@ -1,3 +1,4 @@
 npm run test
 npm run tflint
+npm run format
 npm run development:organize:tf -- --dry-run
