@@ -50,7 +50,7 @@ resource "aws_iam_role_policy" "lambda_to_ssm" {
       {
         Effect = "Allow"
         Action = ["ssm:GetParameter"]
-        Resource = "arn:aws:ssm:eu-west-2:674663567518:*"
+        Resource = "arn:aws:ssm:eu-west-2:674663567518:parameter/${var.prefix}/*"
       },
     ]
   })
