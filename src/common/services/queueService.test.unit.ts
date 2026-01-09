@@ -1,4 +1,4 @@
-import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { QueueService } from '@common/services/queueService';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
@@ -30,6 +30,7 @@ describe('QueueService', () => {
       await config.publishMessage(mockMessageAttribute, mockMessageBody);
 
       // Assert
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageCommand, {
         QueueUrl: mockQueueUrl,
         DelaySeconds: 0,
@@ -40,6 +41,7 @@ describe('QueueService', () => {
 
     it('should throw an error and log when the send message command fails', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
@@ -52,13 +54,14 @@ describe('QueueService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(config.logger.trace).toHaveBeenCalledWith(`SQS Publish Error: ${error}`);
+      expect(trace).toHaveBeenCalledWith(`SQS Publish Error: ${error}`);
     });
   });
 
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params.', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
@@ -70,6 +73,7 @@ describe('QueueService', () => {
       await config.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
 
       // Assert
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
         QueueUrl: mockQueueUrl,
         Entries: [
@@ -81,11 +85,12 @@ describe('QueueService', () => {
           },
         ],
       });
-      expect(config.logger.trace).toHaveBeenCalledWith('Successfully published 1 messages.');
+      expect(trace).toHaveBeenCalledWith('Successfully published 1 messages.');
     });
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody_0 = 'testMessageBody';
       const mockMessageBody_1 = 'testMessageBody';
@@ -102,6 +107,7 @@ describe('QueueService', () => {
       ]);
 
       // Assert
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
         QueueUrl: mockQueueUrl,
         Entries: [
@@ -119,14 +125,27 @@ describe('QueueService', () => {
           },
         ],
       });
-      expect(config.logger.trace).toHaveBeenCalledWith('Failed to publish 1 messages.');
+      expect(trace).toHaveBeenCalledWith('Failed to publish 1 messages.');
     });
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
-      const mockMessageList = Array(11).fill([mockMessageAttribute, mockMessageBody]);
+      const mockMessageList: [Record<string, MessageAttributeValue>, string][] = [
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+        [mockMessageAttribute, mockMessageBody],
+      ];
 
       const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
 
@@ -135,11 +154,12 @@ describe('QueueService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error(errorMsg));
-      expect(config.logger.trace).toHaveBeenCalledWith(errorMsg);
+      expect(trace).toHaveBeenCalledWith(errorMsg);
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
@@ -152,7 +172,7 @@ describe('QueueService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(config.logger.trace).toHaveBeenCalledWith(`SQS Publish Error: ${error}`);
+      expect(trace).toHaveBeenCalledWith(`SQS Publish Error: ${error}`);
     });
   });
 });

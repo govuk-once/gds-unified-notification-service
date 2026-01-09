@@ -6,6 +6,7 @@ import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 
 export class Configuration {
   private client;
+  private prefix = process.env.PREFIX;
 
   public logger: Logger = iocGetLogger();
   public metrics: Metrics = iocGetMetrics();
@@ -17,7 +18,7 @@ export class Configuration {
 
   public async getParameter(namespace: string, key: string): Promise<string | undefined> {
     const param = {
-      Name: `${namespace}/${key}`,
+      Name: `/${this.prefix}/${namespace}/${key}`,
       WithDecryption: true,
     };
 

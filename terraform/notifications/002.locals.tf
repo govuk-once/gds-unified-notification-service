@@ -1,5 +1,5 @@
 locals {
-  project = "gdpuns"
+  project = "gdsuns"
   prefix  = "${local.project}-${var.env}"
   defaultTags = {
     project = "UNS"

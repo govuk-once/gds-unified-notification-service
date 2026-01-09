@@ -38,6 +38,24 @@ resource "aws_iam_role_policy" "lambda_to_queue" {
   })
 }
 
+# Gives the Lambda identity permission to interact with SSM
+resource "aws_iam_role_policy" "lambda_to_ssm" {
+  name = join("-", [var.prefix, "iamr", var.function_name, "to-ssm"])
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      // Allow role assumptions
+      {
+        Effect = "Allow"
+        Action = ["ssm:GetParameter"]
+        Resource = "arn:aws:ssm:eu-west-2:674663567518:*"
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"

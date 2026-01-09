@@ -25,7 +25,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(): MiddlewareObj<
   QueueEvent<OutputType>,
   Error
 > => ({
-  before: async (request): Promise<void> => {
+  before: (request): void => {
     for (let i = 0; i < request.event.Records.length; i++) {
       request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
     }
@@ -41,7 +41,7 @@ export abstract class QueueHandler<InputType, OutputType = void> {
 
   constructor() {}
 
-  public async implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
+  public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
     throw new Error('Not Implemented');
   }
 
@@ -73,7 +73,7 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<QueueEvent<InputType>, OutputType> {
     return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
-      return await this.implementation(event as QueueEvent<InputType>, context);
+      return await this.implementation(event, context);
     });
   }
 }

@@ -13,9 +13,9 @@ export class QueueService {
   public tracer: Tracer = iocGetTracer();
 
   constructor(sqsQueueUrl: string) {
-    this.logger.trace('Initialising Queue Service');
     this.client = new SQSClient({ region: 'eu-west-2' });
     this.sqsQueueUrl = sqsQueueUrl;
+    this.logger.trace('Queue Service Initialised.');
   }
 
   public async publishMessage(

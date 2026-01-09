@@ -27,8 +27,9 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the call fails', async () => {
       // Arrange
-      vi.spyOn(config.logger, 'trace');
+      const trace = vi.spyOn(config.logger, 'trace');
       const error = new Error('AWS Error');
+
       ssmMock.on(GetParameterCommand).rejects(error);
 
       // Act
@@ -36,7 +37,7 @@ describe('Configuration', () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(config.logger.trace).toHaveBeenCalledWith(`Failed fetching value from SSM: ${error}`);
+      expect(trace).toHaveBeenCalledWith(`Failed fetching value from SSM: ${error}`);
     });
   });
 
@@ -57,7 +58,9 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a boolean', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const secretValue = '1';
+
       ssmMock.on(GetParameterCommand).resolves({
         Parameter: { Value: secretValue },
       });
@@ -67,7 +70,7 @@ describe('Configuration', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(config.logger.trace).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a boolean`);
+      expect(trace).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a boolean`);
     });
   });
 
@@ -88,7 +91,9 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a number', async () => {
       // Arrange
+      const trace = vi.spyOn(config.logger, 'trace');
       const secretValue = 'ten';
+
       ssmMock.on(GetParameterCommand).resolves({
         Parameter: { Value: secretValue },
       });
@@ -98,7 +103,7 @@ describe('Configuration', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(config.logger.trace).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a number`);
+      expect(trace).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a number`);
     });
   });
 });

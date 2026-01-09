@@ -1,8 +1,10 @@
 import { QueueEvent, QueueHandler } from '@common/operations';
+import { Configuration } from '@common/services/configuration';
 import { QueueService } from '@common/services/queueService';
 import { Context } from 'aws-lambda';
 
 export class Validation extends QueueHandler<unknown, void> {
+  private config: Configuration = new Configuration();
   public operationId: string = 'validation';
 
   constructor() {
@@ -12,9 +14,12 @@ export class Validation extends QueueHandler<unknown, void> {
   public async implementation(event: QueueEvent<unknown>, context: Context) {
     this.logger.info('Received request');
 
-    const validationQueue = new QueueService(
-      'https://sqs.eu-west-2.amazonaws.com/674663567518/gdpuns-toby-ec10-sqs-validateMessage'
-    ); //TODO: Made queue url a parameter
+    const validationQueueUrl = await this.config.getParameter('queue', 'validation/url');
+    if (!validationQueueUrl) {
+      throw new Error('Validation Queue Url is not set.');
+    }
+
+    const validationQueue = new QueueService(validationQueueUrl);
     await validationQueue.publishMessage(
       {
         Title: {

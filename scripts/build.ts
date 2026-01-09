@@ -56,7 +56,7 @@ const buildHandlers = async (dir: string) => {
   }
 };
 
-(async () => {
+void (async () => {
   await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'http'));
   console.log('');
   await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'trigger'));
