@@ -31,7 +31,7 @@ jobs:
 
       # Formatting
       - name: Run Lint Script
-        run: npm run format
+        run: npm run lint
 
       - name: Terraform Formatting
         id: fmt

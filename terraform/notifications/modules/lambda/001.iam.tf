@@ -18,13 +18,51 @@ resource "aws_iam_role" "lambda" {
   tags = var.tags
 }
 
+# Gives the Lambda identity permission to interact with SQS
+resource "aws_iam_role_policy" "lambda_to_queue" {
+  count = length(var.publish_queue_arns) > 0 ? 1 : 0
+
+  name = join("-", [var.prefix, "iamr", var.function_name, "to-queue"])
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      // Allow role assumptions
+      {
+        Effect = "Allow"
+        Action = ["sqs:SendMessage"]
+        Resource = var.publish_queue_arns
+      },
+    ]
+  })
+}
+
+# Gives the Lambda identity permission to interact with SSM
+resource "aws_iam_role_policy" "lambda_to_ssm" {
+  name = join("-", [var.prefix, "iamr", var.function_name, "to-ssm"])
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      // Allow role assumptions
+      {
+        Effect = "Allow"
+        Action = ["ssm:GetParameter"]
+        Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.prefix}/*"
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role" {
-  count = var.trigger_queue_name != null ? 1 : 0
+  count = var.trigger_queue_arn != null ? 1 : 0
 
   // TODO: Reduce the permissions on lambdas
   role       = aws_iam_role.lambda.name
@@ -42,7 +80,7 @@ data "aws_iam_policy_document" "lambda_kms" {
   version = "2012-10-17"
   statement {
     actions = [
-      "kms:Decrypt"
+      "kms:Decrypt", "kms:GenerateDataKey"
     ]
 
     resources = [
@@ -67,3 +105,5 @@ resource "aws_iam_role_policy_attachment" "lambda_xray_daemon" {
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
+
+
