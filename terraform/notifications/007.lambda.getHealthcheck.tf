@@ -1,6 +1,7 @@
 module "lambda_getHealthcheck" {
   source        = "./modules/lambda"
   prefix        = local.prefix
+  region        = var.region
   function_name = "getHealthcheck"
   kms_key_arn   = aws_kms_key.main.arn
 

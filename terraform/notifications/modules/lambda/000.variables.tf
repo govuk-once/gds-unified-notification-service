@@ -4,6 +4,11 @@ variable "prefix" {
   type        = string
 }
 
+variable "region" {
+  description = "Region of resources"
+  type        = string
+}
+
 variable "function_name" {
   description = "Name of lambda function"
   type        = string

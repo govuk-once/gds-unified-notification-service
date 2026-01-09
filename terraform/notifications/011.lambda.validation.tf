@@ -1,6 +1,7 @@
 module "lambda_validation" {
   source        = "./modules/lambda"
   prefix        = local.prefix
+  region        = var.region
   function_name = "validation"
 
   // TODO: Look into a neater solution that avoids the issue raised in https://github.com/govuk-once/gds-unified-notification-service/pull/32
