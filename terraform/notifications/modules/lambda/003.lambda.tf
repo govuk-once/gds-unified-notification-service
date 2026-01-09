@@ -37,14 +37,25 @@ resource "aws_lambda_function" "this" {
   // Enable source maps on all
   environment {
     variables = {
-      NODE_OPTIONS   = "--enable-source-maps",
-      SERVICE_NAME   = "UNS",
-      NAMESPACE_NAME = "global"
+      NODE_OPTIONS = "--enable-source-maps",
+      SERVICE_NAME = "UNS",
 
       # Open Telemetry instrumentation vars
       AWS_LAMBDA_EXEC_WRAPPER              = "/opt/otel-instrument"
       OTEL_AWS_APPLICATION_SIGNALS_ENABLED = "false"
       OTEL_NODE_DISABLED_INSTRUMENTATIONS  = "none"
+
+      // Flags
+      AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING = true
+    }
+  }
+
+  dynamic "vpc_config" {
+    for_each = var.security_group_ids != null && var.subnet_ids != null ? [true] : []
+    content {
+      subnet_ids                  = var.subnet_ids
+      security_group_ids          = var.security_group_ids
+      ipv6_allowed_for_dual_stack = false
     }
   }
 

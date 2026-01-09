@@ -31,6 +31,12 @@ resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+
 // Explicit KMS Access
 data "aws_iam_policy_document" "lambda_kms" {
   version = "2012-10-17"

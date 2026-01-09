@@ -1,10 +1,10 @@
 import { Glob } from 'bun';
 import esbuild from 'esbuild';
 import { existsSync, rmSync } from 'fs';
-import path from 'path';
+import { basename, dirname, join, relative, resolve } from 'path';
 
-const ROOT = path.dirname(import.meta.dir);
-const OUT_DIR = path.resolve(ROOT, 'dist');
+const ROOT = dirname(import.meta.dir);
+const OUT_DIR = resolve(ROOT, 'dist');
 
 // Remove previous build artifacts
 if (existsSync(OUT_DIR)) {
@@ -16,7 +16,7 @@ if (existsSync(OUT_DIR)) {
 const buildHandlers = async (dir: string) => {
   try {
     const LAMBDAS_DIR = dir;
-    console.log(`Building lamdas in ${LAMBDAS_DIR}`);
+    console.log(`Building lamdas in ./${relative(ROOT, LAMBDAS_DIR)}`);
     const entryPoints = [
       ...new Glob('**/*.ts').scanSync({
         cwd: LAMBDAS_DIR,
@@ -25,21 +25,24 @@ const buildHandlers = async (dir: string) => {
     ].filter((name) => name.endsWith('test.unit.ts') == false);
 
     if (entryPoints.length === 0) {
-      console.error(`No lambda entry points found in: ${LAMBDAS_DIR}`);
+      console.error(`No lambda entry points found in ./${relative(ROOT, LAMBDAS_DIR)}`);
       return;
     }
 
     for (const entrypoint of entryPoints) {
-      const id = path.basename(path.dirname(entrypoint));
+      const id = basename(dirname(entrypoint));
       await esbuild.build({
         entryPoints: [entrypoint],
-        outfile: path.join(OUT_DIR, id, 'index.mjs'),
+        outfile: join(OUT_DIR, id, 'index.mjs'),
         bundle: true,
         minify: true,
         platform: 'node',
         target: 'node22',
         format: 'esm',
-        sourcemap: 'external',
+        sourcemap: true,
+        loader: {
+          '.node': 'copy',
+        },
         banner: {
           js: [
             // https://middy.js.org/docs/best-practices/bundling/#esbuild
@@ -57,7 +60,7 @@ const buildHandlers = async (dir: string) => {
 };
 
 (async () => {
-  await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'http'));
+  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'http'));
   console.log('');
-  await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'trigger'));
+  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'trigger'));
 })();

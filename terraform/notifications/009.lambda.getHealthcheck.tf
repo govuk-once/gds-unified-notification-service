@@ -11,4 +11,8 @@ module "lambda_getHealthcheck" {
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
   trigger_queue_name = null
+
+  # Place in vpc
+  security_group_ids = [aws_security_group.public_sg.id]
+  subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
 }

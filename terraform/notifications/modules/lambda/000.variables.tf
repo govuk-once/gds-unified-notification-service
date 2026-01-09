@@ -82,3 +82,18 @@ variable "bundle_path" {
   description = "Path to lambda source code zip"
   type        = string
 }
+
+// Lambda in VPC
+variable "security_group_ids" {
+  description = "Security group IDs"
+  type        = list(string)
+  nullable    = true
+  default     = null
+}
+
+variable "subnet_ids" {
+  description = "Subnet IDs"
+  type        = list(string)
+  nullable    = true
+  default     = null
+}

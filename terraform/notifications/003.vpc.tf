@@ -1,0 +1,115 @@
+// Establishing VPC
+resource "aws_vpc" "main" {
+  cidr_block = var.cidr_main
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "vpc", "main"])
+  })
+}
+
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = join("-", [local.prefix, "igw", "main"])
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = join("-", [local.prefix, "public", "rt"])
+  }
+}
+
+locals {
+  // Subnets start at 10.0.2.0, 10.0.3.0, 10.0.4.0 .... etc
+  public_subnets_cidrs = [
+    for zone in toset(local.availability_zones) : cidrsubnet(var.cidr_main, 7, index(local.availability_zones, zone))
+  ]
+  private_subnets_cidrs = [
+    for zone in toset(local.availability_zones) : cidrsubnet(var.cidr_main, 7, 1 + length(local.availability_zones) + index(local.availability_zones, zone))
+  ]
+}
+
+// Public subnet for each availability zone
+resource "aws_subnet" "public" {
+  for_each = toset(local.availability_zones)
+
+  vpc_id            = aws_vpc.main.id
+  availability_zone = each.key
+  cidr_block        = local.public_subnets_cidrs[index(local.availability_zones, each.key)]
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "public", substr(each.key, -2, 2)])
+  })
+}
+
+// Private subnet for each availability zone
+resource "aws_subnet" "private" {
+  for_each = toset(local.availability_zones)
+
+  vpc_id            = aws_vpc.main.id
+  availability_zone = each.key
+  cidr_block        = local.private_subnets_cidrs[index(local.availability_zones, each.key)]
+
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "private", substr(each.key, -2, 2)])
+  })
+}
+
+// Public inbound / outbound rules in security group
+resource "aws_security_group" "public_sg" {
+  name        = join("-", [local.prefix, "sg", "pub"])
+  description = "Security group which allows access to public egress"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "sgpub"])
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "public_sg_allow_all_vnet_ingress" {
+  description       = "Allow all traffic from within VPC"
+  security_group_id = aws_security_group.public_sg.id
+  cidr_ipv4         = aws_vpc.main.cidr_block
+  ip_protocol       = "-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow_all_egress" {
+  description       = "Allow all services to go outside of VPC"
+  security_group_id = aws_security_group.public_sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+}
+
+// Allow public subnets to reach internet
+resource "aws_route_table_association" "public" {
+  for_each       = toset(local.availability_zones)
+  subnet_id      = aws_subnet.public[each.key].id
+  route_table_id = aws_route_table.public.id
+}
+
+// Private network
+resource "aws_security_group" "private_sg" {
+  name        = join("-", [local.prefix, "sg", "priv"])
+  description = "Security group which prevents access to public egress"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "sgpriv"])
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "private_sg_allow_all_vnet_ingress" {
+  description       = "Allow all traffic from within VPC"
+  security_group_id = aws_security_group.private_sg.id
+  cidr_ipv4         = aws_vpc.main.cidr_block
+  ip_protocol       = "-1"
+}
