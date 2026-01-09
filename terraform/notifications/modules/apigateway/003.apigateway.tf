@@ -10,3 +10,8 @@ resource "aws_api_gateway_rest_api" "this" {
     create_before_destroy = true
   }
 }
+
+resource "aws_wafv2_web_acl_association" "this" {
+  resource_arn = aws_api_gateway_stage.this.arn
+  web_acl_arn  = aws_wafv2_web_acl.this.arn
+}
