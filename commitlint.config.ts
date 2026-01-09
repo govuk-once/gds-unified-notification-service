@@ -20,22 +20,22 @@ BREAKING CHANGE(JIRA-456): removed an endpoint
 */
 
 export default {
-  extends: ["@commitlint/config-angular"],
+  extends: ['@commitlint/config-angular'],
   rules: {
-    "subject-case": [2, "never"],
-    "subject-empty": [2, "never"],
-    "scope-case": [2, "always", "upper-case"],
-    "scope-empty": [2, "never"],
-    "scope-should-include-ticket-number": [2, "always"],
-    "header-max-length": [0, "always", 512],
+    'subject-case': [2, 'never'],
+    'subject-empty': [2, 'never'],
+    'scope-case': [2, 'always', 'upper-case'],
+    'scope-empty': [2, 'never'],
+    'scope-should-include-ticket-number': [2, 'always'],
+    'header-max-length': [0, 'always', 512],
   },
   plugins: [
     {
       rules: {
-        "scope-should-include-ticket-number": ({ raw }: { raw: string }) => {
+        'scope-should-include-ticket-number': ({ raw }: { raw: string }) => {
           return [
             /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|BREAKING CHANGE|BREAKING)\([A-Z]{1,6}-[0-9]{1,5}\):/.test(
-              raw,
+              raw
             ),
             `The scope should contain reference to a ticket i.e. JIRA-123, NOT-456 and be in the following format:: feat(NOT-123): description`,
           ];

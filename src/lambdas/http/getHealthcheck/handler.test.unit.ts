@@ -22,12 +22,12 @@ describe('GetHealthcheck Handler', () => {
 
   it('should log "Received request" when implementation is called', async () => {
     // Arrange
-    vi.spyOn(instance.logger, 'info').mockImplementation(() => undefined);
+    const info = vi.spyOn(instance.logger, 'info').mockImplementation(() => undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(instance.logger.info).toHaveBeenCalledWith('Received request');
+    expect(info).toHaveBeenCalledWith('Received request');
   });
 });

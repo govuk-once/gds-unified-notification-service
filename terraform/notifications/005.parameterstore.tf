@@ -11,5 +11,6 @@ module "parameter_store" {
     "config/dispatch/enabled" = "true"
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "config/dispatch/onetrust/apikey" = "placeholder"
+    "queue/validation/url" = "validateMessage_queue_url"
   }
 }

@@ -39,7 +39,7 @@ const buildHandlers = async (dir: string) => {
         platform: 'node',
         target: 'node22',
         format: 'esm',
-        sourcemap: 'external',
+        sourcemap: true,
         banner: {
           js: [
             // https://middy.js.org/docs/best-practices/bundling/#esbuild
@@ -56,7 +56,7 @@ const buildHandlers = async (dir: string) => {
   }
 };
 
-(async () => {
+void (async () => {
   await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'http'));
   console.log('');
   await buildHandlers(path.resolve(ROOT, 'src', 'lambdas', 'trigger'));

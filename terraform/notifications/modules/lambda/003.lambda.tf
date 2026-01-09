@@ -40,6 +40,7 @@ resource "aws_lambda_function" "this" {
       NODE_OPTIONS   = "--enable-source-maps",
       SERVICE_NAME   = "UNS",
       NAMESPACE_NAME = "global"
+      PREFIX = var.prefix
 
       # Open Telemetry instrumentation vars
       AWS_LAMBDA_EXEC_WRAPPER              = "/opt/otel-instrument"

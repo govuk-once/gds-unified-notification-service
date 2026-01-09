@@ -4,6 +4,11 @@ variable "prefix" {
   type        = string
 }
 
+variable "region" {
+  description = "Region of resources"
+  type        = string
+}
+
 variable "function_name" {
   description = "Name of lambda function"
   type        = string
@@ -45,7 +50,7 @@ variable "kms_key_arn" {
   type        = string
 }
 
-variable "trigger_queue_name" {
+variable "trigger_queue_arn" {
   description = "The ARN of the SQS queue to use as an event source for this Lambda. Setting this enables the SQS trigger feature flag."
   type        = string
   default     = null
@@ -81,4 +86,10 @@ variable "s3_bucket_id" {
 variable "bundle_path" {
   description = "Path to lambda source code zip"
   type        = string
+}
+
+variable "publish_queue_arns" {
+  description = "A list of the ARNs of the SQS Queues to publish messages to."
+  type        = list(string)
+  default     = []
 }

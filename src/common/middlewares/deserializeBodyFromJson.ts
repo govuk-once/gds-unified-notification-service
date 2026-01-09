@@ -6,7 +6,7 @@ export const deserializeBodyFromJson = (): MiddlewareObj<
   Omit<APIGatewayProxyStructuredResultV2, 'body'> & { body: unknown },
   Error
 > => ({
-  after: async (request): Promise<void> => {
+  after: (request): void => {
     if (request.event.body && typeof request.event.body !== 'object') {
       request.event.body = JSON.parse(request.event.body);
     }

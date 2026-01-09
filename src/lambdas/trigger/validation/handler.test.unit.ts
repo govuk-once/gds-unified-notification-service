@@ -1,6 +1,11 @@
-import { QueueEvent } from "@common/operations";
-import { Validation } from "@project/lambdas/trigger/validation/handler";
+import { QueueEvent } from '@common/operations';
+import { Configuration } from '@common/services/configuration';
+import { QueueService } from '@common/services/queueService';
+import { Validation } from '@project/lambdas/trigger/validation/handler';
 import { Context } from 'aws-lambda';
+
+vi.mock('@common/services/queueService');
+vi.mock('@common/services/configuration');
 
 describe('Validation QueueHandler', () => {
   let instance: Validation = new Validation();
@@ -9,7 +14,7 @@ describe('Validation QueueHandler', () => {
 
   beforeEach(() => {
     instance = new Validation();
-  
+
     // Mock AWS Lambda Context
     mockContext = {
       functionName: 'validation',
@@ -25,14 +30,34 @@ describe('Validation QueueHandler', () => {
     expect(instance.operationId).toBe('validation');
   });
 
-  it('should log "Lambda triggered" when implementation is called', async () => {
+  it('should log send a message to an sqs queue when implementation is called', async () => {
     // Arrange
-    vi.spyOn(instance.logger, "trace");
+    vi.spyOn(Configuration.prototype, 'getParameter').mockResolvedValue('mockUrl');
+    const mockPublish = vi.spyOn(QueueService.prototype, 'publishMessage').mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(instance.logger.trace).toHaveBeenCalledWith('Lambda triggered');
+    expect(mockPublish).toHaveBeenCalledWith(
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'Test Message',
+        },
+      },
+      'Test message body.'
+    );
+  });
+
+  it('should throw an error if the queue url is not set in SSM.', async () => {
+    // Arrange
+    vi.spyOn(Configuration.prototype, 'getParameter').mockResolvedValue(undefined);
+
+    // Act
+    const result = instance.implementation(mockEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(new Error('Validation Queue Url is not set.'));
   });
 });

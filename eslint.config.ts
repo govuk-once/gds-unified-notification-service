@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig([
   globalIgnores(['artifacts', 'dist', 'node_modules']),
-  tseslint.configs.recommended,
+  tseslint.configs.recommendedTypeChecked,
   vitest.configs.recommended,
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
@@ -17,11 +17,16 @@ export default defineConfig([
         ...globals.node,
         ...vitest.environments.env.globals,
       },
+      parserOptions: {
+        projectService: true,
+      },
     },
     rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
       '@typescript-eslint/no-unused-vars': 'warn',
+      'no-undef': 'off',
       'no-unused-vars': 'off',
-      'no-undef': 'warn',
       'prefer-rest-params': 'off',
     },
   },
