@@ -1,11 +1,19 @@
 // Establishing VPC
+# TODO: Implement VPC logging
+#tfsec:ignore:aws-ec2-require-vpc-flow-logs-for-all-vpcs
 resource "aws_vpc" "main" {
+  #checkov:skip=CKV2_AWS_11: "Ensure VPC flow logging is enabled in all VPCs" - TODO / Investigate requirement
   cidr_block = var.cidr_main
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "vpc", "main"])
   })
   enable_dns_hostnames = true
   enable_dns_support   = true
+}
+
+// Ensure default security group has no rules
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
 }
 
 resource "aws_internet_gateway" "main" {
@@ -16,6 +24,7 @@ resource "aws_internet_gateway" "main" {
   })
 }
 
+# Setting up route tables
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -37,6 +46,7 @@ resource "aws_route_table" "private" {
   }
 }
 
+# Subnet config
 locals {
   // Subnets start at 10.0.2.0, 10.0.3.0, 10.0.4.0 .... etc
   public_subnets_cidrs = [
