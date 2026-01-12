@@ -2,8 +2,21 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { IDynamoDbService } from '@common/services/interfaces/IDynamoDbService';
+import { DyanmoDBService } from './services/dynamoDbService';
 
 // Services
+export const iocGetDynamoService = (): IDynamoDbService => {
+  const client = new DynamoDBClient({
+    region: 'eu-west-2',
+  });
+
+  const tableName = 'AlphaTable';
+  const dynamoService = new DyanmoDBService(client, tableName);
+
+  return dynamoService;
+};
 
 // Observability
 export const iocGetLogger = () => {
