@@ -56,6 +56,12 @@ variable "trigger_queue_arn" {
   default     = null
 }
 
+variable "publish_queue_arns" {
+  description = "A list of the ARNs of the SQS Queues to publish messages to."
+  type        = list(string)
+  default     = []
+}
+
 variable "batch_size" {
   description = "Largest number of records that Lambda will retrieve from your event source at the time of invocation"
   type        = number
@@ -66,6 +72,12 @@ variable "maximum_concurrency" {
   description = "Limits the number of concurrent instances that the event source can invoke"
   type        = number
   default     = 100
+}
+
+variable "additional_policy_arns" {
+  description = "List of Policy ARNs"
+  type        = set(string)
+  default     = []
 }
 
 /** Code **/
@@ -88,8 +100,18 @@ variable "bundle_path" {
   type        = string
 }
 
-variable "publish_queue_arns" {
-  description = "A list of the ARNs of the SQS Queues to publish messages to."
+// Lambda in VPC
+variable "security_group_ids" {
+  description = "Security group IDs"
   type        = list(string)
-  default     = []
+  nullable    = true
+  default     = null
 }
+
+variable "subnet_ids" {
+  description = "Subnet IDs"
+  type        = list(string)
+  nullable    = true
+  default     = null
+}
+
