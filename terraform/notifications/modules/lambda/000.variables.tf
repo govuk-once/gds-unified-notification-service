@@ -74,6 +74,12 @@ variable "maximum_concurrency" {
   default     = 100
 }
 
+variable "additional_policy_arns" {
+  description = "List of Policy ARNs"
+  type        = set(string)
+  default     = []
+}
+
 /** Code **/
 variable "codesigning_config_id" {
   description = "ID of codesigning config"

@@ -4,14 +4,16 @@ resource "aws_vpc" "main" {
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "vpc", "main"])
   })
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 }
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
+  tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "igw", "main"])
-  }
+  })
 }
 
 resource "aws_route_table" "public" {
@@ -21,6 +23,14 @@ resource "aws_route_table" "public" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
   }
+
+  tags = {
+    Name = join("-", [local.prefix, "public", "rt"])
+  }
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
 
   tags = {
     Name = join("-", [local.prefix, "public", "rt"])
@@ -112,4 +122,51 @@ resource "aws_vpc_security_group_ingress_rule" "private_sg_allow_all_vnet_ingres
   security_group_id = aws_security_group.private_sg.id
   cidr_ipv4         = aws_vpc.main.cidr_block
   ip_protocol       = "-1"
+}
+
+resource "aws_route_table_association" "private" {
+  for_each       = toset(local.availability_zones)
+  subnet_id      = aws_subnet.private[each.key].id
+  route_table_id = aws_route_table.private.id
+}
+
+# VPC Endpoints
+resource "aws_vpc_endpoint" "vpc_endpoints" {
+  for_each = toset([
+    # service names follows: com.amazonaws.{region}.{name} pattern
+    "apigateway",
+    "applicationinsights",
+    # "dynamodb" // TODO: Investigate - Private DNS can't be enabled because the service com.amazonaws.eu-west-2.dynamodb does not provide a private DNS name.
+    "elasticache",
+    "kms",
+    "lambda",
+    "logs",
+    "monitoring",
+    "network-firewall",
+    "route53resolver",
+    // "s3" // TODO: Investigate -  'To set PrivateDnsOnlyForInboundResolverEndpoint to true, the VPC vpc-** must have a Gateway endpoint for the service.'
+    "secretsmanager",
+    "sqs",
+    "ssm",
+    "xray"
+  ])
+
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.${each.value}"
+  vpc_endpoint_type = "Interface"
+
+  security_group_ids = [
+    aws_security_group.private_sg.id,
+  ]
+
+  subnet_ids = concat([
+    for key in toset(local.availability_zones) : aws_subnet.private[key].id
+  ])
+
+  private_dns_enabled = true
+
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "vpc", "main"])
+  })
 }

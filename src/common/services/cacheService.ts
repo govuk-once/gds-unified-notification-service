@@ -2,15 +2,12 @@ import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Hash } from '@aws-sdk/hash-node';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
-import { Configuration } from '@common/services/configuration';
+import { Configuration } from '@common/services';
 import { HttpRequest } from '@smithy/protocol-http';
 import { createClient } from 'redis';
 
 export class CacheService {
   public cache: ReturnType<typeof createClient>;
-  protected cacheName: string = ``;
-  protected cacheHost: string = ``;
-  protected cacheUser: string = ``;
   constructor(protected config: Configuration) {}
 
   async generateSigV4(cacheName: string, username: string) {
@@ -44,12 +41,15 @@ export class CacheService {
     ).replace(`${protocol}//`, '');
   }
 
-  async initialize() {
+  async connect() {
+    const cacheName = (await this.config.getParameter('config/common', 'cache/name')) ?? '';
+    const cacheHost = (await this.config.getParameter('config/common', 'cache/host')) ?? '';
+    const cacheUser = (await this.config.getParameter('config/common', 'cache/user')) ?? '';
     this.cache = createClient({
-      password: await this.generateSigV4(this.cacheName, this.cacheUser),
-      username: this.cacheUser,
+      password: await this.generateSigV4(cacheName, cacheUser),
+      username: cacheUser,
       socket: {
-        host: this.cacheHost,
+        host: cacheHost,
         port: 6379,
         tls: true,
       },
@@ -58,11 +58,36 @@ export class CacheService {
     return this;
   }
 
+  // Store any value by serializing it
+  async store<T>(key: string, value: T) {
+    await this.cache.set(key, JSON.stringify(value));
+    return value;
+  }
+
+  // Fetch, deserialize, and typecast
+  async get<T>(
+    key: string,
+    options?: {
+      factory?: () => Promise<T> | T;
+    }
+  ): Promise<T | undefined> {
+    const value = await this.cache.get(key);
+    // Parse value to the expected T
+    if (value) {
+      return JSON.parse(value) as T;
+    }
+
+    // Fallback on storage if
+    if (value == undefined && options?.factory !== undefined) {
+      await this.store(key, await options.factory());
+      return (await this.get<T>(key)) as T | undefined;
+    }
+    return undefined;
+  }
+
+  // Demo FN
   async counter() {
-    const value = await this.cache.get('counter');
-    const intValue = value == null ? 1 : parseInt(value, 10);
-    const newValue = intValue + 1;
-    await this.cache.set(`counter`, newValue);
-    return newValue;
+    const value = (await this.get<number>('counter', { factory: () => 0 })) as number;
+    return await this.store(`counter`, value + 1);
   }
 }

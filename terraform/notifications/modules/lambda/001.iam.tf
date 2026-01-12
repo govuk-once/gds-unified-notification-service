@@ -30,8 +30,8 @@ resource "aws_iam_role_policy" "lambda_to_queue" {
     Statement = [
       // Allow role assumptions
       {
-        Effect = "Allow"
-        Action = ["sqs:SendMessage"]
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
         Resource = var.publish_queue_arns
       },
     ]
@@ -48,10 +48,10 @@ resource "aws_iam_role_policy" "lambda_to_ssm" {
     Statement = [
       // Allow role assumptions
       {
-        Effect = "Allow"
-        Action = ["ssm:GetParameter"]
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.prefix}/*"
-      },
+      }
     ]
   })
 }
@@ -74,7 +74,6 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-
 // Explicit KMS Access
 data "aws_iam_policy_document" "lambda_kms" {
   version = "2012-10-17"
@@ -94,9 +93,8 @@ resource "aws_iam_policy" "lambda_kms_policy" {
   policy = data.aws_iam_policy_document.lambda_kms.json
 }
 
-resource "aws_iam_policy_attachment" "lambda_kms_policy_attachment" {
-  name       = join("-", [var.prefix, "iampa", var.function_name])
-  roles      = [aws_iam_role.lambda.name]
+resource "aws_iam_role_policy_attachment" "lambda_kms_policy_attachment" {
+  role       = aws_iam_role.lambda.name
   policy_arn = aws_iam_policy.lambda_kms_policy.arn
 }
 
@@ -106,4 +104,9 @@ resource "aws_iam_role_policy_attachment" "lambda_xray_daemon" {
   policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
 }
 
-
+# Any additional policies to attach to role
+resource "aws_iam_role_policy_attachment" "additional_policies" {
+  for_each   = var.additional_policy_arns
+  role       = aws_iam_role.lambda.name
+  policy_arn = each.key
+}
