@@ -5,7 +5,7 @@ module "lambda_validation" {
   function_name = "validation"
 
   // TODO: Look into a neater solution that avoids the issue raised in https://github.com/govuk-once/gds-unified-notification-service/pull/32
-  trigger_queue_arn = join("", [module.sqs_incomingMessage.sqs_queue_arn])
+  trigger_queue_arn  = join("", [module.sqs_incomingMessage.sqs_queue_arn])
   publish_queue_arns = [join("", [module.sqs_validateMessage.sqs_queue_arn])]
   kms_key_arn        = aws_kms_key.main.arn
 
