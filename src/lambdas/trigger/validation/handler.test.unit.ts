@@ -6,7 +6,6 @@ import { Validation } from '@project/lambdas/trigger/validation/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@common/services/queueService');
-vi.mock('@common/services/configuration');
 
 describe('Validation QueueHandler', () => {
   let instance: Validation = new Validation();

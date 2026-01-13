@@ -5,10 +5,8 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { IDynamoDbService } from '@common/services/interfaces/IDynamoDbService';
 import { DyanmoDBService } from './services/dynamoDbService';
-import { QueueService } from '@common/services/queueService';
-import { Configuration } from '@common/services/configuration';
+import { CacheService, Configuration, QueueService } from '@common/services';
 
-// Services
 export const iocGetDynamoService = (): IDynamoDbService => {
   const client = new DynamoDBClient({
     region: 'eu-west-2',
@@ -40,3 +38,4 @@ export const iocGetMetrics = () =>
 // Services
 export const iocGetConfigurationService = () => new Configuration();
 export const iocGetQueueService = (QueueUrl: string) => new QueueService(QueueUrl);
+export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
