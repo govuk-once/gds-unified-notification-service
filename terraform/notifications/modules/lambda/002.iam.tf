@@ -11,6 +11,7 @@ resource "aws_iam_role" "lambda" {
         Action = ["sts:AssumeRole"]
         Principal = {
           Service = "lambda.amazonaws.com"
+          AWS     = data.aws_caller_identity.current.account_id
         }
       },
     ]
