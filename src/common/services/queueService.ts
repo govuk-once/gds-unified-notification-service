@@ -5,7 +5,7 @@ import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQS
 import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 
 export class QueueService {
-  private client;
+  private client: SQSClient;
   private sqsQueueUrl: string;
 
   public logger: Logger = iocGetLogger();

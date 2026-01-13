@@ -5,7 +5,7 @@ import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
-import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
+import middy, { MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
 export type QueueEvent<RecordBodyType> = Omit<SQSEvent, 'Records'> & {
@@ -19,18 +19,6 @@ export type IQueueMiddleware<InputType, OutputType> = MiddyfiedHandler<
   Context,
   Record<string, unknown>
 >;
-
-export const deserializeRecordBodyFromJson = <OutputType>(): MiddlewareObj<
-  SQSEvent,
-  QueueEvent<OutputType>,
-  Error
-> => ({
-  before: (request): void => {
-    for (let i = 0; i < request.event.Records.length; i++) {
-      request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
-    }
-  },
-});
 
 export abstract class QueueHandler<InputType, OutputType = void> {
   public abstract operationId: string;
