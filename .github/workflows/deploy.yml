@@ -29,8 +29,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Dependencies
-        run: echo "Branch ref ${{ github.ref }}"
+      - name: Log GH ref
+        run: echo "Branch ref test ${{ github.ref }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5.1.1
@@ -61,7 +61,7 @@ jobs:
         env:
           AWS_REGION: ${{ vars.TF_region }}
           TF_region: ${{ vars.TF_region }}
-          TF_bucket: ${{ secrets.TF_STATE_BUCKET }}
+          TF_bucket: ${{ secrets.TF_bucket }}
           TF_key: ${{ vars.TF_key }}
           TF_env: ${{ vars.TF_env }}
 
