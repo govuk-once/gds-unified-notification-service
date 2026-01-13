@@ -6,9 +6,10 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { IDynamoDbService } from '@common/services/interfaces/IDynamoDbService';
 import { DyanmoDbService } from './services/dynamoDbService';
 
+let dynamoServiceInstance: IDynamoDbService | undefined;
+
 // Services
 export const iocGetDynamoService = (): IDynamoDbService => {
-  let dynamoServiceInstance;
   const client = new DynamoDBClient({
     region: 'eu-west-2',
   });
