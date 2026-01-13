@@ -4,18 +4,25 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { IDynamoDbService } from '@common/services/interfaces/IDynamoDbService';
-import { DyanmoDBService } from './services/dynamoDbService';
+import { DyanmoDbService } from './services/dynamoDbService';
 
 // Services
 export const iocGetDynamoService = (): IDynamoDbService => {
+  let dynamoServiceInstance;
   const client = new DynamoDBClient({
     region: 'eu-west-2',
   });
 
-  const tableName = 'AlphaTable';
-  const dynamoService = new DyanmoDBService(client, tableName);
+  //Below table name for testing purposes only
+  const tableName = 'gdsuns-ryan-8661-events';
+  const dynamoService = new DyanmoDbService(client, tableName);
 
-  return dynamoService;
+  if (dynamoService) {
+    console.log('DynamoDB has been Initialised.');
+  }
+
+  dynamoServiceInstance = dynamoService;
+  return dynamoServiceInstance;
 };
 
 // Observability

@@ -93,3 +93,9 @@ variable "publish_queue_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "dynamo_table_arns" {
+  description = "A list of the ARNs of the DyanmoDB"
+  type        = list(string)
+  default     = []
+}

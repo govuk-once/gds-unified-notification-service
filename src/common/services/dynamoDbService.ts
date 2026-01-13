@@ -3,7 +3,7 @@ import { MessageRecord } from '@common/models/interfaces/MessageRecord';
 import { StatusEnum } from '@common/models/StatusEnum';
 import { IDynamoDbService } from '@common/services/interfaces/IDynamoDbService';
 
-export class DyanmoDBService implements IDynamoDbService {
+export class DyanmoDbService implements IDynamoDbService {
   private readonly tableName: string;
   private readonly client: DynamoDBClient;
 
@@ -12,16 +12,15 @@ export class DyanmoDBService implements IDynamoDbService {
     this.tableName = tableName;
   }
 
-  async createRecord(record: MessageRecord): Promise<void> {
+  public async createRecord(record: MessageRecord): Promise<void> {
     const command = new PutItemCommand({
       TableName: this.tableName,
       Item: {
-        Guid: { S: record.guid },
+        id: { S: record.guid },
         Status: { S: record.status },
         CreatedAt: { S: record.createdAt },
       },
     });
-
     try {
       await this.client.send(command);
     } catch (error) {
@@ -29,11 +28,11 @@ export class DyanmoDBService implements IDynamoDbService {
     }
   }
 
-  async getRecord(guid: string): Promise<MessageRecord | null> {
+  public async getRecord(guid: string): Promise<MessageRecord | null> {
     const command = new GetItemCommand({
       TableName: this.tableName,
       Key: {
-        Guid: { S: guid },
+        id: { S: guid },
       },
     });
 
