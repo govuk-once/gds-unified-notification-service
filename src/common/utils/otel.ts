@@ -18,7 +18,9 @@ export const segment = async <T = void>(tracer: Tracer, name: string, fn: (segme
     return result;
   } catch (e) {
     // Log error and close current segment
-    segment.addError(e);
+    if (e instanceof Error) {
+      segment.addError(e);
+    }
     segment.close();
     tracer.setSegment(segment.parent);
 

@@ -18,6 +18,13 @@ variable "env" {
   description = "Name of environment"
 }
 
+variable "cidr_main" {
+  type        = string
+  description = "Default CIDR"
+  default     = "10.0.0.0/16"
+}
+
+
 terraform {
   backend "s3" {
     bucket = var.bucket

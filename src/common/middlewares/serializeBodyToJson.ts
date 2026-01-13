@@ -2,7 +2,7 @@ import type { IRequestEvent, ITypedRequestResponse } from '@common/middlewares/i
 import type { MiddlewareObj } from '@middy/core';
 
 export const serializeBodyToJson = (): MiddlewareObj<IRequestEvent, ITypedRequestResponse<string>, Error> => ({
-  after: async (request): Promise<void> => {
+  after: (request): void => {
     if (
       request.response &&
       typeof request.response['body'] === 'object' &&

@@ -4,6 +4,7 @@ module "api_gateway_main" {
   // Metadata
   name       = "main"
   prefix     = local.prefix
+  region     = var.region
   stage_name = "api"
 
   // Config

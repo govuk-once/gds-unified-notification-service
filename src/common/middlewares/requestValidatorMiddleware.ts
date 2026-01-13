@@ -6,7 +6,7 @@ import { type ZodType, z } from 'zod';
 export const requestValidatorMiddleware = (
   schema?: ZodType
 ): MiddlewareObj<APIGatewayEvent, APIGatewayProxyStructuredResultV2, Error> => ({
-  before: async (request): Promise<void> => {
+  before: (request): void => {
     if (schema) {
       const { error } = schema.safeParse(request.event.body);
       if (error) {

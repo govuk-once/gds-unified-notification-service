@@ -4,6 +4,11 @@ variable "prefix" {
   type        = string
 }
 
+variable "region" {
+  description = "Region of the resources"
+  type        = string
+}
+
 variable "name" {
   description = "Name of api gateway"
   type        = string
