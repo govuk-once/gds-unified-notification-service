@@ -4,4 +4,6 @@ locals {
   defaultTags = {
     project = "UNS"
   }
+
+  availability_zones = [for zone in ["a", "b", "c"] : "${var.region}${zone}"]
 }

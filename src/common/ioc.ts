@@ -4,9 +4,8 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { IDynamoDbService } from '@common/services/interfaces/IDynamoDbService';
-import { DyanmoDbService } from './services/dynamoDbService';
-import { Configuration } from '@common/services/configuration';
-import { QueueService } from '@common/services/queueService';
+import { CacheService, Configuration, QueueService } from '@common/services';
+import { DyanmoDbService } from '@common/services/dynamoDbService';
 
 let dynamoServiceInstance: IDynamoDbService | undefined;
 
@@ -48,3 +47,4 @@ export const iocGetMetrics = () =>
 // Services
 export const iocGetConfigurationService = () => new Configuration();
 export const iocGetQueueService = (QueueUrl: string) => new QueueService(QueueUrl);
+export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
