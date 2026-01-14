@@ -15,6 +15,7 @@ This service is ran with AWS using serverless architecture.
 - Checkov v3.2.490
 
 Recommending use of [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm), [tfenv](https://github.com/tfutils/tfenv)
+
 [Mise-en-place](https://mise.jdx.dev/getting-started.html) [configuration](./mise.toml) is set up to install the above too.
 
 ## Installation
