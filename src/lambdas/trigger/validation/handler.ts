@@ -11,25 +11,42 @@ export class Validation extends QueueHandler<unknown, void> {
     super();
   }
 
-  public async implementation(event: QueueEvent<unknown>, context: Context) {
+  public async implementation(event: QueueEvent<string>, context: Context) {
     this.logger.info('Received request');
 
-    const validationQueueUrl = await this.config.getParameter('queue/validation', 'url');
-    if (!validationQueueUrl) {
-      throw new Error('Validation Queue Url is not set.');
-    }
+    if (event.Records[0].messageId && event.Records[0].body) {
+      // (MOCK) Send validated Message to valid queue
+      const validationQueueUrl = (await this.config.getParameter('queue/valid', 'url')) ?? '';
 
-    const validationQueue = new QueueService(validationQueueUrl);
-    await validationQueue.publishMessage(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'Test Message',
+      const validationQueue = new QueueService(validationQueueUrl);
+      await validationQueue.publishMessage(
+        {
+          Title: {
+            DataType: 'String',
+            StringValue: 'Test Message',
+          },
         },
-      },
-      'Test message body.'
-    );
-    this.logger.info('Completed request');
+        'Test message body.'
+      );
+
+      // (MOCK) Send event to events queue
+      const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
+
+      const eventsQueue = new QueueService(eventsQueueUrl);
+      await eventsQueue.publishMessage(
+        {
+          Title: {
+            DataType: 'String',
+            StringValue: 'From validation lambda',
+          },
+        },
+        'Test message body.'
+      );
+
+      this.logger.info('Completed request');
+    } else {
+      this.logger.info('Completed request with no actions.');
+    }
   }
 }
 

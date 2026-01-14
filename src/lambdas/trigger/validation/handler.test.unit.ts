@@ -10,7 +10,7 @@ vi.mock('@common/services/configuration');
 describe('Validation QueueHandler', () => {
   let instance: Validation = new Validation();
   let mockContext: Context;
-  let mockEvent: QueueEvent<undefined>;
+  let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
     instance = new Validation();
@@ -22,7 +22,27 @@ describe('Validation QueueHandler', () => {
     } as unknown as Context;
 
     // Mock the QueueEvent (Mapping to your InputType)
-    mockEvent = { Records: [] };
+    mockEvent = {
+      Records: [
+        {
+          messageId: 'mockMessageId',
+          receiptHandle: 'mockReceiptHandle',
+          attributes: {
+            ApproximateReceiveCount: '2',
+            SentTimestamp: '202601021513',
+            SenderId: 'mockSenderId',
+            ApproximateFirstReceiveTimestamp: '202601021513',
+          },
+          messageAttributes: {},
+          md5OfBody: 'mockMd5OfBody',
+          md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+          eventSource: 'mockEventSource',
+          eventSourceARN: 'mockEventSourceARN',
+          awsRegion: 'eu-west2',
+          body: 'mockBody',
+        },
+      ],
+    };
   });
 
   it('should have the correct operationId', () => {
@@ -30,7 +50,7 @@ describe('Validation QueueHandler', () => {
     expect(instance.operationId).toBe('validation');
   });
 
-  it('should log send a message to an sqs queue when implementation is called', async () => {
+  it('should log send a message to valid message queue when implementation is called', async () => {
     // Arrange
     vi.spyOn(Configuration.prototype, 'getParameter').mockResolvedValue('mockUrl');
     const mockPublish = vi.spyOn(QueueService.prototype, 'publishMessage').mockResolvedValue(undefined);
@@ -48,16 +68,5 @@ describe('Validation QueueHandler', () => {
       },
       'Test message body.'
     );
-  });
-
-  it('should throw an error if the queue url is not set in SSM.', async () => {
-    // Arrange
-    vi.spyOn(Configuration.prototype, 'getParameter').mockResolvedValue(undefined);
-
-    // Act
-    const result = instance.implementation(mockEvent, mockContext);
-
-    // Assert
-    await expect(result).rejects.toThrow(new Error('Validation Queue Url is not set.'));
   });
 });

@@ -57,22 +57,35 @@ resource "aws_iam_role_policy" "lambda_to_ssm" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
+# Any core policies to attach to role
+resource "aws_iam_role_policy_attachment" "core_policies" {
+  for_each = { for policy in [
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+    # Allow lambdas to consume messages
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole",
+    # Allow lambdas to connect to VPCs
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+    # Cloudwatch and XRay log writing
+    "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+  ] : policy => policy }
+
   role       = aws_iam_role.lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  policy_arn = each.key
 }
 
 resource "aws_iam_role_policy_attachment" "sqs_queue_execution_role" {
   count = var.trigger_queue_arn != null ? 1 : 0
 
-  // TODO: Reduce the permissions on lambdas
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
+# Any additional policies to attach to role injected via module variables
+resource "aws_iam_role_policy_attachment" "additional_policies" {
+  for_each = var.additional_policy_arns
+
   role       = aws_iam_role.lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+  policy_arn = each.value
 }
 
 // Explicit KMS Access
@@ -97,17 +110,4 @@ resource "aws_iam_policy" "lambda_kms_policy" {
 resource "aws_iam_role_policy_attachment" "lambda_kms_policy_attachment" {
   role       = aws_iam_role.lambda.name
   policy_arn = aws_iam_policy.lambda_kms_policy.arn
-}
-
-# Allow X-Ray to relay raw trace segments data to the service's API and retrieve sampling data
-resource "aws_iam_role_policy_attachment" "lambda_xray_daemon" {
-  role       = aws_iam_role.lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
-}
-
-# Any additional policies to attach to role
-resource "aws_iam_role_policy_attachment" "additional_policies" {
-  for_each   = var.additional_policy_arns
-  role       = aws_iam_role.lambda.name
-  policy_arn = each.key
 }

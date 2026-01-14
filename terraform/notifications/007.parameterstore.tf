@@ -18,7 +18,11 @@ module "parameter_store" {
     "config/common/cache/user" = aws_elasticache_user.this.user_name
 
     // SQS
-    "queue/validation/url" = "validationUrl"
-    "queue/processing/url" = "processingUrl"
+    "queue/valid/url"    = "validQueueUrl"
+    "queue/complete/url" = "completeQueueUrl"
+    "queue/events/url"   = "eventsQueueUrl"
+
+    // Dynamo
+    "table/events/name" = "eventsTableName"
   }
 }

@@ -12,7 +12,7 @@ resource "aws_elasticache_user" "this" {
 # Create user group
 resource "aws_elasticache_user_group" "this" {
   engine        = "valkey"
-  user_group_id = "group"
+  user_group_id = replace(join("-", [local.prefix, "group"]), "-", "")
   user_ids = [
     aws_elasticache_user.this.user_id
   ]

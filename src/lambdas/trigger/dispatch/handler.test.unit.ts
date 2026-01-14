@@ -1,19 +1,17 @@
 import { QueueEvent } from '@common/operations';
-import { Configuration } from '@common/services/configuration';
-import { QueueService } from '@common/services/queueService';
-import { Processing } from '@project/lambdas/trigger/processing/handler';
+import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@common/services/queueService');
 vi.mock('@common/services/configuration');
 
-describe('Processing QueueHandler', () => {
-  let instance: Processing = new Processing();
+describe('Dispatch QueueHandler', () => {
+  let instance: Dispatch = new Dispatch();
   let mockContext: Context;
   let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
-    instance = new Processing();
+    instance = new Dispatch();
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -47,26 +45,6 @@ describe('Processing QueueHandler', () => {
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('processing');
-  });
-
-  it('should log send a message to an sqs queue when implementation is called', async () => {
-    // Arrange
-    vi.spyOn(Configuration.prototype, 'getParameter').mockResolvedValue('mockUrl');
-    const mockPublish = vi.spyOn(QueueService.prototype, 'publishMessage').mockResolvedValue(undefined);
-
-    // Act
-    await instance.implementation(mockEvent, mockContext);
-
-    // Assert
-    expect(mockPublish).toHaveBeenCalledWith(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'Test Message',
-        },
-      },
-      'Test message body.'
-    );
+    expect(instance.operationId).toBe('dispatch');
   });
 });

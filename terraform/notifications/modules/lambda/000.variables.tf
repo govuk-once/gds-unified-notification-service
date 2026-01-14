@@ -76,8 +76,8 @@ variable "maximum_concurrency" {
 
 variable "additional_policy_arns" {
   description = "List of Policy ARNs"
-  type        = set(string)
-  default     = []
+  type        = map(string)
+  default     = {}
 }
 
 /** Code **/
