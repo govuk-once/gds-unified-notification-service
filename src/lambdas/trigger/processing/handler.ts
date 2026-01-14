@@ -3,9 +3,9 @@ import { Configuration } from '@common/services/configuration';
 import { QueueService } from '@common/services/queueService';
 import { Context } from 'aws-lambda';
 
-export class Validation extends QueueHandler<unknown, void> {
+export class Processing extends QueueHandler<unknown, void> {
   private config: Configuration = new Configuration();
-  public operationId: string = 'validation';
+  public operationId: string = 'processing';
 
   constructor() {
     super();
@@ -14,13 +14,10 @@ export class Validation extends QueueHandler<unknown, void> {
   public async implementation(event: QueueEvent<unknown>, context: Context) {
     this.logger.info('Received request');
 
-    const validationQueueUrl = await this.config.getParameter('queue/validation', 'url');
-    if (!validationQueueUrl) {
-      throw new Error('Validation Queue Url is not set.');
-    }
+    const processingQueueUrl = (await this.config.getParameter('queue/processing', 'url')) ?? '';
 
-    const validationQueue = new QueueService(validationQueueUrl);
-    await validationQueue.publishMessage(
+    const processingQueue = new QueueService(processingQueueUrl);
+    await processingQueue.publishMessage(
       {
         Title: {
           DataType: 'String',
@@ -33,4 +30,4 @@ export class Validation extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Validation().handler();
+export const handler = new Processing().handler();

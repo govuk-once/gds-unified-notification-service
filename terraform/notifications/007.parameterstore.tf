@@ -16,5 +16,9 @@ module "parameter_store" {
     "config/common/cache/name" = aws_elasticache_serverless_cache.this.name
     "config/common/cache/host" = aws_elasticache_serverless_cache.this.endpoint[0].address
     "config/common/cache/user" = aws_elasticache_user.this.user_name
+
+    // SQS
+    "queue/validation/url" = "validationUrl"
+    "queue/processing/url" = "processingUrl"
   }
 }
