@@ -71,7 +71,7 @@ describe('Validation QueueHandler', () => {
     expect(instance.operationId).toBe('validation');
   });
 
-  it('should log send a message to valid message queue when implementation is called and send a message to the events queue when triggered.', async () => {
+  it('should send a message to valid message queue when implementation is called and send a message to the events queue when triggered.', async () => {
     // Arrange
     getParameter.mockResolvedValueOnce('mockValidQueueUrl');
     getParameter.mockResolvedValueOnce('mockEventsQueueUrl');

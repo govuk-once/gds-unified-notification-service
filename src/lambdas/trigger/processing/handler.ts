@@ -21,39 +21,35 @@ export class Processing extends QueueHandler<unknown, void> {
   public async implementation(event: QueueEvent<string>, context: Context) {
     this.logger.info('Received request.');
 
-    if (event.Records[0].messageId && event.Records[0].body) {
-      // (MOCK) Send processed message to completed queue
-      const processingQueueUrl = (await this.config.getParameter('queue/complete', 'url')) ?? '';
+    // (MOCK) Send processed message to completed queue
+    const processingQueueUrl = (await this.config.getParameter('queue/complete', 'url')) ?? '';
 
-      const processingQueue = iocGetQueueService(processingQueueUrl);
-      await processingQueue.publishMessage(
-        {
-          Title: {
-            DataType: 'String',
-            StringValue: 'Test Message',
-          },
+    const processingQueue = iocGetQueueService(processingQueueUrl);
+    await processingQueue.publishMessage(
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'Test Message',
         },
-        'Test message body.'
-      );
+      },
+      'Test message body.'
+    );
 
-      // (MOCK) Send event to events queue
-      const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
+    // (MOCK) Send event to events queue
+    const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
 
-      const eventsQueue = iocGetQueueService(eventsQueueUrl);
-      await eventsQueue.publishMessage(
-        {
-          Title: {
-            DataType: 'String',
-            StringValue: 'From processing lambda',
-          },
+    const eventsQueue = iocGetQueueService(eventsQueueUrl);
+    await eventsQueue.publishMessage(
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'From processing lambda',
         },
-        'Test message body.'
-      );
+      },
+      'Test message body.'
+    );
 
-      this.logger.info('Completed request.');
-    } else {
-      this.logger.info('Completed request with no actions.');
-    }
+    this.logger.info('Completed request.');
   }
 }
 
