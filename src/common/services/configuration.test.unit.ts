@@ -1,11 +1,16 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { Configuration } from '@common/services/configuration';
 import { mockClient } from 'aws-sdk-client-mock';
 
 const ssmMock = mockClient(SSMClient);
-const config = new Configuration();
 
 describe('Configuration', () => {
+  const trace = vi.fn();
+  const config = new Configuration({ trace } as unknown as Logger, {} as unknown as Metrics, {} as unknown as Tracer);
+
   beforeEach(() => {
     ssmMock.reset();
   });
@@ -27,7 +32,6 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the call fails', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const error = new Error('AWS Error');
 
       ssmMock.on(GetParameterCommand).rejects(error);
@@ -58,7 +62,6 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a boolean', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const secretValue = '1';
 
       ssmMock.on(GetParameterCommand).resolves({
@@ -91,7 +94,6 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a number', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const secretValue = 'ten';
 
       ssmMock.on(GetParameterCommand).resolves({

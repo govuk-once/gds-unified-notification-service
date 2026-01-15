@@ -2,17 +2,16 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Metrics } from '@aws-lambda-powertools/metrics';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 
 export class Configuration {
   private client;
   private prefix = process.env.PREFIX;
 
-  public logger: Logger = iocGetLogger();
-  public metrics: Metrics = iocGetMetrics();
-  public tracer: Tracer = iocGetTracer();
-
-  constructor() {
+  constructor(
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {
     this.client = new SSMClient({ region: 'eu-west-2' });
   }
 

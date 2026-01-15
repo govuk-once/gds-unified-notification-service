@@ -2,17 +2,17 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 
 export class QueueService {
   private client;
   private sqsQueueUrl: string;
 
-  public logger: Logger = iocGetLogger();
-  public metrics: Metrics = iocGetMetrics();
-  public tracer: Tracer = iocGetTracer();
-
-  constructor(sqsQueueUrl: string) {
+  constructor(
+    sqsQueueUrl: string,
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {
     this.client = new SQSClient({ region: 'eu-west-2' });
     this.sqsQueueUrl = sqsQueueUrl;
     this.logger.trace('Queue Service Initialised.');
