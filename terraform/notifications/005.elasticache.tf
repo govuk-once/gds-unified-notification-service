@@ -7,15 +7,17 @@ resource "aws_elasticache_user" "this" {
   authentication_mode {
     type = "iam"
   }
+  tags = merge(local.defaultTags, {})
 }
 
 # Create user group
 resource "aws_elasticache_user_group" "this" {
   engine        = "valkey"
-  user_group_id = replace(join("-", [local.prefix, "group"]), "-", "")
+  user_group_id = replace(join("-", [local.prefix, "elch", "group"]), "-", "")
   user_ids = [
     aws_elasticache_user.this.user_id
   ]
+  tags = merge(local.defaultTags, {})
 }
 
 # Create valkey instance
@@ -23,7 +25,7 @@ resource "aws_elasticache_serverless_cache" "this" {
   engine      = "valkey"
   name        = join("-", [local.prefix, "elch", "main"])
   description = "Ephemeral key value cache"
-  tags        = local.defaultTags
+  tags        = merge(local.defaultTags, {})
 
   # Instance config
   major_engine_version = "8"
@@ -71,4 +73,5 @@ resource "aws_iam_policy" "lambda_elch_policy" {
       Version = "2012-10-17"
     }
   )
+  tags = merge(local.defaultTags, {})
 }

@@ -1,5 +1,7 @@
 resource "aws_kms_key" "main" {
-  description             = join("-", [local.prefix, "kms", "key"])
+  description = join("-", [local.prefix, "kms", "key"])
+  tags        = merge(local.defaultTags, {})
+
   deletion_window_in_days = 30
   enable_key_rotation     = true
 
