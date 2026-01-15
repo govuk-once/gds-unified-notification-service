@@ -26,24 +26,18 @@ describe('StoreMessageRepository', () => {
         createdAt: '2026-01-01T00:00:00Z',
       };
 
-      const expectResult = {
-        id: record.guid,
-        Status: record.status,
-        Src: record.src,
-        CreatedAt: record.createdAt,
-      };
-
       // Act
-      await repo.createRecord(record);
+      await repo.createRecord<MessageRecord>(record);
 
       // Assert
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as PutItemCommand;
 
       expect(command.input.TableName).toBe(tableName);
-      expect(unmarshall(command.input.Item!)).toEqual(expectResult);
+      expect(unmarshall(command.input.Item!)).toEqual(record);
     });
   });
+
   describe('GetRecord', () => {
     it('should return unmarshall data', async () => {
       // Arrange
@@ -60,7 +54,7 @@ describe('StoreMessageRepository', () => {
       });
 
       // Act
-      const result = await repo.getRecord(mockGuid);
+      const result = await repo.getRecord<MessageRecord>('id', mockGuid);
 
       // Assert
       expect(result).toEqual(mockRecord);
@@ -75,7 +69,7 @@ describe('StoreMessageRepository', () => {
       });
 
       // Act
-      const result = await repo.getRecord(mockGuid);
+      const result = await repo.getRecord<MessageRecord>('id', mockGuid);
 
       // Assert
       expect(result).toBeNull();

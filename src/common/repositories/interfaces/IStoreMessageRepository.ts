@@ -1,6 +1,4 @@
-import { MessageRecord } from '@common/models/interfaces/MessageRecord';
-
 export interface IStoreMessageRepository {
-  createRecord(record: MessageRecord): Promise<void>;
-  getRecord(guid: string): Promise<MessageRecord | null>;
+  createRecord<RecordType>(record: RecordType): Promise<void>;
+  getRecord<RecordType>(key: string, value: string): Promise<RecordType | null>;
 }

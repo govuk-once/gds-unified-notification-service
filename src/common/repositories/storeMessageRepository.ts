@@ -1,6 +1,5 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { MessageRecord } from '@common/models/interfaces/MessageRecord';
 import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
 
 export class StoreMessageRepository implements IStoreMessageRepository {
@@ -12,15 +11,10 @@ export class StoreMessageRepository implements IStoreMessageRepository {
     this.tableName = tableName;
   }
 
-  public async createRecord(record: MessageRecord): Promise<void> {
+  public async createRecord<RecordType>(record: RecordType): Promise<void> {
     const params = {
       TableName: this.tableName,
-      Item: marshall({
-        id: record.guid,
-        Status: record.status,
-        CreatedAt: record.createdAt,
-        Src: record.src,
-      }),
+      Item: marshall(record),
     };
     try {
       await this.client.putItem(params);
@@ -29,11 +23,11 @@ export class StoreMessageRepository implements IStoreMessageRepository {
     }
   }
 
-  public async getRecord(guid: string): Promise<MessageRecord | null> {
+  public async getRecord<RecordType>(key: string, value: string): Promise<RecordType | null> {
     const params = {
       TableName: this.tableName,
       Key: marshall({
-        id: guid,
+        [key]: value,
       }),
     };
 
@@ -44,7 +38,7 @@ export class StoreMessageRepository implements IStoreMessageRepository {
         return null;
       }
 
-      const response = unmarshall(Item) as MessageRecord;
+      const response = unmarshall(Item) as RecordType;
 
       return response;
     } catch (error) {
