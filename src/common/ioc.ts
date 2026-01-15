@@ -2,7 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { CacheService, Configuration } from '@common/services';
+import { CacheService, Configuration, QueueService } from '@common/services';
 
 // Observability
 export const iocGetLogger = () => {
@@ -23,4 +23,5 @@ export const iocGetMetrics = () =>
 
 // Services
 export const iocGetConfigurationService = () => new Configuration();
+export const iocGetQueueService = (queueUrl: string) => new QueueService(queueUrl);
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());

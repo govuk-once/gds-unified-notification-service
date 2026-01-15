@@ -1,47 +1,29 @@
-import { QueueEvent } from '@common/operations';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { Configuration } from '@common/services';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
-import { Context } from 'aws-lambda';
 
-vi.mock('@common/services/queueService');
-vi.mock('@common/services/configuration');
+vi.mock('@common/ioc', () => ({
+  iocGetConfigurationService: vi.fn(),
+  iocGetQueueService: vi.fn(),
+  iocGetLogger: vi.fn(),
+  iocGetMetrics: vi.fn(),
+  iocGetTracer: vi.fn(),
+}));
 
 describe('Management QueueHandler', () => {
-  let instance: Analytics = new Analytics();
-  let mockContext: Context;
-  let mockEvent: QueueEvent<string>;
+  const getParameter = vi.fn();
+  const info = vi.fn();
 
-  beforeEach(() => {
-    instance = new Analytics();
+  const instance: Analytics = new Analytics(
+    { getParameter } as unknown as Configuration,
+    { info } as unknown as Logger,
+    {} as unknown as Metrics,
+    {} as unknown as Tracer
+  );
 
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'validation',
-      awsRequestId: '12345',
-    } as unknown as Context;
-
-    // Mock the QueueEvent (Mapping to your InputType)
-    mockEvent = {
-      Records: [
-        {
-          messageId: 'mockMessageId',
-          receiptHandle: 'mockReceiptHandle',
-          attributes: {
-            ApproximateReceiveCount: '2',
-            SentTimestamp: '202601021513',
-            SenderId: 'mockSenderId',
-            ApproximateFirstReceiveTimestamp: '202601021513',
-          },
-          messageAttributes: {},
-          md5OfBody: 'mockMd5OfBody',
-          md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-          eventSource: 'mockEventSource',
-          eventSourceARN: 'mockEventSourceARN',
-          awsRegion: 'eu-west2',
-          body: 'mockBody',
-        },
-      ],
-    };
-  });
+  beforeEach(() => {});
 
   it('should have the correct operationId', () => {
     // Assert

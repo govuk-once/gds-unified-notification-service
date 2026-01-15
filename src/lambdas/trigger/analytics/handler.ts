@@ -1,13 +1,21 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
 import { Context } from 'aws-lambda';
 
 export class Analytics extends QueueHandler<unknown, void> {
-  private config: Configuration = new Configuration();
   public operationId: string = 'analytics';
 
-  constructor() {
-    super();
+  constructor(
+    protected config: Configuration,
+    logger: Logger,
+    metrics: Metrics,
+    tracer: Tracer
+  ) {
+    super(logger, metrics, tracer);
   }
 
   public async implementation(event: QueueEvent<string>, context: Context) {
@@ -26,4 +34,9 @@ export class Analytics extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Analytics().handler();
+export const handler = new Analytics(
+  iocGetConfigurationService(),
+  iocGetLogger(),
+  iocGetMetrics(),
+  iocGetTracer()
+).handler();

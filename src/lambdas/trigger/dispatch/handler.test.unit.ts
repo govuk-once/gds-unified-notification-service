@@ -1,17 +1,40 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
+import { Configuration, QueueService } from '@common/services';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
 
-vi.mock('@common/services/queueService');
-vi.mock('@common/services/configuration');
+vi.mock('@common/ioc', () => ({
+  iocGetConfigurationService: vi.fn(),
+  iocGetQueueService: vi.fn(),
+  iocGetLogger: vi.fn(),
+  iocGetMetrics: vi.fn(),
+  iocGetTracer: vi.fn(),
+}));
 
 describe('Dispatch QueueHandler', () => {
-  let instance: Dispatch = new Dispatch();
+  const getParameter = vi.fn();
+  const publishMessage = vi.fn();
+  const info = vi.fn();
+
+  const instance: Dispatch = new Dispatch(
+    { getParameter } as unknown as Configuration,
+    { info } as unknown as Logger,
+    {} as unknown as Metrics,
+    {} as unknown as Tracer
+  );
+  const mockQueue = {
+    publishMessage: publishMessage,
+  } as unknown as QueueService;
+
   let mockContext: Context;
   let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
-    instance = new Dispatch();
+    vi.mocked(iocGetQueueService).mockReturnValue(mockQueue);
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -46,5 +69,26 @@ describe('Dispatch QueueHandler', () => {
   it('should have the correct operationId', () => {
     // Assert
     expect(instance.operationId).toBe('dispatch');
+  });
+
+  it('should log send a message to the events queue when the lambda is triggered', async () => {
+    // Arrange
+    getParameter.mockResolvedValueOnce('mockEventsQueueUrl');
+    publishMessage.mockResolvedValueOnce(undefined);
+
+    // Act
+    await instance.implementation(mockEvent, mockContext);
+
+    // Assert
+    expect(getParameter).toHaveBeenCalledTimes(1);
+    expect(publishMessage).toHaveBeenCalledWith(
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'From dispatch lambda',
+        },
+      },
+      'Test message body.'
+    );
   });
 });

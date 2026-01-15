@@ -1,19 +1,41 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
 import { QueueService } from '@common/services/queueService';
 import { Processing } from '@project/lambdas/trigger/processing/handler';
 import { Context } from 'aws-lambda';
 
-vi.mock('@common/services/queueService');
-vi.mock('@common/services/configuration');
+vi.mock('@common/ioc', () => ({
+  iocGetConfigurationService: vi.fn(),
+  iocGetQueueService: vi.fn(),
+  iocGetLogger: vi.fn(),
+  iocGetMetrics: vi.fn(),
+  iocGetTracer: vi.fn(),
+}));
 
-describe('Processing QueueHandler', () => {
-  let instance: Processing = new Processing();
+describe('Validation QueueHandler', () => {
+  const getParameter = vi.fn();
+  const publishMessage = vi.fn();
+  const info = vi.fn();
+
+  const instance: Processing = new Processing(
+    { getParameter } as unknown as Configuration,
+    { info } as unknown as Logger,
+    {} as unknown as Metrics,
+    {} as unknown as Tracer
+  );
+  const mockQueue = {
+    publishMessage: publishMessage,
+  } as unknown as QueueService;
+
   let mockContext: Context;
   let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
-    instance = new Processing();
+    vi.mocked(iocGetQueueService).mockReturnValue(mockQueue);
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -50,20 +72,34 @@ describe('Processing QueueHandler', () => {
     expect(instance.operationId).toBe('processing');
   });
 
-  it('should log send a message to an sqs queue when implementation is called', async () => {
+  it('should log send a message to valid message queue when implementation is called and send a message to the events queue when triggered.', async () => {
     // Arrange
-    vi.spyOn(Configuration.prototype, 'getParameter').mockResolvedValue('mockUrl');
-    const mockPublish = vi.spyOn(QueueService.prototype, 'publishMessage').mockResolvedValue(undefined);
+    getParameter.mockResolvedValueOnce('mockValidQueueUrl');
+    getParameter.mockResolvedValueOnce('mockEventsQueueUrl');
+    publishMessage.mockResolvedValueOnce(undefined);
+    publishMessage.mockResolvedValueOnce(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(mockPublish).toHaveBeenCalledWith(
+    expect(getParameter).toHaveBeenCalledTimes(2);
+    expect(publishMessage).toHaveBeenNthCalledWith(
+      1,
       {
         Title: {
           DataType: 'String',
           StringValue: 'Test Message',
+        },
+      },
+      'Test message body.'
+    );
+    expect(publishMessage).toHaveBeenNthCalledWith(
+      2,
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'From processing lambda',
         },
       },
       'Test message body.'

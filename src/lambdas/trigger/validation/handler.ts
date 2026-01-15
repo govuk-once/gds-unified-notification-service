@@ -1,14 +1,21 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
-import { QueueService } from '@common/services/queueService';
 import { Context } from 'aws-lambda';
 
 export class Validation extends QueueHandler<unknown, void> {
-  private config: Configuration = new Configuration();
   public operationId: string = 'validation';
 
-  constructor() {
-    super();
+  constructor(
+    protected config: Configuration,
+    logger: Logger,
+    metrics: Metrics,
+    tracer: Tracer
+  ) {
+    super(logger, metrics, tracer);
   }
 
   public async implementation(event: QueueEvent<string>, context: Context) {
@@ -18,7 +25,7 @@ export class Validation extends QueueHandler<unknown, void> {
       // (MOCK) Send validated Message to valid queue
       const validationQueueUrl = (await this.config.getParameter('queue/valid', 'url')) ?? '';
 
-      const validationQueue = new QueueService(validationQueueUrl);
+      const validationQueue = iocGetQueueService(validationQueueUrl);
       await validationQueue.publishMessage(
         {
           Title: {
@@ -32,7 +39,7 @@ export class Validation extends QueueHandler<unknown, void> {
       // (MOCK) Send event to events queue
       const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
 
-      const eventsQueue = new QueueService(eventsQueueUrl);
+      const eventsQueue = iocGetQueueService(eventsQueueUrl);
       await eventsQueue.publishMessage(
         {
           Title: {
@@ -50,4 +57,9 @@ export class Validation extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Validation().handler();
+export const handler = new Validation(
+  iocGetConfigurationService(),
+  iocGetLogger(),
+  iocGetMetrics(),
+  iocGetTracer()
+).handler();
