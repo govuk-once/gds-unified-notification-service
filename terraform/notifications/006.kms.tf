@@ -53,6 +53,29 @@ resource "aws_kms_key" "main" {
             "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${var.region}:${data.aws_caller_identity.aws.account_id}:*"
           }
         }
+      },
+      {
+        Sid    = "Allow Cloudtrail"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals : {
+            "aws:SourceArn" : "arn:aws:cloudtrail:${var.region}:${data.aws_caller_identity.aws.account_id}:trail/${join("-", [local.prefix, "cloudtrail"])}"
+          },
+          StringLike : {
+            "kms:EncryptionContext:aws:cloudtrail:arn" : "arn:aws:cloudtrail:*:${data.aws_caller_identity.aws.account_id}:trail/*"
+          }
+        }
       }
     ]
   })

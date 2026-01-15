@@ -30,7 +30,7 @@ resource "aws_s3_bucket_versioning" "code_storage" {
 }
 
 # Define lifecycle for contents - as these are ephemeral we can delete all artifacts after 30 days
-resource "aws_s3_bucket_lifecycle_configuration" "example" {
+resource "aws_s3_bucket_lifecycle_configuration" "code_storage" {
   bucket = aws_s3_bucket.code_storage.bucket
 
   rule {
@@ -49,7 +49,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "example" {
 }
 
 # Encryption at rest using KMS key
-resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
+resource "aws_s3_bucket_server_side_encryption_configuration" "code_storage" {
   bucket = aws_s3_bucket.code_storage.id
 
   rule {
