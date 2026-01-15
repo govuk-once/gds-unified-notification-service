@@ -13,14 +13,14 @@ describe('StoreMessageRepository', () => {
 
   beforeEach(() => {
     dynamoMock.reset();
-    repo = new StoreMessageRepository(new DynamoDB(), tableName);
+    repo = new StoreMessageRepository(tableName);
   });
 
   describe('CreateRecord', () => {
     it('marshall record should be sent', async () => {
       // Arrange
       const record: MessageRecord = {
-        guid: '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45',
+        id: '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45',
         status: StatusEnum.PROCESSING,
         src: LambdaSourceEnum.Health,
         createdAt: '2026-01-01T00:00:00Z',
@@ -43,7 +43,7 @@ describe('StoreMessageRepository', () => {
       // Arrange
       const mockGuid = '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45';
       const mockRecord: MessageRecord = {
-        guid: mockGuid,
+        id: mockGuid,
         status: StatusEnum.PROCESSING,
         src: LambdaSourceEnum.Health,
         createdAt: '2026-01-01T00:00:00Z',

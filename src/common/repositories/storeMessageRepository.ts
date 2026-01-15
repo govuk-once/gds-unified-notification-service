@@ -1,12 +1,19 @@
+import { Logger } from '@aws-lambda-powertools/logger';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { iocGetLogger } from '@common/ioc';
 import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
 
 export class StoreMessageRepository implements IStoreMessageRepository {
   private readonly tableName: string;
   private readonly client: DynamoDB;
+  public logger: Logger = iocGetLogger();
 
-  constructor(client: DynamoDB, tableName: string) {
+  constructor(tableName: string) {
+    const client = new DynamoDB({
+      region: 'eu-west-2',
+    });
+
     this.client = client;
     this.tableName = tableName;
   }
@@ -19,7 +26,7 @@ export class StoreMessageRepository implements IStoreMessageRepository {
     try {
       await this.client.putItem(params);
     } catch (error) {
-      console.error('Failure in creating record: ', error);
+      this.logger.error(`Failure in creating record: ${error}`);
     }
   }
 
@@ -42,7 +49,7 @@ export class StoreMessageRepository implements IStoreMessageRepository {
 
       return response;
     } catch (error) {
-      console.error('Failure in getting record: ', error);
+      this.logger.error(`Failure in getting record: ${error}`);
       return null;
     }
   }
