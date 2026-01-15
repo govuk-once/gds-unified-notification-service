@@ -1,7 +1,6 @@
 name: Release
 
 on:
-  # Trigger the workflow on push to main
   push:
     branches:
       - main

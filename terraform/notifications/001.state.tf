@@ -24,7 +24,6 @@ variable "cidr_main" {
   default     = "10.0.0.0/16"
 }
 
-
 terraform {
   backend "s3" {
     bucket = var.bucket
