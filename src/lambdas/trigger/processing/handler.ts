@@ -22,10 +22,10 @@ export class Processing extends QueueHandler<unknown, void> {
     this.logger.info('Received request.');
 
     // (MOCK) Send processed message to completed queue
-    const processingQueueUrl = (await this.config.getParameter('queue/complete', 'url')) ?? '';
+    const dispatchQueueUrl = (await this.config.getParameter('queue/dispatch', 'url')) ?? '';
 
-    const processingQueue = iocGetQueueService(processingQueueUrl);
-    await processingQueue.publishMessage(
+    const dispatchQueue = iocGetQueueService(dispatchQueueUrl);
+    await dispatchQueue.publishMessage(
       {
         Title: {
           DataType: 'String',
@@ -36,10 +36,10 @@ export class Processing extends QueueHandler<unknown, void> {
     );
 
     // (MOCK) Send event to events queue
-    const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
+    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
 
-    const eventsQueue = iocGetQueueService(eventsQueueUrl);
-    await eventsQueue.publishMessage(
+    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+    await analyticsQueue.publishMessage(
       {
         Title: {
           DataType: 'String',

@@ -18,9 +18,9 @@ module "parameter_store" {
     "config/common/cache/user" = aws_elasticache_user.this.user_name
 
     // SQS
-    "queue/valid/url"    = "validQueueUrl"
-    "queue/complete/url" = "completeQueueUrl"
-    "queue/events/url"   = "eventsQueueUrl"
+    "queue/processing/url" = module.sqs_processing.queue_url
+    "queue/dispatch/url"   = module.sqs_dispatch.queue_url
+    "queue/analytics/url"  = module.sqs_analytics.queue_url
 
     // Dynamo
     "table/events/name" = "eventsTableName"

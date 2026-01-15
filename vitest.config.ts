@@ -24,7 +24,7 @@ export default defineConfig({
       },
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.{test,test.unit}.ts'],
-      reporter: ['text-summary', 'lcov'],
+      reporter: ['text', 'lcov'],
     },
   },
 });

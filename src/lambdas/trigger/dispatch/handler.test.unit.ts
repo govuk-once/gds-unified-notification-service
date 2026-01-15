@@ -38,7 +38,7 @@ describe('Dispatch QueueHandler', () => {
 
     // Mock AWS Lambda Context
     mockContext = {
-      functionName: 'validation',
+      functionName: 'dispatch',
       awsRequestId: '12345',
     } as unknown as Context;
 
@@ -71,9 +71,9 @@ describe('Dispatch QueueHandler', () => {
     expect(instance.operationId).toBe('dispatch');
   });
 
-  it('should log send a message to the events queue when the lambda is triggered', async () => {
+  it('should log send a message to the analytics queue when the lambda is triggered', async () => {
     // Arrange
-    getParameter.mockResolvedValueOnce('mockEventsQueueUrl');
+    getParameter.mockResolvedValueOnce('mockAnalyticsQueueUrl');
     publishMessage.mockResolvedValueOnce(undefined);
 
     // Act

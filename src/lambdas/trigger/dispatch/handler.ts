@@ -26,10 +26,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
     this.logger.info('Completed request.');
 
     // (MOCK) Send event to events queue
-    const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
+    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
 
-    const eventsQueue = iocGetQueueService(eventsQueueUrl);
-    await eventsQueue.publishMessage(
+    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+    await analyticsQueue.publishMessage(
       {
         Title: {
           DataType: 'String',

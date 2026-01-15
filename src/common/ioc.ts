@@ -22,6 +22,7 @@ export const iocGetMetrics = () =>
   });
 
 // Services
-export const iocGetConfigurationService = () => new Configuration();
-export const iocGetQueueService = (queueUrl: string) => new QueueService(queueUrl);
+export const iocGetConfigurationService = () => new Configuration(iocGetLogger(), iocGetMetrics(), iocGetTracer());
+export const iocGetQueueService = (queueUrl: string) =>
+  new QueueService(queueUrl, iocGetLogger(), iocGetMetrics(), iocGetTracer());
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());

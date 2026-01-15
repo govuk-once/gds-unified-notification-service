@@ -21,11 +21,11 @@ export class Validation extends QueueHandler<unknown, void> {
   public async implementation(event: QueueEvent<string>, context: Context) {
     this.logger.info('Received request');
 
-    // (MOCK) Send validated Message to valid queue
-    const validationQueueUrl = (await this.config.getParameter('queue/valid', 'url')) ?? '';
+    // (MOCK) Send validated Message to processing queue
+    const processingQueueUrl = (await this.config.getParameter('queue/processing', 'url')) ?? '';
 
-    const validationQueue = iocGetQueueService(validationQueueUrl);
-    await validationQueue.publishMessage(
+    const processingQueue = iocGetQueueService(processingQueueUrl);
+    await processingQueue.publishMessage(
       {
         Title: {
           DataType: 'String',
@@ -36,10 +36,10 @@ export class Validation extends QueueHandler<unknown, void> {
     );
 
     // (MOCK) Send event to events queue
-    const eventsQueueUrl = (await this.config.getParameter('queue/events', 'url')) ?? '';
+    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
 
-    const eventsQueue = iocGetQueueService(eventsQueueUrl);
-    await eventsQueue.publishMessage(
+    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+    await analyticsQueue.publishMessage(
       {
         Title: {
           DataType: 'String',

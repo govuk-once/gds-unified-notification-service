@@ -39,7 +39,7 @@ describe('Validation QueueHandler', () => {
 
     // Mock AWS Lambda Context
     mockContext = {
-      functionName: 'validation',
+      functionName: 'processing',
       awsRequestId: '12345',
     } as unknown as Context;
 
@@ -72,10 +72,10 @@ describe('Validation QueueHandler', () => {
     expect(instance.operationId).toBe('processing');
   });
 
-  it('should log send a message to valid message queue when implementation is called and send a message to the events queue when triggered.', async () => {
+  it('should log send a message to processing queue when implementation is called and send a message to the analytics queue when triggered.', async () => {
     // Arrange
-    getParameter.mockResolvedValueOnce('mockValidQueueUrl');
-    getParameter.mockResolvedValueOnce('mockEventsQueueUrl');
+    getParameter.mockResolvedValueOnce('mockProcessingQueueUrl');
+    getParameter.mockResolvedValueOnce('mockAnalyticsQueueUrl');
     publishMessage.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
 
