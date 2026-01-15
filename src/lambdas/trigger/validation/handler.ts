@@ -1,15 +1,23 @@
-import { iocGetConfigurationService, iocGetDynamoService, iocGetQueueService } from '@common/ioc';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
 import { IIncomingMessage, IMessage, IMessageRecord } from '@project/lambdas/interfaces/ITriggerValidation';
 import { Context } from 'aws-lambda';
 
 export class Validation extends QueueHandler<unknown, void> {
-  private config: Configuration = iocGetConfigurationService();
   public operationId: string = 'validation';
 
-  constructor() {
-    super();
+  constructor(
+    protected config: Configuration,
+    //protected dynamoService: DyanmoDbService,
+    logger: Logger,
+    metrics: Metrics,
+    tracer: Tracer
+  ) {
+    super(logger, metrics, tracer);
   }
 
   public async implementation(event: QueueEvent<IMessage>, context: Context) {
@@ -42,11 +50,9 @@ export class Validation extends QueueHandler<unknown, void> {
       return y;
     });
 
-    // Storing in DynamoDB
-    const dynamoService = iocGetDynamoService();
-
-    await Promise.all(
-      incomingMessages.map(async (x) => {
+    //await Promise.all(
+    incomingMessages.map(
+      (x) => {
         const incomingMessageRecord: IMessageRecord = {
           NotificationID: x.NotificationID,
           UserID: x.UserID,
@@ -69,15 +75,12 @@ export class Validation extends QueueHandler<unknown, void> {
           incomingMessageRecord.MessageBodyFull = x.MessageBodyFull;
         }
 
-        await dynamoService.createRecord(incomingMessageRecord);
-      })
+        //await dynamoService.createRecord(incomingMessageRecord);
+      } //);
     );
 
     // Passing to Queue
-    const validationQueueUrl = await this.config.getParameter('queue', 'validation/url');
-    if (!validationQueueUrl) {
-      throw new Error('Validation Queue Url is not set.');
-    }
+    const validationQueueUrl = (await this.config.getParameter('queue/validation', 'url')) ?? '';
 
     const validationQueue = iocGetQueueService(validationQueueUrl);
     await validationQueue.publishMessageBatch(
@@ -114,8 +117,29 @@ export class Validation extends QueueHandler<unknown, void> {
         ];
       })
     );
+
+    // (MOCK) Send event to events queue
+    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
+
+    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+    await analyticsQueue.publishMessage(
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'From validation lambda',
+        },
+      },
+      'Test message body.'
+    );
+
     this.logger.info('Completed request');
   }
 }
 
-export const handler = new Validation().handler();
+export const handler = new Validation(
+  iocGetConfigurationService(),
+  //iocGetDyanmoDBService(),
+  iocGetLogger(),
+  iocGetMetrics(),
+  iocGetTracer()
+).handler();

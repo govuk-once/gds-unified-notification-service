@@ -1,0 +1,7 @@
+[settings]
+idiomatic_version_file_enable_tools = ['node', 'terraform']
+
+[tools]
+checkov = "latest"
+tflint = "latest"
+tfsec = "latest"

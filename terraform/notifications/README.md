@@ -18,3 +18,12 @@
     - `{additionalLabels}` - If needed, it can be used to separate duplicate resource definitions e.g. `lambda.getHealhcheck.tf`
   - File names should be descriptive where possible i.e. `apiGateway.tf` or `sqs.tf`
   - Avoid unnecessarily long files - and split them appropiately based on the objective
+
+Note: the naming convention of files can be considered quite a chore, which is why the additional utility to manage the numbering is available.
+Any duplicate numberings can be resolved by running:
+
+```sh
+npm run development:organize:tf
+```
+
+You can also use it to add another file inbetween the numbers, read more in the script [doc](./../../scripts/developer-organize-tf.ts)

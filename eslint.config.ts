@@ -7,7 +7,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['artifacts', 'dist', 'node_modules']),
+  globalIgnores(['artifacts', 'coverage', 'dist', 'node_modules']),
   tseslint.configs.recommendedTypeChecked,
   vitest.configs.recommended,
   {

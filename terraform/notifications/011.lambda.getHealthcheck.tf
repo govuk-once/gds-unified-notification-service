@@ -15,8 +15,8 @@ module "lambda_getHealthcheck" {
   security_group_ids = [aws_security_group.public_sg.id]
   subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
 
-  additional_policy_arns = [
+  additional_policy_arns = {
     # Allow elasticache connection
-    aws_iam_policy.lambda_elch_policy.arn
-  ]
+    elasticache = aws_iam_policy.lambda_elch_policy.arn
+  }
 }

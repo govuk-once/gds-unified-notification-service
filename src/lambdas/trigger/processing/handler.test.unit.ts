@@ -3,9 +3,9 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
-import { Configuration, QueueService } from '@common/services';
-import { IMessage } from '@project/lambdas/interfaces/ITriggerValidation';
-import { Validation } from '@project/lambdas/trigger/validation/handler';
+import { Configuration } from '@common/services/configuration';
+import { QueueService } from '@common/services/queueService';
+import { Processing } from '@project/lambdas/trigger/processing/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@common/ioc', () => ({
@@ -19,29 +19,27 @@ vi.mock('@common/ioc', () => ({
 describe('Validation QueueHandler', () => {
   const getParameter = vi.fn();
   const publishMessage = vi.fn();
-  const publishMessageBatch = vi.fn();
   const info = vi.fn();
 
-  const instance: Validation = new Validation(
+  const instance: Processing = new Processing(
     { getParameter } as unknown as Configuration,
     { info } as unknown as Logger,
     {} as unknown as Metrics,
     {} as unknown as Tracer
   );
   const mockQueue = {
-    publishMessageBatch: publishMessageBatch,
     publishMessage: publishMessage,
   } as unknown as QueueService;
 
   let mockContext: Context;
-  let mockEvent: QueueEvent<IMessage>;
+  let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
     vi.mocked(iocGetQueueService).mockReturnValue(mockQueue);
 
     // Mock AWS Lambda Context
     mockContext = {
-      functionName: 'validation',
+      functionName: 'processing',
       awsRequestId: '12345',
     } as unknown as Context;
 
@@ -63,15 +61,7 @@ describe('Validation QueueHandler', () => {
           eventSource: 'mockEventSource',
           eventSourceARN: 'mockEventSourceARN',
           awsRegion: 'eu-west2',
-          body: {
-            NotificationID: '1234',
-            DepartmentID: 'DVLA01',
-            UserID: 'UserID',
-            MessageTitle: 'You have a new Message',
-            MessageBody: 'Open Notification Centre to read your notifications',
-            MessageTitleFull: 'You have a new medical driving license',
-            MessageBodyFull: 'The DVLA has issued you a new license.',
-          },
+          body: 'mockBody',
         },
       ],
     };
@@ -79,18 +69,18 @@ describe('Validation QueueHandler', () => {
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('validation');
+    expect(instance.operationId).toBe('processing');
   });
 
-  it('should send a message to processing queue when implementation is called and send a message to the analytics queue when triggered.', async () => {
+  it('should log send a message to processing queue when implementation is called and send a message to the analytics queue when triggered.', async () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
-    const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
+    const mockAnalyticsQueueUrl = 'mockProcessingQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
-    publishMessageBatch.mockResolvedValueOnce(undefined);
-    publishMessageBatch.mockResolvedValueOnce(undefined);
+    publishMessage.mockResolvedValueOnce(undefined);
+    publishMessage.mockResolvedValueOnce(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -98,31 +88,23 @@ describe('Validation QueueHandler', () => {
     // Assert
     expect(getParameter).toHaveBeenCalledTimes(2);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
-    expect(iocGetQueueService).toHaveBeenNthCalledWith(2, mockAnalyticsQueueUrl);
-    expect(publishMessageBatch).toHaveBeenCalledWith([
-      [
-        {
-          TestAttribute: {
-            DataType: 'String',
-            StringValue: 'Test Message',
-          },
-        },
-        JSON.stringify({
-          NotificationID: '1234',
-          UserID: 'UserID',
-          DepartmentID: 'DVLA01',
-          MessageTitle: 'You have a new Message',
-          MessageBody: 'Open Notification Centre to read your notifications',
-          MessageTitleFull: 'You have a new medical driving license',
-          MessageBodyFull: 'The DVLA has issued you a new license.',
-        }),
-      ],
-    ]);
-    expect(publishMessage).toHaveBeenCalledWith(
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
+    expect(publishMessage).toHaveBeenNthCalledWith(
+      1,
       {
         Title: {
           DataType: 'String',
-          StringValue: 'From validation lambda',
+          StringValue: 'Test Message',
+        },
+      },
+      'Test message body.'
+    );
+    expect(publishMessage).toHaveBeenNthCalledWith(
+      2,
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'From processing lambda',
         },
       },
       'Test message body.'
