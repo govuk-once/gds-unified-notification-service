@@ -73,7 +73,8 @@ describe('Dispatch QueueHandler', () => {
 
   it('should log send a message to the analytics queue when the lambda is triggered', async () => {
     // Arrange
-    getParameter.mockResolvedValueOnce('mockAnalyticsQueueUrl');
+    const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
+    getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessage.mockResolvedValueOnce(undefined);
 
     // Act
@@ -81,6 +82,7 @@ describe('Dispatch QueueHandler', () => {
 
     // Assert
     expect(getParameter).toHaveBeenCalledTimes(1);
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
     expect(publishMessage).toHaveBeenCalledWith(
       {
         Title: {
@@ -90,5 +92,22 @@ describe('Dispatch QueueHandler', () => {
       },
       'Test message body.'
     );
+  });
+
+  it('should set queue url to an empty string if not set and get an error from queue service.', async () => {
+    // Arrange
+    const error = new Error('SQS Publish Error: Queue Url Does not Exist');
+
+    vi.mocked(iocGetQueueService).mockImplementationOnce(() => {
+      throw error;
+    });
+    getParameter.mockResolvedValueOnce(undefined);
+
+    // Act
+    const result = instance.implementation(mockEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(error);
+    expect(iocGetQueueService).toHaveBeenCalledWith('');
   });
 });

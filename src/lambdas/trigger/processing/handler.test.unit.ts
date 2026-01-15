@@ -74,8 +74,11 @@ describe('Validation QueueHandler', () => {
 
   it('should log send a message to processing queue when implementation is called and send a message to the analytics queue when triggered.', async () => {
     // Arrange
-    getParameter.mockResolvedValueOnce('mockProcessingQueueUrl');
-    getParameter.mockResolvedValueOnce('mockAnalyticsQueueUrl');
+    const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
+    const mockAnalyticsQueueUrl = 'mockProcessingQueueUrl';
+
+    getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
+    getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessage.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
 
@@ -84,6 +87,8 @@ describe('Validation QueueHandler', () => {
 
     // Assert
     expect(getParameter).toHaveBeenCalledTimes(2);
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
     expect(publishMessage).toHaveBeenNthCalledWith(
       1,
       {
@@ -104,5 +109,22 @@ describe('Validation QueueHandler', () => {
       },
       'Test message body.'
     );
+  });
+
+  it('should set queue url to an empty string if not set and get an error from queue service.', async () => {
+    // Arrange
+    const error = new Error('SQS Publish Error: Queue Url Does not Exist');
+
+    vi.mocked(iocGetQueueService).mockImplementationOnce(() => {
+      throw error;
+    });
+    getParameter.mockResolvedValueOnce(undefined);
+
+    // Act
+    const result = instance.implementation(mockEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(error);
+    expect(iocGetQueueService).toHaveBeenCalledWith('');
   });
 });
