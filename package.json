@@ -5,21 +5,21 @@
   "type": "module",
   "scripts": {
     "build": "bun scripts/build.ts",
+    "checkov": "checkov --directory . --quiet",
     "commit": "cz",
     "development:organize:tf": "bun scripts/developer-organize-tf.ts",
-    "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
     "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
+    "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
-    "prepare": "husky",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
-    "prettier:check": "npx prettier . --check",
-    "prettier": "npx prettier . --write",
+    "prepare": "husky",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage",
     "test": "vitest",
-    "tflint": "tflint --chdir=terraform/notifications --config .tflint.hcl && cd terraform/notifications && terraform fmt -check -diff -recursive && terraform validate",
-    "tflint:fix": "cd terraform/notifications && terraform fmt -diff -recursive"
+    "tflint": "terraform fmt -check -diff -recursive && tflint --chdir=terraform/notifications  --config .tflint.hcl",
+    "tflint:fix": "terraform fmt -recursive",
+    "tfsec": "tfsec ."
   },
   "devDependencies": {
     "@aws-sdk/client-kms": "3.948.0",
@@ -86,6 +86,14 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog",
       "disableScopeLowerCase": true
+    }
+  },
+  "overrides": {
+    "commitizen": {
+      "tmp": "^0.2.5"
+    },
+    "cz-conventional-changelog": {
+      "tmp": "^0.2.5"
     }
   }
 }
