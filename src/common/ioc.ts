@@ -6,8 +6,6 @@ import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreM
 import { StoreMessageRepository } from '@common/repositories/storeMessageRepository';
 import { CacheService, Configuration, QueueService } from '@common/services';
 
-let dynamoRepoInstance: IStoreMessageRepository | undefined;
-
 // Observability
 export const iocGetLogger = () => {
   return new Logger({
@@ -31,9 +29,5 @@ export const iocGetQueueService = (queueUrl: string) =>
   new QueueService(queueUrl, iocGetLogger(), iocGetMetrics(), iocGetTracer());
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
 
-export const iocGetDynamoRepository = (tableName: string): IStoreMessageRepository => {
-  if (!dynamoRepoInstance) {
-    dynamoRepoInstance = new StoreMessageRepository(tableName);
-  }
-  return dynamoRepoInstance;
-};
+export const iocGetDynamoRepository = (tableName: string): IStoreMessageRepository =>
+  new StoreMessageRepository(tableName);
