@@ -6,8 +6,8 @@ import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
 import { Context } from 'aws-lambda';
 
-export class Validation extends QueueHandler<unknown, void> {
-  public operationId: string = 'validation';
+export class Dispatch extends QueueHandler<unknown, void> {
+  public operationId: string = 'dispatch';
 
   constructor(
     protected config: Configuration,
@@ -19,21 +19,11 @@ export class Validation extends QueueHandler<unknown, void> {
   }
 
   public async implementation(event: QueueEvent<string>, context: Context) {
-    this.logger.info('Received request');
+    this.logger.info('Received request.');
 
-    // (MOCK) Send validated Message to processing queue
-    const processingQueueUrl = (await this.config.getParameter('queue/processing', 'url')) ?? '';
-
-    const processingQueue = iocGetQueueService(processingQueueUrl);
-    await processingQueue.publishMessage(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'Test Message',
-        },
-      },
-      'Test message body.'
-    );
+    // (MOCK) Send completed message to push notification endpoint
+    this.logger.info('Message sent.');
+    this.logger.info('Completed request.');
 
     // (MOCK) Send event to events queue
     const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
@@ -43,17 +33,15 @@ export class Validation extends QueueHandler<unknown, void> {
       {
         Title: {
           DataType: 'String',
-          StringValue: 'From validation lambda',
+          StringValue: 'From dispatch lambda',
         },
       },
       'Test message body.'
     );
-
-    this.logger.info('Completed request');
   }
 }
 
-export const handler = new Validation(
+export const handler = new Dispatch(
   iocGetConfigurationService(),
   iocGetLogger(),
   iocGetMetrics(),

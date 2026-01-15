@@ -4,7 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
 import { Configuration, QueueService } from '@common/services';
-import { Validation } from '@project/lambdas/trigger/validation/handler';
+import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@common/ioc', () => ({
@@ -15,12 +15,12 @@ vi.mock('@common/ioc', () => ({
   iocGetTracer: vi.fn(),
 }));
 
-describe('Validation QueueHandler', () => {
+describe('Dispatch QueueHandler', () => {
   const getParameter = vi.fn();
   const publishMessage = vi.fn();
   const info = vi.fn();
 
-  const instance: Validation = new Validation(
+  const instance: Dispatch = new Dispatch(
     { getParameter } as unknown as Configuration,
     { info } as unknown as Logger,
     {} as unknown as Metrics,
@@ -38,7 +38,7 @@ describe('Validation QueueHandler', () => {
 
     // Mock AWS Lambda Context
     mockContext = {
-      functionName: 'validation',
+      functionName: 'dispatch',
       awsRequestId: '12345',
     } as unknown as Context;
 
@@ -68,42 +68,26 @@ describe('Validation QueueHandler', () => {
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('validation');
+    expect(instance.operationId).toBe('dispatch');
   });
 
-  it('should send a message to processing queue when implementation is called and send a message to the analytics queue when triggered.', async () => {
+  it('should log send a message to the analytics queue when the lambda is triggered', async () => {
     // Arrange
-    const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
-
-    getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
-    publishMessage.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(2);
-    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
-    expect(iocGetQueueService).toHaveBeenNthCalledWith(2, mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenNthCalledWith(
-      1,
+    expect(getParameter).toHaveBeenCalledTimes(1);
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
+    expect(publishMessage).toHaveBeenCalledWith(
       {
         Title: {
           DataType: 'String',
-          StringValue: 'Test Message',
-        },
-      },
-      'Test message body.'
-    );
-    expect(publishMessage).toHaveBeenNthCalledWith(
-      2,
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From validation lambda',
+          StringValue: 'From dispatch lambda',
         },
       },
       'Test message body.'
