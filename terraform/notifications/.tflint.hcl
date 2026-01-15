@@ -29,3 +29,8 @@ rule "terraform_documented_variables" {
 rule "terraform_documented_outputs" {
   enabled = true
 }
+
+rule "aws_resource_missing_tags" {
+  enabled = true
+  tags = ["project"]
+}

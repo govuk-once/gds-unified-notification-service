@@ -5,19 +5,22 @@
   "type": "module",
   "scripts": {
     "build": "bun scripts/build.ts",
+    "checkov": "checkov --directory . --quiet",
     "commit": "cz",
+    "development:organize:tf": "bun scripts/developer-organize-tf.ts",
+    "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
+    "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
-    "tflint": "tflint --chdir=terraform/notifications  --config .tflint.hcl",
-    "development:sandbox:release": "npm run build && cd terraform/notifications && terraform apply",
-    "development:sandbox:release:plan": "npm run build && cd terraform/notifications && terraform plan",
-    "development:organize:tf": "bun scripts/developer-organize-tf.ts",
+    "prepare": "husky",
     "prettier:check": "npx prettier . --check",
     "semantic:release": "semantic-release",
-    "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky"
+    "test": "vitest",
+    "tflint": "terraform fmt -check -diff -recursive && tflint --chdir=terraform/notifications  --config .tflint.hcl",
+    "tflint:fix": "terraform fmt -recursive",
+    "tfsec": "tfsec ."
   },
   "devDependencies": {
     "@aws-sdk/client-kms": "3.948.0",
@@ -32,6 +35,7 @@
     "@types/aws-lambda": "^8.10.159",
     "@types/bun": "^1.3.4",
     "@types/http-errors": "^2.0.5",
+    "@types/node": "^25.0.3",
     "@typescript-eslint/parser": "^8.48.1",
     "@vitest/coverage-v8": "^4.0.15",
     "@vitest/eslint-plugin": "^1.5.2",
@@ -64,6 +68,10 @@
     "@aws-sdk/client-dynamodb": "^3.964.0",
     "@aws-sdk/client-ssm": "^3.956.0",
     "@aws-sdk/util-dynamodb": "^3.968.0",
+    "@aws-sdk/credential-providers": "^3.965.0",
+    "@aws-sdk/hash-node": "^3.370.0",
+    "@aws-sdk/signature-v4": "^3.370.0",
+    "@aws-sdk/util-format-url": "^3.965.0",
     "@middy/core": "^6.4.5",
     "@middy/http-error-handler": "^6.4.5",
     "@middy/http-event-normalizer": "^6.4.5",
@@ -73,6 +81,7 @@
     "@middy/secrets-manager": "^6.4.5",
     "axios": "1.13.2",
     "http-errors": "^2.0.1",
+    "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
     "zod": "^4.1.13"
   },
@@ -80,6 +89,14 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog",
       "disableScopeLowerCase": true
+    }
+  },
+  "overrides": {
+    "commitizen": {
+      "tmp": "^0.2.5"
+    },
+    "cz-conventional-changelog": {
+      "tmp": "^0.2.5"
     }
   }
 }

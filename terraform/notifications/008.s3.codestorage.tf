@@ -67,15 +67,25 @@ resource "aws_signer_signing_profile" "code_signing" {
   platform_id = "AWSLambda-SHA384-ECDSA"
 
   # invalid value for name (must be alphanumeric with max length of 64 characters)
-  name = replace(join("-", [local.prefix, "codesign"]), "-", "")
+  name = replace(join("-", [local.prefix, "signing_profile_v2"]), "-", "")
+  tags = merge(local.defaultTags, {})
 
   signature_validity_period {
     value = 3
     type  = "MONTHS"
   }
+
+
+  # Note: TF Appears to not handle deleting / importing these too well
+  lifecycle {
+    prevent_destroy = true
+  }
+
 }
 
 resource "aws_lambda_code_signing_config" "code_signing" {
+  tags = merge(local.defaultTags, {})
+
   allowed_publishers {
     signing_profile_version_arns = [aws_signer_signing_profile.code_signing.version_arn]
   }
