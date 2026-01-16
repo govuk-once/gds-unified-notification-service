@@ -5,6 +5,7 @@ locals {
     project   = "UNS"
     env       = var.env
     managedBy = "Terraform"
+    version   = var.code_version
   }
 
   availability_zones = [for zone in ["a", "b", "c"] : "${var.region}${zone}"]

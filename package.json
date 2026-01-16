@@ -14,7 +14,6 @@
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
     "prepare": "husky",
-    "prettier:check": "npx prettier . --check",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage",
     "test": "vitest",
