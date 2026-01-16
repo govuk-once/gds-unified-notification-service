@@ -98,3 +98,28 @@ resource "aws_iam_role_policy_attachment" "additional_policies" {
   role       = aws_iam_role.lambda.name
   policy_arn = each.value
 }
+
+# DynamoDB IAM access policy 
+resource "aws_iam_role_policy" "dynamo_access" {
+  count = length(var.dynamo_table_arns) > 0 ? 1 : 0
+
+  role = aws_iam_role.lambda.id
+  name = join("-", [var.prefix, "iamr", var.function_name, "dynamo"])
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Scan",
+          "dynamodb:Query"
+        ]
+        Effect   = "Allow"
+        Resource = var.dynamo_table_arns
+      }
+    ]
+  })
+}
