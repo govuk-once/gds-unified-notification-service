@@ -1,36 +1,41 @@
-name: Release test (Branch) - env
-
-on: pull_request
+name: Release to env
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
   id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      ENVIRONMENT_NAME:
+        description: 'Environment name'
+        type: string
+        required: true
+    secrets:
+      AWS_REGION:
+        description: 'AWS Region to deploy to'
+        required: true
+      ROLE_TO_ASSUME:
+        description: 'AWS deployment role to assume'
+        required: true
+      TF_STATE_BUCKET:
+        description: 'Name of the s3 bucket holding TF state'
+        required: true
 
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: Dev
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-
-      - name: Show OIDC claims (right before assume)
-        env:
-          AUDIENCE: 'sts.amazonaws.com'
-        run: |
-          TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")
-          ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r .value)
-          echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r '.sub'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5.1.1
         with:
           audience: sts.amazonaws.com
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.TF_REGION }}
+          role-to-assume: ${{ secrets.ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -53,9 +58,9 @@ jobs:
             -backend-config "region=$TF_VAR_region" \
             -backend-config "bucket=$TF_VAR_bucket" \
             -backend-config "key=$TF_VAR_key"
-          terraform plan
+          terraform apply -auto-approve
         env:
-          TF_VAR_region: ${{ vars.TF_REGION }}
-          TF_VAR_bucket: ${{ secrets.TF_BUCKET }}
-          TF_VAR_key: ${{ vars.TF_KEY }}
-          TF_VAR_env: ${{ vars.TF_ENV }}
+          TF_VAR_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
+          TF_VAR_env: ${{ inputs.ENVIRONMENT_NAME }}
+          TF_VAR_key: state.json

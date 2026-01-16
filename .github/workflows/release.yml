@@ -33,3 +33,13 @@ jobs:
         run: npm run semantic:release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - releaseDev:
+        name: Deploy to dev
+        uses: ./.github/workflows/_deploy.yml
+        with:
+          ENVIRONMENT_NAME: 'dev'
+        secrets:
+          ROLE_TO_ASSUME: ${{ secrets.DEV_AWS_DEPLOYMENT_ROLE }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_STATE_BUCKET: ${{ secrets.DEV_TF_STATE_BUCKET }}

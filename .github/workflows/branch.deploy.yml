@@ -3,58 +3,16 @@ name: Release test (Branch)
 on: pull_request
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
   id-token: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-
-      - name: Show OIDC claims (right before assume)
-        env:
-          AUDIENCE: 'sts.amazonaws.com'
-        run: |
-          TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")
-          ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r .value)
-          echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r '.sub'
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5.1.1
-        with:
-          audience: sts.amazonaws.com
-          role-to-assume: ${{ secrets.DEV_AWS_DEPLOYMENT_ROLE }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: '.node-version'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build bundles
-        run: npm run build
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform deploy
-        working-directory: ./terraform/notifications
-        run: |
-          terraform init \
-            -backend-config "region=$TF_VAR_region" \
-            -backend-config "bucket=$TF_VAR_bucket" \
-            -backend-config "key=$TF_VAR_key"
-          terraform plan
-        env:
-          TF_VAR_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_bucket: ${{ secrets.DEV_TF_STATE_BUCKET }}
-          TF_VAR_key: state.json
-          TF_VAR_env: dev
+  releaseTest:
+    name: Deploy to dev
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ENVIRONMENT_NAME: 'dev'
+    secrets:
+      ROLE_TO_ASSUME: ${{ secrets.DEV_AWS_DEPLOYMENT_ROLE }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.DEV_TF_STATE_BUCKET }}
