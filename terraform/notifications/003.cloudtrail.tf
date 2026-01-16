@@ -73,12 +73,10 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
   })
 }
 
+#tfsec:ignore:aws-cloudtrail-ensure-cloudwatch-integration
 resource "aws_cloudtrail" "cloudtrail" {
-  #checkov:skip=CKV_AWS_67: "Ensure CloudTrail is enabled in all Regions" - Investigate whether it's necessary
-  #tfsec:ignore:aws-cloudtrail-enable-all-regions
   #checkov:skip=CKV_AWS_252: "Ensure CloudTrail defines an SNS Topic" - Investigate whether it's necessary
   #checkov:skip=CKV2_AWS_10: "Ensure CloudTrail trails are integrated with CloudWatch Logs" - Investigate whether it's necessary along with s3
-  #tfsec:ignore:aws-cloudtrail-ensure-cloudwatch-integration
   depends_on = [
     aws_kms_key.main,
     aws_s3_bucket.cloudtrail,
@@ -91,4 +89,5 @@ resource "aws_cloudtrail" "cloudtrail" {
   include_global_service_events = true
   enable_log_file_validation    = true
   kms_key_id                    = aws_kms_key.main.arn
+  is_multi_region_trail         = true
 }
