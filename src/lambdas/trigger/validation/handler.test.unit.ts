@@ -101,16 +101,11 @@ describe('Validation QueueHandler', () => {
     expect(iocGetQueueService).toHaveBeenNthCalledWith(2, mockAnalyticsQueueUrl);
     expect(publishMessageBatch).toHaveBeenCalledWith([
       [
-        {
-          TestAttribute: {
-            DataType: 'String',
-            StringValue: 'Test Message',
-          },
-        },
+        {},
         JSON.stringify({
           NotificationID: '1234',
-          UserID: 'UserID',
           DepartmentID: 'DVLA01',
+          UserID: 'UserID',
           MessageTitle: 'You have a new Message',
           MessageBody: 'Open Notification Centre to read your notifications',
           MessageTitleFull: 'You have a new medical driving license',

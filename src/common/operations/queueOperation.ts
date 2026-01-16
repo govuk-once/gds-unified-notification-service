@@ -4,7 +4,7 @@ import type { Metrics } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
-import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
+import middy, { MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
 export type QueueEvent<RecordBodyType> = Omit<SQSEvent, 'Records'> & {

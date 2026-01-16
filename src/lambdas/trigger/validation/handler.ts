@@ -1,18 +1,27 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
+import {
+  iocGetConfigurationService,
+  //iocGetDynamoRepository,
+  iocGetLogger,
+  iocGetMetrics,
+  iocGetQueueService,
+  iocGetTracer,
+} from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
+import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
 import { Configuration } from '@common/services/configuration';
-import { IIncomingMessage, IMessage, IMessageRecord } from '@project/lambdas/interfaces/ITriggerValidation';
+import { IMessage, IMessageRecord, IMessageSchema } from '@project/lambdas/interfaces/ITriggerValidation';
 import { Context } from 'aws-lambda';
+import z from 'zod';
 
-export class Validation extends QueueHandler<unknown, void> {
+export class Validation extends QueueHandler<unknown> {
   public operationId: string = 'validation';
 
   constructor(
     protected config: Configuration,
-    //protected dynamoService: DyanmoDbService,
+    //protected dynamoRepo: IStoreMessageRepository,
     logger: Logger,
     metrics: Metrics,
     tracer: Tracer
@@ -20,103 +29,66 @@ export class Validation extends QueueHandler<unknown, void> {
     super(logger, metrics, tracer);
   }
 
-  public async implementation(event: QueueEvent<IMessage>, context: Context) {
+  public async implementation(event: QueueEvent<unknown>, context: Context) {
     this.logger.info('Received request');
 
     // Validation
-    const incomingMessages = event.Records.map((x) => {
-      const y: IIncomingMessage = {
-        NotificationID: x.body.NotificationID,
-        UserID: x.body.UserID,
-        ReceivedDateTime: x.attributes.ApproximateFirstReceiveTimestamp,
-      };
+    const incomingMessages: IMessage[] = [];
+    const messageRecords: IMessageRecord[] = [];
 
-      if (x.body.DepartmentID) {
-        y.DepartmentID = x.body.DepartmentID;
-      }
-      if (x.body.MessageTitle) {
-        y.MessageTitle = x.body.MessageTitle;
-      }
-      if (x.body.MessageBody) {
-        y.MessageBody = x.body.MessageBody;
-      }
-      if (x.body.MessageTitleFull) {
-        y.MessageTitleFull = x.body.MessageTitleFull;
-      }
-      if (x.body.MessageBodyFull) {
-        y.MessageBodyFull = x.body.MessageBodyFull;
-      }
+    event.Records.forEach((x) => {
+      const y = IMessageSchema.safeParse(x.body);
 
-      return y;
+      if (y.success) {
+        const message = y.data;
+        incomingMessages.push(message);
+
+        const record = {
+          NotificationID: message.NotificationID,
+          UserID: message.UserID,
+          MessageTitle: message.MessageTitle,
+          MessageBody: message.MessageTitle,
+          MessageTitleFull: message.MessageTitle,
+          MessageBodyFull: message.MessageTitle,
+          DepartmentID: message.MessageTitle,
+          ReceivedDateTime: x.attributes.ApproximateFirstReceiveTimestamp,
+          ValidatedDateTime: Date.now().toString(),
+        };
+        messageRecords.push(record);
+      } else {
+        const failedMessage = x.body as Partial<IMessage>;
+
+        if (failedMessage?.NotificationID && failedMessage?.UserID) {
+          const record: IMessageRecord = {
+            NotificationID: failedMessage.NotificationID,
+            UserID: failedMessage.UserID,
+          };
+
+          if (failedMessage.MessageTitle) record.MessageTitle = failedMessage.MessageTitle;
+          if (failedMessage.MessageBody) record.MessageBody = failedMessage.MessageBody;
+          if (failedMessage.MessageTitleFull) record.MessageTitleFull = failedMessage.MessageTitleFull;
+          if (failedMessage.MessageBodyFull) record.MessageBodyFull = failedMessage.MessageBodyFull;
+          if (x.attributes.ApproximateFirstReceiveTimestamp)
+            record.ReceivedDateTime = x.attributes.ApproximateFirstReceiveTimestamp;
+
+          messageRecords.push(record);
+        } else {
+          this.logger.error('Validation failed with no NotificationID provided', y.error);
+        }
+      }
     });
 
-    //await Promise.all(
-    incomingMessages.map(
-      (x) => {
-        const incomingMessageRecord: IMessageRecord = {
-          NotificationID: x.NotificationID,
-          UserID: x.UserID,
-          ReceivedDateTime: x.ReceivedDateTime,
-        };
-
-        if (x.DepartmentID) {
-          incomingMessageRecord.DepartmentID = x.DepartmentID;
-        }
-        if (x.MessageTitle) {
-          incomingMessageRecord.MessageTitle = x.MessageTitle;
-        }
-        if (x.MessageBody) {
-          incomingMessageRecord.MessageBody = x.MessageBody;
-        }
-        if (x.MessageTitleFull) {
-          incomingMessageRecord.MessageTitleFull = x.MessageTitleFull;
-        }
-        if (x.MessageBodyFull) {
-          incomingMessageRecord.MessageBodyFull = x.MessageBodyFull;
-        }
-
-        //await dynamoService.createRecord(incomingMessageRecord);
-      } //);
-    );
-
     // Passing to Queue
-    const validationQueueUrl = (await this.config.getParameter('queue/validation', 'url')) ?? '';
+    const processingQueueUrl = (await this.config.getParameter('queue/processing', 'url')) ?? '';
 
-    const validationQueue = iocGetQueueService(validationQueueUrl);
-    await validationQueue.publishMessageBatch(
+    const processingQueue = iocGetQueueService(processingQueueUrl);
+    await processingQueue.publishMessageBatch(
       incomingMessages.map((x) => {
-        const message: IMessage = {
-          NotificationID: x.NotificationID,
-          UserID: x.UserID,
-        };
-
-        if (x.DepartmentID) {
-          message.DepartmentID = x.DepartmentID;
-        }
-        if (x.MessageTitle) {
-          message.MessageTitle = x.MessageTitle;
-        }
-        if (x.MessageBody) {
-          message.MessageBody = x.MessageBody;
-        }
-        if (x.MessageTitleFull) {
-          message.MessageTitleFull = x.MessageTitleFull;
-        }
-        if (x.MessageBodyFull) {
-          message.MessageBodyFull = x.MessageBodyFull;
-        }
-
-        return [
-          {
-            TestAttribute: {
-              DataType: 'String',
-              StringValue: 'Test Message',
-            },
-          },
-          JSON.stringify({ ...message }),
-        ];
+        return [{}, JSON.stringify(x)];
       })
     );
+
+    // Create a record of message in Dynamodb
 
     // (MOCK) Send event to events queue
     const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
@@ -138,7 +110,7 @@ export class Validation extends QueueHandler<unknown, void> {
 
 export const handler = new Validation(
   iocGetConfigurationService(),
-  //iocGetDyanmoDBService(),
+  //iocGetDynamoRepository(),
   iocGetLogger(),
   iocGetMetrics(),
   iocGetTracer()

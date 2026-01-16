@@ -1,16 +1,16 @@
-export interface IMessage {
-  NotificationID: string;
-  DepartmentID?: string;
-  UserID: string;
-  MessageTitle?: string;
-  MessageBody?: string;
-  MessageTitleFull?: string;
-  MessageBodyFull?: string;
-}
+import z from 'zod';
 
-export interface IIncomingMessage extends IMessage {
-  ReceivedDateTime: string;
-}
+export const IMessageSchema = z.object({
+  NotificationID: z.string(),
+  DepartmentID: z.string(),
+  UserID: z.string(),
+  MessageTitle: z.string(),
+  MessageBody: z.string(),
+  MessageTitleFull: z.string(),
+  MessageBodyFull: z.string(),
+});
+
+export type IMessage = z.infer<typeof IMessageSchema>;
 
 export interface IMessageRecord {
   NotificationID: string;
