@@ -1,3 +1,6 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { QueueService } from '@common/services/queueService';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -9,9 +12,16 @@ expect.extend({
 
 const sqsMock = mockClient(SQSClient);
 const mockQueueUrl = 'testQueueUrl';
-const config = new QueueService(mockQueueUrl);
 
 describe('QueueService', () => {
+  const trace = vi.fn();
+  const queueService = new QueueService(
+    mockQueueUrl,
+    { trace } as unknown as Logger,
+    {} as unknown as Metrics,
+    {} as unknown as Tracer
+  );
+
   beforeEach(() => {
     sqsMock.reset();
   });
@@ -27,7 +37,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await config.publishMessage(mockMessageAttribute, mockMessageBody);
+      await queueService.publishMessage(mockMessageAttribute, mockMessageBody);
 
       // Assert
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -41,16 +51,14 @@ describe('QueueService', () => {
 
     it('should throw an error and log when the send message command fails', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
-      vi.spyOn(config.logger, 'trace');
       const error = new Error('SQS Error');
       sqsMock.on(SendMessageCommand).rejects(error);
 
       // Act
-      const result = config.publishMessage(mockMessageAttribute, mockMessageBody);
+      const result = queueService.publishMessage(mockMessageAttribute, mockMessageBody);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -61,7 +69,6 @@ describe('QueueService', () => {
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params.', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
@@ -70,7 +77,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await config.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
+      await queueService.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
 
       // Assert
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -90,7 +97,6 @@ describe('QueueService', () => {
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody_0 = 'testMessageBody';
       const mockMessageBody_1 = 'testMessageBody';
@@ -101,7 +107,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await config.publishMessageBatch([
+      await queueService.publishMessageBatch([
         [mockMessageAttribute, mockMessageBody_0],
         [mockMessageAttribute, mockMessageBody_1],
       ]);
@@ -130,7 +136,6 @@ describe('QueueService', () => {
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
       const mockMessageList: [Record<string, MessageAttributeValue>, string][] = [
@@ -150,7 +155,7 @@ describe('QueueService', () => {
       const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
 
       // Act
-      const result = config.publishMessageBatch(mockMessageList);
+      const result = queueService.publishMessageBatch(mockMessageList);
 
       // Assert
       await expect(result).rejects.toThrow(Error(errorMsg));
@@ -159,16 +164,14 @@ describe('QueueService', () => {
 
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
-      const trace = vi.spyOn(config.logger, 'trace');
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
-      vi.spyOn(config.logger, 'trace');
       const error = new Error('SQS Error');
       sqsMock.on(SendMessageBatchCommand).rejects(error);
 
       // Act
-      const result = config.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
+      const result = queueService.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
 
       // Assert
       await expect(result).rejects.toThrow(error);
