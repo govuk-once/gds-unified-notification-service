@@ -34,11 +34,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - releaseDev:
-        name: Deploy to dev
+      - name: Deploy to dev
         uses: ./.github/workflows/_deploy.yml
         with:
           ENVIRONMENT_NAME: 'dev'
+          VERSION: 'latest@${{ github.sha }}'
         secrets:
           ROLE_TO_ASSUME: ${{ secrets.DEV_AWS_DEPLOYMENT_ROLE }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
