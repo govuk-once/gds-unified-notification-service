@@ -5,14 +5,24 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { Configuration } from '@common/services/configuration';
 import { mockClient } from 'aws-sdk-client-mock';
 
-const ssmMock = mockClient(SSMClient);
-
 describe('Configuration', () => {
+  const ssmMock = mockClient(SSMClient);
+
   const trace = vi.fn();
-  const config = new Configuration({ trace } as unknown as Logger, {} as unknown as Metrics, {} as unknown as Tracer);
+  const error = vi.fn();
+
+  let config: Configuration;
 
   beforeEach(() => {
+    // Reset all mock
+    vi.clearAllMocks();
     ssmMock.reset();
+
+    config = new Configuration(
+      { trace, error } as unknown as Logger,
+      {} as unknown as Metrics,
+      {} as unknown as Tracer
+    );
   });
 
   describe('getParameter', () => {
@@ -32,16 +42,15 @@ describe('Configuration', () => {
 
     it('should throw an error and log when the call fails', async () => {
       // Arrange
-      const error = new Error('AWS Error');
-
-      ssmMock.on(GetParameterCommand).rejects(error);
+      const errorMsg = 'AWS Error';
+      ssmMock.on(GetParameterCommand).rejects(new Error(errorMsg));
 
       // Act
       const result = config.getParameter('testNameSpace', 'testKey');
 
       // Assert
-      await expect(result).rejects.toThrow(error);
-      expect(trace).toHaveBeenCalledWith(`Failed fetching value from SSM: ${error}`);
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(error).toHaveBeenCalledWith(`Failed fetching value from SSM - Error: ${errorMsg}`);
     });
   });
 
@@ -73,7 +82,7 @@ describe('Configuration', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(trace).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a boolean`);
+      expect(error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a boolean`);
     });
   });
 
@@ -95,17 +104,18 @@ describe('Configuration', () => {
     it('should throw an error and log when the parameter cannot be parsed to a number', async () => {
       // Arrange
       const secretValue = 'ten';
-
       ssmMock.on(GetParameterCommand).resolves({
         Parameter: { Value: secretValue },
       });
+
+      const errorMsg = 'Could not parse parameter testNameSpace/testKey to a number';
 
       // Act
       const result = config.getNumericParameter('testNameSpace', 'testKey');
 
       // Assert
-      await expect(result).rejects.toThrow(Error);
-      expect(trace).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a number`);
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(error).toHaveBeenCalledWith(errorMsg);
     });
   });
 });

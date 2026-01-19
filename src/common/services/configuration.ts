@@ -16,6 +16,8 @@ export class Configuration {
   }
 
   public async getParameter(namespace: string, key: string): Promise<string | undefined> {
+    this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}/${key}`);
+
     const param = {
       Name: `/${this.prefix}/${namespace}/${key}`,
       WithDecryption: true,
@@ -26,9 +28,10 @@ export class Configuration {
     try {
       const data = await this.client.send(command);
 
+      this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}/${key}`);
       return data.Parameter?.Value;
     } catch (error) {
-      this.logger.trace(`Failed fetching value from SSM: ${error}`);
+      this.logger.error(`Failed fetching value from SSM - ${error}`);
       throw error;
     }
   }
@@ -43,7 +46,7 @@ export class Configuration {
         return false;
       default:
         const errorMsg = `Could not parse parameter ${namespace}/${key} to a boolean`;
-        this.logger.trace(errorMsg);
+        this.logger.error(errorMsg);
         throw new Error(errorMsg);
     }
   }
@@ -60,7 +63,7 @@ export class Configuration {
     }
 
     const errorMsg = `Could not parse parameter ${namespace}/${key} to a number`;
-    this.logger.trace(errorMsg);
+    this.logger.error(errorMsg);
     throw new Error(errorMsg);
   }
 }

@@ -1,4 +1,4 @@
-module "aws_dynamodb_table" {
+module "dynamodb_events" {
   source     = "./modules/dynamo"
   prefix     = local.prefix
   table_name = "events"

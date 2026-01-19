@@ -35,6 +35,9 @@ describe('Validation QueueHandler', () => {
   let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
+    // Reset all mock
+    vi.clearAllMocks();
+
     vi.mocked(iocGetQueueService).mockReturnValue(mockQueue);
 
     // Mock AWS Lambda Context

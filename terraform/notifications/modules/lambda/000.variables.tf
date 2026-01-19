@@ -113,10 +113,10 @@ variable "dynamo_table_arns" {
   type        = list(string)
   default     = []
 }
+
 variable "subnet_ids" {
   description = "Subnet IDs"
   type        = list(string)
   nullable    = true
   default     = null
 }
-

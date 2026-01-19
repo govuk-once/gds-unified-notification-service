@@ -15,15 +15,21 @@ const mockQueueUrl = 'testQueueUrl';
 
 describe('QueueService', () => {
   const trace = vi.fn();
-  const queueService = new QueueService(
-    mockQueueUrl,
-    { trace } as unknown as Logger,
-    {} as unknown as Metrics,
-    {} as unknown as Tracer
-  );
+  const error = vi.fn();
+
+  let queueService: QueueService;
 
   beforeEach(() => {
+    // Reset all mock
+    vi.clearAllMocks();
     sqsMock.reset();
+
+    queueService = new QueueService(
+      mockQueueUrl,
+      { trace, error } as unknown as Logger,
+      {} as unknown as Metrics,
+      {} as unknown as Tracer
+    );
   });
 
   describe('publishMessage', () => {
@@ -54,15 +60,15 @@ describe('QueueService', () => {
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
-      const error = new Error('SQS Error');
-      sqsMock.on(SendMessageCommand).rejects(error);
+      const errorMsg = 'SQS Error';
+      sqsMock.on(SendMessageCommand).rejects(new Error(errorMsg));
 
       // Act
       const result = queueService.publishMessage(mockMessageAttribute, mockMessageBody);
 
       // Assert
-      await expect(result).rejects.toThrow(error);
-      expect(trace).toHaveBeenCalledWith(`SQS Publish Error: ${error}`);
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
     });
   });
 
@@ -159,7 +165,7 @@ describe('QueueService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error(errorMsg));
-      expect(trace).toHaveBeenCalledWith(errorMsg);
+      expect(error).toHaveBeenCalledWith(errorMsg);
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {
@@ -167,15 +173,15 @@ describe('QueueService', () => {
       const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
-      const error = new Error('SQS Error');
-      sqsMock.on(SendMessageBatchCommand).rejects(error);
+      const errorMsg = 'SQS Error';
+      sqsMock.on(SendMessageBatchCommand).rejects(new Error(errorMsg));
 
       // Act
       const result = queueService.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
 
       // Assert
-      await expect(result).rejects.toThrow(error);
-      expect(trace).toHaveBeenCalledWith(`SQS Publish Error: ${error}`);
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
     });
   });
 });

@@ -3,25 +3,25 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   iocGetConfigurationService,
-  //iocGetDynamoRepository,
+  iocGetDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
   iocGetQueueService,
   iocGetTracer,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
 import { Configuration } from '@common/services/configuration';
-import { IMessage, IMessageRecord, IMessageSchema } from '@project/lambdas/interfaces/ITriggerValidation';
+import { IMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
+import { Key } from '@project/lambdas/namespaces/KeyEnum';
+import { Namespace } from '@project/lambdas/namespaces/NamespaceEnum';
 import { Context } from 'aws-lambda';
-import z from 'zod';
 
 export class Validation extends QueueHandler<unknown> {
   public operationId: string = 'validation';
 
   constructor(
     protected config: Configuration,
-    //protected dynamoRepo: IStoreMessageRepository,
     logger: Logger,
     metrics: Metrics,
     tracer: Tracer
@@ -30,16 +30,19 @@ export class Validation extends QueueHandler<unknown> {
   }
 
   public async implementation(event: QueueEvent<unknown>, context: Context) {
-    this.logger.info('Received request');
+    this.logger.trace('Received request');
 
     // Validation
     const incomingMessages: IMessage[] = [];
     const messageRecords: IMessageRecord[] = [];
 
-    event.Records.forEach((x) => {
-      const y = IMessageSchema.safeParse(x.body);
+    event.Records.forEach((eventRecord) => {
+      const y = IMessageSchema.safeParse(eventRecord.body);
 
       if (y.success) {
+        this.logger.trace('Successfully parsed message body');
+        console.log('Successfully parsed message body');
+
         const message = y.data;
         incomingMessages.push(message);
 
@@ -47,29 +50,46 @@ export class Validation extends QueueHandler<unknown> {
           NotificationID: message.NotificationID,
           UserID: message.UserID,
           MessageTitle: message.MessageTitle,
-          MessageBody: message.MessageTitle,
-          MessageTitleFull: message.MessageTitle,
-          MessageBodyFull: message.MessageTitle,
-          DepartmentID: message.MessageTitle,
-          ReceivedDateTime: x.attributes.ApproximateFirstReceiveTimestamp,
+          MessageBody: message.MessageBody,
+          MessageTitleFull: message.MessageTitleFull,
+          MessageBodyFull: message.MessageBodyFull,
+          DepartmentID: message.DepartmentID,
+          ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
           ValidatedDateTime: Date.now().toString(),
+          ProcessedDateTime: undefined,
+          SentDateTime: undefined,
+          DispatchedStartDateTime: undefined,
+          OneSignalID: undefined,
+          APIGWExtendedID: undefined,
+          OneSignalResponseID: undefined,
+          TraceID: undefined,
         };
         messageRecords.push(record);
       } else {
-        const failedMessage = x.body as Partial<IMessage>;
+        const failedMessage = eventRecord.body as Partial<IMessage>;
 
         if (failedMessage?.NotificationID && failedMessage?.UserID) {
+          this.logger.trace(`Failed to parse message body with NotificationID:${failedMessage?.NotificationID}`);
+          console.log(`Failed to parse message body with NotificationID:${failedMessage?.NotificationID}`);
+
           const record: IMessageRecord = {
             NotificationID: failedMessage.NotificationID,
             UserID: failedMessage.UserID,
+            OneSignalID: undefined,
+            APIGWExtendedID: undefined,
+            MessageTitle: failedMessage.MessageTitle,
+            MessageBody: failedMessage.MessageBody,
+            MessageTitleFull: failedMessage.MessageTitleFull,
+            MessageBodyFull: failedMessage.MessageBodyFull,
+            DepartmentID: failedMessage.DepartmentID,
+            ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
+            ValidatedDateTime: undefined,
+            ProcessedDateTime: undefined,
+            DispatchedStartDateTime: undefined,
+            OneSignalResponseID: undefined,
+            SentDateTime: undefined,
+            TraceID: undefined,
           };
-
-          if (failedMessage.MessageTitle) record.MessageTitle = failedMessage.MessageTitle;
-          if (failedMessage.MessageBody) record.MessageBody = failedMessage.MessageBody;
-          if (failedMessage.MessageTitleFull) record.MessageTitleFull = failedMessage.MessageTitleFull;
-          if (failedMessage.MessageBodyFull) record.MessageBodyFull = failedMessage.MessageBodyFull;
-          if (x.attributes.ApproximateFirstReceiveTimestamp)
-            record.ReceivedDateTime = x.attributes.ApproximateFirstReceiveTimestamp;
 
           messageRecords.push(record);
         } else {
@@ -79,21 +99,45 @@ export class Validation extends QueueHandler<unknown> {
     });
 
     // Passing to Queue
-    const processingQueueUrl = (await this.config.getParameter('queue/processing', 'url')) ?? '';
+    if (incomingMessages.length > 0) {
+      const processingQueueUrl = (await this.config.getParameter(Namespace.ProcessingQueue, Key.Url)) ?? '';
+      console.log('Called getParameter');
 
-    const processingQueue = iocGetQueueService(processingQueueUrl);
-    await processingQueue.publishMessageBatch(
-      incomingMessages.map((x) => {
-        return [{}, JSON.stringify(x)];
+      const processingQueue = iocGetQueueService(processingQueueUrl);
+
+      await processingQueue.publishMessageBatch<IMessage>(
+        incomingMessages.map((message) => {
+          return [
+            {
+              Title: {
+                DataType: 'String',
+                StringValue: 'Test title',
+              },
+            },
+            message,
+          ];
+        })
+      );
+    }
+
+    // Create a record of message in Dynamodb
+    const messageRecordTableName = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Name)) ?? '';
+    console.log('Called getParameter');
+
+    const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
+
+    await Promise.all(
+      messageRecords.map(async (record) => {
+        await messageRecordTable.createRecord<IMessageRecord>(record);
       })
     );
 
-    // Create a record of message in Dynamodb
-
     // (MOCK) Send event to events queue
-    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
+    const analyticsQueueUrl = (await this.config.getParameter(Namespace.AnalyticsQueue, Key.Url)) ?? '';
+    console.log('Called getParameter');
 
     const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+
     await analyticsQueue.publishMessage(
       {
         Title: {
@@ -104,13 +148,12 @@ export class Validation extends QueueHandler<unknown> {
       'Test message body.'
     );
 
-    this.logger.info('Completed request');
+    this.logger.trace('Completed request');
   }
 }
 
 export const handler = new Validation(
   iocGetConfigurationService(),
-  //iocGetDynamoRepository(),
   iocGetLogger(),
   iocGetMetrics(),
   iocGetTracer()
