@@ -11,6 +11,10 @@ on:
         description: 'Environment name'
         type: string
         required: true
+      VERSION:
+        description: 'Version label'
+        type: string
+        required: true
     secrets:
       AWS_REGION:
         description: 'AWS Region to deploy to'
@@ -64,3 +68,4 @@ jobs:
           TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
           TF_VAR_env: ${{ inputs.ENVIRONMENT_NAME }}
           TF_VAR_key: state.json
+          TF_VAR_code_version: ${{ inputs.version }}
