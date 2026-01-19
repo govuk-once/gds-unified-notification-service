@@ -2,8 +2,8 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
-import { StoreMessageRepository } from '@common/repositories/storeMessageRepository';
+import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
+import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 import { CacheService, Configuration, QueueService } from '@common/services';
 
 // Observability
@@ -29,5 +29,4 @@ export const iocGetQueueService = (queueUrl: string) =>
   new QueueService(queueUrl, iocGetLogger(), iocGetMetrics(), iocGetTracer());
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
 
-export const iocGetDynamoRepository = (tableName: string): IStoreMessageRepository =>
-  new StoreMessageRepository(tableName);
+export const iocGetDynamoRepository = (tableName: string): IDynamodbRepository => new DynamodbRepository(tableName);

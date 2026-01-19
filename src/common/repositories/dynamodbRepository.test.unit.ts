@@ -3,17 +3,17 @@ import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { MessageRecord } from '@common/models/interfaces/MessageRecord';
 import { LambdaSourceEnum } from '@common/models/LambdaSourceEnum';
 import { StatusEnum } from '@common/models/StatusEnum';
-import { StoreMessageRepository } from '@common/repositories/storeMessageRepository';
+import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { mockClient } from 'aws-sdk-client-mock';
 
-describe('StoreMessageRepository', () => {
+describe('DynamodbRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
-  let repo: StoreMessageRepository;
+  let repo: DynamodbRepository;
   const tableName = 'testTable';
 
   beforeEach(() => {
     dynamoMock.reset();
-    repo = new StoreMessageRepository(tableName);
+    repo = new DynamodbRepository(tableName);
   });
 
   describe('CreateRecord', () => {

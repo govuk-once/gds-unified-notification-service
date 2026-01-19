@@ -2,9 +2,9 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { iocGetLogger } from '@common/ioc';
-import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
+import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 
-export class StoreMessageRepository implements IStoreMessageRepository {
+export class DynamodbRepository implements IDynamodbRepository {
   private readonly client: DynamoDB;
   public logger: Logger = iocGetLogger();
 

@@ -3,7 +3,7 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetDynamoRepository, iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
-import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
+import { IDynamodbRepository, IStoreMessageRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 import { Configuration, QueueService } from '@common/services';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/trigger/validation/handler';
@@ -33,7 +33,7 @@ describe('Validation QueueHandler', () => {
 
   const mockDynamo = {
     createRecord: createRecord,
-  } as unknown as IStoreMessageRepository;
+  } as unknown as IDynamodbRepository;
 
   let mockContext: Context;
   let mockEvent: QueueEvent<IMessage>;
@@ -67,8 +67,8 @@ describe('Validation QueueHandler', () => {
       UserID: 'UserID',
       MessageTitle: 'You have a new Message',
       MessageBody: 'Open Notification Centre to read your notifications',
-      MessageTitleFull: 'You have a new medical driving license',
-      MessageBodyFull: 'The DVLA has issued you a new license.',
+      NotificationTitle: 'You have a new medical driving license',
+      NotificationBody: 'The DVLA has issued you a new license.',
     };
 
     // Mock the QueueEvent (Mapping to your InputType)

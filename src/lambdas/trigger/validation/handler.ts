@@ -11,10 +11,9 @@ import {
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
+import { StringParameters } from '@common/utils/parameters';
 import { IMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { Key } from '@project/lambdas/namespaces/KeyEnum';
-import { Namespace } from '@project/lambdas/namespaces/NamespaceEnum';
 import { Context } from 'aws-lambda';
 
 export class Validation extends QueueHandler<unknown> {
@@ -50,8 +49,8 @@ export class Validation extends QueueHandler<unknown> {
           UserID: message.UserID,
           MessageTitle: message.MessageTitle,
           MessageBody: message.MessageBody,
-          MessageTitleFull: message.MessageTitleFull,
-          MessageBodyFull: message.MessageBodyFull,
+          NotificationTitle: message.NotificationTitle,
+          NotificationBody: message.NotificationBody,
           DepartmentID: message.DepartmentID,
           ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
           ValidatedDateTime: Date.now().toString(),
@@ -76,11 +75,11 @@ export class Validation extends QueueHandler<unknown> {
           if (failedMessage.MessageBody) {
             record.MessageBody = failedMessage.MessageBody;
           }
-          if (failedMessage.MessageTitleFull) {
-            record.MessageTitleFull = failedMessage.MessageTitleFull;
+          if (failedMessage.NotificationTitle) {
+            record.NotificationTitle = failedMessage.NotificationTitle;
           }
-          if (failedMessage.MessageBodyFull) {
-            record.MessageBodyFull = failedMessage.MessageBodyFull;
+          if (failedMessage.NotificationBody) {
+            record.NotificationBody = failedMessage.NotificationBody;
           }
           if (failedMessage.DepartmentID) {
             record.DepartmentID = failedMessage.DepartmentID;
@@ -95,7 +94,7 @@ export class Validation extends QueueHandler<unknown> {
 
     // Passing to Queue
     if (incomingMessages.length > 0) {
-      const processingQueueUrl = (await this.config.getParameter(Namespace.ProcessingQueue, Key.Url)) ?? '';
+      const processingQueueUrl = (await this.config.getParameter(StringParameters.Queue.Processing.Url)) ?? '';
       const processingQueue = iocGetQueueService(processingQueueUrl);
 
       await processingQueue.publishMessageBatch<IMessage>(
@@ -115,7 +114,8 @@ export class Validation extends QueueHandler<unknown> {
 
     // Create a record of message in Dynamodb
     if (messageRecords.length > 0) {
-      const messageRecordTableName = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Name)) ?? '';
+      const messageRecordTableName =
+        (await this.config.getParameter(StringParameters.Table.IncomingMessage.Name)) ?? '';
       const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
 
       await Promise.all(
@@ -126,7 +126,7 @@ export class Validation extends QueueHandler<unknown> {
     }
 
     // (MOCK) Send event to events queue
-    const analyticsQueueUrl = (await this.config.getParameter(Namespace.AnalyticsQueue, Key.Url)) ?? '';
+    const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
     const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
 
     await analyticsQueue.publishMessage(
