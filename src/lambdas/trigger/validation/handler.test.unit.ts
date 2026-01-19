@@ -250,12 +250,142 @@ describe('Validation QueueHandler', () => {
     );
   });
 
+  it('should handle when a message is not parsed, and make a record of failed messages.', async () => {
+    // Arrange
+    const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
+    const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
+
+    getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
+    getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
+    createRecord.mockResolvedValueOnce(undefined);
+    createRecord.mockResolvedValueOnce(undefined);
+    publishMessage.mockResolvedValueOnce(undefined);
+
+    const mockPartialFailedEvent: QueueEvent<unknown> = {
+      Records: [
+        {
+          messageId: 'mockMessageId',
+          receiptHandle: 'mockReceiptHandle',
+          attributes: {
+            ApproximateReceiveCount: '2',
+            SentTimestamp: '202601021513',
+            SenderId: 'mockSenderId',
+            ApproximateFirstReceiveTimestamp: '202601021513',
+          },
+          messageAttributes: {},
+          md5OfBody: 'mockMd5OfBody',
+          md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+          eventSource: 'mockEventSource',
+          eventSourceARN: 'mockEventSourceARN',
+          awsRegion: 'eu-west2',
+          body: {
+            NotificationID: '1231',
+            UserID: 'UserID',
+          },
+        },
+        {
+          messageId: 'mockMessageId',
+          receiptHandle: 'mockReceiptHandle',
+          attributes: {
+            ApproximateReceiveCount: '2',
+            SentTimestamp: '202601021513',
+            SenderId: 'mockSenderId',
+            ApproximateFirstReceiveTimestamp: '202601021513',
+          },
+          messageAttributes: {},
+          md5OfBody: 'mockMd5OfBody',
+          md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+          eventSource: 'mockEventSource',
+          eventSourceARN: 'mockEventSourceARN',
+          awsRegion: 'eu-west2',
+          body: {
+            NotificationID: '1232',
+            UserID: 'UserID-1',
+          },
+        },
+      ],
+    };
+
+    // Act
+    await instance.implementation(mockPartialFailedEvent, mockContext);
+
+    // Assert
+    expect(getParameter).toHaveBeenCalledTimes(2);
+    expect(publishMessageBatch).not.toHaveBeenCalled();
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(createRecord).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        NotificationID: '1231',
+        ReceivedDateTime: '202601021513',
+        UserID: 'UserID',
+      })
+    );
+    expect(createRecord).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        NotificationID: '1232',
+        ReceivedDateTime: '202601021513',
+        UserID: 'UserID-1',
+      })
+    );
+    expect(iocGetQueueService).toHaveBeenCalledWith(mockAnalyticsQueueUrl);
+    expect(publishMessage).toHaveBeenCalledWith(
+      {
+        Title: {
+          DataType: 'String',
+          StringValue: 'From validation lambda',
+        },
+      },
+      'Test message body.'
+    );
+  });
+
+  it('should handle when a message is not parse and has not notification id.', async () => {
+    // Arrange
+    const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
+
+    getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
+    publishMessage.mockResolvedValueOnce(undefined);
+
+    const mockFailedEvent: QueueEvent<unknown> = {
+      Records: [
+        {
+          messageId: 'mockMessageId',
+          receiptHandle: 'mockReceiptHandle',
+          attributes: {
+            ApproximateReceiveCount: '2',
+            SentTimestamp: '202601021513',
+            SenderId: 'mockSenderId',
+            ApproximateFirstReceiveTimestamp: '202601021513',
+          },
+          messageAttributes: {},
+          md5OfBody: 'mockMd5OfBody',
+          md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+          eventSource: 'mockEventSource',
+          eventSourceARN: 'mockEventSourceARN',
+          awsRegion: 'eu-west2',
+          body: {
+            UserID: 'UserID-1',
+          },
+        },
+      ],
+    };
+
+    // Act
+    await instance.implementation(mockFailedEvent, mockContext);
+
+    // Assert
+    expect(error).toHaveBeenCalled();
+    expect(publishMessageBatch).not.toBeCalled();
+  });
+
   it('should set queue url to an empty string if not set and get an error from queue service.', async () => {
     // Arrange
-    const error = new Error('SQS Publish Error: Queue Url Does not Exist');
+    const errorMsg = 'SQS Publish Error: Queue Url Does not Exist';
 
     vi.mocked(iocGetQueueService).mockImplementationOnce(() => {
-      throw error;
+      throw Error(errorMsg);
     });
     getParameter.mockResolvedValueOnce(undefined);
 
@@ -263,17 +393,17 @@ describe('Validation QueueHandler', () => {
     const result = instance.implementation(mockEvent, mockContext);
 
     // Assert
-    await expect(result).rejects.toThrow(error);
+    await expect(result).rejects.toThrow(new Error(errorMsg));
     expect(iocGetQueueService).toHaveBeenCalledWith('');
   });
 
   it('should set table name to an empty string if not set and get an error from dynamo repo.', async () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
-    const error = new Error('Failure in creating record table: . \nError: No table matching table name');
+    const errorMsg = 'Failure in creating record table: . \nError: No table matching table name';
 
     vi.mocked(iocGetDynamoRepository).mockImplementationOnce(() => {
-      throw error;
+      throw new Error(errorMsg);
     });
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(undefined);
@@ -282,7 +412,7 @@ describe('Validation QueueHandler', () => {
     const result = instance.implementation(mockEvent, mockContext);
 
     // Assert
-    await expect(result).rejects.toThrow(error);
+    await expect(result).rejects.toThrow(new Error(errorMsg));
     expect(iocGetDynamoRepository).toHaveBeenCalledWith('');
   });
 });

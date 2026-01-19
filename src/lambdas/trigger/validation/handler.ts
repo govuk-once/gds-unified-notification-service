@@ -121,16 +121,18 @@ export class Validation extends QueueHandler<unknown> {
     }
 
     // Create a record of message in Dynamodb
-    const messageRecordTableName = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Name)) ?? '';
-    console.log('Called getParameter');
+    if (messageRecords.length > 0) {
+      const messageRecordTableName = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Name)) ?? '';
+      console.log('Called getParameter');
 
-    const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
+      const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
 
-    await Promise.all(
-      messageRecords.map(async (record) => {
-        await messageRecordTable.createRecord<IMessageRecord>(record);
-      })
-    );
+      await Promise.all(
+        messageRecords.map(async (record) => {
+          await messageRecordTable.createRecord<IMessageRecord>(record);
+        })
+      );
+    }
 
     // (MOCK) Send event to events queue
     const analyticsQueueUrl = (await this.config.getParameter(Namespace.AnalyticsQueue, Key.Url)) ?? '';
