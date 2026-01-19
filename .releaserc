@@ -36,6 +36,12 @@
       {
         "npmPublish": false
       }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "verifyReleaseCmd": "echo \"semVer=${nextRelease.version}\" >> $GITHUB_OUTPUT"
+      }
     ]
   ]
 }
