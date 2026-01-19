@@ -19,11 +19,11 @@ vi.mock('@common/ioc', () => ({
 describe('Validation QueueHandler', () => {
   const getParameter = vi.fn();
   const publishMessage = vi.fn();
-  const info = vi.fn();
+  const trace = vi.fn();
 
   const instance: Processing = new Processing(
     { getParameter } as unknown as Configuration,
-    { info } as unknown as Logger,
+    { trace } as unknown as Logger,
     {} as unknown as Metrics,
     {} as unknown as Tracer
   );

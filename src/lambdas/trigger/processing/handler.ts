@@ -4,9 +4,10 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
+import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Context } from 'aws-lambda';
 
-export class Processing extends QueueHandler<unknown, void> {
+export class Processing extends QueueHandler<string, void> {
   public operationId: string = 'processing';
 
   constructor(
@@ -19,12 +20,12 @@ export class Processing extends QueueHandler<unknown, void> {
   }
 
   public async implementation(event: QueueEvent<string>, context: Context) {
-    this.logger.info('Received request.');
+    this.logger.trace('Received request.');
 
     // (MOCK) Send processed message to completed queue
     const dispatchQueueUrl = (await this.config.getParameter('queue/dispatch', 'url')) ?? '';
-
     const dispatchQueue = iocGetQueueService(dispatchQueueUrl);
+
     await dispatchQueue.publishMessage(
       {
         Title: {
@@ -37,8 +38,8 @@ export class Processing extends QueueHandler<unknown, void> {
 
     // (MOCK) Send event to events queue
     const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
-
     const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+
     await analyticsQueue.publishMessage(
       {
         Title: {
@@ -49,7 +50,7 @@ export class Processing extends QueueHandler<unknown, void> {
       'Test message body.'
     );
 
-    this.logger.info('Completed request.');
+    this.logger.trace('Completed request.');
   }
 }
 

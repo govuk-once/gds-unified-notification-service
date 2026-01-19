@@ -116,7 +116,8 @@ export class Validation extends QueueHandler<unknown> {
     // Create a record of message in Dynamodb
     if (messageRecords.length > 0) {
       const messageRecordTableName = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Name)) ?? '';
-      const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
+      const messageRecordTableKey = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Key)) ?? '';
+      const messageRecordTable = iocGetDynamoRepository(messageRecordTableName, messageRecordTableKey);
 
       await Promise.all(
         messageRecords.map(async (record) => {

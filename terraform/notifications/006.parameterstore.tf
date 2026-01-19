@@ -24,6 +24,8 @@ module "parameter_store" {
 
     // Dynamo
     "table/events/name"          = module.dynamodb_events.table_name
+    "table/events/key"           = module.dynamodb_events.table_key
     "table/inboundMessages/name" = module.dynamodb_inbound_messages.table_name
+    "table/inboundMessages/key"  = module.dynamodb_inbound_messages.table_key
   }
 }

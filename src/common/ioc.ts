@@ -29,5 +29,5 @@ export const iocGetQueueService = (queueUrl: string) =>
   new QueueService(queueUrl, iocGetLogger(), iocGetMetrics(), iocGetTracer());
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
 
-export const iocGetDynamoRepository = (tableName: string): IStoreMessageRepository =>
-  new StoreMessageRepository(tableName);
+export const iocGetDynamoRepository = (tableName: string, tableKey: string): IStoreMessageRepository =>
+  new StoreMessageRepository(tableName, tableKey);

@@ -8,7 +8,10 @@ export class StoreMessageRepository implements IStoreMessageRepository {
   private readonly client: DynamoDB;
   public logger: Logger = iocGetLogger();
 
-  constructor(private tableName: string) {
+  constructor(
+    private tableName: string,
+    private tableKey: string
+  ) {
     const client = new DynamoDB({
       region: 'eu-west-2',
     });
@@ -26,6 +29,23 @@ export class StoreMessageRepository implements IStoreMessageRepository {
 
     try {
       await this.client.putItem(params);
+      this.logger.trace(`Successfully created record in table: ${this.tableName}`);
+    } catch (error) {
+      this.logger.error(`Failure in creating record table: ${this.tableName}. \nError: ${error}`);
+    }
+  }
+
+  public async updateRecord<RecordType>(keyValue: string, record: RecordType): Promise<void> {
+    this.logger.trace(`Updating record in table: ${this.tableName}`);
+
+    const params = {
+      TableName: this.tableName,
+      Key: marshall({ [this.tableName]: keyValue }),
+      Item: marshall(record),
+    };
+
+    try {
+      await this.client.updateItem(params);
       this.logger.trace(`Successfully created record in table: ${this.tableName}`);
     } catch (error) {
       this.logger.error(`Failure in creating record table: ${this.tableName}. \nError: ${error}`);
