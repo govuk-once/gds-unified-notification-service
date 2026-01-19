@@ -41,7 +41,6 @@ export class Validation extends QueueHandler<unknown> {
 
       if (y.success) {
         this.logger.trace('Successfully parsed message body');
-        console.log('Successfully parsed message body');
 
         const message = y.data;
         incomingMessages.push(message);
@@ -56,13 +55,6 @@ export class Validation extends QueueHandler<unknown> {
           DepartmentID: message.DepartmentID,
           ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
           ValidatedDateTime: Date.now().toString(),
-          ProcessedDateTime: undefined,
-          SentDateTime: undefined,
-          DispatchedStartDateTime: undefined,
-          OneSignalID: undefined,
-          APIGWExtendedID: undefined,
-          OneSignalResponseID: undefined,
-          TraceID: undefined,
         };
         messageRecords.push(record);
       } else {
@@ -75,21 +67,24 @@ export class Validation extends QueueHandler<unknown> {
           const record: IMessageRecord = {
             NotificationID: failedMessage.NotificationID,
             UserID: failedMessage.UserID,
-            OneSignalID: undefined,
-            APIGWExtendedID: undefined,
-            MessageTitle: failedMessage.MessageTitle,
-            MessageBody: failedMessage.MessageBody,
-            MessageTitleFull: failedMessage.MessageTitleFull,
-            MessageBodyFull: failedMessage.MessageBodyFull,
-            DepartmentID: failedMessage.DepartmentID,
             ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
-            ValidatedDateTime: undefined,
-            ProcessedDateTime: undefined,
-            DispatchedStartDateTime: undefined,
-            OneSignalResponseID: undefined,
-            SentDateTime: undefined,
-            TraceID: undefined,
           };
+
+          if (failedMessage.MessageTitle) {
+            record.MessageTitle = failedMessage.MessageTitle;
+          }
+          if (failedMessage.MessageBody) {
+            record.MessageBody = failedMessage.MessageBody;
+          }
+          if (failedMessage.MessageTitleFull) {
+            record.MessageTitleFull = failedMessage.MessageTitleFull;
+          }
+          if (failedMessage.MessageBodyFull) {
+            record.MessageBodyFull = failedMessage.MessageBodyFull;
+          }
+          if (failedMessage.DepartmentID) {
+            record.DepartmentID = failedMessage.DepartmentID;
+          }
 
           messageRecords.push(record);
         } else {
@@ -101,8 +96,6 @@ export class Validation extends QueueHandler<unknown> {
     // Passing to Queue
     if (incomingMessages.length > 0) {
       const processingQueueUrl = (await this.config.getParameter(Namespace.ProcessingQueue, Key.Url)) ?? '';
-      console.log('Called getParameter');
-
       const processingQueue = iocGetQueueService(processingQueueUrl);
 
       await processingQueue.publishMessageBatch<IMessage>(
@@ -123,8 +116,6 @@ export class Validation extends QueueHandler<unknown> {
     // Create a record of message in Dynamodb
     if (messageRecords.length > 0) {
       const messageRecordTableName = (await this.config.getParameter(Namespace.IncomingMessageTable, Key.Name)) ?? '';
-      console.log('Called getParameter');
-
       const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
 
       await Promise.all(
@@ -136,8 +127,6 @@ export class Validation extends QueueHandler<unknown> {
 
     // (MOCK) Send event to events queue
     const analyticsQueueUrl = (await this.config.getParameter(Namespace.AnalyticsQueue, Key.Url)) ?? '';
-    console.log('Called getParameter');
-
     const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
 
     await analyticsQueue.publishMessage(
