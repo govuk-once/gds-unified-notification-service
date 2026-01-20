@@ -92,26 +92,8 @@ describe('Validation QueueHandler', () => {
     expect(getParameter).toHaveBeenCalledTimes(2);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenNthCalledWith(
-      1,
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'Test Message',
-        },
-      },
-      'Test message body.'
-    );
-    expect(publishMessage).toHaveBeenNthCalledWith(
-      2,
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From processing lambda',
-        },
-      },
-      'Test message body.'
-    );
+    expect(publishMessage).toHaveBeenNthCalledWith(1, 'Test message body.');
+    expect(publishMessage).toHaveBeenNthCalledWith(2, 'Test message body.');
   });
 
   it('should set queue url to an empty string if not set and get an error from queue service.', async () => {

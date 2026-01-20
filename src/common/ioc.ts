@@ -28,5 +28,5 @@ export const iocGetConfigurationService = () => new Configuration(iocGetLogger()
 export const iocGetQueueService = (queueUrl: string) =>
   new QueueService(queueUrl, iocGetLogger(), iocGetMetrics(), iocGetTracer());
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
-
-export const iocGetDynamoRepository = (tableName: string): IDynamodbRepository => new DynamodbRepository(tableName);
+export const iocGetDynamoRepository = (tableName: string): IDynamodbRepository =>
+  new DynamodbRepository(tableName, iocGetLogger(), iocGetTracer());

@@ -1,6 +1,6 @@
 export interface IMessageRecord {
   NotificationID: string;
-  UserID: string;
+  UserID?: string;
   MessageTitle?: string;
   MessageBody?: string;
   NotificationTitle?: string;

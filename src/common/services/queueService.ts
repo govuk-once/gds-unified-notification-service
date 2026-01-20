@@ -1,9 +1,9 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 
-export const serializeJsonToRecordBody = <InputType>(body: InputType): string => {
+export const serializeRecordBodyToJson = <InputType>(body: InputType): string => {
   if (typeof body === 'string') {
     return body;
   }
@@ -29,19 +29,14 @@ export class QueueService {
     this.logger.trace('Queue Service Initialised.');
   }
 
-  public async publishMessage<InputType>(
-    messageAttributes: Record<string, MessageAttributeValue>,
-    messageBody: InputType,
-    delaySeconds = 0
-  ) {
+  public async publishMessage<InputType>(messageBody: InputType, delaySeconds = 0) {
     this.logger.trace(`Publishing message to queue: ${this.sqsQueueUrl}.`);
 
     try {
       const command = new SendMessageCommand({
         QueueUrl: this.sqsQueueUrl,
         DelaySeconds: delaySeconds,
-        MessageAttributes: messageAttributes,
-        MessageBody: serializeJsonToRecordBody<InputType>(messageBody),
+        MessageBody: serializeRecordBodyToJson<InputType>(messageBody),
       });
       const response = await this.client.send(command);
 
@@ -52,10 +47,7 @@ export class QueueService {
     }
   }
 
-  public async publishMessageBatch<InputType>(
-    message: [Record<string, MessageAttributeValue>, InputType][],
-    delaySeconds = 0
-  ) {
+  public async publishMessageBatch<InputType>(message: InputType[], delaySeconds = 0) {
     this.logger.trace(`Publishing batch message to queue: ${this.sqsQueueUrl}.`);
 
     if (message.length > 10) {
@@ -64,11 +56,10 @@ export class QueueService {
       throw new Error(errorMsg);
     }
 
-    const entries = message.map(([attributes, body], index) => ({
+    const entries = message.map((body, index) => ({
       Id: `msg_${index}`, // TODO: How do ids need to be set
       DelaySeconds: delaySeconds,
-      MessageAttributes: attributes,
-      MessageBody: serializeJsonToRecordBody<InputType>(body),
+      MessageBody: serializeRecordBodyToJson<InputType>(body),
     }));
 
     try {

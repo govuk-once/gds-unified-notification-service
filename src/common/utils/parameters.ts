@@ -12,20 +12,23 @@ export const StringParameters = {
       Name: 'table/events/name',
       Key: 'table/events/key',
     },
-    IncomingMessage: {
-      Name: 'table/events/name',
-      Key: 'table/events/key',
+    Inbound: {
+      Name: 'table/inbound/name',
+      Key: 'table/inbound/key',
     },
   },
   Queue: {
+    Analytics: {
+      Url: 'queue/analytics/url',
+    },
+    Dispatch: {
+      Url: 'queue/dispatch/url',
+    },
     Incoming: {
       Url: 'queue/incoming/url',
     },
     Processing: {
       Url: 'queue/processing/url',
-    },
-    Analytics: {
-      Url: 'queue/analytics/url',
     },
   },
 } as const;

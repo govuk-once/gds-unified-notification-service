@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { toIMessageRecord } from '@common/builders/IMessageRecord';
 import {
   iocGetConfigurationService,
   iocGetDynamoRepository,
@@ -32,117 +33,80 @@ export class Validation extends QueueHandler<unknown> {
     this.logger.trace('Received request');
 
     // Validation
-    const incomingMessages: IMessage[] = [];
     const messageRecords: IMessageRecord[] = [];
+    const partialMessageRecords: IMessageRecord[] = [];
 
-    event.Records.forEach((eventRecord) => {
-      const y = IMessageSchema.safeParse(eventRecord.body);
+    // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
+    const records = event.Records.map((record) => [record, IMessageSchema.safeParse(record.body)] as const);
+    const validRecords = records
+      .filter(([, parseResult]) => parseResult.success == true)
+      .map(([record, parseResult]) => [record, parseResult.data as IMessage] as const);
+    const invalidRecords = records
+      .filter(([, parseResult]) => parseResult.success == false)
+      .map(([record]) => [record, IMessageSchema.partial().safeParse(record.body)] as const);
 
-      if (y.success) {
-        this.logger.trace('Successfully parsed message body');
+    // Store success entries
+    for (const [validRecord, data] of validRecords) {
+      const record = toIMessageRecord(
+        data,
+        validRecord.attributes.ApproximateFirstReceiveTimestamp,
+        Date.now().toString()
+      );
+      messageRecords.push(record);
+    }
 
-        const message = y.data;
-        incomingMessages.push(message);
+    // Store failed entries
+    for (const [invalidRecord, { data }] of invalidRecords) {
+      if (data == undefined) {
+        continue;
+      }
 
-        const record = {
-          NotificationID: message.NotificationID,
-          UserID: message.UserID,
-          MessageTitle: message.MessageTitle,
-          MessageBody: message.MessageBody,
-          NotificationTitle: message.NotificationTitle,
-          NotificationBody: message.NotificationBody,
-          DepartmentID: message.DepartmentID,
-          ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
-          ValidatedDateTime: Date.now().toString(),
-        };
-        messageRecords.push(record);
-      } else {
-        const failedMessage = eventRecord.body as Partial<IMessage>;
-
-        if (failedMessage?.NotificationID && failedMessage?.UserID) {
-          this.logger.trace(`Failed to parse message body with NotificationID:${failedMessage?.NotificationID}`);
-          console.log(`Failed to parse message body with NotificationID:${failedMessage?.NotificationID}`);
-
-          const record: IMessageRecord = {
-            NotificationID: failedMessage.NotificationID,
-            UserID: failedMessage.UserID,
-            ReceivedDateTime: eventRecord.attributes.ApproximateFirstReceiveTimestamp,
-          };
-
-          if (failedMessage.MessageTitle) {
-            record.MessageTitle = failedMessage.MessageTitle;
-          }
-          if (failedMessage.MessageBody) {
-            record.MessageBody = failedMessage.MessageBody;
-          }
-          if (failedMessage.NotificationTitle) {
-            record.NotificationTitle = failedMessage.NotificationTitle;
-          }
-          if (failedMessage.NotificationBody) {
-            record.NotificationBody = failedMessage.NotificationBody;
-          }
-          if (failedMessage.DepartmentID) {
-            record.DepartmentID = failedMessage.DepartmentID;
-          }
-
-          messageRecords.push(record);
+      try {
+        const record = toIMessageRecord(data, invalidRecord.attributes.ApproximateFirstReceiveTimestamp);
+        partialMessageRecords.push(record);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          this.logger.error(error.message);
         } else {
-          this.logger.error('Validation failed with no NotificationID provided', y.error);
+          throw error;
         }
       }
-    });
+    }
 
-    // Passing to Queue
-    if (incomingMessages.length > 0) {
+    // Requeue messages which passed validation to next stage
+    const messagesToPass = validRecords.map(([, data]) => data);
+
+    if (messagesToPass.length > 0) {
+      this.logger.trace('Requeuing validated message to process queue');
       const processingQueueUrl = (await this.config.getParameter(StringParameters.Queue.Processing.Url)) ?? '';
       const processingQueue = iocGetQueueService(processingQueueUrl);
 
-      await processingQueue.publishMessageBatch<IMessage>(
-        incomingMessages.map((message) => {
-          return [
-            {
-              Title: {
-                DataType: 'String',
-                StringValue: 'Test title',
-              },
-            },
-            message,
-          ];
-        })
-      );
+      await processingQueue.publishMessageBatch<IMessage>(messagesToPass);
     }
 
     // Create a record of message in Dynamodb
-    if (messageRecords.length > 0) {
-      const messageRecordTableName =
-        (await this.config.getParameter(StringParameters.Table.IncomingMessage.Name)) ?? '';
-      const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
+    const messageRecordTableName = (await this.config.getParameter(StringParameters.Table.Inbound.Name)) ?? '';
+    const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
 
-      await Promise.all(
-        messageRecords.map(async (record) => {
-          await messageRecordTable.createRecord<IMessageRecord>(record);
-        })
-      );
+    if (messagesToPass.length > 0) {
+      this.logger.trace('Creating record of validated messages that have been passed to queue.');
+      await messageRecordTable.createRecordBatch<IMessageRecord>(messageRecords);
+    }
+
+    if (partialMessageRecords.length > 0) {
+      this.logger.trace('Creating record of messages that failed validation.');
+      await messageRecordTable.createRecordBatch<IMessageRecord>(partialMessageRecords);
     }
 
     // (MOCK) Send event to events queue
     const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
     const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
 
-    await analyticsQueue.publishMessage(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From validation lambda',
-        },
-      },
-      'Test message body.'
-    );
+    await analyticsQueue.publishMessage('Test message body.');
 
     this.logger.trace('Completed request');
   }
 }
-
 export const handler = new Validation(
   iocGetConfigurationService(),
   iocGetLogger(),
