@@ -1,0 +1,40 @@
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_to_dev:
+        description: 'Deploy to Dev'
+        type: boolean
+        required: true
+      deploy_to_stg:
+        description: 'Deploy to Staging'
+        type: boolean
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  releaseDev:
+    if: ${{ inputs.deploy_to_dev }}
+    name: Deploy to dev
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ENVIRONMENT_NAME: 'dev'
+      VERSION: ${{ github.ref_name}}
+    secrets:
+      ROLE_TO_ASSUME: ${{ secrets.DEV_AWS_DEPLOYMENT_ROLE }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.DEV_TF_STATE_BUCKET }}
+
+  releaseStaging:
+    if: ${{ inputs.deploy_to_stg }}
+    name: Deploy to staging
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ENVIRONMENT_NAME: 'stg'
+      VERSION: ${{ github.ref_name}}
+    secrets:
+      ROLE_TO_ASSUME: ${{ secrets.STAGING_DEPLOYMENT_ROLE }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.STAGING_TF_STATE_BUCKET }}
