@@ -29,6 +29,9 @@ describe('Analytics QueueHandler', () => {
   let mockEvent: QueueEvent<string>;
 
   beforeEach(() => {
+    // Reset all mock
+    vi.clearAllMocks();
+
     // Mock AWS Lambda Context
     mockContext = {
       functionName: 'analytics',

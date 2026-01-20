@@ -23,6 +23,7 @@ module "parameter_store" {
     "queue/analytics/url"  = module.sqs_analytics.queue_url
 
     // Dynamo
-    "table/events/name" = "eventsTableName"
+    "table/events/name"  = module.dynamodb_events.table_name
+    "table/inbound/name" = module.dynamodb_inbound_messages.table_name
   }
 }

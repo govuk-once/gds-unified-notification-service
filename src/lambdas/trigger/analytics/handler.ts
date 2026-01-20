@@ -4,6 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
+import { StringParameters } from '@common/utils/parameters';
 import { Context } from 'aws-lambda';
 
 export class Analytics extends QueueHandler<unknown, void> {
@@ -22,7 +23,7 @@ export class Analytics extends QueueHandler<unknown, void> {
     this.logger.info('Received request.');
 
     // (MOCK) Send event to events table
-    const eventsTableName = (await this.config.getParameter('table/events', 'name')) ?? '';
+    const eventsTableName = (await this.config.getParameter(StringParameters.Table.Events.Name)) ?? '';
     this.logger.info(`Received Record from ${event.Records[0].messageAttributes['Title'].stringValue}.`);
 
     this.logger.info('Sent Record.');

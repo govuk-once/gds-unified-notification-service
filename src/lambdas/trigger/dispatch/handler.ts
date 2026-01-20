@@ -4,6 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
+import { StringParameters } from '@common/utils/parameters';
 import { Context } from 'aws-lambda';
 
 export class Dispatch extends QueueHandler<unknown, void> {
@@ -26,18 +27,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
     this.logger.info('Completed request.');
 
     // (MOCK) Send event to events queue
-    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
+    const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
 
     const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
-    await analyticsQueue.publishMessage(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From dispatch lambda',
-        },
-      },
-      'Test message body.'
-    );
+    await analyticsQueue.publishMessage('Test message body.');
   }
 }
 

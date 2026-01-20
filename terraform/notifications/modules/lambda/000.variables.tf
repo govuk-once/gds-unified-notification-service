@@ -108,15 +108,15 @@ variable "security_group_ids" {
   default     = null
 }
 
+variable "dynamo_table_arns" {
+  description = "A list of the ARNs of the DyanmoDB"
+  type        = list(string)
+  default     = []
+}
+
 variable "subnet_ids" {
   description = "Subnet IDs"
   type        = list(string)
   nullable    = true
   default     = null
-}
-
-variable "dynamo_table_arns" {
-  description = "A list of the ARNs of the DyanmoDB"
-  type        = list(string)
-  default     = []
 }

@@ -111,11 +111,12 @@ resource "aws_iam_role_policy" "dynamo_access" {
     Statement = [
       {
         Action = [
-          "dynamodb:PutItem",
+          "dynamodb:BatchWriteItem",
           "dynamodb:GetItem",
-          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:PutItem",
           "dynamodb:Scan",
-          "dynamodb:Query"
+          "dynamodb:UpdateItem"
         ]
         Effect   = "Allow"
         Resource = var.dynamo_table_arns

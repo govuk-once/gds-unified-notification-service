@@ -15,9 +15,11 @@ export class Configuration {
     this.client = new SSMClient({ region: 'eu-west-2' });
   }
 
-  public async getParameter(namespace: string, key: string): Promise<string | undefined> {
+  public async getParameter(namespace: string): Promise<string | undefined> {
+    this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
+
     const param = {
-      Name: `/${this.prefix}/${namespace}/${key}`,
+      Name: `/${this.prefix}/${namespace}`,
       WithDecryption: true,
     };
 
@@ -26,15 +28,16 @@ export class Configuration {
     try {
       const data = await this.client.send(command);
 
+      this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
       return data.Parameter?.Value;
     } catch (error) {
-      this.logger.trace(`Failed fetching value from SSM: ${error}`);
+      this.logger.error(`Failed fetching value from SSM - ${error}`);
       throw error;
     }
   }
 
-  public async getBooleanParameter(namespace: string, key: string): Promise<boolean> {
-    const parameterValue = await this.getParameter(namespace, key);
+  public async getBooleanParameter(namespace: string): Promise<boolean> {
+    const parameterValue = await this.getParameter(namespace);
 
     switch (parameterValue?.toLowerCase()) {
       case 'true':
@@ -42,14 +45,14 @@ export class Configuration {
       case 'false':
         return false;
       default:
-        const errorMsg = `Could not parse parameter ${namespace}/${key} to a boolean`;
-        this.logger.trace(errorMsg);
+        const errorMsg = `Could not parse parameter ${namespace} to a boolean`;
+        this.logger.error(errorMsg);
         throw new Error(errorMsg);
     }
   }
 
-  public async getNumericParameter(namespace: string, key: string): Promise<number> {
-    const parameterValue = await this.getParameter(namespace, key);
+  public async getNumericParameter(namespace: string): Promise<number> {
+    const parameterValue = await this.getParameter(namespace);
 
     if (parameterValue !== undefined) {
       const num = Number(parameterValue);
@@ -59,8 +62,8 @@ export class Configuration {
       }
     }
 
-    const errorMsg = `Could not parse parameter ${namespace}/${key} to a number`;
-    this.logger.trace(errorMsg);
+    const errorMsg = `Could not parse parameter ${namespace} to a number`;
+    this.logger.error(errorMsg);
     throw new Error(errorMsg);
   }
 }
