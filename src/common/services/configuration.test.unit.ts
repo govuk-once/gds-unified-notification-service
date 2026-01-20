@@ -34,7 +34,7 @@ describe('Configuration', () => {
       });
 
       // Act
-      const parameter = await config.getParameter('testNameSpace', 'testKey');
+      const parameter = await config.getParameter('testNameSpace');
 
       // Assert
       expect(parameter).toEqual(secretValue);
@@ -46,7 +46,7 @@ describe('Configuration', () => {
       ssmMock.on(GetParameterCommand).rejects(new Error(errorMsg));
 
       // Act
-      const result = config.getParameter('testNameSpace', 'testKey');
+      const result = config.getParameter('testNameSpace');
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
@@ -63,7 +63,7 @@ describe('Configuration', () => {
       });
 
       // Act
-      const parameter = await config.getBooleanParameter('testNameSpace', 'testKey');
+      const parameter = await config.getBooleanParameter('testNameSpace');
 
       // Assert
       expect(parameter).toEqual(true);
@@ -78,11 +78,11 @@ describe('Configuration', () => {
       });
 
       // Act
-      const result = config.getBooleanParameter('testNameSpace', 'testKey');
+      const result = config.getBooleanParameter('testNameSpace');
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace/testKey to a boolean`);
+      expect(error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace to a boolean`);
     });
   });
 
@@ -95,7 +95,7 @@ describe('Configuration', () => {
       });
 
       // Act
-      const parameter = await config.getNumericParameter('testNameSpace', 'testKey');
+      const parameter = await config.getNumericParameter('testNameSpace');
 
       // Assert
       expect(parameter).toEqual(Number(secretValue));
@@ -108,10 +108,10 @@ describe('Configuration', () => {
         Parameter: { Value: secretValue },
       });
 
-      const errorMsg = 'Could not parse parameter testNameSpace/testKey to a number';
+      const errorMsg = 'Could not parse parameter testNameSpace to a number';
 
       // Act
-      const result = config.getNumericParameter('testNameSpace', 'testKey');
+      const result = config.getNumericParameter('testNameSpace');
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));

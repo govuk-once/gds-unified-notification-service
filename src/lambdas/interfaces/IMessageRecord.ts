@@ -1,10 +1,10 @@
 export interface IMessageRecord {
   NotificationID: string;
-  UserID: string;
+  UserID?: string;
   MessageTitle?: string;
   MessageBody?: string;
-  MessageTitleFull?: string;
-  MessageBodyFull?: string;
+  NotificationTitle?: string;
+  NotificationBody?: string;
   DepartmentID?: string;
   ReceivedDateTime?: string;
   ValidatedDateTime?: string;

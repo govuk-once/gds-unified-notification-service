@@ -86,15 +86,7 @@ describe('Dispatch QueueHandler', () => {
     // Assert
     expect(getParameter).toHaveBeenCalledTimes(1);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenCalledWith(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From dispatch lambda',
-        },
-      },
-      'Test message body.'
-    );
+    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
   });
 
   it('should set queue url to an empty string if not set and get an error from queue service.', async () => {

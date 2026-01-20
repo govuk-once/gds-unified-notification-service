@@ -1,9 +1,10 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { toIMessageRecord } from '@common/builders/IMessageRecord';
 import { iocGetDynamoRepository, iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
-import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
+import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 import { Configuration, QueueService } from '@common/services';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/trigger/validation/handler';
@@ -18,11 +19,16 @@ vi.mock('@common/ioc', () => ({
   iocGetTracer: vi.fn(),
 }));
 
+vi.mock('@common/builders/IMessageRecord', () => ({
+  toIMessageRecord: vi.fn(),
+}));
+
 describe('Validation QueueHandler', () => {
   const getParameter = vi.fn();
   const publishMessage = vi.fn();
   const publishMessageBatch = vi.fn();
   const createRecord = vi.fn();
+  const createRecordBatch = vi.fn();
   const trace = vi.fn();
   const error = vi.fn();
 
@@ -33,7 +39,8 @@ describe('Validation QueueHandler', () => {
 
   const mockDynamo = {
     createRecord: createRecord,
-  } as unknown as IStoreMessageRepository;
+    createRecordBatch: createRecordBatch,
+  } as unknown as IDynamodbRepository;
 
   let mockContext: Context;
   let mockEvent: QueueEvent<IMessage>;
@@ -67,8 +74,8 @@ describe('Validation QueueHandler', () => {
       UserID: 'UserID',
       MessageTitle: 'You have a new Message',
       MessageBody: 'Open Notification Centre to read your notifications',
-      MessageTitleFull: 'You have a new medical driving license',
-      MessageBodyFull: 'The DVLA has issued you a new license.',
+      NotificationTitle: 'You have a new medical driving license',
+      NotificationBody: 'The DVLA has issued you a new license.',
     };
 
     // Mock the QueueEvent (Mapping to your InputType)
@@ -104,68 +111,61 @@ describe('Validation QueueHandler', () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
     const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
-    const mockIncomingMessageTableKey = 'mockIncomingMessageTableKey';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
-    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessageBatch.mockResolvedValueOnce(undefined);
-    createRecord.mockResolvedValueOnce(undefined);
+    createRecordBatch.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
+
+    vi.mocked(toIMessageRecord).mockReturnValueOnce({
+      ...mockMessageBody,
+      ReceivedDateTime: '202601021513',
+    });
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(4);
+    expect(getParameter).toHaveBeenCalledTimes(3);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
-    expect(publishMessageBatch).toHaveBeenCalledWith([
-      [
-        {
-          Title: {
-            DataType: 'String',
-            StringValue: 'Test title',
-          },
-        },
-        mockMessageBody,
-      ],
-    ]);
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
-    expect(createRecord).toHaveBeenCalledWith(
+    expect(publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(createRecordBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',
-      })
-    );
+      }),
+    ]);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(2, mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenCalledWith(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From validation lambda',
-        },
-      },
-      'Test message body.'
-    );
+    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
   });
 
   it('should handle when a message is not parsed, send all parsed message and make a record of both validated and failed messages.', async () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
     const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
-    const mockIncomingMessageTableKey = 'mockIncomingMessageTableKey';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
-    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessageBatch.mockResolvedValueOnce(undefined);
-    createRecord.mockResolvedValueOnce(undefined);
-    createRecord.mockResolvedValueOnce(undefined);
+    createRecordBatch.mockResolvedValueOnce(undefined);
+    createRecordBatch.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
+
+    vi.mocked(toIMessageRecord).mockReturnValueOnce({
+      NotificationID: '1231',
+      UserID: 'UserID',
+      ReceivedDateTime: '202601021513',
+    });
+    vi.mocked(toIMessageRecord).mockReturnValueOnce({
+      ...mockMessageBody,
+      ReceivedDateTime: '202601021513',
+    });
 
     const mockPartialFailedEvent: QueueEvent<unknown> = {
       Records: [
@@ -213,59 +213,47 @@ describe('Validation QueueHandler', () => {
     await instance.implementation(mockPartialFailedEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(4);
+    expect(getParameter).toHaveBeenCalledTimes(3);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
-    expect(publishMessageBatch).toHaveBeenCalledWith([
-      [
-        {
-          Title: {
-            DataType: 'String',
-            StringValue: 'Test title',
-          },
-        },
-        mockMessageBody,
-      ],
-    ]);
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
-    expect(createRecord).toHaveBeenNthCalledWith(
-      1,
+    expect(publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(createRecordBatch).toHaveBeenNthCalledWith(1, [
       expect.objectContaining({
         NotificationID: '1231',
         ReceivedDateTime: '202601021513',
         UserID: 'UserID',
-      })
-    );
-    expect(createRecord).toHaveBeenNthCalledWith(
-      2,
+      }),
+    ]);
+    expect(createRecordBatch).toHaveBeenNthCalledWith(2, [
       expect.objectContaining({
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',
-      })
-    );
+      }),
+    ]);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(2, mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenCalledWith(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From validation lambda',
-        },
-      },
-      'Test message body.'
-    );
+    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
   });
 
   it('should handle when a message is not parsed, and make a record of failed messages.', async () => {
     // Arrange
     const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
-    const mockIncomingMessageTableKey = 'mockIncomingMessageTableKey';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
-    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
-    createRecord.mockResolvedValueOnce(undefined);
-    createRecord.mockResolvedValueOnce(undefined);
+    createRecordBatch.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
+
+    vi.mocked(toIMessageRecord).mockReturnValueOnce({
+      NotificationID: '1231',
+      UserID: 'UserID',
+      ReceivedDateTime: '202601021513',
+    });
+    vi.mocked(toIMessageRecord).mockReturnValueOnce({
+      NotificationID: '1232',
+      UserID: 'UserID-1',
+      ReceivedDateTime: '202601021513',
+    });
 
     const mockPartialFailedEvent: QueueEvent<unknown> = {
       Records: [
@@ -316,35 +304,23 @@ describe('Validation QueueHandler', () => {
     await instance.implementation(mockPartialFailedEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(3);
+    expect(getParameter).toHaveBeenCalledTimes(2);
     expect(publishMessageBatch).not.toHaveBeenCalled();
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
-    expect(createRecord).toHaveBeenNthCalledWith(
-      1,
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(createRecordBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         NotificationID: '1231',
         ReceivedDateTime: '202601021513',
         UserID: 'UserID',
-      })
-    );
-    expect(createRecord).toHaveBeenNthCalledWith(
-      2,
+      }),
       expect.objectContaining({
         NotificationID: '1232',
         ReceivedDateTime: '202601021513',
         UserID: 'UserID-1',
-      })
-    );
+      }),
+    ]);
     expect(iocGetQueueService).toHaveBeenCalledWith(mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenCalledWith(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From validation lambda',
-        },
-      },
-      'Test message body.'
-    );
+    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
   });
 
   it('should handle when a message is not parse and has not notification id.', async () => {
@@ -352,6 +328,9 @@ describe('Validation QueueHandler', () => {
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
+    vi.mocked(toIMessageRecord).mockImplementationOnce(() => {
+      throw new Error('Failed to build MessageRecord, no NotificationID was provided.');
+    });
     publishMessage.mockResolvedValueOnce(undefined);
 
     const mockFailedEvent: QueueEvent<unknown> = {
@@ -384,6 +363,7 @@ describe('Validation QueueHandler', () => {
     // Assert
     expect(error).toHaveBeenCalled();
     expect(publishMessageBatch).not.toBeCalled();
+    expect(createRecordBatch).not.toBeCalled();
   });
 
   it('should set queue url to an empty string if not set and get an error from queue service.', async () => {
@@ -406,8 +386,6 @@ describe('Validation QueueHandler', () => {
   it('should set table name to an empty string if not set and get an error from dynamo repo.', async () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
-    const mockIncomingMessageTableKey = 'mockIncomingMessageTableKey';
-
     const errorMsg = 'Failure in creating record table: . \nError: No table matching table name';
 
     vi.mocked(iocGetDynamoRepository).mockImplementationOnce(() => {
@@ -415,14 +393,12 @@ describe('Validation QueueHandler', () => {
     });
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(undefined);
-    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
-    publishMessageBatch.mockResolvedValueOnce(undefined);
 
     // Act
     const result = instance.implementation(mockEvent, mockContext);
 
     // Assert
     await expect(result).rejects.toThrow(new Error(errorMsg));
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith('', mockIncomingMessageTableKey);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith('');
   });
 });

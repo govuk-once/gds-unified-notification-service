@@ -4,7 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { StringParameters } from '@common/utils/parameters';
 import { Context } from 'aws-lambda';
 
 export class Processing extends QueueHandler<string, void> {
@@ -23,32 +23,16 @@ export class Processing extends QueueHandler<string, void> {
     this.logger.trace('Received request.');
 
     // (MOCK) Send processed message to completed queue
-    const dispatchQueueUrl = (await this.config.getParameter('queue/dispatch', 'url')) ?? '';
-    const dispatchQueue = iocGetQueueService(dispatchQueueUrl);
+    const dispatchQueueUrl = (await this.config.getParameter(StringParameters.Queue.Dispatch.Url)) ?? '';
 
-    await dispatchQueue.publishMessage(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'Test Message',
-        },
-      },
-      'Test message body.'
-    );
+    const dispatchQueue = iocGetQueueService(dispatchQueueUrl);
+    await dispatchQueue.publishMessage('Test message body.');
 
     // (MOCK) Send event to events queue
-    const analyticsQueueUrl = (await this.config.getParameter('queue/analytics', 'url')) ?? '';
-    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+    const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
 
-    await analyticsQueue.publishMessage(
-      {
-        Title: {
-          DataType: 'String',
-          StringValue: 'From processing lambda',
-        },
-      },
-      'Test message body.'
-    );
+    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+    await analyticsQueue.publishMessage('Test message body.');
 
     this.logger.trace('Completed request.');
   }

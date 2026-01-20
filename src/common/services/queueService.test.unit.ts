@@ -35,7 +35,6 @@ describe('QueueService', () => {
   describe('publishMessage', () => {
     it('should send a message when given the message params.', async () => {
       // Arrange
-      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       sqsMock.on(SendMessageCommand).resolves({
@@ -43,7 +42,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await queueService.publishMessage(mockMessageAttribute, mockMessageBody);
+      await queueService.publishMessage(mockMessageBody);
 
       // Assert
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -51,20 +50,18 @@ describe('QueueService', () => {
         QueueUrl: mockQueueUrl,
         DelaySeconds: 0,
         MessageBody: mockMessageBody,
-        MessageAttributes: mockMessageAttribute,
       });
     });
 
     it('should throw an error and log when the send message command fails', async () => {
       // Arrange
-      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       const errorMsg = 'SQS Error';
       sqsMock.on(SendMessageCommand).rejects(new Error(errorMsg));
 
       // Act
-      const result = queueService.publishMessage(mockMessageAttribute, mockMessageBody);
+      const result = queueService.publishMessage(mockMessageBody);
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
@@ -75,7 +72,6 @@ describe('QueueService', () => {
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params.', async () => {
       // Arrange
-      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       sqsMock.on(SendMessageBatchCommand).resolves({
@@ -83,7 +79,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await queueService.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
+      await queueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -94,7 +90,6 @@ describe('QueueService', () => {
             Id: 'msg_0',
             DelaySeconds: 0,
             MessageBody: mockMessageBody,
-            MessageAttributes: mockMessageAttribute,
           },
         ],
       });
@@ -103,7 +98,6 @@ describe('QueueService', () => {
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
       // Arrange
-      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody_0 = 'testMessageBody';
       const mockMessageBody_1 = 'testMessageBody';
 
@@ -113,10 +107,7 @@ describe('QueueService', () => {
       });
 
       // Act
-      await queueService.publishMessageBatch([
-        [mockMessageAttribute, mockMessageBody_0],
-        [mockMessageAttribute, mockMessageBody_1],
-      ]);
+      await queueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
 
       // Assert
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -127,13 +118,11 @@ describe('QueueService', () => {
             Id: 'msg_0',
             DelaySeconds: 0,
             MessageBody: mockMessageBody_0,
-            MessageAttributes: mockMessageAttribute,
           },
           {
             Id: 'msg_1',
             DelaySeconds: 0,
             MessageBody: mockMessageBody_1,
-            MessageAttributes: mockMessageAttribute,
           },
         ],
       });
@@ -142,20 +131,19 @@ describe('QueueService', () => {
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {
       // Arrange
-      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
-      const mockMessageList: [Record<string, MessageAttributeValue>, string][] = [
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
-        [mockMessageAttribute, mockMessageBody],
+      const mockMessageList: string[] = [
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
+        mockMessageBody,
       ];
 
       const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
@@ -170,14 +158,13 @@ describe('QueueService', () => {
 
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
-      const mockMessageAttribute = { Title: { DataType: 'String', StringValue: 'testMessageTitle' } };
       const mockMessageBody = 'testMessageBody';
 
       const errorMsg = 'SQS Error';
       sqsMock.on(SendMessageBatchCommand).rejects(new Error(errorMsg));
 
       // Act
-      const result = queueService.publishMessageBatch([[mockMessageAttribute, mockMessageBody]]);
+      const result = queueService.publishMessageBatch([[mockMessageBody]]);
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));

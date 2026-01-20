@@ -1,19 +1,29 @@
-import { DynamoDB, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import { BatchWriteItemCommand, DynamoDB, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { MessageRecord } from '@common/models/interfaces/MessageRecord';
 import { LambdaSourceEnum } from '@common/models/LambdaSourceEnum';
 import { StatusEnum } from '@common/models/StatusEnum';
-import { StoreMessageRepository } from '@common/repositories/storeMessageRepository';
+import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { mockClient } from 'aws-sdk-client-mock';
 
-describe('StoreMessageRepository', () => {
+describe('DynamodbRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
-  let repo: StoreMessageRepository;
+  let repo: DynamodbRepository;
   const tableName = 'testTable';
+
+  const trace = vi.fn();
+  const error = vi.fn();
+  const captureAWSv3Client = vi.fn();
 
   beforeEach(() => {
     dynamoMock.reset();
-    repo = new StoreMessageRepository(tableName);
+    repo = new DynamodbRepository(
+      tableName,
+      { trace, error } as unknown as Logger,
+      { captureAWSv3Client } as unknown as Tracer
+    );
   });
 
   describe('CreateRecord', () => {
@@ -35,6 +45,49 @@ describe('StoreMessageRepository', () => {
 
       expect(command.input.TableName).toBe(tableName);
       expect(unmarshall(command.input.Item!)).toEqual(record);
+    });
+  });
+
+  describe('CreateRecordBatch', () => {
+    it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
+      // Arrange
+      const record: MessageRecord[] = [
+        {
+          id: '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45',
+          status: StatusEnum.PROCESSING,
+          src: LambdaSourceEnum.Health,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ];
+
+      // Act
+      await repo.createRecordBatch<MessageRecord>(record);
+
+      // Assert
+      expect(dynamoMock.calls()).toHaveLength(1);
+      const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
+      expect(command.input.RequestItems).toEqual({
+        [tableName]: [
+          {
+            PutRequest: {
+              Item: marshall(record[0]),
+            },
+          },
+        ],
+      });
+    });
+
+    it('should throw an error if an empty list is given', async () => {
+      // Arrange
+      const record: MessageRecord[] = [];
+      const errorMsg = 'To create batch records, array length must be more than 0 and at most 25.';
+
+      // Act
+      const result = repo.createRecordBatch<MessageRecord>(record);
+
+      // Assert
+      await expect(result).rejects.toThrow(Error(errorMsg));
+      expect(error).toBeCalledWith(errorMsg);
     });
   });
 

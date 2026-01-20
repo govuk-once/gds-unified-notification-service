@@ -1,22 +1,23 @@
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { iocGetLogger } from '@common/ioc';
-import { IStoreMessageRepository } from '@common/repositories/interfaces/IStoreMessageRepository';
+import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 
-export class StoreMessageRepository implements IStoreMessageRepository {
+export class DynamodbRepository implements IDynamodbRepository {
   private readonly client: DynamoDB;
-  public logger: Logger = iocGetLogger();
 
   constructor(
     private tableName: string,
-    private tableKey: string
+    protected logger: Logger,
+    protected tracer: Tracer
   ) {
     const client = new DynamoDB({
       region: 'eu-west-2',
     });
 
     this.client = client;
+    tracer.captureAWSv3Client(this.client);
   }
 
   public async createRecord<RecordType>(record: RecordType): Promise<void> {
@@ -35,18 +36,27 @@ export class StoreMessageRepository implements IStoreMessageRepository {
     }
   }
 
-  public async updateRecord<RecordType>(keyValue: string, record: RecordType): Promise<void> {
-    this.logger.trace(`Updating record in table: ${this.tableName}`);
+  public async createRecordBatch<RecordType>(record: RecordType[]): Promise<void> {
+    if (record.length === 0 || record.length > 25) {
+      const errorMsg = 'To create batch records, array length must be more than 0 and at most 25.';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    this.logger.trace(`Creating ${record.length} records in table: ${this.tableName}`);
 
     const params = {
-      TableName: this.tableName,
-      Key: marshall({ [this.tableName]: keyValue }),
-      Item: marshall(record),
+      RequestItems: {
+        [this.tableName]: record.map((x) => ({
+          PutRequest: {
+            Item: marshall(x),
+          },
+        })),
+      },
     };
 
     try {
-      await this.client.updateItem(params);
-      this.logger.trace(`Successfully created record in table: ${this.tableName}`);
+      await this.client.batchWriteItem(params);
+      this.logger.trace(`Successfully created records in table: ${this.tableName}`);
     } catch (error) {
       this.logger.error(`Failure in creating record table: ${this.tableName}. \nError: ${error}`);
     }
