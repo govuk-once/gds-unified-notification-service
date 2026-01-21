@@ -14,7 +14,7 @@ export default defineConfig({
     globals: true,
     include: ['**/*.{test,test.unit}.ts'],
     setupFiles: ['src/setup.vitest.ts'],
-    silent: process.env.VITEST_SILENT !== undefined,
+    silent: process.env.VITEST_SILENT == 'true',
     coverage: {
       provider: 'v8',
       thresholds: {

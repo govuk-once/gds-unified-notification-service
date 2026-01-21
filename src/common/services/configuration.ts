@@ -34,7 +34,7 @@ export class Configuration {
       this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
       return data.Parameter?.Value;
     } catch (error) {
-      this.logger.error(`Failed fetching value from SSM - ${error}`);
+      this.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
       throw error;
     }
   }
@@ -70,12 +70,12 @@ export class Configuration {
     throw new Error(errorMsg);
   }
 
-  public async getEnumParameter<T extends z.ZodEnum>(namespace: string, key: string, schema: T): Promise<z.infer<T>> {
+  public async getEnumParameter<T extends z.ZodEnum>(namespace: string, schema: T): Promise<z.infer<T>> {
     const parameterValue = await this.getParameter(namespace);
 
     // If parameter is undefined
     if (parameterValue == undefined) {
-      throw new Error(`Parameter value ${namespace}/${key} is undefined`);
+      throw new Error(`Parameter value ${namespace} is undefined`);
     }
 
     // Parse parameter
@@ -83,7 +83,7 @@ export class Configuration {
 
     // If invalid enum
     if (result.error) {
-      const errorMsg = `Could not parse parameter ${namespace}/${key} to a number`;
+      const errorMsg = `Could not parse parameter ${namespace} to a number`;
       this.logger.trace(errorMsg, {
         method: 'getEnumParameter',
       });

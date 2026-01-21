@@ -19,8 +19,7 @@ export class NotificationService {
   async initialize(): Promise<void> {
     // Based on the adapter configured within SSM - switch adapters
     const adapter = await this.config.getEnumParameter(
-      `config/dispatch/onesignal`,
-      `adapter`,
+      `config/dispatch/adapter`,
       z.enum([`VOID`, `OneSignal`])
     );
 

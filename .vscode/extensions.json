@@ -5,10 +5,9 @@
   "recommendations": [
     "dbaeumer.vscode-eslint",
     "hashicorp.terraform",
-    "prettier.prettier-vscode",
-    // Optional - allows highlighting of the covered lines based on generated coverage reports
     "ryanluker.vscode-coverage-gutters",
-    "vitest.explorer"
+    "vitest.explorer",
+    "esbenp.prettier-vscode"
   ],
   // List of extensions recommended by VS Code that should not be recommended for users of this workspace.
   "unwantedRecommendations": []

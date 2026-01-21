@@ -3,7 +3,7 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
-import { Configuration, QueueService } from '@common/services';
+import { Configuration, NotificationService, QueueService } from '@common/services';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
 
@@ -13,18 +13,24 @@ vi.mock('@common/ioc', () => ({
   iocGetLogger: vi.fn(),
   iocGetMetrics: vi.fn(),
   iocGetTracer: vi.fn(),
+  iocGetNotificationService: vi.fn()
 }));
 
 describe('Dispatch QueueHandler', () => {
   const getParameter = vi.fn();
   const publishMessage = vi.fn();
   const info = vi.fn();
+  const notificationServiceMock = vi.fn();
 
   const instance: Dispatch = new Dispatch(
     { getParameter } as unknown as Configuration,
     { info } as unknown as Logger,
     {} as unknown as Metrics,
-    {} as unknown as Tracer
+    {} as unknown as Tracer,
+    {
+      initialize:notificationServiceMock, 
+      send: notificationServiceMock
+    } as unknown  as NotificationService
   );
   const mockQueue = {
     publishMessage: publishMessage,

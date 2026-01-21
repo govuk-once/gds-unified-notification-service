@@ -8,7 +8,6 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import * as axios from 'axios';
-import { v4 as uuid } from 'uuid';
 
 interface OneSignalPushNotificationResponse {
   id: string;
@@ -65,7 +64,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
         app_id: this.appId,
         headings: { en: request.NotificationTitle },
         contents: { en: request.NotificationBody },
-        idempotency_key: uuid(),
+        idempotency_key: request.NotificationID,
         target_channel: 'push',
         include_aliases: { external_id: [request.ExternalUserID] },
       });
