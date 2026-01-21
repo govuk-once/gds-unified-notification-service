@@ -1,7 +1,18 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+
+export const serializeRecordBodyToJson = <InputType>(body: InputType): string => {
+  if (typeof body === 'string') {
+    return body;
+  }
+  try {
+    return JSON.stringify(body);
+  } catch (error) {
+    throw new Error(`Serialization failed: ${error}`);
+  }
+};
 
 export class QueueService {
   private client;
@@ -18,39 +29,37 @@ export class QueueService {
     this.logger.trace('Queue Service Initialised.');
   }
 
-  public async publishMessage(
-    messageAttributes: Record<string, MessageAttributeValue>,
-    messageBody: string,
-    delaySeconds = 0
-  ) {
+  public async publishMessage<InputType>(messageBody: InputType, delaySeconds = 0) {
+    this.logger.trace(`Publishing message to queue: ${this.sqsQueueUrl}.`);
+
     try {
       const command = new SendMessageCommand({
         QueueUrl: this.sqsQueueUrl,
         DelaySeconds: delaySeconds,
-        MessageAttributes: messageAttributes,
-        MessageBody: messageBody,
+        MessageBody: serializeRecordBodyToJson<InputType>(messageBody),
       });
       const response = await this.client.send(command);
 
       this.logger.trace(`Successfully published message ID: ${response.MessageId}`);
     } catch (error) {
-      this.logger.trace(`SQS Publish Error: ${error}`);
+      this.logger.error(`Error publishing to SQS - ${error}`);
       throw error;
     }
   }
 
-  public async publishMessageBatch(message: [Record<string, MessageAttributeValue>, string][], delaySeconds = 0) {
+  public async publishMessageBatch<InputType>(message: InputType[], delaySeconds = 0) {
+    this.logger.trace(`Publishing batch message to queue: ${this.sqsQueueUrl}.`);
+
     if (message.length > 10) {
       const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
-      this.logger.trace(errorMsg);
+      this.logger.error(errorMsg);
       throw new Error(errorMsg);
     }
 
-    const entries = message.map(([attributes, body], index) => ({
+    const entries = message.map((body, index) => ({
       Id: `msg_${index}`, // TODO: How do ids need to be set
       DelaySeconds: delaySeconds,
-      MessageAttributes: attributes,
-      MessageBody: body,
+      MessageBody: serializeRecordBodyToJson<InputType>(body),
     }));
 
     try {
@@ -67,7 +76,7 @@ export class QueueService {
         this.logger.trace(`Failed to publish ${response.Failed.length} messages.`);
       }
     } catch (error) {
-      this.logger.trace(`SQS Publish Error: ${error}`);
+      this.logger.error(`Error publishing to SQS - ${error}`);
       throw error;
     }
   }

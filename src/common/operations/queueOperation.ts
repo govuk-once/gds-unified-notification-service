@@ -19,6 +19,18 @@ export type IQueueMiddleware<InputType, OutputType> = MiddyfiedHandler<
   Record<string, unknown>
 >;
 
+export const deserializeRecordBodyFromJson = <OutputType>(): MiddlewareObj<
+  SQSEvent,
+  QueueEvent<OutputType>,
+  Error
+> => ({
+  before: (request): void => {
+    for (let i = 0; i < request.event.Records.length; i++) {
+      request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
+    }
+  },
+});
+
 export abstract class QueueHandler<InputType, OutputType = void> {
   public abstract operationId: string;
 
@@ -33,7 +45,10 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   }
 
   protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
-    return this.observabilityMiddlewares(middy) as IQueueMiddleware<InputType, OutputType>;
+    return this.observabilityMiddlewares(middy).use(deserializeRecordBodyFromJson()) as IQueueMiddleware<
+      InputType,
+      OutputType
+    >;
   }
 
   /**
