@@ -36,6 +36,9 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
 
+      - name: Terraform naming convention lint
+        run: npm run development:organize:tf -- --dry-run
+
       - name: Terraform init (no backend)
         working-directory: ./terraform/notifications
         run: terraform init -backend=false
