@@ -14,17 +14,6 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType): string =>
   }
 };
 
-export const serializeJsonToRecordBody = <InputType>(body: InputType): string => {
-  if (typeof body === 'string') {
-    return body;
-  }
-  try {
-    return JSON.stringify(body);
-  } catch (error) {
-    throw new Error(`Serialization failed: ${error}`);
-  }
-};
-
 export class QueueService {
   private client;
   private sqsQueueUrl: string;
@@ -37,11 +26,11 @@ export class QueueService {
   ) {
     this.client = new SQSClient({ region: 'eu-west-2' });
     this.sqsQueueUrl = sqsQueueUrl;
-    this.logger.trace('Queue Service Initialised.');
+    this.logger.info('Queue Service Initialised.');
   }
 
   public async publishMessage<InputType>(messageBody: InputType, delaySeconds = 0) {
-    this.logger.trace(`Publishing message to queue: ${this.sqsQueueUrl}.`);
+    this.logger.info(`Publishing message to queue: ${this.sqsQueueUrl}.`);
 
     try {
       const command = new SendMessageCommand({
@@ -51,7 +40,7 @@ export class QueueService {
       });
       const response = await this.client.send(command);
 
-      this.logger.trace(`Successfully published message ID: ${response.MessageId}`);
+      this.logger.info(`Successfully published message ID: ${response.MessageId}`);
     } catch (error) {
       this.logger.error(`Error publishing to SQS - ${error}`);
       throw error;
@@ -59,7 +48,7 @@ export class QueueService {
   }
 
   public async publishMessageBatch<InputType>(message: InputType[], delaySeconds = 0) {
-    this.logger.trace(`Publishing batch message to queue: ${this.sqsQueueUrl}.`);
+    this.logger.info(`Publishing batch message to queue: ${this.sqsQueueUrl}.`);
 
     if (message.length > 10) {
       const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
@@ -81,10 +70,10 @@ export class QueueService {
       const response = await this.client.send(command);
 
       if (response.Successful) {
-        this.logger.trace(`Successfully published ${response.Successful.length} messages.`);
+        this.logger.info(`Successfully published ${response.Successful.length} messages.`);
       }
       if (response.Failed) {
-        this.logger.trace(`Failed to publish ${response.Failed.length} messages.`);
+        this.logger.info(`Failed to publish ${response.Failed.length} messages.`);
       }
     } catch (error) {
       this.logger.error(`Error publishing to SQS - ${error}`);

@@ -1,22 +1,29 @@
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
-export const toIMessageRecord = (
-  message: Partial<IMessage>,
-  receivedDateTime: string,
-  validatedDateTime?: string
-): IMessageRecord => {
-  if (message?.NotificationID) {
+export const toIMessageRecord = ({
+  recordFields,
+  receivedDateTime,
+  validatedDateTime,
+  processedDateTime,
+}: {
+  recordFields: Partial<IMessageRecord>;
+  receivedDateTime?: string;
+  validatedDateTime?: string;
+  processedDateTime?: string;
+}): IMessageRecord => {
+  if (recordFields?.NotificationID) {
     const record: IMessageRecord = {
-      NotificationID: message.NotificationID,
-      UserID: message.UserID,
-      MessageTitle: message.MessageTitle,
-      MessageBody: message.MessageBody,
-      NotificationTitle: message.NotificationTitle,
-      NotificationBody: message.NotificationBody,
-      DepartmentID: message.DepartmentID,
+      NotificationID: recordFields.NotificationID,
+      UserID: recordFields.UserID,
+      MessageTitle: recordFields.MessageTitle,
+      MessageBody: recordFields.MessageBody,
+      NotificationTitle: recordFields.NotificationTitle,
+      NotificationBody: recordFields.NotificationBody,
+      DepartmentID: recordFields.DepartmentID,
+      OneSignalID: recordFields.OneSignalID,
       ReceivedDateTime: receivedDateTime,
       ValidatedDateTime: validatedDateTime,
+      ProcessedDateTime: processedDateTime,
       // TODO: On adding 'rejection reason' field here
     };
 

@@ -29,7 +29,7 @@ describe('Validation QueueHandler', () => {
   const publishMessageBatch = vi.fn();
   const createRecord = vi.fn();
   const createRecordBatch = vi.fn();
-  const trace = vi.fn();
+  const info = vi.fn();
   const error = vi.fn();
 
   const mockQueue = {
@@ -53,7 +53,7 @@ describe('Validation QueueHandler', () => {
 
     instance = new Validation(
       { getParameter } as unknown as Configuration,
-      { trace, error } as unknown as Logger,
+      { info, error } as unknown as Logger,
       {} as unknown as Metrics,
       {} as unknown as Tracer
     );
@@ -111,10 +111,12 @@ describe('Validation QueueHandler', () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
     const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
+    const mockIncomingMessageTableKey = 'mockIncomingMessageTableName';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
+    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessageBatch.mockResolvedValueOnce(undefined);
     createRecordBatch.mockResolvedValueOnce(undefined);
@@ -129,10 +131,10 @@ describe('Validation QueueHandler', () => {
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(3);
+    expect(getParameter).toHaveBeenCalledTimes(4);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
     expect(publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
     expect(createRecordBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         ...mockMessageBody,
@@ -146,11 +148,13 @@ describe('Validation QueueHandler', () => {
   it('should handle when a message is not parsed, send all parsed message and make a record of both validated and failed messages.', async () => {
     // Arrange
     const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
-    const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
+    const mockIncomingMessageTableName = 'mockIncomingMessageTableKey';
+    const mockIncomingMessageTableKey = 'mockIncomingMessageTableName';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
+    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessageBatch.mockResolvedValueOnce(undefined);
     createRecordBatch.mockResolvedValueOnce(undefined);
@@ -213,10 +217,10 @@ describe('Validation QueueHandler', () => {
     await instance.implementation(mockPartialFailedEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(3);
+    expect(getParameter).toHaveBeenCalledTimes(4);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
     expect(publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
     expect(createRecordBatch).toHaveBeenNthCalledWith(1, [
       expect.objectContaining({
         NotificationID: '1231',
@@ -236,10 +240,12 @@ describe('Validation QueueHandler', () => {
 
   it('should handle when a message is not parsed, and make a record of failed messages.', async () => {
     // Arrange
-    const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
+    const mockIncomingMessageTableName = 'mockIncomingMessageTableKey';
+    const mockIncomingMessageTableKey = 'mockIncomingMessageTableName';
     const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
     getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
+    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
     createRecordBatch.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
@@ -304,9 +310,9 @@ describe('Validation QueueHandler', () => {
     await instance.implementation(mockPartialFailedEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(2);
+    expect(getParameter).toHaveBeenCalledTimes(3);
     expect(publishMessageBatch).not.toHaveBeenCalled();
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
     expect(createRecordBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         NotificationID: '1231',
@@ -393,12 +399,13 @@ describe('Validation QueueHandler', () => {
     });
     getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
     getParameter.mockResolvedValueOnce(undefined);
+    getParameter.mockResolvedValueOnce(undefined);
 
     // Act
     const result = instance.implementation(mockEvent, mockContext);
 
     // Assert
     await expect(result).rejects.toThrow(new Error(errorMsg));
-    expect(iocGetDynamoRepository).toHaveBeenCalledWith('');
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith('', '');
   });
 });

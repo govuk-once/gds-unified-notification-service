@@ -12,8 +12,9 @@ describe('DynamodbRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
   let repo: DynamodbRepository;
   const tableName = 'testTable';
+  const tableKey = 'testKey';
 
-  const trace = vi.fn();
+  const info = vi.fn();
   const error = vi.fn();
   const captureAWSv3Client = vi.fn();
 
@@ -21,7 +22,8 @@ describe('DynamodbRepository', () => {
     dynamoMock.reset();
     repo = new DynamodbRepository(
       tableName,
-      { trace, error } as unknown as Logger,
+      tableKey,
+      { info, error } as unknown as Logger,
       { captureAWSv3Client } as unknown as Tracer
     );
   });
@@ -107,7 +109,7 @@ describe('DynamodbRepository', () => {
       });
 
       // Act
-      const result = await repo.getRecord<MessageRecord>('id', mockGuid);
+      const result = await repo.getRecord<MessageRecord>(mockGuid);
 
       // Assert
       expect(result).toEqual(mockRecord);
@@ -122,7 +124,7 @@ describe('DynamodbRepository', () => {
       });
 
       // Act
-      const result = await repo.getRecord<MessageRecord>('id', mockGuid);
+      const result = await repo.getRecord<MessageRecord>(mockGuid);
 
       // Assert
       expect(result).toBeNull();

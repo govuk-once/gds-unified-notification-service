@@ -8,7 +8,7 @@ import { mockClient } from 'aws-sdk-client-mock';
 describe('Configuration', () => {
   const ssmMock = mockClient(SSMClient);
 
-  const trace = vi.fn();
+  const info = vi.fn();
   const error = vi.fn();
 
   let config: Configuration;
@@ -18,11 +18,7 @@ describe('Configuration', () => {
     vi.clearAllMocks();
     ssmMock.reset();
 
-    config = new Configuration(
-      { trace, error } as unknown as Logger,
-      {} as unknown as Metrics,
-      {} as unknown as Tracer
-    );
+    config = new Configuration({ info, error } as unknown as Logger, {} as unknown as Metrics, {} as unknown as Tracer);
   });
 
   describe('getParameter', () => {

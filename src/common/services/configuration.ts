@@ -16,7 +16,7 @@ export class Configuration {
   }
 
   public async getParameter(namespace: string): Promise<string | undefined> {
-    this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
+    this.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
       Name: `/${this.prefix}/${namespace}`,
@@ -28,7 +28,7 @@ export class Configuration {
     try {
       const data = await this.client.send(command);
 
-      this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
+      this.logger.info(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
       return data.Parameter?.Value;
     } catch (error) {
       this.logger.error(`Failed fetching value from SSM - ${error}`);

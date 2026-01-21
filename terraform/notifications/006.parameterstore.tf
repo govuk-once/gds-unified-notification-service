@@ -23,9 +23,9 @@ module "parameter_store" {
     "queue/analytics/url"  = module.sqs_analytics.queue_url
 
     // Dynamo
-    "table/events/name"          = module.dynamodb_events.table_name
-    "table/events/key"           = module.dynamodb_events.table_key
-    "table/inboundMessages/name" = module.dynamodb_inbound_messages.table_name
-    "table/inboundMessages/key"  = module.dynamodb_inbound_messages.table_key
+    "table/events/name"  = module.dynamodb_events.table_name
+    "table/events/key"   = module.dynamodb_events.table_key
+    "table/inbound/name" = module.dynamodb_inbound_messages.table_name
+    "table/inbound/key"  = module.dynamodb_inbound_messages.table_key
   }
 }

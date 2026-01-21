@@ -1,7 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { MessageAttributeValue, SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { QueueService } from '@common/services/queueService';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
@@ -14,7 +14,7 @@ const sqsMock = mockClient(SQSClient);
 const mockQueueUrl = 'testQueueUrl';
 
 describe('QueueService', () => {
-  const trace = vi.fn();
+  const info = vi.fn();
   const error = vi.fn();
 
   let queueService: QueueService;
@@ -26,7 +26,7 @@ describe('QueueService', () => {
 
     queueService = new QueueService(
       mockQueueUrl,
-      { trace, error } as unknown as Logger,
+      { info, error } as unknown as Logger,
       {} as unknown as Metrics,
       {} as unknown as Tracer
     );
@@ -93,7 +93,7 @@ describe('QueueService', () => {
           },
         ],
       });
-      expect(trace).toHaveBeenCalledWith('Successfully published 1 messages.');
+      expect(info).toHaveBeenCalledWith('Successfully published 1 messages.');
     });
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
@@ -126,7 +126,7 @@ describe('QueueService', () => {
           },
         ],
       });
-      expect(trace).toHaveBeenCalledWith('Failed to publish 1 messages.');
+      expect(info).toHaveBeenCalledWith('Failed to publish 1 messages.');
     });
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {

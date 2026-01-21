@@ -30,7 +30,7 @@ export class Validation extends QueueHandler<unknown> {
   }
 
   public async implementation(event: QueueEvent<unknown>, context: Context) {
-    this.logger.trace('Received request');
+    this.logger.info('Received request');
 
     // Validation
     const messageRecords: IMessageRecord[] = [];
@@ -47,11 +47,11 @@ export class Validation extends QueueHandler<unknown> {
 
     // Store success entries
     for (const [validRecord, data] of validRecords) {
-      const record = toIMessageRecord(
-        data,
-        validRecord.attributes.ApproximateFirstReceiveTimestamp,
-        Date.now().toString()
-      );
+      const record = toIMessageRecord({
+        recordFields: data,
+        receivedDateTime: validRecord.attributes.ApproximateFirstReceiveTimestamp,
+        validatedDateTime: Date.now().toString(),
+      });
       messageRecords.push(record);
     }
 
@@ -62,7 +62,10 @@ export class Validation extends QueueHandler<unknown> {
       }
 
       try {
-        const record = toIMessageRecord(data, invalidRecord.attributes.ApproximateFirstReceiveTimestamp);
+        const record = toIMessageRecord({
+          recordFields: data,
+          receivedDateTime: invalidRecord.attributes.ApproximateFirstReceiveTimestamp,
+        });
         partialMessageRecords.push(record);
       } catch (error: unknown) {
         if (error instanceof Error) {
@@ -73,28 +76,29 @@ export class Validation extends QueueHandler<unknown> {
       }
     }
 
-    // Requeue messages which passed validation to next stage
+    // Requeue validated messages to the processing queue
     const messagesToPass = validRecords.map(([, data]) => data);
 
     if (messagesToPass.length > 0) {
-      this.logger.trace('Requeuing validated message to process queue');
       const processingQueueUrl = (await this.config.getParameter(StringParameters.Queue.Processing.Url)) ?? '';
       const processingQueue = iocGetQueueService(processingQueueUrl);
 
+      this.logger.info('Requeuing validated message to process queue');
       await processingQueue.publishMessageBatch<IMessage>(messagesToPass);
     }
 
     // Create a record of message in Dynamodb
     const messageRecordTableName = (await this.config.getParameter(StringParameters.Table.Inbound.Name)) ?? '';
-    const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
+    const messageRecordTableKey = (await this.config.getParameter(StringParameters.Table.Inbound.Key)) ?? '';
+    const messageRecordTable = iocGetDynamoRepository(messageRecordTableName, messageRecordTableKey);
 
     if (messagesToPass.length > 0) {
-      this.logger.trace('Creating record of validated messages that have been passed to queue.');
+      this.logger.info('Creating record of validated messages that have been passed to queue.');
       await messageRecordTable.createRecordBatch<IMessageRecord>(messageRecords);
     }
 
     if (partialMessageRecords.length > 0) {
-      this.logger.trace('Creating record of messages that failed validation.');
+      this.logger.info('Creating record of messages that failed validation.');
       await messageRecordTable.createRecordBatch<IMessageRecord>(partialMessageRecords);
     }
 
@@ -104,7 +108,7 @@ export class Validation extends QueueHandler<unknown> {
 
     await analyticsQueue.publishMessage('Test message body.');
 
-    this.logger.trace('Completed request');
+    this.logger.info('Completed request');
   }
 }
 export const handler = new Validation(

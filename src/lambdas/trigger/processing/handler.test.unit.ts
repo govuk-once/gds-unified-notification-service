@@ -1,50 +1,78 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { iocGetQueueService } from '@common/ioc';
+import { toIMessageRecord } from '@common/builders/IMessageRecord';
+import { iocGetDynamoRepository, iocGetQueueService } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
+import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 import { Configuration } from '@common/services/configuration';
 import { QueueService } from '@common/services/queueService';
+import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Processing } from '@project/lambdas/trigger/processing/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@common/ioc', () => ({
   iocGetConfigurationService: vi.fn(),
   iocGetQueueService: vi.fn(),
+  iocGetDynamoRepository: vi.fn(),
   iocGetLogger: vi.fn(),
   iocGetMetrics: vi.fn(),
   iocGetTracer: vi.fn(),
 }));
 
-describe('Validation QueueHandler', () => {
+vi.mock('@common/builders/IMessageRecord', () => ({
+  toIMessageRecord: vi.fn(),
+}));
+
+describe('Processing QueueHandler', () => {
   const getParameter = vi.fn();
   const publishMessage = vi.fn();
-  const trace = vi.fn();
+  const publishMessageBatch = vi.fn();
+  const updateRecord = vi.fn();
+  const info = vi.fn();
 
   const instance: Processing = new Processing(
     { getParameter } as unknown as Configuration,
-    { trace } as unknown as Logger,
+    { info } as unknown as Logger,
     {} as unknown as Metrics,
     {} as unknown as Tracer
   );
   const mockQueue = {
     publishMessage: publishMessage,
+    publishMessageBatch: publishMessageBatch,
   } as unknown as QueueService;
 
+  const mockDynamo = {
+    updateRecord: updateRecord,
+  } as unknown as IDynamodbRepository;
+
   let mockContext: Context;
-  let mockEvent: QueueEvent<string>;
+  let mockMessageBody: IMessage;
+  let mockEvent: QueueEvent<IMessage>;
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
     vi.mocked(iocGetQueueService).mockReturnValue(mockQueue);
+    vi.mocked(iocGetDynamoRepository).mockReturnValue(mockDynamo);
 
     // Mock AWS Lambda Context
     mockContext = {
-      functionName: 'processing',
+      functionName: 'validation',
       awsRequestId: '12345',
     } as unknown as Context;
+
+    // Mock the MessageBody
+    mockMessageBody = {
+      NotificationID: '1234',
+      DepartmentID: 'DVLA01',
+      UserID: 'UserID',
+      MessageTitle: 'You have a new Message',
+      MessageBody: 'Open Notification Centre to read your notifications',
+      NotificationTitle: 'You have a new medical driving license',
+      NotificationBody: 'The DVLA has issued you a new license.',
+    };
 
     // Mock the QueueEvent (Mapping to your InputType)
     mockEvent = {
@@ -64,7 +92,7 @@ describe('Validation QueueHandler', () => {
           eventSource: 'mockEventSource',
           eventSourceARN: 'mockEventSourceARN',
           awsRegion: 'eu-west2',
-          body: 'mockBody',
+          body: mockMessageBody,
         },
       ],
     };
@@ -77,23 +105,45 @@ describe('Validation QueueHandler', () => {
 
   it('should log send a message to processing queue when implementation is called and send a message to the analytics queue when triggered.', async () => {
     // Arrange
-    const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
-    const mockAnalyticsQueueUrl = 'mockProcessingQueueUrl';
+    const mockDispatchQueueUrl = 'mockDispatchQueueUrl';
+    const mockIncomingMessageTableName = 'mockIncomingMessageTableName';
+    const mockIncomingMessageTableKey = 'mockIncomingMessageTableKey';
+    const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
 
-    getParameter.mockResolvedValueOnce(mockProcessingQueueUrl);
+    getParameter.mockResolvedValueOnce(mockDispatchQueueUrl);
+    getParameter.mockResolvedValueOnce(mockIncomingMessageTableName);
+    getParameter.mockResolvedValueOnce(mockIncomingMessageTableKey);
     getParameter.mockResolvedValueOnce(mockAnalyticsQueueUrl);
+    publishMessageBatch.mockResolvedValueOnce(undefined);
+    updateRecord.mockResolvedValueOnce(undefined);
     publishMessage.mockResolvedValueOnce(undefined);
-    publishMessage.mockResolvedValueOnce(undefined);
+
+    vi.mocked(toIMessageRecord).mockReturnValueOnce({
+      NotificationID: '1234',
+      OneSignalID: 'OneSignal-1234',
+      ProcessedDateTime: '1768992347422',
+    });
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(2);
-    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockProcessingQueueUrl);
-    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
-    expect(publishMessage).toHaveBeenNthCalledWith(1, 'Test message body.');
-    expect(publishMessage).toHaveBeenNthCalledWith(2, 'Test message body.');
+    expect(getParameter).toHaveBeenCalledTimes(4);
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockDispatchQueueUrl);
+    expect(publishMessageBatch).toHaveBeenNthCalledWith(1, [
+      {
+        ...mockMessageBody,
+        OneSignalID: `OneSignal-${mockMessageBody.NotificationID}`,
+      },
+    ]);
+    expect(iocGetDynamoRepository).toHaveBeenCalledWith(mockIncomingMessageTableName, mockIncomingMessageTableKey);
+    expect(updateRecord).toHaveBeenCalledWith('1234', {
+      NotificationID: '1234',
+      OneSignalID: 'OneSignal-1234',
+      ProcessedDateTime: '1768992347422',
+    });
+    expect(iocGetQueueService).toHaveBeenNthCalledWith(2, mockAnalyticsQueueUrl);
+    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
   });
 
   it('should set queue url to an empty string if not set and get an error from queue service.', async () => {
