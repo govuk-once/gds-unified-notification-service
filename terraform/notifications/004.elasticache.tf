@@ -7,7 +7,10 @@ resource "aws_elasticache_user" "this" {
   authentication_mode {
     type = "iam"
   }
-  tags = merge(local.defaultTags, {})
+
+  # There's a bug with the terraform provider - updating a tag on the Elasticache user causes timeout
+  # Striping version tag from this resource avoids frequent updates, if issue is observed again - we may need to exclude tags from this resource
+  tags = { for k, v in merge(local.defaultTags, {}) : k => v if k != "version" }
 }
 
 # Create user group

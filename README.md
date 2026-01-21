@@ -46,7 +46,7 @@ npm install
 This guided wizard will create a tfstate bucket within AWS based on your developer email, and initialize TF on your behalf.
 
 ```sh
-eval $(gds-cli aws {name_of_sandbox_or_dev_account} -e --skip-ip-range-checks)
+eval $(gds-cli aws {name_of_sandbox_or_dev_account} -e)
 npm run development:sandbox:setup
 ```
 
@@ -55,7 +55,7 @@ npm run development:sandbox:setup
 ```sh
 brew install tfsec
 brew install checkov
-
+# Pre-configured aliases
 npm run tfsec
 npm run checkov
 ```
@@ -93,18 +93,41 @@ npm run development:sandbox:release:plan
 Both versions will convert TS bundles into JS, and execute terraform.
 Plan will only output the expected changes, release will allow deploying to AWS (sandbox).
 
+## Testing
+
+Within this project there are multiple ways of triggering tests, there are also various flags that can adjust certain configurations to provide additional flexibility during development:
+
+```sh
+# Standard unit tests
+npm run test
+# Unit tests reporting covereage
+npm run test:coverage
+
+# Additional env vars can also be supplied:
+## Surpress console output
+VITEST_SILENT=true
+## Disables Mock service worker - allowing http requests to go to internet instead of mock interceptor
+VITEST_DISABLE_MSW=true
+## Changes the test:coverage output to a per file structure instead of summary
+VITEST_DETAILED_COVERAGE=true
+
+## Sample usage
+VITEST_DETAILED_COVERAGE=true VITEST_SILENT=true npm run test:coverage
+```
+
+We also have some additional flags that can adjust the way
+
 ## Pre-commit hooks
 
 - Husky - Automatically lint commit messages. [Husky](https://typicode.github.io/husky)
 - commitlint - Lint commit messages to adhere to a commit convention. [commitlint](https://github.com/conventional-changelog/commitlint)
 - TFLint - Framework for terraform to find possible errors for Major Cloud providers. [TFLint](https://github.com/terraform-linters/tflint)
+- TF Organizing step - in order to maintain naming convention defined in [README.md](./terraform/notifications/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
 
 ## Contact
 
 Solution Architect: Nathaniel Greenwood
+
 Technical Lead: Damian Pokorski
+
 Developers: Ryan Parker, Toby Fox
-
-```
-
-```

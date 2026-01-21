@@ -10,7 +10,10 @@ module "parameter_store" {
     "config/process/enabled"  = "true"
     "config/dispatch/enabled" = "true"
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
-    "config/dispatch/onetrust/apikey" = "placeholder"
+
+    "config/dispatch/adapter"          = "VOID" # Enum: VOID, OneSignal
+    "config/dispatch/onesignal/apikey" = "placeholder"
+    "config/dispatch/onesignal/appId"  = "placeholder"
 
     // Elasticache config
     "config/common/cache/name" = aws_elasticache_serverless_cache.this.name

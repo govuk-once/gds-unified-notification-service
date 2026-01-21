@@ -68,4 +68,6 @@ resource "aws_lambda_function" "this" {
 
   # Ensure we completed code signing job before
   depends_on = [aws_signer_signing_job.code_signing]
+
+  tags_all = var.tags
 }
