@@ -30,7 +30,7 @@ resource "aws_s3_bucket_versioning" "code_storage" {
 }
 
 # Define lifecycle for contents - as these are ephemeral we can delete all artifacts after 30 days
-resource "aws_s3_bucket_lifecycle_configuration" "code_storage" {
+resource "aws_s3_bucket_lifecycle_configuration" "example" {
   bucket = aws_s3_bucket.code_storage.bucket
 
   rule {
@@ -49,7 +49,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "code_storage" {
 }
 
 # Encryption at rest using KMS key
-resource "aws_s3_bucket_server_side_encryption_configuration" "code_storage" {
+resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
   bucket = aws_s3_bucket.code_storage.id
 
   rule {
@@ -67,7 +67,7 @@ resource "aws_signer_signing_profile" "code_signing" {
   platform_id = "AWSLambda-SHA384-ECDSA"
 
   # invalid value for name (must be alphanumeric with max length of 64 characters)
-  name = replace(join("-", [local.prefix, "signing_profile_v2"]), "-", "")
+  name = replace(join("-", [local.prefix, "signing_profile_v3"]), "-", "")
   tags = merge(local.defaultTags, {})
 
   signature_validity_period {
@@ -79,8 +79,8 @@ resource "aws_signer_signing_profile" "code_signing" {
   # Note: TF Appears to not handle deleting / importing these too well
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [name]
   }
-
 }
 
 resource "aws_lambda_code_signing_config" "code_signing" {
