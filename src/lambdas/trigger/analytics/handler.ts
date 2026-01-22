@@ -3,23 +3,20 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
 import {
-  iocGetCacheService,
   iocGetConfigurationService,
   iocGetDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
-  iocGetQueueService,
   iocGetTracer,
 } from '@common/ioc';
 import { IAnalyticsRecord } from '@common/models/interfaces/IAnalyticsRecord';
-import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { Configuration } from '@common/services/configuration';
 import { StringParameters } from '@common/utils/parameters';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Context } from 'aws-lambda';
 
-export class Analytics extends QueueHandler<unknown, void> {
+export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
 
   constructor(
@@ -31,13 +28,10 @@ export class Analytics extends QueueHandler<unknown, void> {
     super(logger, metrics, tracer);
   }
 
-  public async implementation(event: QueueEvent<string>, context: Context) {
-    this.logger.info('Received request.');
-
-    const cacheService = iocGetCacheService();
-    const analyticsRecordTable = iocGetDynamoRepository('events');
-    const processingQueueUrl = (await this.config.getParameter(StringParameters.Queue.Processing.Url)) ?? '';
-    const processingQueue = iocGetQueueService(processingQueueUrl);
+  public async implementation(event: QueueEvent<IAnalytics>, context: Context) {
+    //TODO: Cache Service timeouts. For now out of scope NOT-66
+    //  const cacheService = iocGetCacheService();
+    //   await cacheService.connect();
 
     const validmessagesToForward: IAnalytics[] = [];
     const dbRecordsToCreate: IAnalyticsRecord[] = [];
@@ -47,7 +41,6 @@ export class Analytics extends QueueHandler<unknown, void> {
       raw: record,
       parseResult: IAnalyticsSchema.safeParse(record.body),
     }));
-
     const validRecords = records.filter((record) => record.parseResult.success);
 
     for (const { parseResult } of validRecords) {
@@ -55,56 +48,51 @@ export class Analytics extends QueueHandler<unknown, void> {
 
       validmessagesToForward.push(data);
 
-      const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
+      //  const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
 
-      cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.PROCESSING));
+      //  cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.PROCESSING));
 
       const record = toIAnalyticsRecord(data, Date.now().toString());
 
       if (record) {
         dbRecordsToCreate.push(record);
       }
+    }
 
-      const invalidRecords = records.filter((record) => !record.parseResult.success);
+    const invalidRecords = records.filter((record) => !record.parseResult.success);
 
-      for (const { raw } of invalidRecords) {
-        const partialParse = IAnalyticsSchema.partial().safeParse(raw.body);
+    this.logger.error(`Invalid records count: ${invalidRecords.length}.`);
 
-        if (partialParse.success && partialParse.data) {
-          const data = partialParse.data;
+    for (const { raw } of invalidRecords) {
+      const partialParse = IAnalyticsSchema.partial().safeParse(raw.body);
 
-          if (data.DepartmentID && data.NotificationID) {
-            const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
+      if (partialParse.success && partialParse.data) {
+        const data = partialParse.data;
 
-            cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.READ));
-          }
+        if (data.DepartmentID && data.NotificationID) {
+          //     const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
+          //    cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.READ));
+        }
 
-          const record = toIAnalyticsRecord(data as IAnalytics, Date.now().toString());
+        const record = toIAnalyticsRecord(data as IAnalytics, Date.now().toString());
 
-          if (record) {
-            dbRecordsToCreate.push(record);
-          }
+        if (record) {
+          dbRecordsToCreate.push(record);
         }
       }
+    }
 
-      if (validmessagesToForward.length > 0) {
-        this.logger.trace(`Requeuing ${validmessagesToForward.length} validated messages.`);
+    if (dbRecordsToCreate.length > 0) {
+      const analyticsmessageRecordTableName =
+        (await this.config.getParameter(StringParameters.Table.Events.Name)) ?? '';
+      const analyticsRecordTable = iocGetDynamoRepository(analyticsmessageRecordTableName);
 
-        await processingQueue.publishMessageBatch<IAnalytics>(validmessagesToForward);
-      }
+      await analyticsRecordTable.createRecordBatch<IAnalyticsRecord>(dbRecordsToCreate);
+    }
 
-      if (dbRecordsToCreate.length > 0) {
-        this.logger.trace(`Persisting ${dbRecordsToCreate.length} event records to dynamoDB.`);
-
-        await analyticsRecordTable.createRecordBatch<IAnalyticsRecord>(dbRecordsToCreate);
-      }
-
-      if (cacheUpdatePromises.length > 0) {
-        this.logger.trace(`Updating status cache for ${cacheUpdatePromises.length} items.`);
-        await Promise.all(cacheUpdatePromises);
-      }
-
-      this.logger.info('Completed request.');
+    if (cacheUpdatePromises.length > 0) {
+      this.logger.trace(`Updating status cache for ${cacheUpdatePromises.length} items.`);
+      await Promise.all(cacheUpdatePromises);
     }
   }
 }
