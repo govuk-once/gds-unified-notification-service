@@ -25,7 +25,7 @@ describe('NotificationService', () => {
 
   const mockRequest = {
     NotificationID: 'test01',
-    ExternalUserID: 'damianp_apadmi_dev_build_01',
+    ExternalUserID: 'sample_external_user_id',
     NotificationTitle: 'UNS Test 01 - Title',
     NotificationBody: 'UNS Test 01 - Body',
   };

@@ -189,7 +189,8 @@ resource "aws_vpc_endpoint" "vpc_endpoints" {
     for key in toset(local.availability_zones) : aws_subnet.private[key].id
   ])
 
-  private_dns_enabled = true
+  // Private DNS can't be enabled because the service com.amazonaws.eu-west-2.dynamodb does not provide a private DNS name.
+  private_dns_enabled = each.value == "dynamodb" ? false : true
 
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "endpoint", each.value])

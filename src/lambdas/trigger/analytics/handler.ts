@@ -20,14 +20,18 @@ export class Analytics extends QueueHandler<unknown, void> {
   }
 
   public async implementation(event: QueueEvent<string>, context: Context) {
-    this.logger.info('Received request.');
+    try {
+      this.logger.info('Received request.');
 
-    // (MOCK) Send event to events table
-    const eventsTableName = (await this.config.getParameter(StringParameters.Table.Events.Name)) ?? '';
-    this.logger.info(`Received Record from ${event.Records[0].messageAttributes['Title'].stringValue}.`);
+      // (MOCK) Send event to events table
+      const eventsTableName = (await this.config.getParameter(StringParameters.Table.Events.Name)) ?? '';
+      this.logger.info(`Received Record from ${event.Records[0].messageAttributes['Title'].stringValue}.`);
 
-    this.logger.info('Sent Record.');
-    this.logger.info('Completed request.');
+      this.logger.info('Sent Record.');
+      this.logger.info('Completed request.');
+    } catch (e) {
+      this.logger.error(`Unexpected error`, { e });
+    }
   }
 }
 

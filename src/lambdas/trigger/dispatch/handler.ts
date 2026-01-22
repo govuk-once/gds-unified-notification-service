@@ -3,6 +3,7 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   iocGetConfigurationService,
+  iocGetDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
   iocGetNotificationService,
@@ -12,15 +13,11 @@ import {
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { NotificationService } from '@common/services';
 import { Configuration } from '@common/services/configuration';
+import { groupValidation } from '@common/utils';
 import { StringParameters } from '@common/utils/parameters';
+import { IProcessedMessage, IProcessedMessagMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
-
-interface MockNotificationRequestMessage {
-      ExternalUserID: string,
-      NotificationID: string,
-      NotificationTitle: string,
-      NotificationBody: string,
-}
+import { v4 as uuid } from 'uuid';
 
 export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
@@ -35,29 +32,63 @@ export class Dispatch extends QueueHandler<unknown, void> {
     super(logger, metrics, tracer);
   }
 
-  public async implementation(event: QueueEvent<MockNotificationRequestMessage>, context: Context) {
-    this.logger.info('Received request.', { event });
+  public async implementation(event: QueueEvent<IProcessedMessage>, context: Context) {
+    try {
+      // Initialize services -  TODO: Shift this into IOC
+      await this.notificationService.initialize();
+      // Create a record of message in Dynamodb
+      const messageRecordTableName = (await this.config.getParameter(StringParameters.Table.Inbound.Name)) ?? '';
+      const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
 
-    // (MOCK) Send completed message to push notification endpoint
-    this.logger.info('Message sent.');
-    this.logger.info('Completed request.');
+      // (MOCK) Send event to events queue
+      const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
+      const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
 
-    // Initialize
-    await this.notificationService.initialize();
+      // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
+      const [records, validRecords, invalidRecords] = groupValidation(
+        event.Records.map((record) => record.body),
+        IProcessedMessagMessageSchema
+      );
 
-    await this.notificationService.send({
-      
-      ExternalUserID: event.Records[0].body.ExternalUserID,
-      NotificationID: event.Records[0].body.NotificationID,
-      NotificationTitle: event.Records[0].body.NotificationTitle,
-      NotificationBody: event.Records[0].body.NotificationBody,
-    });
+      // A single invalid entry rejects entire batch - these are messages from within the system this should not happen
+      if (invalidRecords.length > 0) {
+        this.logger.error(`Invalid elements detected within the SQS Message, rejecting entire set`, {
+          invalidRecords: invalidRecords.map((record) => record.raw),
+          totalRecords: records,
+        });
+      }
 
-    // (MOCK) Send event to events queue
-    const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
+      // Process the notification requests
+      for (const { valid } of validRecords) {
+        const metadata = {
+          NotificationID: valid.NotificationID,
+          DepartmentID: valid.DepartmentID,
+        };
+        const { requestId, success } = await this.notificationService.send({
+          ExternalUserID: valid.ExternalUserID,
+          NotificationID: valid.NotificationID,
+          NotificationTitle: valid.NotificationTitle,
+          NotificationBody: valid.NotificationBody,
+        });
+        if (success) {
+          this.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
 
-    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
-    await analyticsQueue.publishMessage('Test message body.');
+          await analyticsQueue.publishMessage({
+            NotificationID: valid.NotificationID,
+            DepartmentID: valid.DepartmentID,
+            // TODO: Instead of APIGWEvent we may need SQS Event ID
+            APIGWExtendedID: uuid(),
+            EventDateTime: new Date().toISOString(),
+            Event: 'SUCCESS',
+            Message: '',
+          });
+        } else {
+          this.logger.error(`Notification failed to dispatch`, { ...metadata });
+        }
+      }
+    } catch (error) {
+      this.logger.error('Unexpected error', { error });
+    }
   }
 }
 
