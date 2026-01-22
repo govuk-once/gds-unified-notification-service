@@ -96,7 +96,7 @@ describe('Analytics QueueHandler', () => {
     expect(mockDynamoRepo.createRecordBatch).toHaveBeenCalledTimes(1);
     expect(mockDynamoRepo.createRecordBatch).toHaveBeenCalledWith([validData]);
 
-    //TODO: Readd when cache timeout fixes are in place
+    //  TODO: Readd when cache timeout fixes are in place
     // expect(mockCacheService.store).toHaveBeenCalledWith('/DVLA/not1/Status', ValidationEnum.PROCESSING);
   });
 

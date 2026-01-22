@@ -29,9 +29,9 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   }
 
   public async implementation(event: QueueEvent<IAnalytics>, context: Context) {
-    //TODO: Cache Service timeouts. For now out of scope NOT-66
+    //  TODO: Cache Service timeouts. For now out of scope NOT-66
     //  const cacheService = iocGetCacheService();
-    //   await cacheService.connect();
+    //  await cacheService.connect();
 
     const validmessagesToForward: IAnalytics[] = [];
     const dbRecordsToCreate: IAnalyticsRecord[] = [];
@@ -49,7 +49,6 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
       validmessagesToForward.push(data);
 
       //  const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
-
       //  cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.PROCESSING));
 
       const record = toIAnalyticsRecord(data, Date.now().toString());
