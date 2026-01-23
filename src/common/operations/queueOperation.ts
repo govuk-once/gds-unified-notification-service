@@ -19,14 +19,16 @@ export type IQueueMiddleware<InputType, OutputType> = MiddyfiedHandler<
   Record<string, unknown>
 >;
 
-export const deserializeRecordBodyFromJson = <OutputType>(): MiddlewareObj<
-  SQSEvent,
-  QueueEvent<OutputType>,
-  Error
-> => ({
+export const deserializeRecordBodyFromJson = <OutputType>(
+  logger: Logger
+): MiddlewareObj<SQSEvent, QueueEvent<OutputType>, Error> => ({
   before: (request): void => {
     for (let i = 0; i < request.event.Records.length; i++) {
-      request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
+      try {
+        request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
+      } catch {
+        logger.info('Failed parsing JSON within SQS Body', { raw: request.event.Records[i].body });
+      }
     }
   },
 });
@@ -45,7 +47,7 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   }
 
   protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
-    return this.observabilityMiddlewares(middy).use(deserializeRecordBodyFromJson()) as IQueueMiddleware<
+    return this.observabilityMiddlewares(middy).use(deserializeRecordBodyFromJson(this.logger)) as IQueueMiddleware<
       InputType,
       OutputType
     >;

@@ -1,10 +1,15 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { QueueEvent } from '@common/operations';
-import { Configuration } from '@common/services';
+import { ConfigurationService } from '@common/services';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
 import { Context } from 'aws-lambda';
+
+vi.mock('@aws-lambda-powertools/logger', { spy: true });
+vi.mock('@aws-lambda-powertools/metrics', { spy: true });
+vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/ioc', () => ({
   iocGetConfigurationService: vi.fn(),
@@ -15,15 +20,12 @@ vi.mock('@common/ioc', () => ({
 }));
 
 describe('Analytics QueueHandler', () => {
-  const getParameter = vi.fn();
-  const info = vi.fn();
+  let instance: Analytics;
+  let configurationServiceMock: ConfigurationService;
 
-  const instance: Analytics = new Analytics(
-    { getParameter } as unknown as Configuration,
-    { info } as unknown as Logger,
-    {} as unknown as Metrics,
-    {} as unknown as Tracer
-  );
+  const loggerMock = vi.mocked(new Logger());
+  const tracerMock = vi.mocked(new Tracer());
+  const metricsMock = vi.mocked(new Metrics());
 
   let mockContext: Context;
   let mockEvent: QueueEvent<string>;
@@ -31,6 +33,9 @@ describe('Analytics QueueHandler', () => {
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
+
+    configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+    instance = new Analytics(configurationServiceMock, loggerMock, metricsMock, tracerMock);
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -74,12 +79,12 @@ describe('Analytics QueueHandler', () => {
 
   it('should fetch the dynamo table name from configurator', async () => {
     // Arrange
-    getParameter.mockResolvedValueOnce('mockEventsTableName');
+    configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce('mockEventsTableName');
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(1);
+    expect(configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,75 +1,151 @@
+/* eslint-disable @typescript-eslint/unbound-method */
+// Unbound methods are allowed as that's how vi.mocked works
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { BatchWriteItemCommand, DynamoDB, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import {
+  BatchWriteItemCommand,
+  DynamoDB,
+  GetItemCommand,
+  PutItemCommand,
+  UpdateItemCommand,
+} from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { MessageRecord } from '@common/models/interfaces/MessageRecord';
-import { LambdaSourceEnum } from '@common/models/LambdaSourceEnum';
-import { StatusEnum } from '@common/models/StatusEnum';
-import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
+import { InboundDynamoRepository } from '@common/repositories/dynamodbRepository';
+import { ConfigurationService } from '@common/services';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
-describe('DynamodbRepository', () => {
+vi.mock('@aws-lambda-powertools/logger', { spy: true });
+vi.mock('@aws-lambda-powertools/metrics', { spy: true });
+vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@common/services/configurationService', { spy: true });
+
+const mockInboundTableName = 'mockInboundTableName';
+const mockInboundTableKey = 'NotificationID';
+
+describe('InboundDynamoRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
-  let repo: DynamodbRepository;
-  const tableName = 'testTable';
-  const tableKey = 'testKey';
+  let inboundDynamoRepo: InboundDynamoRepository;
+  let config: ConfigurationService;
 
-  const info = vi.fn();
-  const error = vi.fn();
-  const captureAWSv3Client = vi.fn();
+  const loggerMock = vi.mocked(new Logger());
+  const tracerMock = vi.mocked(new Tracer());
+  const metricsMock = vi.mocked(new Metrics());
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dynamoMock.reset();
-    repo = new DynamodbRepository(
-      tableName,
-      tableKey,
-      { info, error } as unknown as Logger,
-      { captureAWSv3Client } as unknown as Tracer
-    );
+
+    config = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+    config.getParameter = vi
+      .fn()
+      .mockResolvedValueOnce(mockInboundTableName)
+      .mockResolvedValueOnce(mockInboundTableKey);
+
+    inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+    await inboundDynamoRepo.initialize();
+  });
+
+  describe('initialize', () => {
+    it('should throw an error if table name is undefined', async () => {
+      // Arrange
+      config.getParameter = vi.fn().mockResolvedValueOnce(undefined);
+      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+
+      // Act
+      const result = inboundDynamoRepo.initialize();
+
+      // Assert
+      await expect(result).rejects.toThrow(new Error('Failed to fetch table name'));
+    });
+
+    it('should throw an error if table key is undefined', async () => {
+      // Arrange
+      config.getParameter = vi.fn().mockResolvedValueOnce('mockTableName').mockResolvedValueOnce(undefined);
+      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+
+      // Act
+      const result = inboundDynamoRepo.initialize();
+
+      // Assert
+      await expect(result).rejects.toThrow(new Error('Failed to fetch table key'));
+    });
   });
 
   describe('CreateRecord', () => {
     it('marshall record should be sent', async () => {
       // Arrange
-      const record: MessageRecord = {
-        id: '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45',
-        status: StatusEnum.PROCESSING,
-        src: LambdaSourceEnum.Health,
-        createdAt: '2026-01-01T00:00:00Z',
+      const record: IMessageRecord = {
+        NotificationID: '1234',
+        DepartmentID: 'DVLA01',
+        UserID: 'UserID',
+        MessageTitle: 'You have a new Message',
+        MessageBody: 'Open Notification Centre to read your notifications',
+        NotificationTitle: 'You have a new medical driving license',
+        NotificationBody: 'The DVLA has issued you a new license.',
+        ReceivedDateTime: '202601021513',
       };
 
       // Act
-      await repo.createRecord<MessageRecord>(record);
+      await inboundDynamoRepo.createRecord(record);
 
       // Assert
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as PutItemCommand;
 
-      expect(command.input.TableName).toBe(tableName);
+      expect(command.input.TableName).toBe(mockInboundTableName);
       expect(unmarshall(command.input.Item!)).toEqual(record);
+    });
+
+    it('should log an error if the request fails.', async () => {
+      // Arrange
+      const record: IMessageRecord = {
+        NotificationID: '1234',
+        DepartmentID: 'DVLA01',
+        UserID: 'UserID',
+        MessageTitle: 'You have a new Message',
+        MessageBody: 'Open Notification Centre to read your notifications',
+        NotificationTitle: 'You have a new medical driving license',
+        NotificationBody: 'The DVLA has issued you a new license.',
+        ReceivedDateTime: '202601021513',
+      };
+      const errorMsg = 'Connection Failure';
+      dynamoMock.on(PutItemCommand).rejectsOnce(new Error(errorMsg));
+
+      // Act
+      await inboundDynamoRepo.createRecord(record);
+
+      // Assert
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        `Failure in creating record table: ${mockInboundTableName}. Error: ${errorMsg}`
+      );
     });
   });
 
   describe('CreateRecordBatch', () => {
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
-      const record: MessageRecord[] = [
+      const record: IMessageRecord[] = [
         {
-          id: '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45',
-          status: StatusEnum.PROCESSING,
-          src: LambdaSourceEnum.Health,
-          createdAt: '2026-01-01T00:00:00Z',
+          NotificationID: '1234',
+          DepartmentID: 'DVLA01',
+          UserID: 'UserID',
+          MessageTitle: 'You have a new Message',
+          MessageBody: 'Open Notification Centre to read your notifications',
+          NotificationTitle: 'You have a new medical driving license',
+          NotificationBody: 'The DVLA has issued you a new license.',
+          ReceivedDateTime: '202601021513',
         },
       ];
 
       // Act
-      await repo.createRecordBatch<MessageRecord>(record);
+      await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
       expect(command.input.RequestItems).toEqual({
-        [tableName]: [
+        [mockInboundTableName]: [
           {
             PutRequest: {
               Item: marshall(record[0]),
@@ -79,29 +155,116 @@ describe('DynamodbRepository', () => {
       });
     });
 
-    it('should throw an error if an empty list is given', async () => {
+    it('should log an error if an empty list is given', async () => {
       // Arrange
-      const record: MessageRecord[] = [];
+      const record: IMessageRecord[] = [];
       const errorMsg = 'To create batch records, array length must be more than 0 and at most 25.';
 
       // Act
-      const result = repo.createRecordBatch<MessageRecord>(record);
+      await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
-      await expect(result).rejects.toThrow(Error(errorMsg));
-      expect(error).toBeCalledWith(errorMsg);
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        `Failure in creating records table: mockInboundTableName. Error: ${errorMsg}`
+      );
+    });
+
+    it('should log an error if the request fails', async () => {
+      // Arrange
+      const record: IMessageRecord[] = [
+        {
+          NotificationID: '1234',
+          DepartmentID: 'DVLA01',
+          UserID: 'UserID',
+          MessageTitle: 'You have a new Message',
+          MessageBody: 'Open Notification Centre to read your notifications',
+          NotificationTitle: 'You have a new medical driving license',
+          NotificationBody: 'The DVLA has issued you a new license.',
+          ReceivedDateTime: '202601021513',
+        },
+      ];
+      const errorMsg = 'Connection Failure';
+      dynamoMock.on(BatchWriteItemCommand).rejectsOnce(new Error(errorMsg));
+
+      // Act
+      await inboundDynamoRepo.createRecordBatch(record);
+
+      // Assert
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        `Failure in creating records table: ${mockInboundTableName}. Error: ${errorMsg}`
+      );
+    });
+  });
+
+  describe('UpdateItem', () => {
+    it('should successful send an update item request to dynamo client.', async () => {
+      // Arrange
+      const mockUpdatedRecord: IMessageRecord = {
+        NotificationID: '1234',
+        ProcessedDateTime: '202601021513',
+        ExternalUserID: 'External-1234',
+      };
+
+      // Act
+      await inboundDynamoRepo.updateRecord(mockUpdatedRecord);
+
+      // Assert
+      expect(dynamoMock.calls()).toHaveLength(1);
+      const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
+      expect(command.input).toEqual({
+        TableName: mockInboundTableName,
+        Key: marshall({
+          [mockInboundTableKey]: mockUpdatedRecord.NotificationID,
+        }),
+        ExpressionAttributeNames: {
+          '#ExternalUserID': 'ExternalUserID',
+          '#ProcessedDateTime': 'ProcessedDateTime',
+        },
+        ExpressionAttributeValues: {
+          ':ExternalUserID': {
+            S: 'External-1234',
+          },
+          ':ProcessedDateTime': {
+            S: '202601021513',
+          },
+        },
+        UpdateExpression: `set #ProcessedDateTime = :ProcessedDateTime, #ExternalUserID = :ExternalUserID`,
+      });
+    });
+
+    it('should log an error if the request fails', async () => {
+      // Arrange
+      const record: IMessageRecord = {
+        NotificationID: '1234',
+        ProcessedDateTime: '202601021513',
+        ExternalUserID: 'External-1234',
+      };
+      const errorMsg = 'Connection Failure';
+      dynamoMock.on(UpdateItemCommand).rejectsOnce(new Error(errorMsg));
+
+      // Act
+      await inboundDynamoRepo.updateRecord(record);
+
+      // Assert
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`
+      );
     });
   });
 
   describe('GetRecord', () => {
     it('should return unmarshall data', async () => {
       // Arrange
-      const mockGuid = '0f80a09a-16dc-4fee-b5e2-090eeb7a4b45';
-      const mockRecord: MessageRecord = {
-        id: mockGuid,
-        status: StatusEnum.PROCESSING,
-        src: LambdaSourceEnum.Health,
-        createdAt: '2026-01-01T00:00:00Z',
+      const mockNotificationID = '1234';
+      const mockRecord: IMessageRecord = {
+        NotificationID: '1234',
+        DepartmentID: 'DVLA01',
+        UserID: 'UserID',
+        MessageTitle: 'You have a new Message',
+        MessageBody: 'Open Notification Centre to read your notifications',
+        NotificationTitle: 'You have a new medical driving license',
+        NotificationBody: 'The DVLA has issued you a new license.',
+        ReceivedDateTime: '202601021513',
       };
 
       dynamoMock.on(GetItemCommand).resolves({
@@ -109,7 +272,7 @@ describe('DynamodbRepository', () => {
       });
 
       // Act
-      const result = await repo.getRecord<MessageRecord>(mockGuid);
+      const result = await inboundDynamoRepo.getRecord(mockNotificationID);
 
       // Assert
       expect(result).toEqual(mockRecord);
@@ -117,17 +280,32 @@ describe('DynamodbRepository', () => {
 
     it('if item is not found null should be returned', async () => {
       // Arrange
-      const mockGuid = '0f80a09a-16dc-4fee-b5e2-090eeb7a4b46';
+      const mockNotificationID = '1234';
 
       dynamoMock.on(GetItemCommand).resolves({
         Item: undefined,
       });
 
       // Act
-      const result = await repo.getRecord<MessageRecord>(mockGuid);
+      const result = await inboundDynamoRepo.getRecord(mockNotificationID);
 
       // Assert
       expect(result).toBeNull();
+    });
+
+    it('should log an error if the request fails', async () => {
+      // Arrange
+      const mockNotificationID = '1234';
+      const errorMsg = 'Connection Failure';
+      dynamoMock.on(GetItemCommand).rejectsOnce(new Error(errorMsg));
+
+      // Act
+      await inboundDynamoRepo.getRecord(mockNotificationID);
+
+      // Assert
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        `Failure in getting record for table: ${mockInboundTableName}. Error: ${errorMsg}`
+      );
     });
   });
 });

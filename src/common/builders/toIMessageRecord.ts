@@ -1,16 +1,20 @@
+import { Logger } from '@aws-lambda-powertools/logger';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
-export const toIMessageRecord = ({
-  recordFields,
-  receivedDateTime,
-  validatedDateTime,
-  processedDateTime,
-}: {
-  recordFields: Partial<IMessageRecord>;
-  receivedDateTime?: string;
-  validatedDateTime?: string;
-  processedDateTime?: string;
-}): IMessageRecord => {
+export const toIMessageRecord = (
+  {
+    recordFields,
+    receivedDateTime,
+    validatedDateTime,
+    processedDateTime,
+  }: {
+    recordFields: Partial<IMessageRecord>;
+    receivedDateTime?: string;
+    validatedDateTime?: string;
+    processedDateTime?: string;
+  },
+  logger: Logger
+): IMessageRecord | undefined => {
   if (recordFields?.NotificationID) {
     const record: IMessageRecord = {
       NotificationID: recordFields.NotificationID,
@@ -20,7 +24,7 @@ export const toIMessageRecord = ({
       NotificationTitle: recordFields.NotificationTitle,
       NotificationBody: recordFields.NotificationBody,
       DepartmentID: recordFields.DepartmentID,
-      OneSignalID: recordFields.OneSignalID,
+      ExternalUserID: recordFields.ExternalUserID,
       ReceivedDateTime: receivedDateTime,
       ValidatedDateTime: validatedDateTime,
       ProcessedDateTime: processedDateTime,
@@ -29,6 +33,6 @@ export const toIMessageRecord = ({
 
     return record;
   } else {
-    throw new Error('Failed to build MessageRecord, no NotificationID was provided.');
+    logger.error('Failed to build MessageRecord, no NotificationID was provided.');
   }
 };

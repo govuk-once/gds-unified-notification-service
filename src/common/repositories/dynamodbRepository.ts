@@ -1,4 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   BatchWriteItemCommandInput,
@@ -8,88 +9,103 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
+import { ConfigurationService } from '@common/services';
+import { StringParameters } from '@common/utils/parameters';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
-export class DynamodbRepository implements IDynamodbRepository {
-  private readonly client: DynamoDB;
+export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
+  private client: DynamoDB;
+  protected tableName: string;
+  protected tableKey: string;
+
   constructor(
-    private tableName: string,
-    private tableKey: string,
-    private logger: Logger,
-    private tracer: Tracer
-  ) {
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {}
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  public async initialize() {
     const client = new DynamoDB({
       region: 'eu-west-2',
     });
 
     this.client = client;
-    tracer.captureAWSv3Client(this.client);
+    this.tracer.captureAWSv3Client(this.client);
+    return this;
   }
 
   public async createRecord<RecordType>(record: RecordType): Promise<void> {
     this.logger.info(`Creating record in table: ${this.tableName}`);
 
-    record = this.removeUndefinedValuesFromObject(record);
-    const params: PutItemCommandInput = {
-      TableName: this.tableName,
-      Item: marshall(record),
-    };
-
     try {
+      const params: PutItemCommandInput = {
+        TableName: this.tableName,
+        Item: marshall(record, { removeUndefinedValues: true }),
+      };
+
       await this.client.putItem(params);
       this.logger.info(`Successfully created record in table: ${this.tableName}`);
     } catch (error) {
-      this.logger.error(`Failure in creating record table: ${this.tableName}. \nError: ${error}`);
+      this.logger.error(`Failure in creating record table: ${this.tableName}. ${error}`);
     }
   }
 
   public async createRecordBatch<RecordType>(batchRecords: RecordType[]): Promise<void> {
-    if (batchRecords.length === 0 || batchRecords.length > 25) {
-      const errorMsg = 'To create batch records, array length must be more than 0 and at most 25.';
-      this.logger.error(errorMsg);
-      throw new Error(errorMsg);
-    }
     this.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableName}`);
 
-    batchRecords.map((record) => this.removeUndefinedValuesFromObject(record));
-    const params: BatchWriteItemCommandInput = {
-      RequestItems: {
-        [this.tableName]: batchRecords.map((record) => ({
-          PutRequest: {
-            Item: marshall(record),
-          },
-        })),
-      },
-    };
-
     try {
+      if (batchRecords.length === 0 || batchRecords.length > 25) {
+        const errorMsg = 'To create batch records, array length must be more than 0 and at most 25.';
+        throw new Error(errorMsg);
+      }
+
+      const params: BatchWriteItemCommandInput = {
+        RequestItems: {
+          [this.tableName]: batchRecords.map((record) => ({
+            PutRequest: {
+              Item: marshall(record, { removeUndefinedValues: true }),
+            },
+          })),
+        },
+      };
+
       await this.client.batchWriteItem(params);
       this.logger.info(`Successfully created records in table: ${this.tableName}`);
     } catch (error) {
-      this.logger.error(`Failure in creating record table: ${this.tableName}. \nError: ${error}`);
+      this.logger.error(`Failure in creating records table: ${this.tableName}. ${error}`);
     }
   }
 
-  public async updateRecord<RecordType extends object>(keyValue: string, record: RecordType): Promise<void> {
+  public async updateRecord<RecordType extends object>(recordFields: RecordType): Promise<void> {
     this.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
 
-    const entries = Object.entries(record);
-    const updateExpression = 'set ' + entries.map(([k], i) => `${k} = :v${i}`).join(', ');
-
-    const params: UpdateItemCommandInput = {
-      TableName: this.tableName,
-      Key: marshall({
-        [this.tableKey]: keyValue,
-      }),
-      //ConditionExpression: `attribute_exists(${this.tableKey})`,
-      ExpressionAttributeValues: marshall(record),
-      UpdateExpression: updateExpression,
-    };
-
     try {
+      const keyValue = recordFields[this.tableKey as keyof RecordType];
+      if (!keyValue) {
+        throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
+      }
+
+      const entries = Object.entries(recordFields).filter(([key]) => key !== this.tableKey);
+
+      const updateExpression = 'set ' + entries.map(([k]) => `#${k} = :${k}`).join(', ');
+      const expressionAttributeNames = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));
+      const expressionAttributeValues = Object.fromEntries(entries.map(([k, v]) => [`:${k}`, v]));
+
+      const params: UpdateItemCommandInput = {
+        TableName: this.tableName,
+        Key: marshall({
+          [this.tableKey]: keyValue,
+        }),
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: marshall(expressionAttributeValues, { removeUndefinedValues: true }),
+        UpdateExpression: updateExpression,
+      };
+
       await this.client.updateItem(params);
-      this.logger.info(`Successfully created records in table: ${this.tableName}`);
+      this.logger.info(`Successfully updated record in table: ${this.tableName}`);
     } catch (error) {
-      this.logger.error(`Failure in creating record table: ${this.tableName}. \nError: ${error}`);
+      this.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`);
     }
   }
 
@@ -116,18 +132,36 @@ export class DynamodbRepository implements IDynamodbRepository {
       this.logger.info(`Retrieved record in table: ${this.tableName} with key: ${this.tableKey}`);
       return response;
     } catch (error) {
-      this.logger.error(`Failure in getting record: ${error}`);
+      this.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
     }
   }
+}
 
-  private removeUndefinedValuesFromObject<RecordType>(record: RecordType): RecordType {
-    for (const key in record) {
-      if (record[key as keyof RecordType] === undefined) {
-        delete record[key as keyof RecordType];
-      }
+export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> {
+  constructor(
+    protected config: ConfigurationService,
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {
+    super(logger, metrics, tracer);
+  }
+
+  async initialize() {
+    const tableName = await this.config.getParameter(StringParameters.Table.Inbound.Name);
+    const tableKey = await this.config.getParameter(StringParameters.Table.Inbound.Key);
+
+    if (tableName == undefined) {
+      throw new Error('Failed to fetch table name');
+    }
+    if (tableKey == undefined) {
+      throw new Error('Failed to fetch table key');
     }
 
-    return record;
+    this.tableName = tableName;
+    this.tableKey = tableKey;
+    await super.initialize();
+    return this;
   }
 }

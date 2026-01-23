@@ -1,5 +1,8 @@
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import z from 'zod';
 
-export interface IProcessedMessage extends IMessage {
-  OneSignalID: string;
-}
+export const IProcessedMessageSchema = IMessageSchema.extend({
+  ExternalUserID: z.string(),
+});
+
+export type IProcessedMessage = z.infer<typeof IProcessedMessageSchema>;

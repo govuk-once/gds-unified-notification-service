@@ -3,7 +3,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Metrics } from '@aws-lambda-powertools/metrics';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 
-export class Configuration {
+export class ConfigurationService {
   private client;
   private prefix = process.env.PREFIX;
 
@@ -32,11 +32,10 @@ export class Configuration {
       return data.Parameter?.Value;
     } catch (error) {
       this.logger.error(`Failed fetching value from SSM - ${error}`);
-      throw error;
     }
   }
 
-  public async getBooleanParameter(namespace: string): Promise<boolean> {
+  public async getBooleanParameter(namespace: string): Promise<boolean | undefined> {
     const parameterValue = await this.getParameter(namespace);
 
     switch (parameterValue?.toLowerCase()) {
@@ -47,11 +46,10 @@ export class Configuration {
       default:
         const errorMsg = `Could not parse parameter ${namespace} to a boolean`;
         this.logger.error(errorMsg);
-        throw new Error(errorMsg);
     }
   }
 
-  public async getNumericParameter(namespace: string): Promise<number> {
+  public async getNumericParameter(namespace: string): Promise<number | undefined> {
     const parameterValue = await this.getParameter(namespace);
 
     if (parameterValue !== undefined) {
@@ -64,6 +62,5 @@ export class Configuration {
 
     const errorMsg = `Could not parse parameter ${namespace} to a number`;
     this.logger.error(errorMsg);
-    throw new Error(errorMsg);
   }
 }

@@ -1,3 +1,3 @@
 export * from './cacheService';
-export * from './configuration';
+export * from './configurationService';
 export * from './queueService';
