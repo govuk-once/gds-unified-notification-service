@@ -51,7 +51,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
       //  const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
       //  cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.PROCESSING));
 
-      const record = toIAnalyticsRecord(data, Date.now().toString());
+      const record = toIAnalyticsRecord(data, context.awsRequestId, Date.now().toString(), this.logger);
 
       if (record) {
         dbRecordsToCreate.push(record);
@@ -59,8 +59,6 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     }
 
     const invalidRecords = records.filter((record) => !record.parseResult.success);
-
-    this.logger.error(`Invalid records count: ${invalidRecords.length}.`);
 
     for (const { raw } of invalidRecords) {
       const partialParse = IAnalyticsSchema.partial().safeParse(raw.body);
@@ -73,7 +71,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
           //    cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.READ));
         }
 
-        const record = toIAnalyticsRecord(data as IAnalytics, Date.now().toString());
+        const record = toIAnalyticsRecord(data as IAnalytics, context.awsRequestId, Date.now().toString(), this.logger);
 
         if (record) {
           dbRecordsToCreate.push(record);
