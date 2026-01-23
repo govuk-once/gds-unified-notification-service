@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { http, HttpResponse } from 'msw';
 
 export const handlers = [
@@ -12,8 +9,8 @@ export const handlers = [
         return HttpResponse.json(
           {
             id: 'abc-123',
-            firstName: 'John',
-            lastName: 'Maverick',
+            external_id: '123-abc',
+            errors: [],
           },
           { status: 200 }
         );
