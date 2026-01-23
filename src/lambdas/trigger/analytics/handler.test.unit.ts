@@ -77,7 +77,7 @@ describe('Analytics QueueHandler', () => {
       Event: ValidationEnum.RECEIVED,
       EventDateTime: '2026-01-22T00:00:01Z',
       APIGWExtendedID: 'testExample',
-      Message: 'testing',
+      EventReason: 'testing',
     };
 
     const dbRecord = { ...validData };
@@ -108,7 +108,7 @@ describe('Analytics QueueHandler', () => {
       Event: ValidationEnum.READ,
       EventDateTime: '00000000',
       APIGWExtendedID: 'testExample',
-      Message: 'testing',
+      EventReason: 'testing',
     };
 
     mockedToAnalyticsRecord.mockImplementation((d) => {
@@ -142,7 +142,7 @@ describe('Analytics QueueHandler', () => {
       Event: ValidationEnum.RECEIVED,
       EventDateTime: '2026-01-22T00:00:01Z',
       APIGWExtendedID: 'testExample',
-      Message: 'testing',
+      EventReason: 'testing',
     };
 
     const invalidData = {
@@ -151,7 +151,7 @@ describe('Analytics QueueHandler', () => {
       Event: ValidationEnum.RECEIVED,
       EventDateTime: '00000000',
       APIGWExtendedID: 'testExample',
-      Message: 'testing',
+      EventReason: 'testing',
     };
 
     const event = {

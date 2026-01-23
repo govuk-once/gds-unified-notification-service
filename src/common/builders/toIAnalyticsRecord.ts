@@ -19,6 +19,6 @@ export const toIAnalyticsRecord = (
     ApiGWExtendedID: awsRequestId,
     EventDateTime: receivedDateTime,
     Event: (message?.Event as ValidationEnum) || ValidationEnum.UNKNOWN,
-    Message: message?.Message || '',
+    EventReason: message?.EventReason || '',
   };
 };

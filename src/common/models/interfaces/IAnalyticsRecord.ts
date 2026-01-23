@@ -6,5 +6,5 @@ export interface IAnalyticsRecord {
   ApiGWExtendedID: string;
   EventDateTime: string;
   Event: ValidationEnum;
-  Message: string;
+  EventReason: string;
 }

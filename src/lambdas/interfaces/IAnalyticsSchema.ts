@@ -6,7 +6,7 @@ export const IAnalyticsSchema = z.object({
   APIGWExtendedID: z.string(),
   EventDateTime: z.string(),
   Event: z.string().optional(),
-  Message: z.string().optional(),
+  EventReason: z.string().optional(),
 });
 
 export const IAnalyticsArraySchema = z.array(z.object({ body: IAnalyticsSchema }));
