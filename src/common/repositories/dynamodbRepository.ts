@@ -86,11 +86,16 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
         throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
       }
 
-      const entries = Object.entries(recordFields).filter(([key]) => key !== this.tableKey);
+      const entries = Object.entries(recordFields).filter(
+        ([key, value]) => key !== this.tableKey && value != undefined
+      );
 
-      const updateExpression = 'set ' + entries.map(([k]) => `#${k} = :${k}`).join(', ');
+      const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
       const expressionAttributeNames = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));
-      const expressionAttributeValues = Object.fromEntries(entries.map(([k, v]) => [`:${k}`, v]));
+      const expressionAttributeValues = marshall(
+        Object.fromEntries(entries.map(([key, value]) => [`:${key}`, value])),
+        { removeUndefinedValues: true }
+      );
 
       const params: UpdateItemCommandInput = {
         TableName: this.tableName,
@@ -98,7 +103,7 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
           [this.tableKey]: keyValue,
         }),
         ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: marshall(expressionAttributeValues, { removeUndefinedValues: true }),
+        ExpressionAttributeValues: expressionAttributeValues,
         UpdateExpression: updateExpression,
       };
 
