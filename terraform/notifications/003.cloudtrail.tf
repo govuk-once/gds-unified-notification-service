@@ -88,6 +88,6 @@ resource "aws_cloudtrail" "cloudtrail" {
   s3_bucket_name                = aws_s3_bucket.cloudtrail.id
   include_global_service_events = true
   enable_log_file_validation    = true
-  # kms_key_id                    = aws_kms_key.main.arn
-  # is_multi_region_trail         = true
+  kms_key_id                    = aws_kms_key.main.arn
+  is_multi_region_trail         = true
 }
