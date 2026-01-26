@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "bun scripts/build.ts",
+    "build:validate": "tsc",
     "checkov": "checkov --directory . --quiet",
     "commit": "cz",
     "development:organize:tf": "bun scripts/developer-organize-tf.ts",

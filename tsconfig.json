@@ -8,6 +8,7 @@
     "baseUrl": "./",
     "target": "esnext",
     "module": "esnext",
+    "noEmit": true,
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "declaration": true,

@@ -98,7 +98,7 @@ describe('Dispatch QueueHandler', () => {
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalled(2);
+    expect(getParameter).toHaveBeenCalledTimes(2);
     expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
     expect(publishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
