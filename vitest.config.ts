@@ -13,7 +13,8 @@ export default defineConfig({
   test: {
     globals: true,
     include: ['**/*.{test,test.unit}.ts'],
-    silent: false,
+    setupFiles: ['src/setup.vitest.ts'],
+    silent: process.env.VITEST_SILENT == 'true',
     coverage: {
       provider: 'v8',
       thresholds: {
@@ -23,8 +24,8 @@ export default defineConfig({
         lines: 80,
       },
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.{test,test.unit}.ts'],
-      reporter: ['text-summary', 'lcov'],
+      exclude: ['src/**/*.{test,test.unit,mocks}.ts'],
+      reporter: [process.env.VITEST_DETAILED_COVERAGE == 'true' ? 'text' : 'text-summary', 'lcov'],
     },
   },
 });

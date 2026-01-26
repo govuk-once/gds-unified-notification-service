@@ -4,7 +4,9 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { iocGetAnalyticsQueueService, iocGetInboundDynamoRepository } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { ConfigurationService, NotificationService } from '@common/services';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
+import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
 
@@ -12,43 +14,40 @@ vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
-// TODO: Investigate a way to mock the classes
-vi.mock('@common/ioc', () => ({
-  iocGetInboundDynamoRepository: vi.fn(),
-  iocGetAnalyticsQueueService: vi.fn(),
-  iocGetLogger: vi.fn(),
-  iocGetMetrics: vi.fn(),
-  iocGetTracer: vi.fn(),
-}));
+vi.mock('@common/ioc', { spy: true });
 
 describe('Dispatch QueueHandler', () => {
-  let instance: Dispatch;
-
+  // Observability mocks
   const loggerMock = vi.mocked(new Logger());
   const tracerMock = vi.mocked(new Tracer());
   const metricsMock = vi.mocked(new Metrics());
 
-  const publishMessageBatch = vi.fn();
+  // Config shims
+  const getParameter = vi.fn();
+  const mockConfigurationService = { getParameter } as unknown as ConfigurationService;
   const publishMessage = vi.fn();
+  const notificationServiceMock = vi.fn();
 
-  const mockAnalyticsQueue = {
-    publishMessageBatch: publishMessageBatch,
+  let instance: Dispatch;
+  const mockQueue = {
     publishMessage: publishMessage,
   } as unknown as AnalyticsQueueService;
 
   const mockDynamo = {} as unknown as InboundDynamoRepository;
 
   let mockContext: Context;
-  let mockEvent: QueueEvent<string>;
+  let mockEvent: QueueEvent<IProcessedMessage>;
 
   beforeEach(() => {
     // Reset all mock
-    vi.clearAllMocks();
-
-    instance = new Dispatch(loggerMock, metricsMock, tracerMock);
+    vi.resetAllMocks();
+    instance = new Dispatch(mockConfigurationService, loggerMock, metricsMock, tracerMock, {
+      initialize: notificationServiceMock,
+      send: notificationServiceMock,
+    } as unknown as NotificationService);
 
     vi.mocked(iocGetInboundDynamoRepository).mockResolvedValue(mockDynamo);
-    vi.mocked(iocGetAnalyticsQueueService).mockResolvedValue(mockAnalyticsQueue);
+    vi.mocked(iocGetAnalyticsQueueService).mockResolvedValue(mockQueue);
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -74,7 +73,14 @@ describe('Dispatch QueueHandler', () => {
           eventSource: 'mockEventSource',
           eventSourceARN: 'mockEventSourceARN',
           awsRegion: 'eu-west2',
-          body: 'mockBody',
+          body: {
+            NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
+            UserID: 'damianp_apadmi_dev_build_01',
+            ExternalUserID: 'test',
+            DepartmentID: 'Dev',
+            NotificationTitle: 'Boom',
+            NotificationBody: 'psst',
+          },
         },
       ],
     };
@@ -88,12 +94,21 @@ describe('Dispatch QueueHandler', () => {
   it('should log send a message to the analytics queue when the lambda is triggered', async () => {
     // Arrange
     publishMessage.mockResolvedValueOnce(undefined);
+    notificationServiceMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ requestId: '123', success: true });
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
     expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
-    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
+    expect(publishMessage).toHaveBeenCalledWith({
+      NotificationID: mockEvent.Records[0].body.NotificationID,
+      DepartmentID: mockEvent.Records[0].body.DepartmentID,
+      // TODO: Instead of APIGWEvent we may need SQS Event ID
+      APIGWExtendedID: expect.any(String),
+      EventDateTime: expect.any(String),
+      Event: 'SUCCESS',
+      Message: '',
+    });
   });
 });

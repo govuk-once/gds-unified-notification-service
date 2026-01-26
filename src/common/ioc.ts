@@ -4,7 +4,7 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
-import { CacheService, ConfigurationService } from '@common/services';
+import { CacheService, ConfigurationService, NotificationService } from '@common/services';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
@@ -29,6 +29,7 @@ export const iocGetMetrics = () =>
 // Services
 export const iocGetConfigurationService = () =>
   new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
+
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
 export const iocGetProcessingQueueService = async () =>
   await new ProcessingQueueService(
@@ -65,3 +66,6 @@ export const iocGetEventsDynamoRepository = async () =>
     iocGetMetrics(),
     iocGetTracer()
   ).initialize();
+
+export const iocGetNotificationService = () =>
+  new NotificationService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), iocGetConfigurationService());

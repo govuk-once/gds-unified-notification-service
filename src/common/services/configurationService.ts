@@ -1,7 +1,8 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import * as z from 'zod';
 
 export class ConfigurationService {
   private client;
@@ -13,6 +14,8 @@ export class ConfigurationService {
     protected tracer: Tracer
   ) {
     this.client = new SSMClient({ region: 'eu-west-2' });
+    // TODO: Fix tests
+    // this.tracer.captureAWSv3Client(this.client);
   }
 
   public async getParameter(namespace: string): Promise<string | undefined> {
@@ -31,7 +34,8 @@ export class ConfigurationService {
       this.logger.info(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
       return data.Parameter?.Value;
     } catch (error) {
-      this.logger.error(`Failed fetching value from SSM - ${error}`);
+      this.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
+      throw error;
     }
   }
 
@@ -62,5 +66,29 @@ export class ConfigurationService {
 
     const errorMsg = `Could not parse parameter ${namespace} to a number`;
     this.logger.error(errorMsg);
+  }
+
+  public async getEnumParameter<T extends z.ZodEnum>(namespace: string, schema: T): Promise<z.infer<T>> {
+    const parameterValue = await this.getParameter(namespace);
+
+    // If parameter is undefined
+    if (parameterValue == undefined) {
+      throw new Error(`Parameter value ${namespace} is undefined`);
+    }
+
+    // Parse parameter
+    const result = schema.safeParse(parameterValue);
+
+    // If invalid enum
+    if (result.error) {
+      const errorMsg = `Could not parse parameter ${namespace} to a number`;
+      this.logger.trace(errorMsg, {
+        method: 'getEnumParameter',
+      });
+      throw new Error(errorMsg);
+    }
+
+    // Return cast value enum
+    return result.data as z.infer<T>;
   }
 }

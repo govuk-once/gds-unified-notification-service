@@ -26,7 +26,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
     for (let i = 0; i < request.event.Records.length; i++) {
       try {
         request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
-      } catch {
+      } catch (e) {
         logger.info('Failed parsing JSON within SQS Body', { raw: request.event.Records[i].body });
       }
     }
@@ -77,7 +77,10 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<QueueEvent<InputType>, OutputType> {
     return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
-      return await this.implementation(event, context);
+      this.logger.info(`Request received`, { event });
+      const result = await this.implementation(event, context);
+      this.logger.info(`Request completed`);
+      return result;
     });
   }
 }

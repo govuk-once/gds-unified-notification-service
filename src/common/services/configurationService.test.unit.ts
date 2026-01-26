@@ -47,10 +47,10 @@ describe('ConfigurationService', () => {
       ssmMock.on(GetParameterCommand).rejects(new Error(errorMsg));
 
       // Act
-      await config.getParameter('testNameSpace');
+      const result = config.getParameter('testNameSpace');
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(`Failed fetching value from SSM - Error: ${errorMsg}`);
+      await expect(result).rejects.toThrow(new Error(errorMsg));
     });
   });
 

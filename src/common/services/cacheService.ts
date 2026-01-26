@@ -46,6 +46,7 @@ export class CacheService {
     const cacheName = (await this.config.getParameter(StringParameters.Config.Cache.Name)) ?? '';
     const cacheHost = (await this.config.getParameter(StringParameters.Config.Cache.Host)) ?? '';
     const cacheUser = (await this.config.getParameter(StringParameters.Config.Cache.User)) ?? '';
+
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),
       username: cacheUser,
