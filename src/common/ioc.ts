@@ -2,7 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { InboundDynamoRepository } from '@common/repositories/dynamodbRepository';
+import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories/dynamodbRepository';
 import {
   AnalyticsQueueService,
   CacheService,
@@ -55,6 +55,13 @@ export const iocGetAnalyticsQueueService = async () =>
   ).initialize();
 export const iocGetInboundDynamoRepository = async () =>
   await new InboundDynamoRepository(
+    iocGetConfigurationService(),
+    iocGetLogger(),
+    iocGetMetrics(),
+    iocGetTracer()
+  ).initialize();
+export const iocGetEventsDynamoRepository = async () =>
+  await new EventsDynamoRepository(
     iocGetConfigurationService(),
     iocGetLogger(),
     iocGetMetrics(),

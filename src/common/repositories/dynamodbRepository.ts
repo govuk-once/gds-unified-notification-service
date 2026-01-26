@@ -170,3 +170,31 @@ export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> 
     return this;
   }
 }
+
+export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
+  constructor(
+    protected config: ConfigurationService,
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {
+    super(logger, metrics, tracer);
+  }
+
+  async initialize() {
+    const tableName = await this.config.getParameter(StringParameters.Table.Events.Name);
+    const tableKey = await this.config.getParameter(StringParameters.Table.Events.Key);
+
+    if (tableName == undefined) {
+      throw new Error('Failed to fetch table name');
+    }
+    if (tableKey == undefined) {
+      throw new Error('Failed to fetch table key');
+    }
+
+    this.tableName = tableName;
+    this.tableKey = tableKey;
+    await super.initialize();
+    return this;
+  }
+}
