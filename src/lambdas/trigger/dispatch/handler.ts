@@ -15,7 +15,7 @@ import { NotificationService } from '@common/services';
 import { Configuration } from '@common/services/configuration';
 import { groupValidation } from '@common/utils';
 import { StringParameters } from '@common/utils/parameters';
-import { IProcessedMessage, IProcessedMessagMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessage, IProcessedMessageMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
 
@@ -47,7 +47,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
       const [records, validRecords, invalidRecords] = groupValidation(
         event.Records.map((record) => record.body),
-        IProcessedMessagMessageSchema
+        IProcessedMessageMessageSchema
       );
 
       // A single invalid entry rejects entire batch - these are messages from within the system this should not happen
