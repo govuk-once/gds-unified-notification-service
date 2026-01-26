@@ -51,6 +51,9 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
+      );
     });
   });
 

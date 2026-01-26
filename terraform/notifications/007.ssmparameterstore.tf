@@ -47,3 +47,25 @@ module "parameter_store_external_configuration" {
     "config/dispatch/onesignal/appId" = "placeholder"
   }
 }
+module "parameter_store_external_configuration" {
+  source = "./modules/parameter-store"
+
+  namespace   = local.prefix
+  kms_key_arn = aws_kms_key.main.arn
+
+  // Values are created with placeholder and developers are expected to manually update them externally
+  update_values = false
+
+  parameters = {
+    "config/common/enabled"   = "true"
+    "config/ingest/enabled"   = "true"
+    "config/process/enabled"  = "true"
+    "config/dispatch/enabled" = "true"
+
+    "config/dispatch/adapter" = "VOID" # Enum: VOID, OneSignal
+    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
+    "config/dispatch/onesignal/apikey" = "placeholder"
+    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
+    "config/dispatch/onesignal/appId" = "placeholder"
+  }
+}

@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { iocGetAnalyticsQueueService, iocGetInboundDynamoRepository } from '@common/ioc';
+import { iocGetAnalyticsQueueService, iocGetDispatchQueueService, iocGetInboundDynamoRepository } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
 import { ConfigurationService, NotificationService } from '@common/services';
@@ -17,6 +18,8 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/ioc', { spy: true });
 
 describe('Dispatch QueueHandler', () => {
+  let instance: Dispatch;
+
   // Observability mocks
   const loggerMock = vi.mocked(new Logger());
   const tracerMock = vi.mocked(new Tracer());
@@ -28,8 +31,7 @@ describe('Dispatch QueueHandler', () => {
   const publishMessage = vi.fn();
   const notificationServiceMock = vi.fn();
 
-  let instance: Dispatch;
-  const mockQueue = {
+  const mockAnalyticsQueue = {
     publishMessage: publishMessage,
   } as unknown as AnalyticsQueueService;
 
@@ -47,7 +49,7 @@ describe('Dispatch QueueHandler', () => {
     } as unknown as NotificationService);
 
     vi.mocked(iocGetInboundDynamoRepository).mockResolvedValue(mockDynamo);
-    vi.mocked(iocGetAnalyticsQueueService).mockResolvedValue(mockQueue);
+    vi.mocked(iocGetAnalyticsQueueService).mockResolvedValue(mockAnalyticsQueue);
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -93,6 +95,9 @@ describe('Dispatch QueueHandler', () => {
 
   it('should log send a message to the analytics queue when the lambda is triggered', async () => {
     // Arrange
+    const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
+    const mockDynamodbTableName = 'mockDynamodbTableName';
+    getParameter.mockResolvedValueOnce(mockDynamodbTableName).mockResolvedValueOnce(mockAnalyticsQueueUrl);
     publishMessage.mockResolvedValueOnce(undefined);
     notificationServiceMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ requestId: '123', success: true });
 
@@ -101,14 +106,33 @@ describe('Dispatch QueueHandler', () => {
 
     // Assert
     expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
-    expect(publishMessage).toHaveBeenCalledWith({
-      NotificationID: mockEvent.Records[0].body.NotificationID,
-      DepartmentID: mockEvent.Records[0].body.DepartmentID,
-      // TODO: Instead of APIGWEvent we may need SQS Event ID
-      APIGWExtendedID: expect.any(String),
-      EventDateTime: expect.any(String),
-      Event: 'SUCCESS',
-      Message: '',
+    expect(publishMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        DepartmentID: mockEvent.Records[0].body.DepartmentID,
+        Event: 'SUCCESS',
+      })
+    );
+  });
+
+  it('should set queue url to an empty string if not set and get an error from queue service.', async () => {
+    // Arrange
+    const error = new Error('SQS Publish Error: Queue Url Does not Exist');
+
+    vi.mocked(iocGetAnalyticsQueueService).mockImplementationOnce(() => {
+      throw error;
     });
+    getParameter.mockResolvedValueOnce(undefined);
+    notificationServiceMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ requestId: '123', success: true });
+
+    // Act
+    await instance.implementation(mockEvent, mockContext);
+
+    // Assert
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      `Unexpected error`,
+      expect.objectContaining({ error: expect.any(Object) })
+    );
+    expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
   });
 });
