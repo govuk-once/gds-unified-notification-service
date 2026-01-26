@@ -11,4 +11,3 @@ export const IMessageSchema = z.object({
 });
 
 export type IMessage = z.infer<typeof IMessageSchema>;
-
