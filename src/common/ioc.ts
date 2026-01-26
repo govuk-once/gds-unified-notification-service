@@ -4,7 +4,7 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
-import { CacheService, Configuration, QueueService } from '@common/services';
+import { CacheService, Configuration, NotificationService, QueueService } from '@common/services';
 
 // Observability
 export const iocGetLogger = () => {
@@ -25,8 +25,14 @@ export const iocGetMetrics = () =>
 
 // Services
 export const iocGetConfigurationService = () => new Configuration(iocGetLogger(), iocGetMetrics(), iocGetTracer());
+
 export const iocGetQueueService = (queueUrl: string) =>
   new QueueService(queueUrl, iocGetLogger(), iocGetMetrics(), iocGetTracer());
+
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
+
 export const iocGetDynamoRepository = (tableName: string): IDynamodbRepository =>
   new DynamodbRepository(tableName, iocGetLogger(), iocGetTracer());
+
+export const iocGetNotificationService = () =>
+  new NotificationService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), iocGetConfigurationService());

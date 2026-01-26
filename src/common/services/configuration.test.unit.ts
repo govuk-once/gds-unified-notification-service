@@ -50,7 +50,9 @@ describe('Configuration', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(error).toHaveBeenCalledWith(`Failed fetching value from SSM - Error: ${errorMsg}`);
+      expect(error).toHaveBeenCalledWith(
+        `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
+      );
     });
   });
 

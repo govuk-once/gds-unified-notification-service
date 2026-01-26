@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "bun scripts/build.ts",
+    "build:validate": "tsc",
     "checkov": "checkov --directory . --quiet",
     "commit": "cz",
     "development:organize:tf": "bun scripts/developer-organize-tf.ts",
@@ -16,6 +17,7 @@
     "prepare": "husky",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage",
     "test": "vitest",
     "tflint": "terraform fmt -check -diff -recursive && tflint --chdir=terraform/notifications  --config .tflint.hcl",
     "tflint:fix": "terraform fmt -recursive",
@@ -51,6 +53,7 @@
     "globals": "^16.5.0",
     "husky": "^9.1.7",
     "jiti": "^2.6.1",
+    "msw": "^2.12.7",
     "prettier": "3.7.4",
     "semantic-release": "^25.0.2",
     "typescript": "^5.9.3",
@@ -83,6 +86,7 @@
     "http-errors": "^2.0.1",
     "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
+    "uuid": "^13.0.0",
     "zod": "^4.1.13"
   },
   "config": {

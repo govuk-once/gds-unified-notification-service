@@ -1,3 +1,4 @@
+name: Deploy environment (Manual)
 on:
   workflow_dispatch:
     inputs:
