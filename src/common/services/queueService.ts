@@ -60,6 +60,7 @@ export abstract class QueueService<InputType> {
         throw new Error(errorMsg);
       }
 
+      // TODO: Add recursive splitting
       const entries = message.map((body, index) => ({
         Id: `msg_${index}`, // TODO: How do ids need to be set
         DelaySeconds: delaySeconds,
@@ -81,74 +82,5 @@ export abstract class QueueService<InputType> {
     } catch (error) {
       this.logger.error(`Error publishing to SQS - ${error}`);
     }
-  }
-}
-
-export class ProcessingQueueService extends QueueService<IMessage> {
-  constructor(
-    protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {
-    super(logger, metrics, tracer);
-  }
-
-  async initialize() {
-    const queueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
-    if (queueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
-    }
-    this.sqsQueueUrl = queueUrl;
-    await super.initialize();
-
-    this.logger.info('Processing Queue Service Initialised.');
-    return this;
-  }
-}
-
-export class DispatchQueueService extends QueueService<IProcessedMessage> {
-  constructor(
-    protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {
-    super(logger, metrics, tracer);
-  }
-
-  async initialize() {
-    const queueUrl = await this.config.getParameter(StringParameters.Queue.Dispatch.Url);
-    if (queueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
-    }
-    this.sqsQueueUrl = queueUrl;
-    await super.initialize();
-
-    this.logger.info('Dispatch Queue Service Initialised.');
-    return this;
-  }
-}
-
-export class AnalyticsQueueService extends QueueService<unknown> {
-  constructor(
-    protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {
-    super(logger, metrics, tracer);
-  }
-
-  async initialize() {
-    const queueUrl = await this.config.getParameter(StringParameters.Queue.Analytics.Url);
-    if (queueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
-    }
-    this.sqsQueueUrl = queueUrl;
-    await super.initialize();
-
-    this.logger.info('Analytics Queue Service Initialised.');
-    return this;
   }
 }

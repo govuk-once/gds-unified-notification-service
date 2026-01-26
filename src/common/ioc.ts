@@ -2,14 +2,12 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories/dynamodbRepository';
-import {
-  AnalyticsQueueService,
-  CacheService,
-  ConfigurationService,
-  DispatchQueueService,
-  ProcessingQueueService,
-} from '@common/services';
+import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
+import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { CacheService, ConfigurationService } from '@common/services';
+import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
+import { DispatchQueueService } from '@common/services/dispatchQueueService';
+import { ProcessingQueueService } from '@common/services/processingQueueService';
 
 // Observability
 export const iocGetLogger = () => {

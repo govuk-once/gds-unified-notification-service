@@ -4,22 +4,17 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
-import { AnalyticsQueueService, DispatchQueueService, ProcessingQueueService } from '@common/services/queueService';
+import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
-describe('ProcessingQueueService', () => {
+describe('QueueService', () => {
   let processingQueueService: ProcessingQueueService;
   let configurationServiceMock: ConfigurationService;
   let mockMessageBody: IMessage;
@@ -94,8 +89,9 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessage(mockMessageBody);
 
       // Assert
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      expect(sqsMock).toHaveReceivedCommandWith(SendMessageCommand, {
+      expect(sqsMock.calls()).toHaveLength(1);
+      const command = sqsMock.call(0).args[0] as SendMessageCommand;
+      expect(command.input).toEqual({
         QueueUrl: mockProcessingQueueUrl,
         DelaySeconds: 0,
         MessageBody: JSON.stringify(mockMessageBody),
@@ -126,8 +122,9 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
+      expect(sqsMock.calls()).toHaveLength(1);
+      const command = sqsMock.call(0).args[0] as SendMessageBatchCommand;
+      expect(command.input).toEqual({
         QueueUrl: mockProcessingQueueUrl,
         Entries: [
           {
@@ -170,8 +167,9 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
 
       // Assert
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
+      expect(sqsMock.calls()).toHaveLength(1);
+      const command = sqsMock.call(0).args[0] as SendMessageBatchCommand;
+      expect(command.input).toEqual({
         QueueUrl: mockProcessingQueueUrl,
         Entries: [
           {
@@ -224,101 +222,6 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(loggerMock.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
-    });
-  });
-});
-
-describe('DispatchQueueService', () => {
-  let dispatchQueueService: DispatchQueueService;
-  let configurationServiceMock: ConfigurationService;
-
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
-  const sqsMock = mockClient(SQSClient);
-
-  const mockDispatchQueueUrl = 'mockDispatchQueueUrl';
-
-  beforeEach(async () => {
-    // Reset all mock
-    vi.clearAllMocks();
-    sqsMock.reset();
-
-    configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockDispatchQueueUrl);
-    dispatchQueueService = new DispatchQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
-    await dispatchQueueService.initialize();
-  });
-
-  describe('initialize', () => {
-    it('should retrieve the queue url and log when the dispatch queue service is initalised.', async () => {
-      // Act
-      const result = await dispatchQueueService.initialize();
-
-      // Assert
-      expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Dispatch.Url);
-      expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();
-      expect(loggerMock.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
-    });
-
-    it('should throw an error if queue url is undefined', async () => {
-      // Arrange
-      configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-
-      dispatchQueueService = new DispatchQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
-
-      // Act
-      const result = dispatchQueueService.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch queueUrl'));
-    });
-  });
-});
-
-describe('AnalyticsQueueService', () => {
-  let analyticsQueueService: AnalyticsQueueService;
-  let configurationServiceMock: ConfigurationService;
-
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
-  const sqsMock = mockClient(SQSClient);
-
-  const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
-
-  beforeEach(async () => {
-    // Reset all mock
-    vi.clearAllMocks();
-    sqsMock.reset();
-
-    configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockAnalyticsQueueUrl);
-    analyticsQueueService = new AnalyticsQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
-    await analyticsQueueService.initialize();
-  });
-
-  describe('initialize', () => {
-    it('should retrieve the queue url and log when the analytics queue service is initalised.', async () => {
-      // Act
-      const result = await analyticsQueueService.initialize();
-
-      // Assert
-      expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Analytics.Url);
-      expectTypeOf(result).toEqualTypeOf<AnalyticsQueueService>();
-      expect(loggerMock.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');
-    });
-
-    it('should throw an error if queue url is undefined', async () => {
-      // Arrange
-      configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-      analyticsQueueService = new AnalyticsQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
-
-      // Act
-      const result = analyticsQueueService.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch queueUrl'));
     });
   });
 });

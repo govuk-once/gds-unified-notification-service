@@ -9,9 +9,6 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
-import { ConfigurationService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
 export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
@@ -140,61 +137,5 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       this.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
     }
-  }
-}
-
-export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> {
-  constructor(
-    protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {
-    super(logger, metrics, tracer);
-  }
-
-  async initialize() {
-    const tableName = await this.config.getParameter(StringParameters.Table.Inbound.Name);
-    const tableKey = await this.config.getParameter(StringParameters.Table.Inbound.Key);
-
-    if (tableName == undefined) {
-      throw new Error('Failed to fetch table name');
-    }
-    if (tableKey == undefined) {
-      throw new Error('Failed to fetch table key');
-    }
-
-    this.tableName = tableName;
-    this.tableKey = tableKey;
-    await super.initialize();
-    return this;
-  }
-}
-
-export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
-  constructor(
-    protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {
-    super(logger, metrics, tracer);
-  }
-
-  async initialize() {
-    const tableName = await this.config.getParameter(StringParameters.Table.Events.Name);
-    const tableKey = await this.config.getParameter(StringParameters.Table.Events.Key);
-
-    if (tableName == undefined) {
-      throw new Error('Failed to fetch table name');
-    }
-    if (tableKey == undefined) {
-      throw new Error('Failed to fetch table key');
-    }
-
-    this.tableName = tableName;
-    this.tableKey = tableKey;
-    await super.initialize();
-    return this;
   }
 }

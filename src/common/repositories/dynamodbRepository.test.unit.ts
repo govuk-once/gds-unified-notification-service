@@ -11,7 +11,7 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { InboundDynamoRepository } from '@common/repositories/dynamodbRepository';
+import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
 import { ConfigurationService } from '@common/services';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -24,7 +24,7 @@ vi.mock('@common/services/configurationService', { spy: true });
 const mockInboundTableName = 'mockInboundTableName';
 const mockInboundTableKey = 'NotificationID';
 
-describe('InboundDynamoRepository', () => {
+describe('DynamodbRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
   let inboundDynamoRepo: InboundDynamoRepository;
   let config: ConfigurationService;
@@ -44,32 +44,6 @@ describe('InboundDynamoRepository', () => {
 
     inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
     await inboundDynamoRepo.initialize();
-  });
-
-  describe('initialize', () => {
-    it('should throw an error if table name is undefined', async () => {
-      // Arrange
-      config.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
-
-      // Act
-      const result = inboundDynamoRepo.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch table name'));
-    });
-
-    it('should throw an error if table key is undefined', async () => {
-      // Arrange
-      config.getParameter = vi.fn().mockResolvedValueOnce('mockTableName').mockResolvedValueOnce(undefined);
-      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
-
-      // Act
-      const result = inboundDynamoRepo.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch table key'));
-    });
   });
 
   describe('CreateRecord', () => {

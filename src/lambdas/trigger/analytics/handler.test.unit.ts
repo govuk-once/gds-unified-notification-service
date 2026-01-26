@@ -3,21 +3,17 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
-import {
-  iocGetCacheService,
-  iocGetConfigurationService,
-  iocGetDispatchQueueService,
-  iocGetEventsDynamoRepository,
-} from '@common/ioc';
+import { iocGetCacheService, iocGetEventsDynamoRepository } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent } from '@common/operations';
-import { EventsDynamoRepository } from '@common/repositories/dynamodbRepository';
+import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
 import { CacheService, ConfigurationService } from '@common/services';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
 import { Context, SQSRecord } from 'aws-lambda';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// TODO: Investigate a way to mock the classes
 vi.mock('@common/ioc', () => ({
   iocGetConfigurationService: vi.fn(),
   iocGetQueueService: vi.fn(),
@@ -33,19 +29,14 @@ vi.mock('@common/builders/toIAnalyticsRecord', () => ({
 }));
 
 describe('Analytics QueueHandler', () => {
-  const getParameter = vi.fn();
-  const info = vi.fn();
-  const trace = vi.fn();
-  const error = vi.fn();
-
-  const instance: Analytics = new Analytics(
-    { getParameter } as unknown as ConfigurationService,
-    { info, trace, error } as unknown as Logger,
-    {} as unknown as Metrics,
-    {} as unknown as Tracer
-  );
-
+  let instance: Analytics;
   let mockContext: Context;
+
+  const loggerMock = vi.mocked(new Logger());
+  const metricsMock = vi.mocked(new Metrics());
+  const tracerMock = vi.mocked(new Tracer());
+  const configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+  configurationServiceMock.getParameter = vi.fn();
 
   const mockCacheService = { store: vi.fn(), get: vi.fn(), set: vi.fn() } as unknown as CacheService;
   const mockDynamoRepo = { createRecordBatch: vi.fn() } as unknown as EventsDynamoRepository;
@@ -56,6 +47,8 @@ describe('Analytics QueueHandler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    instance = new Analytics(configurationServiceMock, loggerMock, metricsMock, tracerMock);
 
     mockedIocGetCacheService.mockResolvedValue(mockCacheService);
     mockedIocGetEventsDynamoRepository.mockResolvedValue(mockDynamoRepo);
@@ -120,7 +113,7 @@ describe('Analytics QueueHandler', () => {
       return d as unknown as ReturnType<typeof toIAnalyticsRecord>;
     });
 
-    getParameter.mockResolvedValueOnce('queue/processing/url');
+    configurationServiceMock.getParameter.mockResolvedValueOnce('queue/processing/url');
 
     const event = {
       Records: [{ body: invalidData as unknown as string, messageId: 'msg2' } as SQSRecord],

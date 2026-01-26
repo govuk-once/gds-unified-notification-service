@@ -4,8 +4,9 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIMessageRecord } from '@common/builders/toIMessageRecord';
 import { iocGetAnalyticsQueueService, iocGetDispatchQueueService, iocGetInboundDynamoRepository } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories/dynamodbRepository';
-import { AnalyticsQueueService, DispatchQueueService } from '@common/services/queueService';
+import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
+import { DispatchQueueService } from '@common/services/dispatchQueueService';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Processing } from '@project/lambdas/trigger/processing/handler';
 import { Context } from 'aws-lambda';
@@ -13,6 +14,8 @@ import { Context } from 'aws-lambda';
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
+// TODO: Investigate a way to mock the classes
 vi.mock('@common/ioc', () => ({
   iocGetInboundDynamoRepository: vi.fn(),
   iocGetDispatchQueueService: vi.fn(),
@@ -21,12 +24,14 @@ vi.mock('@common/ioc', () => ({
   iocGetMetrics: vi.fn(),
   iocGetTracer: vi.fn(),
 }));
+
 vi.mock('@common/builders/toIMessageRecord', () => ({
   toIMessageRecord: vi.fn(),
 }));
 
 describe('Processing QueueHandler', () => {
   let instance: Processing;
+
   const loggerMock = vi.mocked(new Logger());
   const tracerMock = vi.mocked(new Tracer());
   const metricsMock = vi.mocked(new Metrics());
@@ -65,7 +70,7 @@ describe('Processing QueueHandler', () => {
 
     // Mock AWS Lambda Context
     mockContext = {
-      functionName: 'validation',
+      functionName: 'processing',
       awsRequestId: '12345',
     } as unknown as Context;
 
