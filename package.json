@@ -16,6 +16,7 @@
     "prepare": "husky",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage",
     "test": "vitest",
     "tflint": "terraform fmt -check -diff -recursive && tflint --chdir=terraform/notifications  --config .tflint.hcl",
     "tflint:fix": "terraform fmt -recursive",
