@@ -1,5 +1,15 @@
-import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { APIHandler, segment, type ITypedRequestEvent, type ITypedRequestResponse } from '@common';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import {
+  APIHandler,
+  iocGetLogger,
+  iocGetMetrics,
+  iocGetTracer,
+  segment,
+  type ITypedRequestEvent,
+  type ITypedRequestResponse,
+} from '@common';
 import type { Context } from 'aws-lambda';
 import { Axios } from 'axios';
 import z from 'zod';
@@ -12,8 +22,8 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  constructor() {
-    super();
+  constructor(logger: Logger, metrics: Metrics, tracer: Tracer) {
+    super(logger, metrics, tracer);
   }
 
   public async implementation(
@@ -50,4 +60,4 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   }
 }
 
-export const handler = new GetHealthcheck().handler();
+export const handler = new GetHealthcheck(iocGetLogger(), iocGetMetrics(), iocGetTracer()).handler();

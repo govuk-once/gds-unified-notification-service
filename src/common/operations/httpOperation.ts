@@ -35,11 +35,11 @@ export abstract class APIHandler<
   public abstract requestBodySchema: InputSchema;
   public abstract responseBodySchema: OutputSchema;
 
-  public logger: Logger = iocGetLogger();
-  public metrics: Metrics = iocGetMetrics();
-  public tracer: Tracer = iocGetTracer();
-
-  constructor() {}
+  constructor(
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {}
 
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,
