@@ -5,8 +5,12 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
-import { ConfigurationService } from '@common/services/ConfigurationService';
+import {
+  ConfigurationService,
+  NotificationAdapterOneSignal,
+  NotificationAdapterVoid,
+  NotificationService,
+} from '@common/services';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
