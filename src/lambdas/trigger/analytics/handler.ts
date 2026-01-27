@@ -3,6 +3,9 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
 import {
+  HandlerDependencies,
+  initializeDependencies,
+  iocGetCacheService,
   iocGetConfigurationService,
   iocGetEventsDynamoRepository,
   iocGetLogger,
@@ -11,81 +14,97 @@ import {
 } from '@common/ioc';
 import { IAnalyticsRecord } from '@common/models/interfaces/IAnalyticsRecord';
 import { QueueEvent, QueueHandler } from '@common/operations';
+import { EventsDynamoRepository } from '@common/repositories';
+import { CacheService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
+import { groupValidation } from '@common/utils';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Context } from 'aws-lambda';
 
+/**
+ * Lambda handling storing analytics events into the dedicated events DynamoDB Table, it also updates cache keys within elasticache
+ * Sample event:
+ {
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"DepartmentID\":\"TEST01\",\"NotificationID\":\"not1\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"EventReason\":\"testing\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1523232000000",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1523232000001"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "{{{md5_of_body}}}",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
+ */
 export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
+  public cache: CacheService;
+  public events: EventsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
     logger: Logger,
     metrics: Metrics,
-    tracer: Tracer
+    tracer: Tracer,
+    public asyncDependencies?: () => HandlerDependencies<Analytics>
   ) {
     super(logger, metrics, tracer);
   }
 
+  public async initialize() {
+    await initializeDependencies(this, this.asyncDependencies);
+  }
+
   public async implementation(event: QueueEvent<IAnalytics>, context: Context) {
-    //  TODO: Cache Service timeouts. For now out of scope NOT-66
-    //  const cacheService = iocGetCacheService();
-    //  await cacheService.connect();
+    await this.initialize();
 
-    const validmessagesToForward: IAnalytics[] = [];
-    const dbRecordsToCreate: IAnalyticsRecord[] = [];
-    const cacheUpdatePromises: Promise<unknown>[] = [];
+    // Validate individual records
+    const [records, validRecords, invalidRecords] = groupValidation(
+      event.Records.map((record) => record.body),
+      IAnalyticsSchema
+    );
 
-    const records = event.Records.map((record) => ({
-      raw: record,
-      parseResult: IAnalyticsSchema.safeParse(record.body),
-    }));
-    const validRecords = records.filter((record) => record.parseResult.success);
-
-    for (const { parseResult } of validRecords) {
-      const data = parseResult.data as IAnalytics;
-
-      validmessagesToForward.push(data);
-
-      //  const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
-      //  cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.PROCESSING));
-
-      const record = toIAnalyticsRecord(data, context.awsRequestId, Date.now().toString(), this.logger);
-
-      if (record) {
-        dbRecordsToCreate.push(record);
-      }
+    // A single invalid entry rejects entire batch - these are messages from within the system this should not happen
+    if (invalidRecords.length > 0) {
+      this.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
+        invalidRecords: invalidRecords.map((record) => record.raw),
+        errors: invalidRecords.map((record) => record.errors),
+        totalRecords: records,
+      });
     }
 
-    const invalidRecords = records.filter((record) => !record.parseResult.success);
+    // Map SQS Records to analytics entries
+    const entries = validRecords
+      .map(({ valid }) => valid)
+      .map((record) => toIAnalyticsRecord(record))
+      .filter((record) => record !== undefined) satisfies IAnalyticsRecord[];
+    const createEntriesMeta = {
+      NotificationIDs: entries.map(({ NotificationID }) => NotificationID),
+    };
 
-    for (const { raw } of invalidRecords) {
-      const partialParse = IAnalyticsSchema.partial().safeParse(raw.body);
-
-      if (partialParse.success && partialParse.data) {
-        const data = partialParse.data;
-
-        if (data.DepartmentID && data.NotificationID) {
-          //     const cacheKey = `/${data.DepartmentID}/${data.NotificationID}/Status`;
-          //    cacheUpdatePromises.push(cacheService.store(cacheKey, ValidationEnum.READ));
-        }
-
-        const record = toIAnalyticsRecord(data as IAnalytics, context.awsRequestId, Date.now().toString(), this.logger);
-
-        if (record) {
-          dbRecordsToCreate.push(record);
-        }
-      }
+    if (entries.length > 0) {
+      this.logger.info(`Creating entries in batch`, createEntriesMeta);
+      await this.events.createRecordBatch<IAnalyticsRecord>(entries);
+      this.logger.info(`Completes saving entries in batch`, createEntriesMeta);
     }
 
-    if (dbRecordsToCreate.length > 0) {
-      const analyticsRecordTable = await iocGetEventsDynamoRepository();
-      await analyticsRecordTable.createRecordBatch<IAnalyticsRecord>(dbRecordsToCreate);
-    }
-
-    if (cacheUpdatePromises.length > 0) {
-      this.logger.trace(`Updating status cache for ${cacheUpdatePromises.length} items.`);
-      await Promise.all(cacheUpdatePromises);
+    // For each updated row - also update the redis cache
+    for (const notification of entries) {
+      const cacheKey = `/${notification.DepartmentID}/${notification.NotificationID}/Status`;
+      await this.cache.store(cacheKey, notification.Event);
+      this.logger.info(`Updating Elasticache with notification status`, {
+        NotificationID: notification.NotificationID,
+        Status: notification.Event,
+      });
     }
   }
 }
@@ -94,5 +113,9 @@ export const handler = new Analytics(
   iocGetConfigurationService(),
   iocGetLogger(),
   iocGetMetrics(),
-  iocGetTracer()
+  iocGetTracer(),
+  () => ({
+    events: iocGetEventsDynamoRepository(),
+    cache: iocGetCacheService().connect(),
+  })
 ).handler();

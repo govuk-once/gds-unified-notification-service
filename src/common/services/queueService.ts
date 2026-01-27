@@ -2,10 +2,6 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { ConfigurationService } from '@common/services/configurationService';
-import { StringParameters } from '@common/utils/parameters';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 
 export const serializeRecordBodyToJson = <InputType>(body: InputType, logger: Logger): string => {
   if (typeof body === 'string') {
@@ -35,8 +31,12 @@ export abstract class QueueService<InputType> {
     return this;
   }
 
+  public getQueueName() {
+    return this.sqsQueueUrl.split('/').pop();
+  }
+
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
-    this.logger.info(`Publishing message to queue: ${this.sqsQueueUrl}.`);
+    this.logger.info(`Publishing message to queue: ${this.getQueueName()}`);
     try {
       const command = new SendMessageCommand({
         QueueUrl: this.sqsQueueUrl,
@@ -52,10 +52,10 @@ export abstract class QueueService<InputType> {
   }
 
   public async publishMessageBatch(message: InputType[], delaySeconds = 0) {
-    this.logger.info(`Publishing batch message to queue: ${this.sqsQueueUrl}.`);
+    this.logger.info(`Publishing batch message to queue: ${this.getQueueName()}.`);
     try {
       if (message.length > 10) {
-        const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
+        const errorMsg = 'A single message batch request can include a maximum of 10 messages';
         this.logger.error(errorMsg);
         throw new Error(errorMsg);
       }

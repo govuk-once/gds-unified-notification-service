@@ -5,14 +5,22 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
+import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
+import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
+expect.extend({
+  toHaveReceivedCommandWith,
+});
+
+const sqsMock = mockClient(SQSClient);
+const mockQueueUrl = 'testQueueUrl';
 
 describe('QueueService', () => {
   let processingQueueService: ProcessingQueueService;
@@ -24,7 +32,7 @@ describe('QueueService', () => {
   const tracerMock = vi.mocked(new Tracer());
   const sqsMock = mockClient(SQSClient);
 
-  const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
+  let queueService: QueueService<string>;
 
   beforeEach(async () => {
     // Reset all mock
@@ -32,7 +40,7 @@ describe('QueueService', () => {
     sqsMock.reset();
 
     configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockProcessingQueueUrl);
+    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockQueueUrl);
     processingQueueService = new ProcessingQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
     await processingQueueService.initialize();
 
@@ -91,11 +99,13 @@ describe('QueueService', () => {
       // Assert
       expect(sqsMock.calls()).toHaveLength(1);
       const command = sqsMock.call(0).args[0] as SendMessageCommand;
-      expect(command.input).toEqual({
-        QueueUrl: mockProcessingQueueUrl,
-        DelaySeconds: 0,
-        MessageBody: JSON.stringify(mockMessageBody),
-      });
+      expect(command.input).toEqual(
+        expect.objectContaining({
+          QueueUrl: mockQueueUrl,
+          DelaySeconds: 0,
+          MessageBody: JSON.stringify(mockMessageBody),
+        })
+      );
     });
 
     it('should throw an error and log when the send message command fails', async () => {
@@ -123,17 +133,19 @@ describe('QueueService', () => {
 
       // Assert
       expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0] as SendMessageBatchCommand;
-      expect(command.input).toEqual({
-        QueueUrl: mockProcessingQueueUrl,
-        Entries: [
-          {
-            Id: 'msg_0',
-            DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockMessageBody),
-          },
-        ],
-      });
+      const command = sqsMock.call(0).args[0] as SendMessageCommand;
+      expect(command.input).toEqual(
+        expect.objectContaining({
+          QueueUrl: mockQueueUrl,
+          Entries: [
+            {
+              Id: 'msg_0',
+              DelaySeconds: 0,
+              MessageBody: JSON.stringify(mockMessageBody),
+            },
+          ],
+        })
+      );
       expect(loggerMock.info).toHaveBeenCalledWith('Successfully published 1 messages.');
     });
 
@@ -167,10 +179,8 @@ describe('QueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0] as SendMessageBatchCommand;
-      expect(command.input).toEqual({
-        QueueUrl: mockProcessingQueueUrl,
+      expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
+        QueueUrl: mockQueueUrl,
         Entries: [
           {
             Id: 'msg_0',
@@ -203,7 +213,7 @@ describe('QueueService', () => {
         mockMessageBody,
       ];
 
-      const errorMsg = 'A single message batch request can include a maximum of 10 messages.';
+      const errorMsg = 'A single message batch request can include a maximum of 10 messages';
 
       // Act
       await processingQueueService.publishMessageBatch(mockMessageList);

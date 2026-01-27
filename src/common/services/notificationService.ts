@@ -20,19 +20,19 @@ export class NotificationService {
     protected config: ConfigurationService
   ) {}
 
-  async initialize(): Promise<void> {
+  async initialize() {
     // Based on the adapter configured within SSM - switch adapters
     const adapter = await this.config.getEnumParameter(`config/dispatch/adapter`, z.enum([`VOID`, `OneSignal`]));
 
-    if (adapter == 'VOID') {
-      this.adapter = new NotificationAdapterVoid(this.logger, this.metrics, this.tracer, this.config);
-      return;
-    } else if (adapter == 'OneSignal') {
-      this.adapter = new NotificationAdapterOneSignal(this.logger, this.metrics, this.tracer, this.config);
-    }
+    this.adapter =
+      adapter == 'OneSignal'
+        ? new NotificationAdapterOneSignal(this.logger, this.metrics, this.tracer, this.config)
+        : new NotificationAdapterVoid(this.logger, this.metrics, this.tracer, this.config);
 
     // Initialize the adapter
     await this.adapter.initialize();
+
+    return this;
   }
 
   async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {
