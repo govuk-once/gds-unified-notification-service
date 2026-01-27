@@ -19,7 +19,7 @@ export class ConfigurationService {
   }
 
   public async getParameter(namespace: string): Promise<string | undefined> {
-    this.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
+    this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
       Name: `/${this.prefix}/${namespace}`,
@@ -31,7 +31,7 @@ export class ConfigurationService {
     try {
       const data = await this.client.send(command);
 
-      this.logger.info(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
+      this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
       return data.Parameter?.Value;
     } catch (error) {
       this.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
@@ -39,7 +39,7 @@ export class ConfigurationService {
     }
   }
 
-  public async getBooleanParameter(namespace: string): Promise<boolean | undefined> {
+  public async getBooleanParameter(namespace: string): Promise<boolean> {
     const parameterValue = await this.getParameter(namespace);
 
     switch (parameterValue?.toLowerCase()) {
@@ -50,10 +50,11 @@ export class ConfigurationService {
       default:
         const errorMsg = `Could not parse parameter ${namespace} to a boolean`;
         this.logger.error(errorMsg);
+        throw new Error(errorMsg);
     }
   }
 
-  public async getNumericParameter(namespace: string): Promise<number | undefined> {
+  public async getNumericParameter(namespace: string): Promise<number> {
     const parameterValue = await this.getParameter(namespace);
 
     if (parameterValue !== undefined) {
@@ -66,6 +67,7 @@ export class ConfigurationService {
 
     const errorMsg = `Could not parse parameter ${namespace} to a number`;
     this.logger.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
   public async getEnumParameter<T extends z.ZodEnum>(namespace: string, schema: T): Promise<z.infer<T>> {

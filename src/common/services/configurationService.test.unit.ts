@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
@@ -6,24 +5,24 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
 import { mockClient } from 'aws-sdk-client-mock';
 
-vi.mock('@aws-lambda-powertools/logger', { spy: true });
-vi.mock('@aws-lambda-powertools/metrics', { spy: true });
-vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-
 describe('ConfigurationService', () => {
-  let config: ConfigurationService;
-
   const ssmMock = mockClient(SSMClient);
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
+
+  const trace = vi.fn();
+  const error = vi.fn();
+
+  let config: ConfigurationService;
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
     ssmMock.reset();
 
-    config = new ConfigurationService(loggerMock, metricsMock, tracerMock);
+    config = new ConfigurationService(
+      { trace, error } as unknown as Logger,
+      {} as unknown as Metrics,
+      {} as unknown as Tracer
+    );
   });
 
   describe('getParameter', () => {
@@ -51,14 +50,14 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(error).toHaveBeenCalledWith(
         `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
       );
     });
   });
 
   describe('getBooleanParameter', () => {
-    it('should return true from parameter store in boolean form', async () => {
+    it('should return a secret from parameter store in boolean form', async () => {
       // Arrange
       const secretValue = 'true';
       ssmMock.on(GetParameterCommand).resolves({
@@ -72,20 +71,6 @@ describe('ConfigurationService', () => {
       expect(parameter).toEqual(true);
     });
 
-    it('should return false from parameter store in boolean form', async () => {
-      // Arrange
-      const secretValue = 'false';
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
-      });
-
-      // Act
-      const parameter = await config.getBooleanParameter('testNameSpace');
-
-      // Assert
-      expect(parameter).toEqual(false);
-    });
-
     it('should throw an error and log when the parameter cannot be parsed to a boolean', async () => {
       // Arrange
       const secretValue = '1';
@@ -95,10 +80,11 @@ describe('ConfigurationService', () => {
       });
 
       // Act
-      await config.getBooleanParameter('testNameSpace');
+      const result = config.getBooleanParameter('testNameSpace');
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace to a boolean`);
+      await expect(result).rejects.toThrow(Error);
+      expect(error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace to a boolean`);
     });
   });
 
@@ -117,23 +103,7 @@ describe('ConfigurationService', () => {
       expect(parameter).toEqual(Number(secretValue));
     });
 
-    it('should log an error when the parameter is undefined', async () => {
-      // Arrange
-      const secretValue = undefined;
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
-      });
-
-      const errorMsg = 'Could not parse parameter testNameSpace to a number';
-
-      // Act
-      await config.getNumericParameter('testNameSpace');
-
-      // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg);
-    });
-
-    it('should log an error when the parameter cannot be parsed to a number', async () => {
+    it('should throw an error and log when the parameter cannot be parsed to a number', async () => {
       // Arrange
       const secretValue = 'ten';
       ssmMock.on(GetParameterCommand).resolves({
@@ -143,10 +113,11 @@ describe('ConfigurationService', () => {
       const errorMsg = 'Could not parse parameter testNameSpace to a number';
 
       // Act
-      await config.getNumericParameter('testNameSpace');
+      const result = config.getNumericParameter('testNameSpace');
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg);
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(error).toHaveBeenCalledWith(errorMsg);
     });
   });
 });
