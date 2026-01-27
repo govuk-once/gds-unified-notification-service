@@ -2,20 +2,18 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
+  iocGetAnalyticsQueueService,
   iocGetConfigurationService,
-  iocGetDynamoRepository,
+  iocGetInboundDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
   iocGetNotificationService,
-  iocGetQueueService,
   iocGetTracer,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { NotificationService } from '@common/services';
-import { Configuration } from '@common/services/configuration';
+import { ConfigurationService, NotificationService } from '@common/services';
 import { groupValidation } from '@common/utils';
-import { StringParameters } from '@common/utils/parameters';
-import { IProcessedMessage, IProcessedMessageMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
 
@@ -23,7 +21,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
 
   constructor(
-    protected config: Configuration,
+    protected config: ConfigurationService,
     logger: Logger,
     metrics: Metrics,
     tracer: Tracer,
@@ -37,17 +35,15 @@ export class Dispatch extends QueueHandler<unknown, void> {
       // Initialize services -  TODO: Shift this into IOC
       await this.notificationService.initialize();
       // Create a record of message in Dynamodb
-      const messageRecordTableName = (await this.config.getParameter(StringParameters.Table.Inbound.Name)) ?? '';
-      const messageRecordTable = iocGetDynamoRepository(messageRecordTableName);
+      const messageRecordTable = await iocGetInboundDynamoRepository();
 
       // (MOCK) Send event to events queue
-      const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
-      const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
+      const analyticsQueue = await iocGetAnalyticsQueueService();
 
       // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
       const [records, validRecords, invalidRecords] = groupValidation(
         event.Records.map((record) => record.body),
-        IProcessedMessageMessageSchema
+        IProcessedMessageSchema
       );
 
       // A single invalid entry rejects entire batch - these are messages from within the system this should not happen

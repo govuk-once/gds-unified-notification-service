@@ -2,13 +2,13 @@ import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Hash } from '@aws-sdk/hash-node';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
-import { Configuration } from '@common/services';
+import { ConfigurationService } from '@common/services';
 import { HttpRequest } from '@smithy/protocol-http';
 import { createClient } from 'redis';
 
 export class CacheService {
   public cache: ReturnType<typeof createClient>;
-  constructor(protected config: Configuration) {}
+  constructor(protected config: ConfigurationService) {}
 
   async generateSigV4(cacheName: string, username: string) {
     const credentials = fromNodeProviderChain();

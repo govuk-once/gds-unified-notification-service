@@ -2,23 +2,23 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { Configuration } from '@common/services/configuration';
+import { ConfigurationService } from '@common/services/configurationService';
 import { mockClient } from 'aws-sdk-client-mock';
 
-describe('Configuration', () => {
+describe('ConfigurationService', () => {
   const ssmMock = mockClient(SSMClient);
 
   const trace = vi.fn();
   const error = vi.fn();
 
-  let config: Configuration;
+  let config: ConfigurationService;
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
     ssmMock.reset();
 
-    config = new Configuration(
+    config = new ConfigurationService(
       { trace, error } as unknown as Logger,
       {} as unknown as Metrics,
       {} as unknown as Tracer

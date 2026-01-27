@@ -2,9 +2,11 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { iocGetQueueService } from '@common/ioc';
+import { iocGetAnalyticsQueueService, iocGetDispatchQueueService, iocGetInboundDynamoRepository } from '@common/ioc';
 import { QueueEvent } from '@common/operations';
-import { Configuration, NotificationService, QueueService } from '@common/services';
+import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { ConfigurationService, NotificationService } from '@common/services';
+import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
@@ -16,6 +18,8 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/ioc', { spy: true });
 
 describe('Dispatch QueueHandler', () => {
+  let instance: Dispatch;
+
   // Observability mocks
   const loggerMock = vi.mocked(new Logger());
   const tracerMock = vi.mocked(new Tracer());
@@ -23,13 +27,15 @@ describe('Dispatch QueueHandler', () => {
 
   // Config shims
   const getParameter = vi.fn();
+  const mockConfigurationService = { getParameter } as unknown as ConfigurationService;
   const publishMessage = vi.fn();
   const notificationServiceMock = vi.fn();
 
-  let instance: Dispatch;
-  const mockQueue = {
+  const mockAnalyticsQueue = {
     publishMessage: publishMessage,
-  } as unknown as QueueService;
+  } as unknown as AnalyticsQueueService;
+
+  const mockDynamo = {} as unknown as InboundDynamoRepository;
 
   let mockContext: Context;
   let mockEvent: QueueEvent<IProcessedMessage>;
@@ -37,12 +43,13 @@ describe('Dispatch QueueHandler', () => {
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
-    instance = new Dispatch({ getParameter } as unknown as Configuration, loggerMock, metricsMock, tracerMock, {
+    instance = new Dispatch(mockConfigurationService, loggerMock, metricsMock, tracerMock, {
       initialize: notificationServiceMock,
       send: notificationServiceMock,
     } as unknown as NotificationService);
 
-    vi.mocked(iocGetQueueService).mockReturnValue(mockQueue);
+    vi.mocked(iocGetInboundDynamoRepository).mockResolvedValue(mockDynamo);
+    vi.mocked(iocGetAnalyticsQueueService).mockResolvedValue(mockAnalyticsQueue);
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -98,8 +105,7 @@ describe('Dispatch QueueHandler', () => {
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(getParameter).toHaveBeenCalledTimes(2);
-    expect(iocGetQueueService).toHaveBeenNthCalledWith(1, mockAnalyticsQueueUrl);
+    expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
     expect(publishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         NotificationID: mockEvent.Records[0].body.NotificationID,
@@ -113,7 +119,7 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     const error = new Error('SQS Publish Error: Queue Url Does not Exist');
 
-    vi.mocked(iocGetQueueService).mockImplementationOnce(() => {
+    vi.mocked(iocGetAnalyticsQueueService).mockImplementationOnce(() => {
       throw error;
     });
     getParameter.mockResolvedValueOnce(undefined);
@@ -127,6 +133,6 @@ describe('Dispatch QueueHandler', () => {
       `Unexpected error`,
       expect.objectContaining({ error: expect.any(Object) })
     );
-    expect(iocGetQueueService).toHaveBeenCalledWith('');
+    expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
   });
 });

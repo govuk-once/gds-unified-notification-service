@@ -11,8 +11,8 @@ export interface IMessageRecord {
   ProcessedDateTime?: string;
   DispatchedStartDateTime?: string;
   SentDateTime?: string;
-  OneSignalResponseID?: string;
-  OneSignalID?: string;
+  ExternalResponseID?: string;
+  ExternalUserID?: string;
   APIGWExtendedID?: string;
   TraceID?: string;
 }

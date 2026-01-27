@@ -1,16 +1,19 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
-import { iocGetCacheService, iocGetDynamoRepository, iocGetQueueService } from '@common/ioc';
+import { iocGetCacheService, iocGetEventsDynamoRepository } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent } from '@common/operations';
-import { Configuration } from '@common/services';
+import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
+import { CacheService, ConfigurationService } from '@common/services';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
 import { Context, SQSRecord } from 'aws-lambda';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// TODO: Investigate a way to mock the classes
 vi.mock('@common/ioc', () => ({
   iocGetConfigurationService: vi.fn(),
   iocGetQueueService: vi.fn(),
@@ -18,7 +21,7 @@ vi.mock('@common/ioc', () => ({
   iocGetMetrics: vi.fn(),
   iocGetTracer: vi.fn(),
   iocGetCacheService: vi.fn(),
-  iocGetDynamoRepository: vi.fn(),
+  iocGetEventsDynamoRepository: vi.fn(),
 }));
 
 vi.mock('@common/builders/toIAnalyticsRecord', () => ({
@@ -26,38 +29,31 @@ vi.mock('@common/builders/toIAnalyticsRecord', () => ({
 }));
 
 describe('Analytics QueueHandler', () => {
-  const getParameter = vi.fn();
-  const info = vi.fn();
-  const trace = vi.fn();
-  const error = vi.fn();
-
-  const instance: Analytics = new Analytics(
-    { getParameter } as unknown as Configuration,
-    { info, trace, error } as unknown as Logger,
-    {} as unknown as Metrics,
-    {} as unknown as Tracer
-  );
-
+  let instance: Analytics;
   let mockContext: Context;
 
-  const mockCacheService = { store: vi.fn(), get: vi.fn(), set: vi.fn() };
-  const mockQueueService = { publishMessageBatch: vi.fn() };
-  const mockDynamoRepo = { createRecordBatch: vi.fn() };
+  const loggerMock = vi.mocked(new Logger());
+  const metricsMock = vi.mocked(new Metrics());
+  const tracerMock = vi.mocked(new Tracer());
+  const configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+  configurationServiceMock.getParameter = vi.fn();
+
+  const mockCacheService = { store: vi.fn(), get: vi.fn(), set: vi.fn() } as unknown as CacheService;
+  const mockDynamoRepo = { createRecordBatch: vi.fn() } as unknown as EventsDynamoRepository;
 
   const mockedIocGetCacheService = vi.mocked(iocGetCacheService);
-  const mockedIocGetQueueService = vi.mocked(iocGetQueueService);
-  const mockedIocGetDynamoRepository = vi.mocked(iocGetDynamoRepository);
+  const mockedIocGetEventsDynamoRepository = vi.mocked(iocGetEventsDynamoRepository);
   const mockedToAnalyticsRecord = vi.mocked(toIAnalyticsRecord);
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockedIocGetCacheService.mockReturnValue(mockCacheService as unknown as ReturnType<typeof iocGetCacheService>);
-    mockedIocGetQueueService.mockReturnValue(mockQueueService as unknown as ReturnType<typeof iocGetQueueService>);
-    mockedIocGetDynamoRepository.mockReturnValue(
-      mockDynamoRepo as unknown as ReturnType<typeof iocGetDynamoRepository>
-    );
+    instance = new Analytics(configurationServiceMock, loggerMock, metricsMock, tracerMock);
 
+    mockedIocGetCacheService.mockResolvedValue(mockCacheService);
+    mockedIocGetEventsDynamoRepository.mockResolvedValue(mockDynamoRepo);
+
+    // Mock AWS Lambda Context
     mockContext = {
       functionName: 'analytics',
       awsRequestId: '12345',
@@ -70,7 +66,7 @@ describe('Analytics QueueHandler', () => {
   });
 
   it('should process VALID records: Update Cache to Processing, Publish to Queue, and Push to DynamoDB', async () => {
-    // ARRANGE
+    // Arrange
     const validData: IAnalytics = {
       DepartmentID: 'DVLA',
       NotificationID: 'not1',
@@ -83,7 +79,6 @@ describe('Analytics QueueHandler', () => {
     const dbRecord = { ...validData };
 
     mockedToAnalyticsRecord.mockReturnValue(dbRecord as unknown as ReturnType<typeof toIAnalyticsRecord>);
-    getParameter.mockResolvedValue('queue/processing/url');
 
     const event = {
       Records: [{ body: validData as unknown as string, messageId: 'msg1' } as SQSRecord],
@@ -118,7 +113,7 @@ describe('Analytics QueueHandler', () => {
       return d as unknown as ReturnType<typeof toIAnalyticsRecord>;
     });
 
-    getParameter.mockResolvedValue('queue/processing/url');
+    configurationServiceMock.getParameter.mockResolvedValueOnce('queue/processing/url');
 
     const event = {
       Records: [{ body: invalidData as unknown as string, messageId: 'msg2' } as SQSRecord],

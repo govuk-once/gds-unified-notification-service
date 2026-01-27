@@ -1,8 +1,12 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { NotificationAdapter, NotificationAdapterOneSignal, NotificationAdapterVoid } from '@common/services';
-import { Configuration } from '@common/services/configuration';
+import {
+  ConfigurationService,
+  NotificationAdapter,
+  NotificationAdapterOneSignal,
+  NotificationAdapterVoid,
+} from '@common/services';
 import { NotificationAdapterRequest, NotificationAdapterResult } from '@common/services/interfaces';
 import { segment } from '@common/utils';
 import * as z from 'zod';
@@ -13,7 +17,7 @@ export class NotificationService {
     protected logger: Logger,
     protected metrics: Metrics,
     protected tracer: Tracer,
-    protected config: Configuration
+    protected config: ConfigurationService
   ) {}
 
   async initialize(): Promise<void> {

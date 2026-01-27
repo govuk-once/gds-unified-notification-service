@@ -20,9 +20,12 @@ module "parameter_store_internal_configuration" {
 
     // Dynamo
     "table/events/name"  = module.dynamodb_events.table_name
+    "table/events/key"   = module.dynamodb_events.table_key
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
+    "table/inbound/key"  = module.dynamodb_inbound_messages.table_key
   }
 }
+
 module "parameter_store_external_configuration" {
   source = "./modules/parameter-store"
 

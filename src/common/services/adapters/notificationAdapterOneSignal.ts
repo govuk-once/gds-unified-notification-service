@@ -1,7 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { Configuration } from '@common/services/configuration';
+import { ConfigurationService } from '@common/services';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
@@ -33,7 +33,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     protected logger: Logger,
     protected metrics: Metrics,
     protected tracer: Tracer,
-    protected config: Configuration
+    protected config: ConfigurationService
   ) {}
 
   async initialize(): Promise<void> {

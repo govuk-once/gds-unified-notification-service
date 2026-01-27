@@ -4,7 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import * as z from 'zod';
 
-export class Configuration {
+export class ConfigurationService {
   private client;
   private prefix = process.env.PREFIX;
 

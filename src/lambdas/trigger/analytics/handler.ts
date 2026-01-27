@@ -4,15 +4,14 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
 import {
   iocGetConfigurationService,
-  iocGetDynamoRepository,
+  iocGetEventsDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
   iocGetTracer,
 } from '@common/ioc';
 import { IAnalyticsRecord } from '@common/models/interfaces/IAnalyticsRecord';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { Configuration } from '@common/services/configuration';
-import { StringParameters } from '@common/utils/parameters';
+import { ConfigurationService } from '@common/services/configurationService';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Context } from 'aws-lambda';
 
@@ -20,7 +19,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
 
   constructor(
-    protected config: Configuration,
+    protected config: ConfigurationService,
     logger: Logger,
     metrics: Metrics,
     tracer: Tracer
@@ -80,10 +79,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     }
 
     if (dbRecordsToCreate.length > 0) {
-      const analyticsmessageRecordTableName =
-        (await this.config.getParameter(StringParameters.Table.Events.Name)) ?? '';
-      const analyticsRecordTable = iocGetDynamoRepository(analyticsmessageRecordTableName);
-
+      const analyticsRecordTable = await iocGetEventsDynamoRepository();
       await analyticsRecordTable.createRecordBatch<IAnalyticsRecord>(dbRecordsToCreate);
     }
 

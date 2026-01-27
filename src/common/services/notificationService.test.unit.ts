@@ -5,8 +5,12 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
-import { Configuration } from '@common/services/configuration';
+import {
+  ConfigurationService,
+  NotificationAdapterOneSignal,
+  NotificationAdapterVoid,
+  NotificationService,
+} from '@common/services';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -21,7 +25,7 @@ describe('NotificationService', () => {
   // Config shims
   const getParameter = vi.fn();
   const getEnumParameter = vi.fn();
-  const mockConfigurationService = { getParameter, getEnumParameter } as unknown as Configuration;
+  const mockConfigurationService = { getParameter, getEnumParameter } as unknown as ConfigurationService;
 
   const mockRequest = {
     NotificationID: 'test01',
