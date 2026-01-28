@@ -1,112 +1,104 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { toIMessageRecord } from '@common/builders/toIMessageRecord';
-import { iocGetAnalyticsQueueService, iocGetDispatchQueueService, iocGetInboundDynamoRepository } from '@common/ioc';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { AnalyticsService, ConfigurationService } from '@common/services';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Processing } from '@project/lambdas/trigger/processing/handler';
 import { Context } from 'aws-lambda';
+import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
-// TODO: Investigate a way to mock the classes
-vi.mock('@common/ioc', () => ({
-  iocGetInboundDynamoRepository: vi.fn(),
-  iocGetDispatchQueueService: vi.fn(),
-  iocGetAnalyticsQueueService: vi.fn(),
-  iocGetLogger: vi.fn(),
-  iocGetMetrics: vi.fn(),
-  iocGetTracer: vi.fn(),
-}));
+vi.mock('@common/repositories', { spy: true });
+vi.mock('@common/services', { spy: true });
 
-vi.mock('@common/builders/toIMessageRecord', () => ({
-  toIMessageRecord: vi.fn(),
-}));
+const sqsMock = mockClient(SQSClient);
 
 describe('Processing QueueHandler', () => {
-  let instance: Processing;
-
   const loggerMock = vi.mocked(new Logger());
   const tracerMock = vi.mocked(new Tracer());
   const metricsMock = vi.mocked(new Metrics());
 
-  const publishMessage = vi.fn();
-  const publishMessageBatch = vi.fn();
-  const updateRecord = vi.fn();
+  const configMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+  const inboundDynamoMock = vi.mocked(new InboundDynamoRepository(configMock, loggerMock, metricsMock, tracerMock));
+  const analyticsQueueServiceMock = vi.mocked(
+    new AnalyticsQueueService(configMock, loggerMock, metricsMock, tracerMock)
+  );
+  const analyticsServiceMock = vi.mocked(
+    new AnalyticsService(loggerMock, metricsMock, tracerMock, analyticsQueueServiceMock)
+  );
+  const dispatchQueueService = vi.mocked(new DispatchQueueService(configMock, loggerMock, metricsMock, tracerMock));
 
-  const mockDispatchQueueService = {
-    publishMessageBatch: publishMessageBatch,
-    publishMessage: publishMessage,
-  } as unknown as DispatchQueueService;
+  let instance: Processing;
 
-  const mockAnalyticsQueue = {
-    publishMessageBatch: publishMessageBatch,
-    publishMessage: publishMessage,
-  } as unknown as AnalyticsQueueService;
-
-  const mockDynamo = {
-    updateRecord: updateRecord,
-  } as unknown as InboundDynamoRepository;
-
-  let mockContext: Context;
-  let mockMessageBody: IMessage;
-  let mockEvent: QueueEvent<IMessage>;
-
-  beforeEach(() => {
-    // Reset all mock
-    vi.clearAllMocks();
-
-    vi.mocked(iocGetInboundDynamoRepository).mockResolvedValue(mockDynamo);
-    vi.mocked(iocGetDispatchQueueService).mockResolvedValue(mockDispatchQueueService);
-    vi.mocked(iocGetAnalyticsQueueService).mockResolvedValue(mockAnalyticsQueue);
-
-    instance = new Processing(loggerMock, metricsMock, tracerMock);
-
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'processing',
-      awsRequestId: '12345',
-    } as unknown as Context;
-
-    // Mock the MessageBody
-    mockMessageBody = {
-      NotificationID: '1234',
-      DepartmentID: 'DVLA01',
-      UserID: 'UserID',
-      MessageTitle: 'You have a new Message',
-      MessageBody: 'Open Notification Centre to read your notifications',
-      NotificationTitle: 'You have a new medical driving license',
-      NotificationBody: 'The DVLA has issued you a new license.',
-    };
-
-    // Mock the QueueEvent (Mapping to your InputType)
-    mockEvent = {
-      Records: [
-        {
-          messageId: 'mockMessageId',
-          receiptHandle: 'mockReceiptHandle',
-          attributes: {
-            ApproximateReceiveCount: '2',
-            SentTimestamp: '202601021513',
-            SenderId: 'mockSenderId',
-            ApproximateFirstReceiveTimestamp: '202601021513',
-          },
-          messageAttributes: {},
-          md5OfBody: 'mockMd5OfBody',
-          md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-          eventSource: 'mockEventSource',
-          eventSourceARN: 'mockEventSourceARN',
-          awsRegion: 'eu-west2',
-          body: mockMessageBody,
+  // Data presets
+  const mockContext: Context = {
+    functionName: 'processing',
+    awsRequestId: '12345',
+  } as unknown as Context;
+  const mockMessageBody: IMessage = {
+    NotificationID: '1234',
+    DepartmentID: 'DVLA01',
+    UserID: 'UserID',
+    NotificationTitle: 'Hey',
+    NotificationBody: "You've got a message in the message centre",
+    MessageTitle: '',
+    MessageBody: '',
+  };
+  const mockEvent: QueueEvent<IMessage> = {
+    Records: [
+      {
+        messageId: 'mockMessageId',
+        receiptHandle: 'mockReceiptHandle',
+        attributes: {
+          ApproximateReceiveCount: '2',
+          SentTimestamp: '202601021513',
+          SenderId: 'mockSenderId',
+          ApproximateFirstReceiveTimestamp: '202601021513',
         },
-      ],
-    };
+        messageAttributes: {},
+        md5OfBody: 'mockMd5OfBody',
+        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'mockEventSourceARN',
+        awsRegion: 'eu-west2',
+        body: mockMessageBody,
+      },
+    ],
+  };
+
+  const mockFailedEvent: QueueEvent<IMessage> = {
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        body: {
+          NotificationID: 'invalid-id',
+          UserID: 'invalid-id',
+          DepartmentID: 'invalid-id',
+          // Missed out on purpose NotificationTitle, NotificationBody
+        },
+      },
+    ],
+  } as unknown as QueueEvent<IMessage>;
+
+  beforeEach(async () => {
+    // Reset all mocks
+    vi.clearAllMocks();
+    configMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
+    await analyticsQueueServiceMock.initialize();
+    instance = new Processing(loggerMock, metricsMock, tracerMock, () => ({
+      analyticsService: Promise.resolve(analyticsServiceMock),
+      inboundTable: Promise.resolve(inboundDynamoMock),
+      dispatchQueue: dispatchQueueService.initialize(),
+    }));
   });
 
   it('should have the correct operationId', () => {
@@ -114,60 +106,94 @@ describe('Processing QueueHandler', () => {
     expect(instance.operationId).toBe('processing');
   });
 
-  it('should retrieve ExternalUserID for each message, update record in dynamo, and send message to dispatch queue.', async () => {
+  it('should publish analytics events', async () => {
     // Arrange
-    publishMessageBatch.mockResolvedValueOnce(undefined);
-    updateRecord.mockResolvedValueOnce(undefined);
-    publishMessage.mockResolvedValueOnce(undefined);
-
-    vi.mocked(toIMessageRecord).mockReturnValueOnce({
-      NotificationID: '1234',
-      ExternalUserID: 'OneSignal-1234',
-      ProcessedDateTime: '1768992347422',
-    });
+    configMock.getParameter.mockResolvedValue('');
+    dispatchQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(iocGetInboundDynamoRepository).toHaveBeenCalled();
-    expect(iocGetDispatchQueueService).toBeCalled();
-    expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
-    expect(publishMessageBatch).toHaveBeenNthCalledWith(1, [
-      {
-        ...mockMessageBody,
-        ExternalUserID: `OneSignal-${mockMessageBody.NotificationID}`,
-      },
-    ]);
-    expect(updateRecord).toHaveBeenCalledWith({
-      NotificationID: '1234',
-      ExternalUserID: 'OneSignal-1234',
-      ProcessedDateTime: '1768992347422',
-    });
-    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
+    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+      1,
+      [
+        {
+          DepartmentID: mockMessageBody.DepartmentID,
+          NotificationID: mockMessageBody.NotificationID,
+          UserID: mockMessageBody.UserID,
+        },
+      ],
+      'PROCESSING'
+    );
+    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+      2,
+      [
+        {
+          DepartmentID: mockMessageBody.DepartmentID,
+          MessageBody: mockMessageBody.MessageBody,
+          MessageTitle: mockMessageBody.MessageTitle,
+          NotificationBody: mockMessageBody.NotificationBody,
+          NotificationID: mockMessageBody.NotificationID,
+          NotificationTitle: mockMessageBody.NotificationTitle,
+          UserID: mockMessageBody.UserID,
+        },
+      ],
+      'PROCESSED'
+    );
   });
 
-  it('should handle if message are failed to be mapped to message record.', async () => {
+  it('should update data in the inbound message table', async () => {
     // Arrange
-    publishMessageBatch.mockResolvedValueOnce(undefined);
-    updateRecord.mockResolvedValueOnce(undefined);
-    publishMessage.mockResolvedValueOnce(undefined);
-    vi.mocked(toIMessageRecord).mockReturnValueOnce(undefined);
+    configMock.getParameter.mockResolvedValue('');
+    dispatchQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(iocGetInboundDynamoRepository).toHaveBeenCalled();
-    expect(iocGetDispatchQueueService).toBeCalled();
-    expect(iocGetAnalyticsQueueService).toHaveBeenCalled();
-    expect(publishMessageBatch).toHaveBeenNthCalledWith(1, [
-      {
-        ...mockMessageBody,
-        ExternalUserID: `OneSignal-${mockMessageBody.NotificationID}`,
-      },
-    ]);
-    expect(updateRecord).not.toHaveBeenCalled();
-    expect(publishMessage).toHaveBeenCalledWith('Test message body.');
+    expect(inboundDynamoMock.updateRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+        ExternalUserID: mockMessageBody.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+        ProcessedDateTime: expect.any(String),
+      })
+    );
+  });
+
+  it('should trigger analytics for failure events', async () => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    dispatchQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+
+    // Act
+    await instance.implementation(mockFailedEvent, mockContext);
+
+    // Assert
+    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+      1,
+      [
+        {
+          NotificationID: 'invalid-id',
+          UserID: 'invalid-id',
+          DepartmentID: 'invalid-id',
+        },
+      ],
+      'PROCESSING'
+    );
   });
 });

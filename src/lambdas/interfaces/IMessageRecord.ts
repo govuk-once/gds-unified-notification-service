@@ -1,18 +1,28 @@
 export interface IMessageRecord {
+  // IDs
   NotificationID: string;
-  UserID?: string;
+  DepartmentID: string;
+  UserID: string;
+
+  // External ids
+  TraceID?: string;
+  ExternalResponseID?: string;
+  OneSignalID?: string;
+  APIGWExtendedID?: string;
+  ExternalUserID?: string;
+
+  // Contents
+  NotificationTitle: string;
+  NotificationBody: string;
   MessageTitle?: string;
   MessageBody?: string;
-  NotificationTitle?: string;
-  NotificationBody?: string;
-  DepartmentID?: string;
+
+  // Events
   ReceivedDateTime?: string;
   ValidatedDateTime?: string;
   ProcessedDateTime?: string;
   DispatchedStartDateTime?: string;
   SentDateTime?: string;
-  ExternalResponseID?: string;
-  ExternalUserID?: string;
-  APIGWExtendedID?: string;
-  TraceID?: string;
+
+  // TODO: On adding 'rejection reason' field here
 }

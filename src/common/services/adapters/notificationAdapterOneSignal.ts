@@ -12,13 +12,15 @@ import * as axios from 'axios';
 interface OneSignalPushNotificationResponse {
   id: string;
   external_id: string;
-  errors: {
-    invalid_aliases: {
-      external_id: string[];
-      one_signal_id: string[];
-    };
-    invalid_player_ids: string[];
-  };
+  errors:
+    | {
+        invalid_aliases: {
+          external_id: string[];
+          one_signal_id: string[];
+        };
+        invalid_player_ids: string[];
+      }
+    | string[];
 }
 
 interface OnesignalPushNotificationErrorResponse {
@@ -69,6 +71,20 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
         include_aliases: { external_id: [request.ExternalUserID] },
       });
       this.logger.info(`Successfully sent notification using OneSignal adapter`, metadata);
+
+      // Detect hidden failures
+      if ((Array.isArray(result.data.errors) && result.data.errors.length > 0) || result.data.id == '') {
+        this.logger.error(`Failed to dispatch notification using OneSignal adapter - received 200 code`, {
+          ...metadata,
+          status: result.status,
+          response: result.data,
+        });
+        return {
+          notification: request,
+          success: false,
+          errors: result.data,
+        };
+      }
       return {
         notification: request,
         requestId: result.data.id,
