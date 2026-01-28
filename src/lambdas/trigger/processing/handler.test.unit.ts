@@ -113,13 +113,13 @@ describe('Processing QueueHandler', () => {
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
       1,
       [
         {
@@ -130,7 +130,7 @@ describe('Processing QueueHandler', () => {
       ],
       'PROCESSING'
     );
-    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
       2,
       [
         {
@@ -154,7 +154,7 @@ describe('Processing QueueHandler', () => {
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -177,14 +177,14 @@ describe('Processing QueueHandler', () => {
     dispatchQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockFailedEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
       1,
       [
         {

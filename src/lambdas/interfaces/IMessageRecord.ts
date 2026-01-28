@@ -23,6 +23,4 @@ export interface IMessageRecord {
   ProcessedDateTime?: string;
   DispatchedStartDateTime?: string;
   SentDateTime?: string;
-
-  // TODO: On adding 'rejection reason' field here
 }
