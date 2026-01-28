@@ -16,10 +16,11 @@ module "lambda_analytics" {
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
-  # TODO: Look into communication issues. Public and private caused timeouts 
-  #security_group_ids = [aws_security_group.public_sg.id]
-  #subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
+  # Place in private subnet
+  security_group_ids = [aws_security_group.public_sg.id]
+  subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
 
+  # Allow lambda to use iam elasticache user
   additional_policy_arns = {
     # Allow elasticache connection
     elasticache = aws_iam_policy.lambda_elch_policy.arn

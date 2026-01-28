@@ -1,78 +1,159 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
+import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { toIMessageRecord } from '@common/builders/toIMessageRecord';
 import {
-  iocGetAnalyticsQueueService,
+  HandlerDependencies,
+  initializeDependencies,
+  iocGetAnalyticsService,
   iocGetDispatchQueueService,
   iocGetInboundDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
   iocGetTracer,
 } from '@common/ioc';
+import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { InboundDynamoRepository } from '@common/repositories';
+import { AnalyticsService, DispatchQueueService } from '@common/services';
+import { groupValidation } from '@common/utils';
+import {
+  extractIdentifiers,
+  IIdentifieableMessageSchema,
+  IMessage,
+  IMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 
+/**
+ * 
+ * Lambda handling processing of validated messages
+ * - Validates input 
+ * - Performs a user ID look up
+ * - Fires analytics events: PROCESSING, PROCESSED, PROCESSING_FAILED
+ * - Pushes valid messages into dispatch queue
+ * 
+ * Sample event:
+{
+  "Records": [
+    {
+      "messageId": "mockMessageId",
+      "receiptHandle": "mockReceiptHandle",
+      "body": "{\"NotificationID\":\"1234\",\"DepartmentID\":\"DEP01\",\"UserID\":\"UserID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "2",
+        "SentTimestamp": "202601021513",
+        "SenderId": "mockSenderId",
+        "ApproximateFirstReceiveTimestamp": "202601021513"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "{{{md5_of_body}}}",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
+ */
 export class Processing extends QueueHandler<IMessage, void> {
   public operationId: string = 'processing';
 
-  constructor(logger: Logger, metrics: Metrics, tracer: Tracer) {
+  public analyticsService: AnalyticsService;
+  public inboundTable: InboundDynamoRepository;
+  public dispatchQueue: DispatchQueueService;
+
+  constructor(
+    logger: Logger,
+    metrics: Metrics,
+    tracer: Tracer,
+    public asyncDependencies?: () => HandlerDependencies<Processing>
+  ) {
     super(logger, metrics, tracer);
   }
 
+  public async initialize() {
+    await initializeDependencies(this, this.asyncDependencies);
+  }
+
   public async implementation(event: QueueEvent<IMessage>, context: Context) {
-    this.logger.info('Received request.');
+    await this.initialize();
 
-    // ioc
-    const dispatchQueue = await iocGetDispatchQueueService();
-    const messageRecordTable = await iocGetInboundDynamoRepository();
-    const analyticsQueue = await iocGetAnalyticsQueueService();
+    // Trigger received notification events
+    const [, identifiableRecords] = groupValidation(
+      event.Records,
+      SqsRecordSchema.extend({
+        body: IIdentifieableMessageSchema,
+      })
+    );
+    this.logger.info(`Identifiable records`, { identifiableRecords });
+    await this.analyticsService.publishMultipleEvents(
+      identifiableRecords.map(({ valid }) => valid.body),
+      ValidationEnum.PROCESSING
+    );
 
-    // (MOCK) Getting the OneSignalID from UDP
-    const processedMessages = event.Records.map((x) => {
-      const processedMessage: IProcessedMessage = {
-        ...x.body,
-        ExternalUserID: `OneSignal-${x.body.NotificationID}`,
-      };
-      return processedMessage;
-    });
+    // Validate Incoming messages
+    const [_, validRecords, invalidRecords] = groupValidation(
+      event.Records,
+      SqsRecordSchema.extend({ body: IMessageSchema })
+    );
+    this.logger.info(`Validation results`, { valid: validRecords.length, invalid: invalidRecords.length });
 
-    // TODO: Will need to handle failed requests
+    // (MOCK) Getting the OneSignalID from UDP - For now we just map UserID to ExternalUserID 1:1
+    const processedMessages = validRecords.map(({ valid: { body } }) => ({
+      ...body,
+      ExternalUserID: `${body.UserID}`,
+    }));
 
-    // Store success entries
-    const messageRecords: IMessageRecord[] = [];
-    for (const message of processedMessages) {
-      const record = toIMessageRecord(
-        {
-          recordFields: {
-            NotificationID: message.NotificationID,
-            ExternalUserID: message.ExternalUserID,
-          },
-          processedDateTime: new Date(),
-        },
-        this.logger
-      );
+    // Update stored rows in inbound message
+    for (const processed of processedMessages) {
+      this.logger.info(`Updating entry with timestamp`, {
+        NotificationID: processed.NotificationID,
+        DepartmentID: processed.DepartmentID,
+      });
 
-      if (record) {
-        messageRecords.push(record);
-      }
+      // Store External User ID and mark record as processed
+      await this.inboundTable.updateRecord<Partial<IMessageRecord>>({
+        ...extractIdentifiers(processed),
+        ExternalUserID: processed.ExternalUserID,
+        ProcessedDateTime: new Date().toISOString(),
+      });
     }
 
-    // Requeue processed messages to the dispatch queue
-    this.logger.info('Publishing processed messages to dispatch queue.');
-    await dispatchQueue.publishMessageBatch(processedMessages);
+    // Mark messages as processed
+    await this.analyticsService.publishMultipleEvents(
+      validRecords.map(({ valid }) => valid.body),
+      ValidationEnum.PROCESSED
+    );
 
-    // Update record of message in Dynamodb
-    this.logger.info('Updating record of processed messages that have been passed to queue.');
-    await Promise.all(messageRecords.map((record) => messageRecordTable.updateRecord(record)));
+    // Push processed messages to Dispatch queue
+    await this.dispatchQueue.publishMessageBatch(processedMessages);
 
-    // (MOCK) Send event to events queue
-    await analyticsQueue.publishMessage('Test message body.');
-    this.logger.info('Completed request.');
+    // Store Analytics for failed parses - if they have notificationID
+    for (const { raw, errors } of invalidRecords) {
+      const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
+      // Log invalid entries
+      if (NotificationID == undefined || DepartmentID == undefined) {
+        this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
+          raw,
+          errors,
+        });
+        continue;
+      }
+      await this.analyticsService.publishEvent(
+        {
+          NotificationID: NotificationID,
+          DepartmentID: DepartmentID,
+        },
+        ValidationEnum.PROCESSING_FAILED,
+        errors
+      );
+    }
   }
 }
 
-export const handler = new Processing(iocGetLogger(), iocGetMetrics(), iocGetTracer()).handler();
+export const handler = new Processing(iocGetLogger(), iocGetMetrics(), iocGetTracer(), () => ({
+  analyticsService: iocGetAnalyticsService(),
+  inboundTable: iocGetInboundDynamoRepository(),
+  dispatchQueue: iocGetDispatchQueueService(),
+})).handler();

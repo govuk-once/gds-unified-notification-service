@@ -5,7 +5,7 @@ import {
   APIHandler,
   HandlerDependencies,
   initializeDependencies,
-  iocGetAnalyticsQueueService,
+  iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetLogger,
@@ -16,24 +16,54 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { toIMessageRecord } from '@common/builders/toIMessageRecord';
+import { ValidationEnum } from '@common/models/ValidationEnum';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsQueueService, ConfigurationService, ProcessingQueueService } from '@common/services';
-import { groupValidation } from '@common/utils/zod';
+import { AnalyticsService, ConfigurationService, ProcessingQueueService } from '@common/services';
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema);
-const responseBodySchema = z.array(z.object({ NotificationID: z.string() }));
+const requestBodySchema = z.array(IMessageSchema).min(1);
+const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
+
+/**
+ * Lambda handling incoming messages from a api request
+ * - Validates input against zod schema
+ *   - Stores messages into inbound dynamodb
+ * - Fires analytics events
+ * - Pushes messages into processing queue
+ * 
+ * Sample event:
+{
+  "Records": [
+    {
+      "body": [{
+        NotificationID: '1234',
+        DepartmentID: 'DEP01',
+        UserID: 'UserID',
+        MessageTitle: 'You have a new Message',
+        MessageBody: 'Open Notification Centre to read your notifications',
+        NotificationTitle: 'You have a new Notification',
+        NotificationBody: 'Here is the Notification body.',
+      }],
+      headers: {
+        'x-api-key': 'mockApiKey',
+      },
+      requestContext: {
+        requestTimeEpoch: 1428582896000,
+      },
+    }
+  ]
+}
+ */
 
 export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'postMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public analyticsQueue: AnalyticsQueueService;
+  public analyticsService: AnalyticsService;
   public inboundTable: InboundDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
@@ -59,75 +89,40 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
     // MOCK authorizing request
     const apiKey = await this.config.getParameter(StringParameters.Api.PostMessage.ApiKey);
-    if (event.requestContext.identity.apiKey !== apiKey) {
-      throw new Error('Unauthorized');
+    if (event.headers['x-api-key'] !== apiKey) {
+      return {
+        body: {},
+        statusCode: 401,
+      };
     }
 
     // Initialize services
     await this.initialize();
 
-    const [, validRecords, invalidRecords] = groupValidation(event.body, IMessageSchema);
+    const eventBody = event.body;
 
-    // Store success entries
-    const messageRecords: IMessageRecord[] = [];
-    for (const data of validRecords) {
-      const inboundRecord = toIMessageRecord(
-        {
-          recordFields: data.valid,
-          receivedDateTime: new Date(event.requestContext.requestTimeEpoch),
-          validatedDateTime: new Date(),
-        },
-        this.logger
-      );
-
-      if (inboundRecord) {
-        messageRecords.push(inboundRecord);
-      }
-    }
-
-    // Store failed entries
-    const partialMessageRecords: IMessageRecord[] = [];
-    for (const data of invalidRecords) {
-      if (data == undefined) {
-        continue;
-      }
-
-      const inboundRecord = toIMessageRecord(
-        {
-          recordFields: data.raw,
-          receivedDateTime: new Date(event.requestContext.requestTimeEpoch),
-        },
-        this.logger
-      );
-
-      if (inboundRecord) {
-        partialMessageRecords.push(inboundRecord);
-      }
-    }
+    // Publish analytics & push items to the processing queue
+    await this.analyticsService.publishMultipleEvents(eventBody, ValidationEnum.VALIDATED_API_CALL);
 
     // Requeue messages which passed validation to next stage
-    const messagesToPass = validRecords.map((data) => data.valid);
-    if (messagesToPass.length > 0) {
-      this.logger.trace('Requeuing validated message to process queue');
-      await this.processingQueue.publishMessageBatch(messagesToPass);
-    }
+    this.logger.trace('Requeuing validated message to process queue');
+    await this.processingQueue.publishMessageBatch(eventBody);
 
     // Create a record of message in Dynamodb
-    if (messageRecords.length > 0) {
-      this.logger.trace('Creating record of validated messages that have been passed to queue.');
-      await this.inboundTable.createRecordBatch(messageRecords);
-    }
-
-    if (partialMessageRecords.length > 0) {
-      this.logger.trace('Creating record of messages that failed validation.');
-      await this.inboundTable.createRecordBatch(partialMessageRecords);
-    }
-
-    this.logger.trace('Completed request');
+    this.logger.trace('Creating record of validated messages that have been passed to queue.');
+    await this.inboundTable.createRecordBatch(
+      eventBody.map(
+        (body): IMessageRecord => ({
+          ...body,
+          ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+          ValidatedDateTime: new Date().toISOString(),
+        })
+      )
+    );
 
     // Return placeholder status
     return {
-      body: messagesToPass.map((x) => {
+      body: event.body.map((x) => {
         return {
           NotificationID: x.NotificationID,
         };
@@ -143,7 +138,7 @@ export const handler = new PostMessage(
   iocGetMetrics(),
   iocGetTracer(),
   () => ({
-    analyticsService: iocGetAnalyticsQueueService(),
+    analyticsService: iocGetAnalyticsService(),
     inboundTable: iocGetInboundDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })

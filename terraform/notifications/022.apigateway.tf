@@ -19,7 +19,7 @@ module "api_gateway_main" {
       lambda_invoke_arn    = module.lambda_getHealthcheck.lambda_invoke_arn
     },
     "postMessage" = {
-      path                 = "status"
+      path                 = "send"
       method               = "POST"
       lambda_function_name = module.lambda_postMessage.lambda_function_name
       lambda_invoke_arn    = module.lambda_postMessage.lambda_invoke_arn

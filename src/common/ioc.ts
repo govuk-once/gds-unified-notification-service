@@ -2,9 +2,10 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { InboundDynamoRepository, EventsDynamoRepository } from '@common/repositories';
+import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
 import {
   AnalyticsQueueService,
+  AnalyticsService,
   CacheService,
   ConfigurationService,
   DispatchQueueService,
@@ -28,7 +29,6 @@ export const iocGetMetrics = () =>
     serviceName: process.env.SERVICE_NAME ?? 'undefined',
     defaultDimensions: {},
   });
-
 // Services
 export const iocGetConfigurationService = () =>
   new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
@@ -71,7 +71,20 @@ export const iocGetEventsDynamoRepository = async () =>
   ).initialize();
 
 export const iocGetNotificationService = () =>
-  new NotificationService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), iocGetConfigurationService());
+  new NotificationService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), iocGetConfigurationService()).initialize();
+
+export const iocGetAnalyticsQueue = async () => {
+  return await new AnalyticsQueueService(
+    iocGetConfigurationService(),
+    iocGetLogger(),
+    iocGetMetrics(),
+    iocGetTracer()
+  ).initialize();
+};
+
+export const iocGetAnalyticsService = async () => {
+  return new AnalyticsService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), await iocGetAnalyticsQueue());
+};
 
 export const initializeDependencies = async <ClassInstance extends object, ClassProperty extends keyof ClassInstance>(
   target: ClassInstance,
