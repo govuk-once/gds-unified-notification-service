@@ -84,7 +84,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       );
 
       this.logger.info(`Identifiable records`, { identifiableRecords });
-      await this.analyticsService.publishEvents(
+      await this.analyticsService.publishMultipleEvents(
         identifiableRecords.map(({ valid }) => valid.body),
         ValidationEnum.DISPATCHING
       );

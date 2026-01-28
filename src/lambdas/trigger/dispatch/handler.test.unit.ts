@@ -101,7 +101,7 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     configMock.getParameter.mockResolvedValue('');
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
@@ -112,7 +112,7 @@ describe('Dispatch QueueHandler', () => {
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvents).toHaveBeenCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           DepartmentID: mockMessageBody.DepartmentID,
@@ -136,7 +136,7 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     configMock.getParameter.mockResolvedValue('');
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
@@ -159,7 +159,7 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     configMock.getParameter.mockResolvedValue('');
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
@@ -182,7 +182,7 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     configMock.getParameter.mockResolvedValue('');
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     notificationServiceMock.send.mockResolvedValue({
       success: false,

@@ -86,7 +86,7 @@ export class Validation extends QueueHandler<IMessage> {
       })
     );
     this.logger.info(`Identifiable records`, { identifiableRecords });
-    await this.analyticsService.publishEvents(
+    await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
       ValidationEnum.VALIDATING
     );
@@ -111,7 +111,7 @@ export class Validation extends QueueHandler<IMessage> {
       );
 
       // Publish analytics & push items to the processing queue
-      await this.analyticsService.publishEvents(
+      await this.analyticsService.publishMultipleEvents(
         validRecords.map(({ valid }) => valid.body),
         ValidationEnum.VALIDATED
       );

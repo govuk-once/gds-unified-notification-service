@@ -30,7 +30,7 @@ export class AnalyticsService {
     };
   }
 
-  public async publishEvents<T>(events: AnalyticsEventFromIMessage[], status: ValidationEnum, reasons?: T[]) {
+  public async publishMultipleEvents<T>(events: AnalyticsEventFromIMessage[], status: ValidationEnum, reasons?: T[]) {
     // Ignore empty arrays
     if (events.length == 0) {
       return;

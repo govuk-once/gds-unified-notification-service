@@ -22,7 +22,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-const sqsMock = mockClient(SQSClient);
+mockClient(SQSClient);
 
 describe('Validation QueueHandler', () => {
   let instance: Validation;
@@ -114,13 +114,13 @@ describe('Validation QueueHandler', () => {
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvents).toHaveBeenCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           DepartmentID: mockMessageBody.DepartmentID,
@@ -130,7 +130,7 @@ describe('Validation QueueHandler', () => {
       ],
       'VALIDATING'
     );
-    expect(analyticsServiceMock.publishEvents).toHaveBeenCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           DepartmentID: mockMessageBody.DepartmentID,
@@ -153,7 +153,7 @@ describe('Validation QueueHandler', () => {
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -169,7 +169,7 @@ describe('Validation QueueHandler', () => {
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -190,14 +190,14 @@ describe('Validation QueueHandler', () => {
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
     // Act
     await instance.implementation(mockFailedEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvents).toHaveBeenNthCalledWith(
+    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
       1,
       [
         {
