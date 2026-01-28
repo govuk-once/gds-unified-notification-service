@@ -42,9 +42,10 @@ export class CacheService {
   }
 
   async connect() {
-    const cacheName = (await this.config.getParameter('config/common/cache/name')) ?? '';
-    const cacheHost = (await this.config.getParameter('config/common/cache/host')) ?? '';
-    const cacheUser = (await this.config.getParameter('config/common/cache/user')) ?? '';
+    const cacheName = await this.config.getParameter('config/common/cache/name');
+    const cacheHost = await this.config.getParameter('config/common/cache/host');
+    const cacheUser = await this.config.getParameter('config/common/cache/user');
+
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),
       username: cacheUser,

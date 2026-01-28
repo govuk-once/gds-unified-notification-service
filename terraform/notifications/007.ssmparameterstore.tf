@@ -36,10 +36,10 @@ module "parameter_store_external_configuration" {
   update_values = false
 
   parameters = {
-    "config/common/enabled"   = "true"
-    "config/ingest/enabled"   = "true"
-    "config/process/enabled"  = "true"
-    "config/dispatch/enabled" = "true"
+    "config/common/enabled"     = "true"
+    "config/validation/enabled" = "true"
+    "config/processing/enabled" = "true"
+    "config/dispatch/enabled"   = "true"
 
     "config/dispatch/adapter" = "VOID" # Enum: VOID, OneSignal
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"

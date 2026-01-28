@@ -17,18 +17,8 @@ export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> 
   }
 
   async initialize() {
-    const tableName = await this.config.getParameter(StringParameters.Table.Inbound.Name);
-    const tableKey = await this.config.getParameter(StringParameters.Table.Inbound.Key);
-
-    if (tableName == undefined) {
-      throw new Error('Failed to fetch table name');
-    }
-    if (tableKey == undefined) {
-      throw new Error('Failed to fetch table key');
-    }
-
-    this.tableName = tableName;
-    this.tableKey = tableKey;
+    this.tableName = await this.config.getParameter(StringParameters.Table.Inbound.Name);
+    this.tableKey = await this.config.getParameter(StringParameters.Table.Inbound.Key);
     await super.initialize();
     return this;
   }

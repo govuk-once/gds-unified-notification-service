@@ -18,7 +18,7 @@ export class ConfigurationService {
     // this.tracer.captureAWSv3Client(this.client);
   }
 
-  public async getParameter(namespace: string): Promise<string | undefined> {
+  public async getParameter(namespace: string): Promise<string> {
     this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
@@ -32,7 +32,10 @@ export class ConfigurationService {
       const data = await this.client.send(command);
 
       this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
-      return data.Parameter?.Value;
+      if (data.Parameter?.Value) {
+        return data.Parameter?.Value;
+      }
+      throw new Error('Returned parameter has no value');
     } catch (error) {
       this.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
       throw error;
@@ -92,5 +95,13 @@ export class ConfigurationService {
 
     // Return cast value enum
     return result.data as z.infer<T>;
+  }
+
+  public async ensureServiceIsEnabled(...keys: string[]) {
+    for (const key of keys) {
+      if ((await this.getBooleanParameter(key)) !== true) {
+        throw new Error(`Function disabled due to ${keys.join(' or ')} SSM param being toggled off`);
+      }
+    }
   }
 }

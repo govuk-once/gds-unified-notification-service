@@ -27,6 +27,9 @@ export abstract class QueueService<InputType> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {
+    if (this.sqsQueueUrl == undefined) {
+      throw new Error('Failed to fetch queueUrl');
+    }
     this.client = new SQSClient({ region: 'eu-west-2' });
     return this;
   }

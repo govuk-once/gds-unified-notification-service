@@ -16,11 +16,7 @@ export class AnalyticsQueueService extends QueueService<unknown> {
   }
 
   async initialize() {
-    const queueUrl = await this.config.getParameter(StringParameters.Queue.Analytics.Url);
-    if (queueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
-    }
-    this.sqsQueueUrl = queueUrl;
+    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Analytics.Url);
     await super.initialize();
 
     this.logger.info('Analytics Queue Service Initialised.');
