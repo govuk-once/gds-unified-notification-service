@@ -1,4 +1,14 @@
-import { APIHandler, type ITypedRequestEvent, type ITypedRequestResponse } from '@common';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Tracer } from '@aws-lambda-powertools/tracer';
+import {
+  APIHandler,
+  iocGetLogger,
+  iocGetMetrics,
+  iocGetTracer,
+  type ITypedRequestEvent,
+  type ITypedRequestResponse,
+} from '@common';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
@@ -10,8 +20,8 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  constructor() {
-    super();
+  constructor(logger: Logger, metrics: Metrics, tracer: Tracer) {
+    super(logger, metrics, tracer);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -31,4 +41,4 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   }
 }
 
-export const handler = new GetHealthcheck().handler();
+export const handler = new GetHealthcheck(iocGetLogger(), iocGetMetrics(), iocGetTracer()).handler();

@@ -7,6 +7,11 @@ export const BoolParameters = {
 } as const;
 
 export const StringParameters = {
+  Api: {
+    PostMessage: {
+      ApiKey: 'api/postmessage/apikey',
+    },
+  },
   Config: {
     Cache: {
       Host: 'config/common/cache/host',

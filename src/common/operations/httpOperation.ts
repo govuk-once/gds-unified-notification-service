@@ -4,7 +4,6 @@ import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
-import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 import {
   type IMiddleware,
   type IRequestEvent,
@@ -35,11 +34,11 @@ export abstract class APIHandler<
   public abstract requestBodySchema: InputSchema;
   public abstract responseBodySchema: OutputSchema;
 
-  public logger: Logger = iocGetLogger();
-  public metrics: Metrics = iocGetMetrics();
-  public tracer: Tracer = iocGetTracer();
-
-  constructor() {}
+  constructor(
+    protected logger: Logger,
+    protected metrics: Metrics,
+    protected tracer: Tracer
+  ) {}
 
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,

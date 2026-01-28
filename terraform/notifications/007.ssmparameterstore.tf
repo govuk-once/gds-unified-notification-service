@@ -46,5 +46,7 @@ module "parameter_store_external_configuration" {
     "config/dispatch/onesignal/apikey" = "placeholder"
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "config/dispatch/onesignal/appId" = "placeholder"
+
+    "api/postmessage/apikey" = "mockApiKey"
   }
 }
