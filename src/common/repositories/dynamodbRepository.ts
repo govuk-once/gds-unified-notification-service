@@ -23,6 +23,12 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {
+    if (this.tableName == undefined) {
+      throw new Error('Failed to fetch table name');
+    }
+    if (this.tableKey == undefined) {
+      throw new Error('Failed to fetch table key');
+    }
     const client = new DynamoDB({
       region: 'eu-west-2',
     });

@@ -17,11 +17,7 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   }
 
   async initialize() {
-    const queueUrl = await this.config.getParameter(StringParameters.Queue.Dispatch.Url);
-    if (queueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
-    }
-    this.sqsQueueUrl = queueUrl;
+    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Dispatch.Url);
     await super.initialize();
 
     this.logger.info('Dispatch Queue Service Initialised.');

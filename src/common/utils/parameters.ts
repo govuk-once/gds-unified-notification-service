@@ -3,6 +3,15 @@ export const BoolParameters = {
     Common: {
       Enabled: 'config/common/enabled',
     },
+    Validation: {
+      Enabled: 'config/validation/enabled',
+    },
+    Processing: {
+      Enabled: 'config/processing/enabled',
+    },
+    Dispatch: {
+      Enabled: 'config/dispatch/enabled',
+    },
   },
 } as const;
 

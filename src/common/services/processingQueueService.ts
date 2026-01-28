@@ -17,11 +17,7 @@ export class ProcessingQueueService extends QueueService<IMessage> {
   }
 
   async initialize() {
-    const queueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
-    if (queueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
-    }
-    this.sqsQueueUrl = queueUrl;
+    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
     await super.initialize();
 
     this.logger.info('Processing Queue Service Initialised.');
