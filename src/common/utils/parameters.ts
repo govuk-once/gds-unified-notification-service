@@ -7,14 +7,16 @@ export const BoolParameters = {
 } as const;
 
 export const StringParameters = {
-  Table: {
-    Events: {
-      Name: 'table/events/name',
-      Key: 'table/events/key',
+  Api: {
+    PostMessage: {
+      ApiKey: 'api/postmessage/apikey',
     },
-    Inbound: {
-      Name: 'table/inbound/name',
-      Key: 'table/inbound/key',
+  },
+  Config: {
+    Cache: {
+      Host: 'config/common/cache/host',
+      Name: 'config/common/cache/name',
+      User: 'config/common/cache/user',
     },
   },
   Queue: {
@@ -29,6 +31,16 @@ export const StringParameters = {
     },
     Processing: {
       Url: 'queue/processing/url',
+    },
+  },
+  Table: {
+    Events: {
+      Key: 'table/events/key',
+      Name: 'table/events/name',
+    },
+    Inbound: {
+      Key: 'table/inbound/key',
+      Name: 'table/inbound/name',
     },
   },
 } as const;

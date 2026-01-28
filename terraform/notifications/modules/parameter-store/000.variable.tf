@@ -13,3 +13,9 @@ variable "parameters" {
   type        = map(string)
   default     = {}
 }
+
+variable "update_values" {
+  description = "whether SSM parameter store should update values in place"
+  type        = bool
+  default     = false
+}

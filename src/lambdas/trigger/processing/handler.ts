@@ -1,46 +1,78 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { iocGetConfigurationService, iocGetLogger, iocGetMetrics, iocGetQueueService, iocGetTracer } from '@common/ioc';
+import { toIMessageRecord } from '@common/builders/toIMessageRecord';
+import {
+  iocGetAnalyticsQueueService,
+  iocGetDispatchQueueService,
+  iocGetInboundDynamoRepository,
+  iocGetLogger,
+  iocGetMetrics,
+  iocGetTracer,
+} from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { Configuration } from '@common/services/configuration';
-import { StringParameters } from '@common/utils/parameters';
+import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
+import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 
-export class Processing extends QueueHandler<unknown, void> {
+export class Processing extends QueueHandler<IMessage, void> {
   public operationId: string = 'processing';
 
-  constructor(
-    protected config: Configuration,
-    logger: Logger,
-    metrics: Metrics,
-    tracer: Tracer
-  ) {
+  constructor(logger: Logger, metrics: Metrics, tracer: Tracer) {
     super(logger, metrics, tracer);
   }
 
-  public async implementation(event: QueueEvent<string>, context: Context) {
+  public async implementation(event: QueueEvent<IMessage>, context: Context) {
     this.logger.info('Received request.');
 
-    // (MOCK) Send processed message to completed queue
-    const dispatchQueueUrl = (await this.config.getParameter(StringParameters.Queue.Dispatch.Url)) ?? '';
+    // ioc
+    const dispatchQueue = await iocGetDispatchQueueService();
+    const messageRecordTable = await iocGetInboundDynamoRepository();
+    const analyticsQueue = await iocGetAnalyticsQueueService();
 
-    const dispatchQueue = iocGetQueueService(dispatchQueueUrl);
-    await dispatchQueue.publishMessage('Test message body.');
+    // (MOCK) Getting the OneSignalID from UDP
+    const processedMessages = event.Records.map((x) => {
+      const processedMessage: IProcessedMessage = {
+        ...x.body,
+        ExternalUserID: `OneSignal-${x.body.NotificationID}`,
+      };
+      return processedMessage;
+    });
+
+    // TODO: Will need to handle failed requests
+
+    // Store success entries
+    const messageRecords: IMessageRecord[] = [];
+    for (const message of processedMessages) {
+      const record = toIMessageRecord(
+        {
+          recordFields: {
+            NotificationID: message.NotificationID,
+            ExternalUserID: message.ExternalUserID,
+          },
+          processedDateTime: new Date(),
+        },
+        this.logger
+      );
+
+      if (record) {
+        messageRecords.push(record);
+      }
+    }
+
+    // Requeue processed messages to the dispatch queue
+    this.logger.info('Publishing processed messages to dispatch queue.');
+    await dispatchQueue.publishMessageBatch(processedMessages);
+
+    // Update record of message in Dynamodb
+    this.logger.info('Updating record of processed messages that have been passed to queue.');
+    await Promise.all(messageRecords.map((record) => messageRecordTable.updateRecord(record)));
 
     // (MOCK) Send event to events queue
-    const analyticsQueueUrl = (await this.config.getParameter(StringParameters.Queue.Analytics.Url)) ?? '';
-
-    const analyticsQueue = iocGetQueueService(analyticsQueueUrl);
     await analyticsQueue.publishMessage('Test message body.');
-
     this.logger.info('Completed request.');
   }
 }
 
-export const handler = new Processing(
-  iocGetConfigurationService(),
-  iocGetLogger(),
-  iocGetMetrics(),
-  iocGetTracer()
-).handler();
+export const handler = new Processing(iocGetLogger(), iocGetMetrics(), iocGetTracer()).handler();

@@ -1,10 +1,9 @@
 import type { Logger } from '@aws-lambda-powertools/logger';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import type { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
-import { iocGetLogger, iocGetMetrics, iocGetTracer } from '@common/ioc';
 import {
   type IMiddleware,
   type IRequestEvent,
@@ -21,7 +20,7 @@ import httpEventNormalizer from '@middy/http-event-normalizer';
 import httpHeaderNormalizer from '@middy/http-header-normalizer';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
 import type { ALBEvent, APIGatewayEvent, APIGatewayProxyEventV2, Context } from 'aws-lambda';
-import type { ZodType, z } from 'zod';
+import type { z, ZodType } from 'zod';
 
 export type RequestEvent = APIGatewayEvent | APIGatewayProxyEventV2 | ALBEvent;
 
@@ -106,6 +105,7 @@ export abstract class APIHandler<
 
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
+    this.metrics.addMetric('triggers', MetricUnit.Count, 1);
     return this.middlewares(middy()).handler(async (event, context) => {
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,

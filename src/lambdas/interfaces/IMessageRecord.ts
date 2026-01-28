@@ -6,13 +6,13 @@ export interface IMessageRecord {
   NotificationTitle?: string;
   NotificationBody?: string;
   DepartmentID?: string;
-  ReceivedDateTime?: string;
-  ValidatedDateTime?: string;
-  ProcessedDateTime?: string;
-  DispatchedStartDateTime?: string;
-  SentDateTime?: string;
-  OneSignalResponseID?: string;
-  OneSignalID?: string;
+  ReceivedDateTime?: Date;
+  ValidatedDateTime?: Date;
+  ProcessedDateTime?: Date;
+  DispatchedStartDateTime?: Date;
+  SentDateTime?: Date;
+  ExternalResponseID?: string;
+  ExternalUserID?: string;
   APIGWExtendedID?: string;
   TraceID?: string;
 }

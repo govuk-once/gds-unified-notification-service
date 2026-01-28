@@ -15,44 +15,44 @@ jobs:
     timeout-minutes: 60
     steps:
       # Setup
-      - name: Checkout Code
+      - name: ⚙️ Checkout Code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
-      - name: Setup Terraform
+      - name: ⚙️ Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version-file: '.node-version'
 
-      - name: Install Dependencies
+      - name: ⚙️ Install Dependencies
         run: npm ci
 
+      - name: ⚙️ Validate Typescript
+        run: npm run build:validate
+
       # Formatting
-      - name: Run Lint Script
+      - name: 📝 Run Lint
         run: npm run lint
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
-
-      - name: Terraform naming convention lint
+      - name: 📝 Terraform naming convention lint
         run: npm run development:organize:tf -- --dry-run
 
       - name: Terraform init (no backend)
         working-directory: ./terraform/notifications
         run: terraform init -backend=false
 
-      - name: Terraform Formatting
+      - name: 📝 Terraform Formatting
         working-directory: ./terraform/notifications
         run: terraform fmt -check -diff -recursive
 
-      - name: Terraform validate
+      - name: 📝 Terraform validate
         working-directory: ./terraform/notifications
         run: terraform validate
 
       # Testing
-      - name: Run Unit tests
+      - name: 🧪 Run Unit tests
         id: unittests
         run: |
           echo "Test results:" > coverage.md
@@ -67,7 +67,7 @@ jobs:
           cat coverage.md >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
-      - name: Create Comment with Test results
+      - name: 🧪 Create Comment with Test results
         uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -78,11 +78,11 @@ jobs:
           recreate: true
 
       # Security scans - Always executed even if the formatting or tests fail
-      - name: TF Sec
+      - name: 🔐 TF Sec
         if: success() || failure()
         uses: aquasecurity/tfsec-action@a73ebc46fba54691e25cbe901656e7b205fb9bf2 # v1.0.0
 
-      - name: Checkov GitHub Action
+      - name: 🔐 Checkov GitHub Action
         if: success() || failure()
         uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
         with:
@@ -90,7 +90,7 @@ jobs:
           output_file_path: console,results.sarif
           soft_fail: true
 
-      - name: Upload SARIF file
+      - name: ⚙️ Upload SARIF file
         uses: github/codeql-action/upload-sarif@cdefb33c0f6224e58673d9004f47f7cb3e328b89 # v4
         if: success() || failure()
         with:

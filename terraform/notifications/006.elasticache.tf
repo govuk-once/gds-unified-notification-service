@@ -1,3 +1,8 @@
+# There's a bug with the terraform provider - updating a tag on the Elasticache user causes timeout
+# Striping version tag from this resource avoids frequent updates, if issue is observed again - we may need to exclude tags from this resource
+# Closest GH Issue https://github.com/hashicorp/terraform-provider-aws/issues/41962
+# Error: Provider produced inconsistent result after apply - When applying changes to aws_elasticache_serverless_cache.this, provider "provider[\"registry.terraform.io/hashicorp/aws\"]" produced an unexpected new value: .status: was cty.StringVal("available"), but now cty.StringVal("modifying"). This is a bug in the provider, which should be reported in the provider's own issue tracker.
+
 # Authenticate using IAM
 resource "aws_elasticache_user" "this" {
   user_id       = replace(join("-", [local.prefix, "iam"]), "-", "")
@@ -7,7 +12,9 @@ resource "aws_elasticache_user" "this" {
   authentication_mode {
     type = "iam"
   }
-  tags = merge(local.defaultTags, {})
+
+  # Bug workaround, read more at top of the file
+  tags = { for k, v in merge(local.defaultTags, {}) : k => v if k != "version" }
 }
 
 # Create user group

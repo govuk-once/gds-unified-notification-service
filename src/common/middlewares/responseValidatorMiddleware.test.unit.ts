@@ -9,6 +9,7 @@ describe('responseValidatorMiddleware', () => {
     a: z.number(),
     b: z.string(),
   });
+
   const instance = responseValidatorMiddleware(schema);
 
   it('should do nothing if schema is not supplied', async () => {
