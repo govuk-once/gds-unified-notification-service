@@ -33,7 +33,7 @@ export const iocGetMetrics = () =>
 export const iocGetConfigurationService = () =>
   new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
 
-export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
+export const iocGetCacheService = () => new CacheService(iocGetConfigurationService(), iocGetLogger());
 export const iocGetProcessingQueueService = async () =>
   await new ProcessingQueueService(
     iocGetConfigurationService(),

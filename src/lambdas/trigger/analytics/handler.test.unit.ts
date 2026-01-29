@@ -28,7 +28,7 @@ describe('Analytics QueueHandler', () => {
   const mockDynamoRepo = vi.mocked(
     new EventsDynamoRepository(mockConfigurationService, loggerMock, metricsMock, tracerMock)
   );
-  const mockCacheService = vi.mocked(new CacheService(mockConfigurationService));
+  const mockCacheService = vi.mocked(new CacheService(mockConfigurationService, loggerMock));
 
   let instance: Analytics;
   let mockContext: Context;

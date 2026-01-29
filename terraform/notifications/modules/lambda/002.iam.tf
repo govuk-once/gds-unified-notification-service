@@ -86,7 +86,8 @@ resource "aws_iam_role_policy_attachment" "core_policies" {
     # Allow lambdas to consume messages - if there's a trigger queue provided
     var.trigger_queue_arn != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"] : [],
     # Allow lambdas to connect to VPCs - if there's subnet ids provided
-    var.security_group_ids != null && var.subnet_ids != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"] : []
+    var.security_group_ids != null && var.subnet_ids != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"] : [],
+    var.security_group_ids != null && var.subnet_ids != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaENIManagementAccess"] : [],
   ]) : policy => policy }
   role       = aws_iam_role.lambda.name
   policy_arn = each.key

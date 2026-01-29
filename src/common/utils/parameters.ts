@@ -48,3 +48,11 @@ export const StringParameters = {
     },
   },
 } as const;
+
+export const NumericParameters = {
+  Config: {
+    Dispatch: {
+      NotificationsProviderRateLimitPerMinute: 'config/common/cache/notificationsProviderRateLimitPerMinute',
+    },
+  },
+} as const;

@@ -1,4 +1,4 @@
-
+// TODO: Split this file into smaller subsections, vpc, subnets, routes, security groups, private links - potentially offload it all into module
 # Subnet config
 locals {
   // Subnets start at 10.0.2.0, 10.0.3.0, 10.0.4.0 .... etc
@@ -40,10 +40,35 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
 
+resource "aws_eip" "main" {
+  for_each = toset(local.availability_zones)
+  domain   = "vpc"
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "eip", "main", each.key])
+  })
+}
+
+resource "aws_nat_gateway" "public" {
+  for_each = toset(local.availability_zones)
+
+  allocation_id = aws_eip.main[each.key].id
+  subnet_id     = aws_subnet.public[each.key].id
+
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "ng", "main"])
+  })
+
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.main]
+}
+
 # Setting up route tables
 resource "aws_route_table" "public" {
+  for_each = toset(local.availability_zones)
   tags = merge(local.defaultTags, {
-    Name = join("-", [local.prefix, "public", "rt"])
+    Name = join("-", [local.prefix, "public", "rt", each.key])
   })
 
   vpc_id = aws_vpc.main.id
@@ -52,15 +77,21 @@ resource "aws_route_table" "public" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
   }
-
 }
 
 resource "aws_route_table" "private" {
+  for_each = toset(local.availability_zones)
+
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "private", "rt"])
   })
 
   vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.public[each.key].id
+  }
 }
 
 // Public subnet for each availability zone
@@ -126,7 +157,7 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_egress" {
 resource "aws_route_table_association" "public" {
   for_each       = toset(local.availability_zones)
   subnet_id      = aws_subnet.public[each.key].id
-  route_table_id = aws_route_table.public.id
+  route_table_id = aws_route_table.public[each.key].id
 }
 
 // Private network
@@ -151,10 +182,21 @@ resource "aws_vpc_security_group_ingress_rule" "private_sg_allow_all_vnet_ingres
   ip_protocol       = "-1"
 }
 
+resource "aws_vpc_security_group_egress_rule" "allow_all_egress_to_internet" {
+  description = "Allow all services to go outside of VPC"
+  tags = merge(local.defaultTags, {
+    Name = join("-", [local.prefix, "allow-all-egress"])
+  })
+
+  security_group_id = aws_security_group.private_sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+}
+
 resource "aws_route_table_association" "private" {
   for_each       = toset(local.availability_zones)
   subnet_id      = aws_subnet.private[each.key].id
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.private[each.key].id
 }
 
 # VPC Endpoint Interfaces
@@ -207,7 +249,9 @@ resource "aws_vpc_endpoint" "vpc_endpoints_gateways" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.${each.value}"
   vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
+  route_table_ids = [
+    for key in toset(local.availability_zones) : aws_route_table.private[key].id
+  ]
 
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "endpoint", each.value])
