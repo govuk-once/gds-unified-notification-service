@@ -8,5 +8,5 @@ locals {
     version   = var.code_version
   }
 
-  availability_zones = [for zone in ["a", "b", "c"] : "${var.region}${zone}"]
+  availability_zones = [for zone in split(",", var.availability_zones) : "${var.region}${zone}"]
 }
