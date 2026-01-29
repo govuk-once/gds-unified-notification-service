@@ -6,6 +6,7 @@ import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
 
 export class AnalyticsQueueService extends QueueService<unknown> {
+  protected queueName: string = 'dispatch';
   constructor(
     protected config: ConfigurationService,
     protected logger: Logger,

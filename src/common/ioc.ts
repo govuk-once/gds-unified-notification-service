@@ -23,17 +23,21 @@ export const iocGetLogger = () => {
 
 export const iocGetTracer = () => new Tracer();
 
-export const iocGetMetrics = () =>
-  new Metrics({
-    namespace: process.env.NAMESPACE_NAME ?? 'undefined',
-    serviceName: process.env.SERVICE_NAME ?? 'undefined',
-    defaultDimensions: {},
-  });
+// Single instance of metrics is needed to be maintained across lambda lifetime to publish metrics accurately
+const metrics = new Metrics({
+  namespace: process.env.NAMESPACE_NAME ?? 'undefined',
+  serviceName: process.env.SERVICE_NAME ?? 'undefined',
+  defaultDimensions: {
+    environment: process.env.PREFIX ?? 'undefined',
+  },
+});
+export const iocGetMetrics = () => metrics;
+
 // Services
 export const iocGetConfigurationService = () =>
   new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
 
-export const iocGetCacheService = () => new CacheService(iocGetConfigurationService());
+export const iocGetCacheService = () => new CacheService(iocGetConfigurationService(), iocGetLogger());
 export const iocGetProcessingQueueService = async () =>
   await new ProcessingQueueService(
     iocGetConfigurationService(),

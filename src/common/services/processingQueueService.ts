@@ -7,6 +7,7 @@ import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 
 export class ProcessingQueueService extends QueueService<IMessage> {
+  protected queueName: string = 'processing';
   constructor(
     protected config: ConfigurationService,
     protected logger: Logger,

@@ -45,7 +45,8 @@ module "parameter_store_external_configuration" {
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "config/dispatch/onesignal/apiKey" = "placeholder"
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
-    "config/dispatch/onesignal/appId" = "placeholder"
+    "config/dispatch/onesignal/appId"                             = "placeholder"
+    "config/common/cache/notificationsProviderRateLimitPerMinute" = "5"
 
     # Temporary key
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"

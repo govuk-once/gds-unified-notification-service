@@ -1,5 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 
@@ -16,6 +16,7 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, logger: Lo
 };
 
 export abstract class QueueService<InputType> {
+  protected abstract queueName: string;
   protected client: SQSClient;
   protected sqsQueueUrl: string;
 
@@ -35,7 +36,11 @@ export abstract class QueueService<InputType> {
   }
 
   public getQueueName() {
-    return this.sqsQueueUrl.split('/').pop();
+    return this.queueName;
+  }
+
+  private addMetric(name: string, value: number) {
+    this.metrics.addMetric(`QUEUE_${this.getQueueName()?.toUpperCase()}_${name}`, MetricUnit.Count, value);
   }
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
@@ -49,8 +54,11 @@ export abstract class QueueService<InputType> {
       const response = await this.client.send(command);
 
       this.logger.info(`Successfully published message ID: ${response.MessageId}`);
+      this.addMetric(`PUBLISHED_SUCCESSFULLY`, 1);
     } catch (error) {
       this.logger.error(`Error publishing to SQS - ${error}`);
+
+      this.addMetric(`PUBLISHING_FAILED`, 1);
     }
   }
 
@@ -78,9 +86,11 @@ export abstract class QueueService<InputType> {
 
       if (response.Successful) {
         this.logger.info(`Successfully published ${response.Successful.length} messages.`);
+        this.addMetric(`PUBLISHED_SUCCESSFULLY`, response.Successful.length);
       }
       if (response.Failed) {
-        this.logger.info(`Failed to publish ${response.Failed.length} messages.`);
+        this.logger.error(`Failed to publish ${response.Failed.length} messages.`);
+        this.addMetric(`PUBLISHING_FAILED`, response.Failed.length);
       }
     } catch (error) {
       this.logger.error(`Error publishing to SQS - ${error}`);

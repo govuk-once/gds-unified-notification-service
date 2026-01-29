@@ -5,7 +5,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
-import { AnalyticsService, ConfigurationService, NotificationService } from '@common/services';
+import { AnalyticsService, CacheService, ConfigurationService, NotificationService } from '@common/services';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { NotificationAdapterResult } from '@common/services/interfaces';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
@@ -41,6 +41,7 @@ describe('Dispatch QueueHandler', () => {
   const analyticsServiceMock = vi.mocked(
     new AnalyticsService(loggerMock, metricsMock, tracerMock, analyticsQueueServiceMock)
   );
+  const cacheServiceMock = vi.mocked(new CacheService(configMock, loggerMock));
 
   // Data presets
   const mockContext: Context = {
@@ -116,13 +117,15 @@ describe('Dispatch QueueHandler', () => {
     vi.clearAllMocks();
     configMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
     await analyticsQueueServiceMock.initialize();
-
     configMock.getParameter.mockResolvedValueOnce(`VOID`); // Adapter
     await notificationServiceMock.initialize();
+
+    cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
     instance = new Dispatch(configMock, loggerMock, metricsMock, tracerMock, () => ({
       analyticsService: Promise.resolve(analyticsServiceMock),
       inboundDynamodbRepository: Promise.resolve(inboundDynamoMock),
       notificationsService: Promise.resolve(notificationServiceMock),
+      cacheService: Promise.resolve(cacheServiceMock),
     }));
   });
 

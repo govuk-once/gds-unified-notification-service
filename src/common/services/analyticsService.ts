@@ -1,5 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { AnalyticsQueueService } from '@common/services';
@@ -40,9 +40,12 @@ export class AnalyticsService {
     await this.queue.publishMessageBatch(
       events.map((event, index) => this.createEvent<T>(event, status, reasons ? reasons[index] : undefined))
     );
+
+    this.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, events.length);
   }
 
   public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: ValidationEnum, reason?: T) {
     await this.queue.publishMessage(this.createEvent(message, status, reason));
+    this.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, 1);
   }
 }
