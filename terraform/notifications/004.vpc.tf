@@ -83,7 +83,7 @@ resource "aws_route_table" "private" {
   for_each = toset(local.availability_zones)
 
   tags = merge(local.defaultTags, {
-    Name = join("-", [local.prefix, "private", "rt"])
+    Name = join("-", [local.prefix, "private", "rt", each.key])
   })
 
   vpc_id = aws_vpc.main.id

@@ -7,6 +7,7 @@ import {
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
+import { StringParameters } from '@common/utils';
 import * as axios from 'axios';
 
 interface OneSignalPushNotificationResponse {
@@ -45,8 +46,8 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     }
 
     // Fetch configs
-    this.key = (await this.config.getParameter(`config/dispatch/onesignal/apikey`))!;
-    this.appId = (await this.config.getParameter(`config/dispatch/onesignal/appId`))!;
+    this.key = (await this.config.getParameter(StringParameters.Dispatch.OneSignal.ApiKey))!;
+    this.appId = (await this.config.getParameter(StringParameters.Dispatch.OneSignal.AppId))!;
     this.client = axios.default.create({
       baseURL: `https://api.onesignal.com/`,
       headers: {

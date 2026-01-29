@@ -30,6 +30,12 @@ variable "cidr_main" {
   default     = "10.0.0.0/16"
 }
 
+variable "availability_zones" {
+  type        = string
+  description = "availability zones, comma separated"
+  default     = "a,b,c"
+}
+
 terraform {
   backend "s3" {
     bucket = var.bucket
