@@ -4,6 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
 import { mockClient } from 'aws-sdk-client-mock';
+import z from 'zod';
 
 describe('ConfigurationService', () => {
   const ssmMock = mockClient(SSMClient);
@@ -89,7 +90,7 @@ describe('ConfigurationService', () => {
   });
 
   describe('getNumericParameter', () => {
-    it('should return a secret from parameter store in number form', async () => {
+    it('should return a secret from parameter store in numeric form', async () => {
       // Arrange
       const secretValue = '10';
       ssmMock.on(GetParameterCommand).resolves({
@@ -118,6 +119,39 @@ describe('ConfigurationService', () => {
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
       expect(error).toHaveBeenCalledWith(errorMsg);
+    });
+  });
+
+  describe('getEnumParameter', () => {
+    const enumValues = z.enum([`blue`, `green`]);
+
+    it('should return a secret from parameter store in enum form', async () => {
+      // Arrange
+      ssmMock.on(GetParameterCommand).resolves({
+        Parameter: { Value: enumValues.enum.blue },
+      });
+
+      // Act
+      const parameter = await config.getEnumParameter('testNameSpace', enumValues);
+
+      // Assert
+      expect(parameter).toEqual(enumValues.enum.blue);
+    });
+
+    it('should throw an error and log when the parameter cannot be parsed to a enum', async () => {
+      // Arrange
+      ssmMock.on(GetParameterCommand).resolves({
+        Parameter: { Value: 'yellow' },
+      });
+
+      const errorMsg = 'Could not parse parameter testNameSpace to a enum';
+
+      // Act
+      const result = config.getEnumParameter('testNameSpace', enumValues);
+
+      // Assert
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
     });
   });
 });
