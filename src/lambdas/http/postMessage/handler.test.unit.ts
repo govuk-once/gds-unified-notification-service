@@ -11,7 +11,6 @@ import {
   ConfigurationService,
   ProcessingQueueService,
 } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Context } from 'aws-lambda';

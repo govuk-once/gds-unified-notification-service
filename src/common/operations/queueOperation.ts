@@ -26,7 +26,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
     for (let i = 0; i < request.event.Records.length; i++) {
       try {
         request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
-      } catch (e) {
+      } catch {
         logger.info('Failed parsing JSON within SQS Body', { raw: request.event.Records[i].body });
       }
     }
