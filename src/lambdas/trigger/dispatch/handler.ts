@@ -6,6 +6,7 @@ import {
   HandlerDependencies,
   initializeDependencies,
   iocGetAnalyticsService,
+  iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
@@ -15,8 +16,8 @@ import {
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, NotificationService } from '@common/services';
-import { groupValidation } from '@common/utils';
+import { AnalyticsService, ConfigurationService, NotificationService } from '@common/services';
+import { BoolParameters, groupValidation } from '@common/utils';
 import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
@@ -60,6 +61,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
   public notificationsService: NotificationService;
 
   constructor(
+    public config: ConfigurationService,
     logger: Logger,
     metrics: Metrics,
     tracer: Tracer,
@@ -73,6 +75,12 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 
   public async implementation(event: QueueEvent<IProcessedMessage>, context: Context) {
+    // TODO: Implement retry mechanism - This call throw errors if service is disabled
+    await this.config.ensureServiceIsEnabled(
+      BoolParameters.Config.Common.Enabled,
+      BoolParameters.Config.Dispatch.Enabled
+    );
+
     await this.initialize();
     try {
       // Trigger received notification events
@@ -158,8 +166,14 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Dispatch(iocGetLogger(), iocGetMetrics(), iocGetTracer(), () => ({
-  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
-  notificationsService: iocGetNotificationService(),
-  analyticsService: iocGetAnalyticsService(),
-})).handler();
+export const handler = new Dispatch(
+  iocGetConfigurationService(),
+  iocGetLogger(),
+  iocGetMetrics(),
+  iocGetTracer(),
+  () => ({
+    inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+    notificationsService: iocGetNotificationService(),
+    analyticsService: iocGetAnalyticsService(),
+  })
+).handler();
