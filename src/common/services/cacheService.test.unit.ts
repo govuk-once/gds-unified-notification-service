@@ -27,7 +27,7 @@ describe('CacheService', () => {
   let instance: CacheService;
   beforeEach(() => {
     vi.resetAllMocks();
-    instance = new CacheService(configMock);
+    instance = new CacheService(configMock, loggerMock);
     vi.spyOn(instance, 'generateSigV4').mockResolvedValue('');
     createClientSpy.mockImplementation(
       () =>

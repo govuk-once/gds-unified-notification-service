@@ -24,7 +24,9 @@ resource "aws_elasticache_user_group" "this" {
   user_ids = [
     aws_elasticache_user.this.user_id
   ]
-  tags = merge(local.defaultTags, {})
+
+  # Bug workaround, read more at top of the file
+  tags = { for k, v in merge(local.defaultTags, {}) : k => v if k != "version" }
 }
 
 # Create valkey instance
@@ -32,7 +34,9 @@ resource "aws_elasticache_serverless_cache" "this" {
   engine      = "valkey"
   name        = join("-", [local.prefix, "elch", "main"])
   description = "Ephemeral key value cache"
-  tags        = merge(local.defaultTags, {})
+
+  # Bug workaround, read more at top of the file
+  tags = { for k, v in merge(local.defaultTags, {}) : k => v if k != "version" }
 
   # Instance config
   major_engine_version = "8"

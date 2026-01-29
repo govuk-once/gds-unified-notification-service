@@ -6,6 +6,7 @@ import {
   HandlerDependencies,
   initializeDependencies,
   iocGetAnalyticsService,
+  iocGetCacheService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetLogger,
@@ -16,8 +17,8 @@ import {
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ConfigurationService, NotificationService } from '@common/services';
-import { BoolParameters, groupValidation } from '@common/utils';
+import { AnalyticsService, CacheService, ConfigurationService, NotificationService } from '@common/services';
+import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
 import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
@@ -59,6 +60,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
   public inboundDynamodbRepository: InboundDynamoRepository;
   public analyticsService: AnalyticsService;
   public notificationsService: NotificationService;
+  public cacheService: CacheService;
 
   constructor(
     public config: ConfigurationService,
@@ -82,86 +84,107 @@ export class Dispatch extends QueueHandler<unknown, void> {
     );
 
     await this.initialize();
-    try {
-      // Trigger received notification events
-      const [, identifiableRecords] = groupValidation(
-        event.Records,
-        SqsRecordSchema.extend({
-          body: IIdentifieableMessageSchema,
-        })
-      );
 
-      this.logger.info(`Identifiable records`, { identifiableRecords });
-      await this.analyticsService.publishMultipleEvents(
-        identifiableRecords.map(({ valid }) => valid.body),
-        ValidationEnum.DISPATCHING
-      );
+    // Trigger received notification events
+    const [, identifiableRecords] = groupValidation(
+      event.Records,
+      SqsRecordSchema.extend({
+        body: IIdentifieableMessageSchema,
+      })
+    );
 
-      // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
-      const [records, validRecords, invalidRecords] = groupValidation(
-        event.Records.map((record) => record.body),
-        IProcessedMessageSchema
-      );
+    this.logger.info(`Identifiable records`, { identifiableRecords });
+    await this.analyticsService.publishMultipleEvents(
+      identifiableRecords.map(({ valid }) => valid.body),
+      ValidationEnum.DISPATCHING
+    );
 
-      // Invalid messages should not appear - however it's good to filter these out & remove from
-      if (invalidRecords.length > 0) {
-        this.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
-          invalidRecords: invalidRecords.map((record) => ({ raw: record.raw, errors: record.errors })),
-          totalRecords: records,
-        });
+    // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
+    const [records, validRecords, invalidRecords] = groupValidation(
+      event.Records.map((record) => record.body),
+      IProcessedMessageSchema
+    );
+
+    // Invalid messages should not appear - however it's good to filter these out & remove from
+    if (invalidRecords.length > 0) {
+      this.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
+        invalidRecords: invalidRecords.map((record) => ({ raw: record.raw, errors: record.errors })),
+        totalRecords: records,
+      });
+    }
+
+    // Process the notification requests
+    for (const { valid } of validRecords) {
+      // Confirm whether sending notifications will not exceed the rate limit
+      if (
+        (
+          await this.cacheService.rateLimit(
+            `NOTIFICATION_PROVIDER_RATE_LIMIT`,
+            await this.config.getNumericParameter(
+              NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
+            )
+          )
+        ).exceeded
+      ) {
+        throw new Error(`Stopping processing from continouring as rate limit has been exceeded`);
       }
 
-      // Process the notification requests
-      for (const { valid } of validRecords) {
-        const metadata = {
-          NotificationID: valid.NotificationID,
-          DepartmentID: valid.DepartmentID,
-        };
-        const { requestId, success } = await this.notificationsService.send({
-          ExternalUserID: valid.ExternalUserID,
-          NotificationID: valid.NotificationID,
-          NotificationTitle: valid.NotificationTitle,
-          NotificationBody: valid.NotificationBody,
-        });
+      // Prepare request
+      const metadata = {
+        NotificationID: valid.NotificationID,
+        DepartmentID: valid.DepartmentID,
+      };
+      const { requestId, success } = await this.notificationsService.send({
+        ExternalUserID: valid.ExternalUserID,
+        NotificationID: valid.NotificationID,
+        NotificationTitle: valid.NotificationTitle,
+        NotificationBody: valid.NotificationBody,
+      });
 
-        // Update stored record with timestamp
-        await this.inboundDynamodbRepository.updateRecord<Partial<IMessageRecord>>({
-          ...extractIdentifiers(valid),
-          DispatchedStartDateTime: new Date().toISOString(),
-        });
+      // Update stored record with timestamp
+      await this.inboundDynamodbRepository.updateRecord<Partial<IMessageRecord>>({
+        ...extractIdentifiers(valid),
+        DispatchedStartDateTime: new Date().toISOString(),
+      });
 
-        // Analytics event
-        if (success) {
-          this.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
-          await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
-        } else {
-          this.logger.error(`Notification failed to dispatch`, { ...metadata });
-          await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
-        }
+      // Increment rate limiter post request
+      await this.cacheService.rateLimit(
+        `NOTIFICATION_PROVIDER_RATE_LIMIT`,
+        await this.config.getNumericParameter(
+          NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
+        ),
+        1
+      );
+
+      // Analytics event
+      if (success) {
+        this.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
+        await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
+      } else {
+        this.logger.error(`Notification failed to dispatch`, { ...metadata });
+        await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
       }
+    }
 
-      // Store Analytics for failed parses - if they have notificationID
-      for (const { raw, errors } of invalidRecords) {
-        const { NotificationID, DepartmentID } = extractIdentifiers(raw);
-        // Log invalid entries
-        if (NotificationID == undefined || DepartmentID == undefined) {
-          this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
-            raw,
-            errors,
-          });
-          continue;
-        }
-        await this.analyticsService.publishEvent(
-          {
-            NotificationID: NotificationID,
-            DepartmentID: DepartmentID,
-          },
-          ValidationEnum.DISPATCHING_FAILED,
-          errors
-        );
+    // Store Analytics for failed parses - if they have notificationID
+    for (const { raw, errors } of invalidRecords) {
+      const { NotificationID, DepartmentID } = extractIdentifiers(raw);
+      // Log invalid entries
+      if (NotificationID == undefined || DepartmentID == undefined) {
+        this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
+          raw,
+          errors,
+        });
+        continue;
       }
-    } catch (error) {
-      this.logger.error('Unexpected error', { error });
+      await this.analyticsService.publishEvent(
+        {
+          NotificationID: NotificationID,
+          DepartmentID: DepartmentID,
+        },
+        ValidationEnum.DISPATCHING_FAILED,
+        errors
+      );
     }
   }
 }
@@ -175,5 +198,6 @@ export const handler = new Dispatch(
     inboundDynamodbRepository: iocGetInboundDynamoRepository(),
     notificationsService: iocGetNotificationService(),
     analyticsService: iocGetAnalyticsService(),
+    cacheService: iocGetCacheService().connect(),
   })
 ).handler();
