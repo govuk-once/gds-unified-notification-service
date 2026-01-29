@@ -106,7 +106,7 @@ export abstract class APIHandler<
 
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
-    this.metrics.addMetric('triggers', MetricUnit.Count, 1);
+    this.metrics.addMetric('API_CALL_TRIGGERED', MetricUnit.Count, 1);
     return this.middlewares(middy()).handler(async (event, context) => {
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,

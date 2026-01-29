@@ -191,7 +191,7 @@ describe('QueueService', () => {
           },
         ],
       });
-      expect(loggerMock.info).toHaveBeenCalledWith('Failed to publish 1 messages.');
+      expect(loggerMock.error).toHaveBeenCalledWith('Failed to publish 1 messages.');
     });
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {
