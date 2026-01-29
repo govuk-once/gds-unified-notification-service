@@ -41,26 +41,24 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
  * 
  * Sample event:
 {
-  "Records": {
-    "body": [
-      {
-        "NotificationID": "1234",
-        "DepartmentID": "DEP01",
-        "UserID": "UserID",
-        "MessageTitle": "You have a new Message",
-        "MessageBody": "Open Notification Centre to read your notifications",
-        "NotificationTitle": "You have a new Notification",
-        "NotificationBody": "Here is the Notification body."
-      }
-    ],
-    "headers": {
-      "x-api-key": "mockApiKey",
-      "Content-Type": "application/json"
-    },
-    "requestContext": {
-      "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-      "requestTimeEpoch": 1428582896000
+  "body": [
+    {
+      "NotificationID": "1234",
+      "DepartmentID": "DEP01",
+      "UserID": "UserID",
+      "MessageTitle": "You have a new Message",
+      "MessageBody": "Open Notification Centre to read your notifications",
+      "NotificationTitle": "You have a new Notification",
+      "NotificationBody": "Here is the Notification body."
     }
+  ],
+  "headers": {
+    "x-api-key": "mockApiKey",
+    "Content-Type": "application/json"
+  },
+  "requestContext": {
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTimeEpoch": 1428582896000
   }
 }
  */
