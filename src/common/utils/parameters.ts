@@ -52,6 +52,12 @@ export const StringParameters = {
       Name: 'table/inbound/name',
     },
   },
+  Dispatch: {
+    OneSignal: {
+      ApiKey: `config/dispatch/onesignal/apiKey`,
+      AppId: `config/dispatch/onesignal/appId`,
+    },
+  },
 } as const;
 
 export const NumericParameters = {
