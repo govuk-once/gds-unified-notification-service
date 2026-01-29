@@ -87,6 +87,7 @@ describe('PostMessage Handler', () => {
     },
     requestContext: {
       requestTimeEpoch: 1428582896000,
+      requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
     },
   } as unknown as ITypedRequestEvent<IMessage[]>;
 
@@ -147,6 +148,7 @@ describe('PostMessage Handler', () => {
     expect(inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         ...mockMessageBody,
+        APIGWExtendedID: mockEvent.requestContext.requestId,
         ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
       },
@@ -162,7 +164,7 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      mockEvent.body,
+      [{ ...mockEvent.body[0], APIGWExtendedID: mockEvent.requestContext.requestId }],
       ValidationEnum.VALIDATED_API_CALL
     );
   });

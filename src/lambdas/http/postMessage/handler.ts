@@ -18,7 +18,12 @@ import {
 } from '@common';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ConfigurationService, ProcessingQueueService } from '@common/services';
+import {
+  AnalyticsEventFromIMessage,
+  AnalyticsService,
+  ConfigurationService,
+  ProcessingQueueService,
+} from '@common/services';
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
@@ -53,6 +58,7 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
       "Content-Type": "application/json"
     },
     "requestContext": {
+      "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
       "requestTimeEpoch": 1428582896000
     }
   }
@@ -100,21 +106,31 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     // Initialize services
     await this.initialize();
 
-    const eventBody = event.body;
+    const messages = event.body;
 
     // Publish analytics & push items to the processing queue
-    await this.analyticsService.publishMultipleEvents(eventBody, ValidationEnum.VALIDATED_API_CALL);
+    this.logger.trace('Publishing analytics events for validated messages.');
+    await this.analyticsService.publishMultipleEvents(
+      messages.map(
+        (body): AnalyticsEventFromIMessage => ({
+          ...body,
+          APIGWExtendedID: event.requestContext.requestId,
+        })
+      ),
+      ValidationEnum.VALIDATED_API_CALL
+    );
 
     // Requeue messages which passed validation to next stage
-    this.logger.trace('Requeuing validated message to process queue');
-    await this.processingQueue.publishMessageBatch(eventBody);
+    this.logger.trace('Requeuing validated message to process queue.');
+    await this.processingQueue.publishMessageBatch(messages);
 
     // Create a record of message in Dynamodb
     this.logger.trace('Creating record of validated messages that have been passed to queue.');
     await this.inboundTable.createRecordBatch(
-      eventBody.map(
+      messages.map(
         (body): IMessageRecord => ({
           ...body,
+          APIGWExtendedID: event.requestContext.requestId,
           ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
           ValidatedDateTime: new Date().toISOString(),
         })
