@@ -1,29 +1,31 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
 import { mockClient } from 'aws-sdk-client-mock';
+import { Mocked } from 'vitest';
 import z from 'zod';
 
+vi.mock('@aws-lambda-powertools/logger', { spy: true });
+vi.mock('@aws-lambda-powertools/metrics', { spy: true });
+vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
 describe('ConfigurationService', () => {
-  const ssmMock = mockClient(SSMClient);
-
-  const trace = vi.fn();
-  const error = vi.fn();
-
   let config: ConfigurationService;
+
+  const ssmMock = mockClient(SSMClient);
+  const loggerMock = new Logger() as Mocked<Logger>;
+  const metricsMock = new Metrics() as Mocked<Metrics>;
+  const tracerMock = new Tracer() as Mocked<Tracer>;
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
     ssmMock.reset();
 
-    config = new ConfigurationService(
-      { trace, error } as unknown as Logger,
-      {} as unknown as Metrics,
-      {} as unknown as Tracer
-    );
+    config = new ConfigurationService(loggerMock, metricsMock, tracerMock);
   });
 
   describe('getParameter', () => {
@@ -51,7 +53,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(error).toHaveBeenCalledWith(
+      expect(loggerMock.error).toHaveBeenCalledWith(
         `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
       );
     });
@@ -85,7 +87,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace to a boolean`);
+      expect(loggerMock.error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace to a boolean`);
     });
   });
 
@@ -118,7 +120,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(error).toHaveBeenCalledWith(errorMsg);
+      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg);
     });
   });
 
@@ -151,7 +153,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
+      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
     });
   });
 });
