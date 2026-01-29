@@ -85,7 +85,7 @@ describe('Dispatch QueueHandler', () => {
 
     configMock.getParameter.mockResolvedValueOnce(`VOID`); // Adapter
     await notificationServiceMock.initialize();
-    instance = new Dispatch(loggerMock, metricsMock, tracerMock, () => ({
+    instance = new Dispatch(configMock, loggerMock, metricsMock, tracerMock, () => ({
       analyticsService: Promise.resolve(analyticsServiceMock),
       inboundDynamodbRepository: Promise.resolve(inboundDynamoMock),
       notificationsService: Promise.resolve(notificationServiceMock),
@@ -95,6 +95,26 @@ describe('Dispatch QueueHandler', () => {
   it('should have the correct operationId', () => {
     // Assert
     expect(instance.operationId).toBe('dispatch');
+  });
+
+  it.each([
+    [`enabled`, `disabled`],
+    [`disabled`, `enabled`],
+  ])('should obey SSM Enabled flags Common: %s Dispatch: %s', async (commonEnabled: string, processing: string) => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    configMock.getParameter.mockResolvedValue('');
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
+    if (processing == `disabled`) {
+      configMock.getBooleanParameter.mockResolvedValueOnce((processing as string) == `enabled`);
+    }
+
+    // Act & assert
+    await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
+      new Error(`Function disabled due to config/common/enabled or config/dispatch/enabled SSM param being toggled off`)
+    );
   });
 
   it('should publish analytics events', async () => {
@@ -107,6 +127,7 @@ describe('Dispatch QueueHandler', () => {
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -142,6 +163,7 @@ describe('Dispatch QueueHandler', () => {
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -165,6 +187,7 @@ describe('Dispatch QueueHandler', () => {
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -188,6 +211,7 @@ describe('Dispatch QueueHandler', () => {
       success: false,
       errors: ['Service unavailable'],
     } as unknown as NotificationAdapterResult);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);

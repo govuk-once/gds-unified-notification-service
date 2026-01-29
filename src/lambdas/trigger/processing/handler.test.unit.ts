@@ -94,7 +94,7 @@ describe('Processing QueueHandler', () => {
     vi.clearAllMocks();
     configMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
     await analyticsQueueServiceMock.initialize();
-    instance = new Processing(loggerMock, metricsMock, tracerMock, () => ({
+    instance = new Processing(configMock, loggerMock, metricsMock, tracerMock, () => ({
       analyticsService: Promise.resolve(analyticsServiceMock),
       inboundTable: Promise.resolve(inboundDynamoMock),
       dispatchQueue: dispatchQueueService.initialize(),
@@ -106,6 +106,31 @@ describe('Processing QueueHandler', () => {
     expect(instance.operationId).toBe('processing');
   });
 
+  it.each([
+    [`enabled`, `disabled`],
+    [`disabled`, `enabled`],
+  ])('should obey SSM Enabled flags Common: %s Processing: %s', async (commonEnabled: string, processing: string) => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    configMock.getParameter.mockResolvedValue('');
+    dispatchQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
+    if (processing == `disabled`) {
+      configMock.getBooleanParameter.mockResolvedValueOnce((processing as string) == `enabled`);
+    }
+
+    // Act & assert
+    await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
+      new Error(
+        `Function disabled due to config/common/enabled or config/processing/enabled SSM param being toggled off`
+      )
+    );
+  });
+
   it('should publish analytics events', async () => {
     // Arrange
     configMock.getParameter.mockResolvedValue('');
@@ -114,6 +139,7 @@ describe('Processing QueueHandler', () => {
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
     analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -155,6 +181,7 @@ describe('Processing QueueHandler', () => {
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
     analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -179,6 +206,7 @@ describe('Processing QueueHandler', () => {
     dispatchQueueService.publishMessage.mockResolvedValueOnce(undefined);
     analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockFailedEvent, mockContext);

@@ -6,6 +6,7 @@ import {
   HandlerDependencies,
   initializeDependencies,
   iocGetAnalyticsService,
+  iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetLogger,
   iocGetMetrics,
@@ -15,8 +16,8 @@ import {
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ProcessingQueueService } from '@common/services';
-import { groupValidation } from '@common/utils';
+import { AnalyticsService, ConfigurationService, ProcessingQueueService } from '@common/services';
+import { BoolParameters, groupValidation } from '@common/utils';
 import {
   extractIdentifiers,
   IIdentifieableMessageSchema,
@@ -63,6 +64,7 @@ export class Validation extends QueueHandler<IMessage> {
   public processingQueue: ProcessingQueueService;
 
   constructor(
+    protected config: ConfigurationService,
     logger: Logger,
     metrics: Metrics,
     tracer: Tracer,
@@ -76,6 +78,13 @@ export class Validation extends QueueHandler<IMessage> {
   }
 
   public async implementation(event: QueueEvent<IMessage>, context: Context) {
+    // TODO: Implement retry mechanism - This call throw errors if service is disabled
+    await this.config.ensureServiceIsEnabled(
+      BoolParameters.Config.Common.Enabled,
+      BoolParameters.Config.Validation.Enabled
+    );
+
+    //
     await this.initialize();
 
     // Trigger received notifications events
@@ -142,8 +151,14 @@ export class Validation extends QueueHandler<IMessage> {
     }
   }
 }
-export const handler = new Validation(iocGetLogger(), iocGetMetrics(), iocGetTracer(), () => ({
-  analyticsService: iocGetAnalyticsService(),
-  inboundTable: iocGetInboundDynamoRepository(),
-  processingQueue: iocGetProcessingQueueService(),
-})).handler();
+export const handler = new Validation(
+  iocGetConfigurationService(),
+  iocGetLogger(),
+  iocGetMetrics(),
+  iocGetTracer(),
+  () => ({
+    analyticsService: iocGetAnalyticsService(),
+    inboundTable: iocGetInboundDynamoRepository(),
+    processingQueue: iocGetProcessingQueueService(),
+  })
+).handler();

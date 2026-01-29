@@ -5,7 +5,6 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
-import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -19,7 +18,7 @@ expect.extend({
   toHaveReceivedCommandWith,
 });
 
-const sqsMock = mockClient(SQSClient);
+mockClient(SQSClient);
 const mockQueueUrl = 'testQueueUrl';
 
 describe('QueueService', () => {
@@ -31,8 +30,6 @@ describe('QueueService', () => {
   const metricsMock = vi.mocked(new Metrics());
   const tracerMock = vi.mocked(new Tracer());
   const sqsMock = mockClient(SQSClient);
-
-  let queueService: QueueService<string>;
 
   beforeEach(async () => {
     // Reset all mock
