@@ -55,7 +55,6 @@ describe('Analytics QueueHandler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     instance = new Analytics(mockConfigurationService, loggerMock, metricsMock, tracerMock, () => ({
-      analytics: Promise.resolve(mockDynamoRepo),
       cache: Promise.resolve(mockCacheService),
       events: Promise.resolve(mockDynamoRepo),
     }));

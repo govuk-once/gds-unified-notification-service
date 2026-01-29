@@ -6,7 +6,6 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils/parameters';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 
@@ -22,7 +21,6 @@ vi.mock('@common/services/configurationService', { spy: true });
 describe('ProcessingQueueService', () => {
   let processingQueueService: ProcessingQueueService;
   let configurationServiceMock: ConfigurationService;
-  let mockMessageBody: IMessage;
 
   const loggerMock = vi.mocked(new Logger());
   const metricsMock = vi.mocked(new Metrics());
@@ -40,16 +38,6 @@ describe('ProcessingQueueService', () => {
     configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockProcessingQueueUrl);
     processingQueueService = new ProcessingQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
     await processingQueueService.initialize();
-
-    mockMessageBody = {
-      NotificationID: '1234',
-      DepartmentID: 'DVLA01',
-      UserID: 'UserID',
-      MessageTitle: 'You have a new Message',
-      MessageBody: 'Open Notification Centre to read your notifications',
-      NotificationTitle: 'You have a new medical driving license',
-      NotificationBody: 'The DVLA has issued you a new license.',
-    };
   });
 
   describe('initialize', () => {

@@ -43,8 +43,12 @@ module "parameter_store_external_configuration" {
 
     "config/dispatch/adapter" = "VOID" # Enum: VOID, OneSignal
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
-    "config/dispatch/onesignal/apikey" = "placeholder"
+    "config/dispatch/onesignal/apiKey" = "placeholder"
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "config/dispatch/onesignal/appId" = "placeholder"
+
+    # Temporary key
+    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
+    "api/postMessage/apiKey" = "mockApiKey"
   }
 }

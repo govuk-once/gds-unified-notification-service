@@ -3,7 +3,6 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
-import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
 import { ConfigurationService } from '@common/services';
 import { mockClient } from 'aws-sdk-client-mock';
 

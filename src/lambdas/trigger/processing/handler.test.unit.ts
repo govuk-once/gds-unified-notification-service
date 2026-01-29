@@ -20,7 +20,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-const sqsMock = mockClient(SQSClient);
+mockClient(SQSClient);
 
 describe('Processing QueueHandler', () => {
   const loggerMock = vi.mocked(new Logger());
