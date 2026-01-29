@@ -101,7 +101,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     );
 
     // Validate Incoming messages
-    const [_, validRecords, invalidRecords] = groupValidation(
+    const [, validRecords, invalidRecords] = groupValidation(
       event.Records,
       SqsRecordSchema.extend({ body: IMessageSchema })
     );

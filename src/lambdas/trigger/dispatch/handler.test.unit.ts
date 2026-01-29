@@ -21,6 +21,7 @@ vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
 mockClient(SQSClient);
+
 describe('Dispatch QueueHandler', () => {
   let instance: Dispatch;
 

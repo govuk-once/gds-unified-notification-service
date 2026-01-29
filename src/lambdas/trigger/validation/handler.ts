@@ -101,7 +101,7 @@ export class Validation extends QueueHandler<IMessage> {
     );
 
     // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
-    const [_, validRecords, invalidRecords] = groupValidation(
+    const [, validRecords, invalidRecords] = groupValidation(
       event.Records,
       SqsRecordSchema.extend({ body: IMessageSchema })
     );
@@ -131,7 +131,7 @@ export class Validation extends QueueHandler<IMessage> {
 
     // Store Analytics for failed parses - if they have notificationID
     for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID, UserID } = extractIdentifiers(raw.body);
+      const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
         this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
