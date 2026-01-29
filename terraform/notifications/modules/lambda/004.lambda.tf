@@ -38,8 +38,8 @@ resource "aws_lambda_function" "this" {
   environment {
     variables = {
       NODE_OPTIONS   = "--enable-source-maps",
-      SERVICE_NAME   = "UNS",
-      NAMESPACE_NAME = "global"
+      SERVICE_NAME   = replace(upper("NOTIFICATIONS_${var.function_name}"), "-", "_"),
+      NAMESPACE_NAME = replace(upper("NOTIFICATIONS_${var.prefix}"), "-", "_")
       PREFIX         = var.prefix
 
       # Open Telemetry instrumentation vars

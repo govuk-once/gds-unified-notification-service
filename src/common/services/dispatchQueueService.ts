@@ -7,6 +7,7 @@ import { StringParameters } from '@common/utils/parameters';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {
+  protected queueName: string = 'dispatch';
   constructor(
     protected config: ConfigurationService,
     protected logger: Logger,
