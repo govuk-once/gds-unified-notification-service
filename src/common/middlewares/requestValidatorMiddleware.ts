@@ -10,8 +10,7 @@ export const requestValidatorMiddleware = (
     if (schema) {
       const { error } = schema.safeParse(request.event.body);
       if (error) {
-        console.log(JSON.stringify(z.treeifyError(error), null, 2));
-        throw new httpError.BadRequest();
+        throw new httpError.BadRequest(`Bad Request: \n\n${z.prettifyError(error)}`);
       }
     }
   },

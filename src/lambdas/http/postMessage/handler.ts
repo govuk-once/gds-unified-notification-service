@@ -39,19 +39,9 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
  * - Fires analytics events
  * - Pushes messages into processing queue
  * 
- * Sample event:
+ * Sample event received by Lambda from API Gateway
 {
-  "body": [
-    {
-      "NotificationID": "1234",
-      "DepartmentID": "DEP01",
-      "UserID": "UserID",
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
-      "NotificationTitle": "You have a new Notification",
-      "NotificationBody": "Here is the Notification body."
-    }
-  ],
+  "body":"[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
   "headers": {
     "x-api-key": "mockApiKey",
     "Content-Type": "application/json"
@@ -61,6 +51,16 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
     "requestTimeEpoch": 1428582896000
   }
 }
+* Sample post body:
+    {
+      "NotificationID": "200f6248-ed5b-4b73-be0b-4e9a2f8636e0",
+      "DepartmentID": "DEP01",
+      "UserID": "USER_ID",
+      "MessageTitle": "You have a new Message",
+      "MessageBody": "Open Notification Centre to read your notifications",
+      "NotificationTitle": "You have a new Notification",
+      "NotificationBody": "Here is the Notification body."
+    }
  */
 
 export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
