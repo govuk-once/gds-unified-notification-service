@@ -18,6 +18,13 @@ export const iocGetLogger = () => {
   return new Logger({
     serviceName: process.env.SERVICE_NAME ?? 'undefined',
     correlationIdSearchFn: search,
+    // Prevent accidental logging of message contents
+    jsonReplacerFn: (key, value) => {
+      if (['NotificationTitle', 'NotificationBody', 'MessageTitle', 'MessageBody'].includes(key)) {
+        return `******`;
+      }
+      return value;
+    },
   });
 };
 
