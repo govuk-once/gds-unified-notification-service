@@ -1,27 +1,31 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
 import { mockClient } from 'aws-sdk-client-mock';
+import { Mocked } from 'vitest';
+import z from 'zod';
+
+vi.mock('@aws-lambda-powertools/logger', { spy: true });
+vi.mock('@aws-lambda-powertools/metrics', { spy: true });
+vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 describe('ConfigurationService', () => {
-  const ssmMock = mockClient(SSMClient);
-  const trace = vi.fn();
-  const error = vi.fn();
-
   let config: ConfigurationService;
+
+  const ssmMock = mockClient(SSMClient);
+  const loggerMock = new Logger() as Mocked<Logger>;
+  const metricsMock = new Metrics() as Mocked<Metrics>;
+  const tracerMock = new Tracer() as Mocked<Tracer>;
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
     ssmMock.reset();
 
-    config = new ConfigurationService(
-      { trace, error } as unknown as Logger,
-      {} as unknown as Metrics,
-      {} as unknown as Tracer
-    );
+    config = new ConfigurationService(loggerMock, metricsMock, tracerMock);
   });
 
   describe('getParameter', () => {
@@ -49,7 +53,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(error).toHaveBeenCalledWith(
+      expect(loggerMock.error).toHaveBeenCalledWith(
         `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
       );
     });
@@ -81,12 +85,12 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(error).toHaveBeenCalledWith(`Could not parse parameter testKey to a boolean`);
+      expect(loggerMock.error).toHaveBeenCalledWith(`Could not parse parameter testKey to a boolean`);
     });
   });
 
   describe('getNumericParameter', () => {
-    it('should return a secret from parameter store in number form', async () => {
+    it('should return a secret from parameter store in numeric form', async () => {
       // Arrange
       const secretValue = '10';
       ssmMock.on(GetParametersByPathCommand).resolves({
@@ -114,7 +118,40 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(error).toHaveBeenCalledWith(errorMsg);
+      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg);
+    });
+  });
+
+  describe('getEnumParameter', () => {
+    const enumValues = z.enum([`blue`, `green`]);
+
+    it('should return a secret from parameter store in enum form', async () => {
+      // Arrange
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: enumValues.enum.blue, Name: '/undefined/testKey' }],
+      });
+
+      // Act
+      const parameter = await config.getEnumParameter('testKey', enumValues);
+
+      // Assert
+      expect(parameter).toEqual(enumValues.enum.blue);
+    });
+
+    it('should throw an error and log when the parameter cannot be parsed to a enum', async () => {
+      // Arrange
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: 'yellow', Name: '/undefined/testKey' }],
+      });
+
+      const errorMsg = 'Could not parse parameter testKey to a enum';
+
+      // Act
+      const result = config.getEnumParameter('testKey', enumValues);
+
+      // Assert
+      await expect(result).rejects.toThrow(new Error(errorMsg));
+      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
     });
   });
 });

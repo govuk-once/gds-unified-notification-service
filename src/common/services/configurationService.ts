@@ -6,8 +6,8 @@ import { InMemoryTTLCache } from '@common/utils';
 import * as z from 'zod';
 
 export class ConfigurationService {
-  // SSM Parameters should refresh every 180s
-  private inMemoryCache = new InMemoryTTLCache<string, string>(180000);
+  // SSM Parameters should refresh every 60s
+  private inMemoryCache = new InMemoryTTLCache<string, string>(60000);
 
   private client;
   private prefix = process.env.PREFIX;
@@ -21,12 +21,15 @@ export class ConfigurationService {
     // this.tracer.captureAWSv3Client(this.client);
   }
 
-  public async fetchNamespace(): Promise<void> {
+  public async fetchNamespace(nextToken?: string): Promise<void> {
+    this.logger.info(`Refreshing namespace ${nextToken}`);
     const params = await this.client.send(
       new GetParametersByPathCommand({
         Path: `/${this.prefix}/`,
         Recursive: true,
         WithDecryption: true,
+        MaxResults: 10,
+        NextToken: nextToken,
       })
     );
     for (const { Name, Value } of params.Parameters ?? []) {
@@ -34,6 +37,10 @@ export class ConfigurationService {
         this.inMemoryCache.set(Name, Value);
       }
     }
+    if (params.NextToken) {
+      await this.fetchNamespace(params.NextToken);
+    }
+    this.logger.info(`Results`, { params: params.Parameters, cache: this.inMemoryCache.data });
   }
 
   public async getParameter(namespace: string): Promise<string> {
@@ -80,12 +87,9 @@ export class ConfigurationService {
   public async getNumericParameter(namespace: string): Promise<number> {
     const parameterValue = await this.getParameter(namespace);
 
-    if (parameterValue !== undefined) {
-      const num = Number(parameterValue);
-
-      if (!Number.isNaN(num)) {
-        return num;
-      }
+    const num = Number(parameterValue);
+    if (!Number.isNaN(num)) {
+      return num;
     }
 
     const errorMsg = `Could not parse parameter ${namespace} to a number`;
@@ -96,18 +100,13 @@ export class ConfigurationService {
   public async getEnumParameter<T extends z.ZodEnum>(namespace: string, schema: T): Promise<z.infer<T>> {
     const parameterValue = await this.getParameter(namespace);
 
-    // If parameter is undefined
-    if (parameterValue == undefined) {
-      throw new Error(`Parameter value ${namespace} is undefined`);
-    }
-
     // Parse parameter
     const result = schema.safeParse(parameterValue);
 
     // If invalid enum
     if (result.error) {
-      const errorMsg = `Could not parse parameter ${namespace} to a number`;
-      this.logger.trace(errorMsg, {
+      const errorMsg = `Could not parse parameter ${namespace} to a enum`;
+      this.logger.error(errorMsg, {
         method: 'getEnumParameter',
       });
       throw new Error(errorMsg);

@@ -1,6 +1,6 @@
 export class InMemoryTTLCache<Key extends string, Value> {
   constructor(protected ttl: number) {}
-  protected data = new Map<Key, Value>();
+  public data = new Map<Key, Value>();
   protected timers = new Map<Key, NodeJS.Timeout>();
   set(key: Key, v: Value) {
     if (this.timers.has(key)) {
