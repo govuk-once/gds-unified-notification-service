@@ -10,6 +10,9 @@ module "api_gateway_main" {
   // Config
   kms_key_arn = aws_kms_key.main.arn
 
+  //Mock Cross queue
+  staging_account_id = aws_ssm_parameter.staging_account_id.value
+
   // Lambdas
   integrations = {
     "getHealthCheck" = {
