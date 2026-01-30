@@ -3,7 +3,7 @@ import middy from '@middy/core';
 import { APIGatewayEvent, Context } from 'aws-lambda';
 import z from 'zod';
 
-describe('requestBodyValidatorMiddleware', () => {
+describe('requestValidatorMiddleware', () => {
   const mockContext = {} as Context;
   const schema = z.object({
     a: z.number(),
