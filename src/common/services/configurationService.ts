@@ -1,13 +1,16 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import type { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { InMemoryTTLCache } from '@common/utils';
 import * as z from 'zod';
 
 export class ConfigurationService {
+  // SSM Parameters should refresh every 60s
+  private inMemoryCache = new InMemoryTTLCache<string, string>(60000);
+
   private client;
   private prefix = process.env.PREFIX;
-
   constructor(
     protected logger: Logger,
     protected metrics: Metrics,
@@ -18,6 +21,28 @@ export class ConfigurationService {
     // this.tracer.captureAWSv3Client(this.client);
   }
 
+  public async fetchNamespace(nextToken?: string): Promise<void> {
+    this.logger.info(`Refreshing namespace ${nextToken}`);
+    const params = await this.client.send(
+      new GetParametersByPathCommand({
+        Path: `/${this.prefix}/`,
+        Recursive: true,
+        WithDecryption: true,
+        MaxResults: 10,
+        NextToken: nextToken,
+      })
+    );
+    for (const { Name, Value } of params.Parameters ?? []) {
+      if (Name && Value) {
+        this.inMemoryCache.set(Name, Value);
+      }
+    }
+    if (params.NextToken) {
+      await this.fetchNamespace(params.NextToken);
+    }
+    this.logger.info(`Results`, { params: params.Parameters, cache: this.inMemoryCache.data });
+  }
+
   public async getParameter(namespace: string): Promise<string> {
     this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
 
@@ -26,14 +51,16 @@ export class ConfigurationService {
       WithDecryption: true,
     };
 
-    const command = new GetParameterCommand(param);
-
     try {
-      const data = await this.client.send(command);
+      // If namespace does not contain value - fetch namepsace
+      if (this.inMemoryCache.has(param.Name) == false) {
+        await this.fetchNamespace();
+      }
 
-      this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
-      if (data.Parameter?.Value) {
-        return data.Parameter?.Value;
+      // Confirm value in cache
+      if (this.inMemoryCache.has(param.Name)) {
+        this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
+        return this.inMemoryCache.get(param.Name)!;
       }
       throw new Error('Returned parameter has no value');
     } catch (error) {

@@ -41,9 +41,9 @@ const metrics = new Metrics({
 export const iocGetMetrics = () => metrics;
 
 // Services
-export const iocGetConfigurationService = () =>
-  new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
-
+// TODO: Singleton / TTL wrappers for IoC
+const configSingleton = new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
+export const iocGetConfigurationService = () => configSingleton;
 export const iocGetCacheService = () => new CacheService(iocGetConfigurationService(), iocGetLogger());
 export const iocGetProcessingQueueService = async () =>
   await new ProcessingQueueService(

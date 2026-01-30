@@ -2,7 +2,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
 import { mockClient } from 'aws-sdk-client-mock';
 import { Mocked } from 'vitest';
@@ -32,12 +32,12 @@ describe('ConfigurationService', () => {
     it('should secret from parameter store with namespace and value', async () => {
       // Arrange
       const secretValue = 'secret';
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
       });
 
       // Act
-      const parameter = await config.getParameter('testNameSpace');
+      const parameter = await config.getParameter('testKey');
 
       // Assert
       expect(parameter).toEqual(secretValue);
@@ -46,7 +46,7 @@ describe('ConfigurationService', () => {
     it('should throw an error and log when the call fails', async () => {
       // Arrange
       const errorMsg = 'AWS Error';
-      ssmMock.on(GetParameterCommand).rejects(new Error(errorMsg));
+      ssmMock.on(GetParametersByPathCommand).rejects(new Error(errorMsg));
 
       // Act
       const result = config.getParameter('testNameSpace');
@@ -63,12 +63,12 @@ describe('ConfigurationService', () => {
     it('should return a secret from parameter store in boolean form', async () => {
       // Arrange
       const secretValue = 'true';
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
       });
 
       // Act
-      const parameter = await config.getBooleanParameter('testNameSpace');
+      const parameter = await config.getBooleanParameter('testKey');
 
       // Assert
       expect(parameter).toEqual(true);
@@ -76,18 +76,16 @@ describe('ConfigurationService', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a boolean', async () => {
       // Arrange
-      const secretValue = '1';
-
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
+      const secretValue = 'abc';
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
       });
-
       // Act
-      const result = config.getBooleanParameter('testNameSpace');
+      const result = config.getBooleanParameter('testKey');
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(loggerMock.error).toHaveBeenCalledWith(`Could not parse parameter testNameSpace to a boolean`);
+      expect(loggerMock.error).toHaveBeenCalledWith(`Could not parse parameter testKey to a boolean`);
     });
   });
 
@@ -95,12 +93,12 @@ describe('ConfigurationService', () => {
     it('should return a secret from parameter store in numeric form', async () => {
       // Arrange
       const secretValue = '10';
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
       });
 
       // Act
-      const parameter = await config.getNumericParameter('testNameSpace');
+      const parameter = await config.getNumericParameter('testKey');
 
       // Assert
       expect(parameter).toEqual(Number(secretValue));
@@ -109,14 +107,14 @@ describe('ConfigurationService', () => {
     it('should throw an error and log when the parameter cannot be parsed to a number', async () => {
       // Arrange
       const secretValue = 'ten';
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: secretValue },
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
       });
 
-      const errorMsg = 'Could not parse parameter testNameSpace to a number';
+      const errorMsg = 'Could not parse parameter testKey to a number';
 
       // Act
-      const result = config.getNumericParameter('testNameSpace');
+      const result = config.getNumericParameter('testKey');
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
@@ -129,12 +127,12 @@ describe('ConfigurationService', () => {
 
     it('should return a secret from parameter store in enum form', async () => {
       // Arrange
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: enumValues.enum.blue },
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: enumValues.enum.blue, Name: '/undefined/testKey' }],
       });
 
       // Act
-      const parameter = await config.getEnumParameter('testNameSpace', enumValues);
+      const parameter = await config.getEnumParameter('testKey', enumValues);
 
       // Assert
       expect(parameter).toEqual(enumValues.enum.blue);
@@ -142,14 +140,14 @@ describe('ConfigurationService', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a enum', async () => {
       // Arrange
-      ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: 'yellow' },
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: 'yellow', Name: '/undefined/testKey' }],
       });
 
-      const errorMsg = 'Could not parse parameter testNameSpace to a enum';
+      const errorMsg = 'Could not parse parameter testKey to a enum';
 
       // Act
-      const result = config.getEnumParameter('testNameSpace', enumValues);
+      const result = config.getEnumParameter('testKey', enumValues);
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
