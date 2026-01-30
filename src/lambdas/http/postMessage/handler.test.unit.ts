@@ -169,7 +169,7 @@ describe('PostMessage Handler', () => {
     );
   });
 
-  it('should return a status 200 and list of NotificationIDs when call is successful.', async () => {
+  it('should return a status 202 and list of NotificationIDs when call is successful.', async () => {
     // Arrange
     configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -178,7 +178,7 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(result).toEqual({
-      statusCode: 200,
+      statusCode: 202,
       body: [{ NotificationID: mockEvent.body[0].NotificationID }],
     });
   });
