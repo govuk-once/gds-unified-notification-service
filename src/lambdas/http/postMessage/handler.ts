@@ -142,7 +142,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
           NotificationID: x.NotificationID,
         };
       }),
-      statusCode: 200,
+      statusCode: 202,
     };
   }
 }
