@@ -60,12 +60,9 @@ export class ConfigurationService {
   public async getNumericParameter(namespace: string): Promise<number> {
     const parameterValue = await this.getParameter(namespace);
 
-    if (parameterValue !== undefined) {
-      const num = Number(parameterValue);
-
-      if (!Number.isNaN(num)) {
-        return num;
-      }
+    const num = Number(parameterValue);
+    if (!Number.isNaN(num)) {
+      return num;
     }
 
     const errorMsg = `Could not parse parameter ${namespace} to a number`;
@@ -76,18 +73,13 @@ export class ConfigurationService {
   public async getEnumParameter<T extends z.ZodEnum>(namespace: string, schema: T): Promise<z.infer<T>> {
     const parameterValue = await this.getParameter(namespace);
 
-    // If parameter is undefined
-    if (parameterValue == undefined) {
-      throw new Error(`Parameter value ${namespace} is undefined`);
-    }
-
     // Parse parameter
     const result = schema.safeParse(parameterValue);
 
     // If invalid enum
     if (result.error) {
-      const errorMsg = `Could not parse parameter ${namespace} to a number`;
-      this.logger.trace(errorMsg, {
+      const errorMsg = `Could not parse parameter ${namespace} to a enum`;
+      this.logger.error(errorMsg, {
         method: 'getEnumParameter',
       });
       throw new Error(errorMsg);

@@ -48,6 +48,7 @@ describe('Dispatch QueueHandler', () => {
     functionName: 'dispatch',
     awsRequestId: '12345',
   } as unknown as Context;
+
   const mockMessageBody: IProcessedMessage = {
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
     UserID: 'test_id_01',
@@ -78,6 +79,38 @@ describe('Dispatch QueueHandler', () => {
       },
     ],
   };
+
+  const mockFailedEvent: QueueEvent<IProcessedMessage> = {
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        body: {
+          NotificationID: 'invalid-id',
+          UserID: 'invalid-id',
+          DepartmentID: 'invalid-id',
+          ExternalUserID: 'test',
+          // Missed out on purpose NotificationTitle, NotificationBody
+        },
+      },
+    ],
+  } as unknown as QueueEvent<IProcessedMessage>;
+
+  const mockUnidentifiableEvent: QueueEvent<IProcessedMessage> = {
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        body: {
+          // Set NotificationID to undefined on purpose
+          NotificationID: undefined,
+          UserID: 'invalid-id',
+          ExternalUserID: 'test',
+          DepartmentID: 'invalid-id',
+          NotificationTitle: 'Boom',
+          NotificationBody: 'psst',
+        },
+      },
+    ],
+  } as unknown as QueueEvent<IProcessedMessage>;
 
   beforeEach(async () => {
     // Reset all mocks
@@ -205,7 +238,7 @@ describe('Dispatch QueueHandler', () => {
     });
   });
 
-  it('should trigger analytics for failure events', async () => {
+  it('should trigger analytics for failure events when NotificationService fails.', async () => {
     // Arrange
     configMock.getParameter.mockResolvedValue('');
     inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
@@ -228,6 +261,67 @@ describe('Dispatch QueueHandler', () => {
         UserID: mockMessageBody.UserID,
       },
       'DISPATCHING_FAILED'
+    );
+  });
+
+  it('should trigger analytics for failure events for invalid messages.', async () => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+    // Act
+    await instance.implementation(mockFailedEvent, mockContext);
+
+    // Assert
+    expect(analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
+        NotificationID: mockFailedEvent.Records[0].body.NotificationID,
+      },
+      'DISPATCHING_FAILED',
+      {
+        fieldErrors: {
+          NotificationBody: ['Invalid input: expected string, received undefined'],
+          NotificationTitle: ['Invalid input: expected string, received undefined'],
+        },
+        formErrors: [],
+      }
+    );
+  });
+
+  it('should log when a message has no NotificationID or DepartmentID', async () => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+    // Act
+    await instance.implementation(mockUnidentifiableEvent, mockContext);
+
+    // Assert
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+      {
+        errors: {
+          fieldErrors: {
+            NotificationID: ['Invalid input: expected string, received undefined'],
+          },
+          formErrors: [],
+        },
+        raw: {
+          DepartmentID: 'invalid-id',
+          ExternalUserID: 'test',
+          NotificationBody: 'psst',
+          NotificationID: undefined,
+          NotificationTitle: 'Boom',
+          UserID: 'invalid-id',
+        },
+      }
     );
   });
 });

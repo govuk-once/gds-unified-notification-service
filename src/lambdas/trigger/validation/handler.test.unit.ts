@@ -46,6 +46,7 @@ describe('Validation QueueHandler', () => {
     functionName: 'validation',
     awsRequestId: '12345',
   } as unknown as Context;
+
   const mockMessageBody: IMessage = {
     NotificationID: '1234',
     DepartmentID: 'TEST01',
@@ -55,6 +56,7 @@ describe('Validation QueueHandler', () => {
     MessageTitle: 'Hi there',
     MessageBody: 'MOCK_LONG_MESSAGE',
   };
+
   const mockEvent: QueueEvent<IMessage> = {
     Records: [
       {
@@ -76,6 +78,7 @@ describe('Validation QueueHandler', () => {
       },
     ],
   };
+
   const mockFailedEvent: QueueEvent<IMessage> = {
     Records: [
       {
@@ -85,6 +88,23 @@ describe('Validation QueueHandler', () => {
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           // Missed out on purpose NotificationTitle, NotificationBody
+        },
+      },
+    ],
+  } as unknown as QueueEvent<IMessage>;
+
+  const mockUnidentifiableEvent: QueueEvent<IMessage> = {
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        body: {
+          // Set NotificationID to undefined on purpose
+          NotificationID: undefined,
+          UserID: 'invalid-id',
+          ExternalUserID: 'test',
+          DepartmentID: 'invalid-id',
+          NotificationTitle: 'Boom',
+          NotificationBody: 'psst',
         },
       },
     ],
@@ -248,6 +268,34 @@ describe('Validation QueueHandler', () => {
       },
       'VALIDATION_FAILED',
       expect.any(Object)
+    );
+  });
+
+  it('should log when a message has no NotificationID or DepartmentID', async () => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    processingQueueService.publishMessageBatch.mockResolvedValue(undefined);
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+    // Act
+    await instance.implementation(mockUnidentifiableEvent, mockContext);
+
+    // Assert
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+      {
+        errors: {
+          fieldErrors: {
+            // TODO: Should be NotificationID
+            body: ['Invalid input: expected string, received undefined'],
+          },
+          formErrors: [],
+        },
+        raw: mockUnidentifiableEvent.Records[0],
+      }
     );
   });
 });

@@ -89,6 +89,23 @@ describe('Processing QueueHandler', () => {
     ],
   } as unknown as QueueEvent<IMessage>;
 
+  const mockUnidentifiableEvent: QueueEvent<IMessage> = {
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        body: {
+          // Set NotificationID to undefined on purpose
+          NotificationID: undefined,
+          UserID: 'invalid-id',
+          ExternalUserID: 'test',
+          DepartmentID: 'invalid-id',
+          NotificationTitle: 'Boom',
+          NotificationBody: 'psst',
+        },
+      },
+    ],
+  } as unknown as QueueEvent<IMessage>;
+
   beforeEach(async () => {
     // Reset all mocks
     vi.clearAllMocks();
@@ -222,6 +239,34 @@ describe('Processing QueueHandler', () => {
         },
       ],
       'PROCESSING'
+    );
+  });
+
+  it('should log when a message has no NotificationID or DepartmentID', async () => {
+    // Arrange
+    configMock.getParameter.mockResolvedValue('');
+    dispatchQueueService.publishMessageBatch.mockResolvedValue(undefined);
+    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
+    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+    // Act
+    await instance.implementation(mockUnidentifiableEvent, mockContext);
+
+    // Assert
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+      {
+        errors: {
+          fieldErrors: {
+            // TODO: Should be NotificationID
+            body: ['Invalid input: expected string, received undefined'],
+          },
+          formErrors: [],
+        },
+        raw: mockUnidentifiableEvent.Records[0],
+      }
     );
   });
 });
