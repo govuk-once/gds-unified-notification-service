@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ITypedRequestEvent } from '@common/middlewares';
+import { injectObservabilityMocks } from '@common/utils/testServices';
 import { GetHealthcheck } from '@project/lambdas/http/getHealthcheck/handler';
 import { Context } from 'aws-lambda';
 
@@ -15,12 +13,14 @@ describe('GetHealthcheck Handler', () => {
   let mockContext: Context;
   let mockEvent: ITypedRequestEvent<undefined>;
 
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
+  const observabilityMocks = injectObservabilityMocks();
 
   beforeEach(() => {
-    instance = new GetHealthcheck(loggerMock, metricsMock, tracerMock);
+    instance = new GetHealthcheck(
+      observabilityMocks.loggerMock,
+      observabilityMocks.metricsMock,
+      observabilityMocks.tracerMock
+    );
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -37,6 +37,6 @@ describe('GetHealthcheck Handler', () => {
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(loggerMock.info).toHaveBeenCalledWith('Received request');
+    expect(observabilityMocks.loggerMock.info).toHaveBeenCalledWith('Received request');
   });
 });

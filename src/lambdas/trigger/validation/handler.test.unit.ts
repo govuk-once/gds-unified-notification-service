@@ -1,16 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
-import {
-  AnalyticsQueueService,
-  AnalyticsService,
-  ConfigurationService,
-  ProcessingQueueService,
-} from '@common/services';
+import { injectObservabilityMocks, injectServiceMocks } from '@common/utils/testServices';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/trigger/validation/handler';
 import { Context } from 'aws-lambda';
@@ -27,19 +18,8 @@ mockClient(SQSClient);
 describe('Validation QueueHandler', () => {
   let instance: Validation;
 
-  const loggerMock = vi.mocked(new Logger());
-  const tracerMock = vi.mocked(new Tracer());
-  const metricsMock = vi.mocked(new Metrics());
-  const configMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-
-  const inboundDynamoMock = vi.mocked(new InboundDynamoRepository(configMock, loggerMock, metricsMock, tracerMock));
-  const analyticsQueueServiceMock = vi.mocked(
-    new AnalyticsQueueService(configMock, loggerMock, metricsMock, tracerMock)
-  );
-  const analyticsServiceMock = vi.mocked(
-    new AnalyticsService(loggerMock, metricsMock, tracerMock, analyticsQueueServiceMock)
-  );
-  const processingQueueService = vi.mocked(new ProcessingQueueService(configMock, loggerMock, metricsMock, tracerMock));
+  const observabilityMocks = injectObservabilityMocks();
+  const serviceMocks = injectServiceMocks(observabilityMocks);
 
   // Data presents
   const mockContext: Context = {
@@ -113,14 +93,20 @@ describe('Validation QueueHandler', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    configMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
 
-    await analyticsQueueServiceMock.initialize();
-    instance = new Validation(configMock, loggerMock, metricsMock, tracerMock, () => ({
-      analyticsService: Promise.resolve(analyticsServiceMock),
-      inboundTable: Promise.resolve(inboundDynamoMock),
-      processingQueue: processingQueueService.initialize(),
-    }));
+    await serviceMocks.analyticsQueueServiceMock.initialize();
+    instance = new Validation(
+      serviceMocks.configurationServiceMock,
+      observabilityMocks.loggerMock,
+      observabilityMocks.metricsMock,
+      observabilityMocks.tracerMock,
+      () => ({
+        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      })
+    );
   });
 
   it('should have the correct operationId', () => {
@@ -135,15 +121,17 @@ describe('Validation QueueHandler', () => {
     'should obey SSM Enabled flags Common: %s Validation: %s',
     async (commonEnabled: string, validationEnabled: string) => {
       // Arrange
-      configMock.getParameter.mockResolvedValue('');
-      processingQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
-      processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-      processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-      inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-      analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-      configMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
+      serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+      serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
+      serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+      serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+      serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+      serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+      serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
       if (validationEnabled == `disabled`) {
-        configMock.getBooleanParameter.mockResolvedValueOnce((validationEnabled as string) == `enabled`);
+        serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(
+          (validationEnabled as string) == `enabled`
+        );
       }
 
       // Act & assert
@@ -157,19 +145,19 @@ describe('Validation QueueHandler', () => {
 
   it('should publish analytics events', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    processingQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           DepartmentID: mockMessageBody.DepartmentID,
@@ -179,7 +167,7 @@ describe('Validation QueueHandler', () => {
       ],
       'VALIDATING'
     );
-    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           DepartmentID: mockMessageBody.DepartmentID,
@@ -197,36 +185,36 @@ describe('Validation QueueHandler', () => {
 
   it('should send a message to processing queue', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    processingQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(processingQueueService.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
+    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
   });
 
   it('should store data in the inbound message table', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    processingQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(inboundDynamoMock.createRecordBatch).toHaveBeenCalledWith([
+    expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',
@@ -236,20 +224,20 @@ describe('Validation QueueHandler', () => {
 
   it('should trigger analytics for failure events', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    processingQueueService.publishMessageBatch.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    processingQueueService.publishMessage.mockResolvedValueOnce(undefined);
-    inboundDynamoMock.createRecordBatch.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValueOnce(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockFailedEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
       1,
       [
         {
@@ -260,7 +248,7 @@ describe('Validation QueueHandler', () => {
       ],
       'VALIDATING'
     );
-    expect(analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
       1,
       {
         NotificationID: 'invalid-id',
@@ -273,18 +261,18 @@ describe('Validation QueueHandler', () => {
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    processingQueueService.publishMessageBatch.mockResolvedValue(undefined);
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockUnidentifiableEvent, mockContext);
 
     // Assert
-    expect(loggerMock.info).toHaveBeenCalledWith(
+    expect(observabilityMocks.loggerMock.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
         errors: {
