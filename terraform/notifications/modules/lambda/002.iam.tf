@@ -50,7 +50,7 @@ resource "aws_iam_role_policy" "lambda_to_ssm" {
       // Allow role assumptions
       {
         Effect   = "Allow"
-        Action   = ["ssm:GetParameter"]
+        Action   = ["ssm:GetParameter", "ssm:GetParametersByPath"]
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.prefix}/*"
       }
     ]
