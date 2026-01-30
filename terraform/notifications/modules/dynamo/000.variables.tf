@@ -32,3 +32,16 @@ variable "kms_key_arn" {
   type        = string
   description = "Existing KMS key"
 }
+
+variable "attributes" {
+  description = "List of attribute definitions name & type properties are required for each, both are string values"
+  type        = list(map(string))
+  default     = []
+}
+
+variable "global_secondary_indexes" {
+  description = "Definition for global indexes to add to the dynamodb table"
+  type        = any
+  default     = []
+}
+
