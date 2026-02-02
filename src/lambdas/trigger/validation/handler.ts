@@ -51,6 +51,9 @@ import { Context } from 'aws-lambda';
     }
   ]
 }
+
+Sample SQS Body (for pushing messages from portal)
+{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
 export class Validation extends QueueHandler<IMessage> {
   public operationId: string = 'validation';
@@ -72,6 +75,7 @@ export class Validation extends QueueHandler<IMessage> {
   }
 
   public async implementation(event: QueueEvent<IMessage>, context: Context) {
+    this.observability.logger.info(`Received request`, { event });
     // TODO: Implement retry mechanism - This call throw errors if service is disabled
     await this.config.ensureServiceIsEnabled(
       BoolParameters.Config.Common.Enabled,

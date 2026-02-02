@@ -6,7 +6,7 @@ import {
   PutItemCommand,
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import { unmarshall, marshall } from '@aws-sdk/util-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
@@ -28,6 +28,7 @@ describe('InboundDynamoRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
 
   beforeEach(async () => {
+    vi.resetAllMocks();
     dynamoMock.reset();
 
     serviceMocks.configurationServiceMock.getParameter = vi
@@ -240,7 +241,8 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`
+        `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`,
+        expect.any(Object)
       );
     });
   });
