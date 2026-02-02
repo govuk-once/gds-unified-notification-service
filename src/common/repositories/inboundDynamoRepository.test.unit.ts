@@ -9,7 +9,7 @@ import {
   PutItemCommand,
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import { unmarshall, marshall } from '@aws-sdk/util-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
 import { ConfigurationService } from '@common/services';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
@@ -33,6 +33,7 @@ describe('InboundDynamoRepository', () => {
   const metricsMock = vi.mocked(new Metrics());
 
   beforeEach(async () => {
+    vi.resetAllMocks();
     dynamoMock.reset();
 
     config = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
@@ -243,7 +244,8 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(loggerMock.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`
+        `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`,
+        expect.any(Object)
       );
     });
   });
