@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent } from '@common/operations';
-import { injectObservabilityMocks, injectServiceMocks } from '@common/utils/testServices';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
 import { Context, SQSRecord } from 'aws-lambda';
@@ -14,8 +14,8 @@ vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
 describe('Analytics QueueHandler', () => {
-  const observabilityMocks = injectObservabilityMocks();
-  const serviceMocks = injectServiceMocks(observabilityMocks);
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   let instance: Analytics;
   let mockContext: Context;
@@ -41,16 +41,10 @@ describe('Analytics QueueHandler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    instance = new Analytics(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks.loggerMock,
-      observabilityMocks.metricsMock,
-      observabilityMocks.tracerMock,
-      () => ({
-        cache: Promise.resolve(serviceMocks.cacheServiceMock),
-        events: Promise.resolve(serviceMocks.eventsDynamoRepositoryMock),
-      })
-    );
+    instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      cache: Promise.resolve(serviceMocks.cacheServiceMock),
+      events: Promise.resolve(serviceMocks.eventsDynamoRepositoryMock),
+    }));
 
     // Mock AWS Lambda Context
     mockContext = {

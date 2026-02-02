@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
+import { observabilitySpies } from '@common/utils/mockIocInstanceFactory';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -23,9 +21,7 @@ describe('ProcessingQueueService', () => {
   let processingQueueService: ProcessingQueueService;
   let configurationServiceMock: ConfigurationService;
 
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
+  const observabilityMock = observabilitySpies();
   const sqsMock = mockClient(SQSClient);
 
   const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
@@ -44,9 +40,9 @@ describe('ProcessingQueueService', () => {
     vi.clearAllMocks();
     sqsMock.reset();
 
-    configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+    configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
     configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockProcessingQueueUrl);
-    processingQueueService = new ProcessingQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
+    processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
     await processingQueueService.initialize();
   });
 
@@ -59,19 +55,14 @@ describe('ProcessingQueueService', () => {
       expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Processing.Url);
       expectTypeOf(result).toEqualTypeOf<ProcessingQueueService>();
 
-      expect(loggerMock.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
+      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
     });
 
     it('should throw an error if queue url is undefined', async () => {
       // Arrange
       configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
 
-      processingQueueService = new ProcessingQueueService(
-        configurationServiceMock,
-        loggerMock,
-        metricsMock,
-        tracerMock
-      );
+      processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
 
       // Act
       const result = processingQueueService.initialize();
@@ -112,7 +103,7 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessage(mockMessageBody);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
     });
   });
 
@@ -141,7 +132,7 @@ describe('ProcessingQueueService', () => {
           ],
         })
       );
-      expect(loggerMock.info).toHaveBeenCalledWith('Successfully published 1 messages.');
+      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Successfully published 1 messages.');
     });
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
@@ -189,7 +180,7 @@ describe('ProcessingQueueService', () => {
           },
         ],
       });
-      expect(loggerMock.error).toHaveBeenCalledWith('Failed to publish 1 messages.');
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish 1 messages.');
     });
 
     it('should throw an error when more than 10 messages are send in a batch.', async () => {
@@ -214,7 +205,7 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch(mockMessageList);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(errorMsg);
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {
@@ -226,7 +217,7 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
     });
   });
 });

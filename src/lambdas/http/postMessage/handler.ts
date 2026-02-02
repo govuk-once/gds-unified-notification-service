@@ -1,6 +1,3 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   APIHandler,
   HandlerDependencies,
@@ -8,10 +5,8 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
-  iocGetLogger,
-  iocGetMetrics,
+  iocGetObservability,
   iocGetProcessingQueueService,
-  iocGetTracer,
   StringParameters,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
@@ -24,6 +19,7 @@ import {
   ConfigurationService,
   ProcessingQueueService,
 } from '@common/services';
+import { Observability } from '@common/utils/observability';
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
@@ -74,12 +70,10 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
   constructor(
     protected config: ConfigurationService,
-    logger: Logger,
-    metrics: Metrics,
-    tracer: Tracer,
+    protected observability: Observability,
     public asyncDependencies?: () => HandlerDependencies<PostMessage>
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   public async initialize() {
@@ -90,7 +84,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.logger.info('Received request');
+    this.observability.logger.info('Received request');
 
     // MOCK authorizing request
     const apiKey = await this.config.getParameter(StringParameters.Api.PostMessage.ApiKey);
@@ -107,7 +101,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     const messages = event.body;
 
     // Publish analytics & push items to the processing queue
-    this.logger.trace('Publishing analytics events for validated messages.');
+    this.observability.logger.trace('Publishing analytics events for validated messages.');
     await this.analyticsService.publishMultipleEvents(
       messages.map(
         (body): AnalyticsEventFromIMessage => ({
@@ -119,11 +113,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     );
 
     // Requeue messages which passed validation to next stage
-    this.logger.trace('Requeuing validated message to process queue.');
+    this.observability.logger.trace('Requeuing validated message to process queue.');
     await this.processingQueue.publishMessageBatch(messages);
 
     // Create a record of message in Dynamodb
-    this.logger.trace('Creating record of validated messages that have been passed to queue.');
+    this.observability.logger.trace('Creating record of validated messages that have been passed to queue.');
     await this.inboundTable.createRecordBatch(
       messages.map(
         (body): IMessageRecord => ({
@@ -147,14 +141,8 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   }
 }
 
-export const handler = new PostMessage(
-  iocGetConfigurationService(),
-  iocGetLogger(),
-  iocGetMetrics(),
-  iocGetTracer(),
-  () => ({
-    analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
-    processingQueue: iocGetProcessingQueueService(),
-  })
-).handler();
+export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservability(), () => ({
+  analyticsService: iocGetAnalyticsService(),
+  inboundTable: iocGetInboundDynamoRepository(),
+  processingQueue: iocGetProcessingQueueService(),
+})).handler();

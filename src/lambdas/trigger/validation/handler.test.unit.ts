@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
-import { injectObservabilityMocks, injectServiceMocks } from '@common/utils/testServices';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/trigger/validation/handler';
 import { Context } from 'aws-lambda';
@@ -18,8 +18,8 @@ mockClient(SQSClient);
 describe('Validation QueueHandler', () => {
   let instance: Validation;
 
-  const observabilityMocks = injectObservabilityMocks();
-  const serviceMocks = injectServiceMocks(observabilityMocks);
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Data presents
   const mockContext: Context = {
@@ -96,17 +96,11 @@ describe('Validation QueueHandler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
-    instance = new Validation(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks.loggerMock,
-      observabilityMocks.metricsMock,
-      observabilityMocks.tracerMock,
-      () => ({
-        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
-        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-      })
-    );
+    instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+    }));
   });
 
   it('should have the correct operationId', () => {
@@ -272,7 +266,7 @@ describe('Validation QueueHandler', () => {
     await instance.implementation(mockUnidentifiableEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.loggerMock.info).toHaveBeenCalledWith(
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
         errors: {

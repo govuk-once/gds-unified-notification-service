@@ -1,9 +1,9 @@
-import { Logger } from '@aws-lambda-powertools/logger';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Hash } from '@aws-sdk/hash-node';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
 import { ConfigurationService } from '@common/services';
+import { Observability } from '@common/utils/observability';
 import { HttpRequest } from '@smithy/protocol-http';
 import { createClient } from 'redis';
 
@@ -11,7 +11,7 @@ export class CacheService {
   public cache: ReturnType<typeof createClient>;
   constructor(
     protected config: ConfigurationService,
-    public logger: Logger
+    public observability: Observability
   ) {}
 
   async generateSigV4(cacheName: string, username: string) {
@@ -114,7 +114,7 @@ export class CacheService {
       exceeded: counter >= maxPerMinute,
       capacityRemaining: Math.max(0, counter - maxPerMinute),
     };
-    this.logger.info(`Rate limiting status`, {
+    this.observability.logger.info(`Rate limiting status`, {
       key,
       counter,
       maxPerMinute,

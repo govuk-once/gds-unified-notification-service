@@ -1,8 +1,7 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { AnalyticsQueueService } from '@common/services';
+import { Observability } from '@common/utils/observability';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 
@@ -12,9 +11,7 @@ export type AnalyticsEventFromIMessage = Pick<IMessage, 'DepartmentID' | 'Notifi
 
 export class AnalyticsService {
   constructor(
-    public logger: Logger,
-    public metrics: Metrics,
-    public tracer: Tracer,
+    public observability: Observability,
     public queue: AnalyticsQueueService
   ) {}
 
@@ -41,11 +38,11 @@ export class AnalyticsService {
       events.map((event, index) => this.createEvent<T>(event, status, reasons ? reasons[index] : undefined))
     );
 
-    this.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, events.length);
+    this.observability.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, events.length);
   }
 
   public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: ValidationEnum, reason?: T) {
     await this.queue.publishMessage(this.createEvent(message, status, reason));
-    this.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, 1);
+    this.observability.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, 1);
   }
 }

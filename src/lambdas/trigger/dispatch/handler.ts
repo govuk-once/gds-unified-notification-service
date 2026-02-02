@@ -1,7 +1,4 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
 import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   HandlerDependencies,
   initializeDependencies,
@@ -9,16 +6,15 @@ import {
   iocGetCacheService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
-  iocGetLogger,
-  iocGetMetrics,
   iocGetNotificationService,
-  iocGetTracer,
+  iocGetObservability,
 } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
 import { AnalyticsService, CacheService, ConfigurationService, NotificationService } from '@common/services';
 import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
+import { Observability } from '@common/utils/observability';
 import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
@@ -64,12 +60,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
 
   constructor(
     public config: ConfigurationService,
-    logger: Logger,
-    metrics: Metrics,
-    tracer: Tracer,
+    observability: Observability,
     public asyncDependencies?: () => HandlerDependencies<Dispatch>
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   public async initialize() {
@@ -93,7 +87,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       })
     );
 
-    this.logger.info(`Identifiable records`, { identifiableRecords });
+    this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
       ValidationEnum.DISPATCHING
@@ -107,7 +101,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
 
     // Invalid messages should not appear - however it's good to filter these out & remove from
     if (invalidRecords.length > 0) {
-      this.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
+      this.observability.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
         invalidRecords: invalidRecords.map((record) => ({ raw: record.raw, errors: record.errors })),
         totalRecords: records,
       });
@@ -158,10 +152,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
 
       // Analytics event
       if (success) {
-        this.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
+        this.observability.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
       } else {
-        this.logger.error(`Notification failed to dispatch`, { ...metadata });
+        this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
       }
     }
@@ -171,10 +165,13 @@ export class Dispatch extends QueueHandler<unknown, void> {
       const { NotificationID, DepartmentID } = extractIdentifiers(raw);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
-        this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
-          raw,
-          errors,
-        });
+        this.observability.logger.info(
+          `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+          {
+            raw,
+            errors,
+          }
+        );
         continue;
       }
       await this.analyticsService.publishEvent(
@@ -189,15 +186,9 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Dispatch(
-  iocGetConfigurationService(),
-  iocGetLogger(),
-  iocGetMetrics(),
-  iocGetTracer(),
-  () => ({
-    inboundDynamodbRepository: iocGetInboundDynamoRepository(),
-    notificationsService: iocGetNotificationService(),
-    analyticsService: iocGetAnalyticsService(),
-    cacheService: iocGetCacheService().connect(),
-  })
-).handler();
+export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservability(), () => ({
+  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+  notificationsService: iocGetNotificationService(),
+  analyticsService: iocGetAnalyticsService(),
+  cacheService: iocGetCacheService().connect(),
+})).handler();

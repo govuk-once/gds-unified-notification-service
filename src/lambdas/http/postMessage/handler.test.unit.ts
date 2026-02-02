@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-
 import { ITypedRequestEvent } from '@common/middlewares';
 import { ValidationEnum } from '@common/models/ValidationEnum';
-import { injectObservabilityMocks, injectServiceMocks } from '@common/utils/testServices';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Context } from 'aws-lambda';
@@ -17,8 +16,8 @@ vi.mock('@common/repositories', { spy: true });
 describe('PostMessage Handler', () => {
   let instance: PostMessage;
 
-  const observabilityMocks = injectObservabilityMocks();
-  const serviceMocks = injectServiceMocks(observabilityMocks);
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Mock Message Body
   const mockMessageBody = {
@@ -64,17 +63,11 @@ describe('PostMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`sqsurl/sqsname`);
 
     // Mocking retrieving store apiKey
-    instance = new PostMessage(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks.loggerMock,
-      observabilityMocks.metricsMock,
-      observabilityMocks.tracerMock,
-      () => ({
-        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
-        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-      })
-    );
+    instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+    }));
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValueOnce(undefined);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);

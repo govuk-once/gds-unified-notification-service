@@ -1,14 +1,5 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
-import {
-  APIHandler,
-  iocGetLogger,
-  iocGetMetrics,
-  iocGetTracer,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
-} from '@common';
+import { APIHandler, iocGetObservability, type ITypedRequestEvent, type ITypedRequestResponse } from '@common';
+import { Observability } from '@common/utils/observability';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
@@ -20,8 +11,8 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  constructor(logger: Logger, metrics: Metrics, tracer: Tracer) {
-    super(logger, metrics, tracer);
+  constructor(protected observability: Observability) {
+    super(observability);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -30,7 +21,7 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     // Otel examples
-    this.logger.info('Received request');
+    this.observability.logger.info('Received request');
     // Return placeholder status
     return {
       body: {
@@ -41,4 +32,4 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   }
 }
 
-export const handler = new GetHealthcheck(iocGetLogger(), iocGetMetrics(), iocGetTracer()).handler();
+export const handler = new GetHealthcheck(iocGetObservability()).handler();

@@ -2,7 +2,7 @@
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { NotificationAdapterResult } from '@common/services/interfaces';
-import { injectObservabilityMocks, injectServiceMocks } from '@common/utils/testServices';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
@@ -20,8 +20,8 @@ mockClient(SQSClient);
 describe('Dispatch QueueHandler', () => {
   let instance: Dispatch;
 
-  const observabilityMocks = injectObservabilityMocks();
-  const serviceMocks = injectServiceMocks(observabilityMocks);
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Data presets
   const mockContext: Context = {
@@ -101,18 +101,12 @@ describe('Dispatch QueueHandler', () => {
     await serviceMocks.notificationServiceMock.initialize();
 
     serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
-    instance = new Dispatch(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks.loggerMock,
-      observabilityMocks.metricsMock,
-      observabilityMocks.tracerMock,
-      () => ({
-        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
-        notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
-        cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
-      })
-    );
+    instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
+      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
+    }));
   });
 
   it('should have the correct operationId', () => {
@@ -292,7 +286,7 @@ describe('Dispatch QueueHandler', () => {
     await instance.implementation(mockUnidentifiableEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.loggerMock.info).toHaveBeenCalledWith(
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
         errors: {

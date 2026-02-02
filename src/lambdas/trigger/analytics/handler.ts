@@ -1,6 +1,3 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
 import {
   HandlerDependencies,
@@ -8,9 +5,7 @@ import {
   iocGetCacheService,
   iocGetConfigurationService,
   iocGetEventsDynamoRepository,
-  iocGetLogger,
-  iocGetMetrics,
-  iocGetTracer,
+  iocGetObservability,
 } from '@common/ioc';
 import { IAnalyticsRecord } from '@common/models/interfaces/IAnalyticsRecord';
 import { QueueEvent, QueueHandler } from '@common/operations';
@@ -18,6 +13,7 @@ import { EventsDynamoRepository } from '@common/repositories';
 import { CacheService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
+import { Observability } from '@common/utils/observability';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Context } from 'aws-lambda';
 
@@ -52,12 +48,10 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 
   constructor(
     protected config: ConfigurationService,
-    logger: Logger,
-    metrics: Metrics,
-    tracer: Tracer,
+    protected observability: Observability,
     public asyncDependencies?: () => HandlerDependencies<Analytics>
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   public async initialize() {
@@ -75,7 +69,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 
     // A single invalid entry rejects entire batch - these are messages from within the system this should not happen
     if (invalidRecords.length > 0) {
-      this.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
+      this.observability.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
         invalidRecords: invalidRecords.map((record) => record.raw),
         errors: invalidRecords.map((record) => record.errors),
         totalRecords: records,
@@ -92,16 +86,16 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     };
 
     if (entries.length > 0) {
-      this.logger.info(`Creating entries in batch`, createEntriesMeta);
+      this.observability.logger.info(`Creating entries in batch`, createEntriesMeta);
       await this.events.createRecordBatch<IAnalyticsRecord>(entries);
-      this.logger.info(`Completes saving entries in batch`, createEntriesMeta);
+      this.observability.logger.info(`Completes saving entries in batch`, createEntriesMeta);
     }
 
     // For each updated row - also update the redis cache
     for (const notification of entries) {
       const cacheKey = `/${notification.DepartmentID}/${notification.NotificationID}/Status`;
       await this.cache.store(cacheKey, notification.Event);
-      this.logger.info(`Updating Elasticache with notification status`, {
+      this.observability.logger.info(`Updating Elasticache with notification status`, {
         NotificationID: notification.NotificationID,
         Status: notification.Event,
       });
@@ -109,13 +103,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   }
 }
 
-export const handler = new Analytics(
-  iocGetConfigurationService(),
-  iocGetLogger(),
-  iocGetMetrics(),
-  iocGetTracer(),
-  () => ({
-    events: iocGetEventsDynamoRepository(),
-    cache: iocGetCacheService().connect(),
-  })
-).handler();
+export const handler = new Analytics(iocGetConfigurationService(), iocGetObservability(), () => ({
+  events: iocGetEventsDynamoRepository(),
+  cache: iocGetCacheService().connect(),
+})).handler();

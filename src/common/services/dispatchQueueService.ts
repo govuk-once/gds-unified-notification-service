@@ -1,8 +1,6 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ConfigurationService } from '@common/services/configurationService';
 import { QueueService } from '@common/services/queueService';
+import { Observability } from '@common/utils/observability';
 import { StringParameters } from '@common/utils/parameters';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 
@@ -10,18 +8,16 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   protected queueName: string = 'dispatch';
   constructor(
     protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
+    protected observability: Observability
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   async initialize() {
     this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Dispatch.Url);
     await super.initialize();
 
-    this.logger.info('Dispatch Queue Service Initialised.');
+    this.observability.logger.info('Dispatch Queue Service Initialised.');
     return this;
   }
 }

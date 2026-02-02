@@ -1,6 +1,3 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   BatchWriteItemCommandInput,
   DynamoDB,
@@ -9,17 +6,14 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
+import { Observability } from '@common/utils/observability';
 
 export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
   protected tableName: string;
   protected tableKey: string;
 
-  constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {}
+  constructor(protected observability: Observability) {}
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {
@@ -34,12 +28,12 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     });
 
     this.client = client;
-    this.tracer.captureAWSv3Client(this.client);
+    this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }
 
   public async createRecord<RecordType>(record: RecordType): Promise<void> {
-    this.logger.info(`Creating record in table: ${this.tableName}`);
+    this.observability.logger.info(`Creating record in table: ${this.tableName}`);
 
     try {
       const params: PutItemCommandInput = {
@@ -48,18 +42,18 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       };
 
       await this.client.putItem(params);
-      this.logger.info(`Successfully created record in table: ${this.tableName}`);
+      this.observability.logger.info(`Successfully created record in table: ${this.tableName}`);
     } catch (error) {
-      this.logger.error(`Failure in creating record table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in creating record table: ${this.tableName}. ${error}`);
     }
   }
 
   public async createRecordBatch<RecordType>(batchRecords: RecordType[]): Promise<void> {
-    this.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableName}`);
+    this.observability.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableName}`);
 
     try {
       if (batchRecords.length === 0) {
-        this.logger.warn(`Triggered createRecordBatch with an empty array`);
+        this.observability.logger.warn(`Triggered createRecordBatch with an empty array`);
         return;
       }
       if (batchRecords.length === 0 || batchRecords.length > 25) {
@@ -78,14 +72,14 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       };
 
       await this.client.batchWriteItem(params);
-      this.logger.info(`Successfully created records in table: ${this.tableName}`);
+      this.observability.logger.info(`Successfully created records in table: ${this.tableName}`);
     } catch (error) {
-      this.logger.error(`Failure in creating records table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in creating records table: ${this.tableName}. ${error}`);
     }
   }
 
   public async updateRecord<RecordType extends object>(recordFields: RecordType): Promise<void> {
-    this.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
+    this.observability.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
 
     try {
       const keyValue = recordFields[this.tableKey as keyof RecordType];
@@ -115,14 +109,14 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       };
 
       await this.client.updateItem(params);
-      this.logger.info(`Successfully updated record in table: ${this.tableName}`);
+      this.observability.logger.info(`Successfully updated record in table: ${this.tableName}`);
     } catch (error) {
-      this.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`);
     }
   }
 
   public async getRecord<RecordType>(keyValue: string): Promise<RecordType | null> {
-    this.logger.info(`Retrieving record in table: ${this.tableName} with key: ${this.tableKey}`);
+    this.observability.logger.info(`Retrieving record in table: ${this.tableName} with key: ${this.tableKey}`);
 
     const params = {
       TableName: this.tableName,
@@ -135,16 +129,16 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       const { Item } = await this.client.getItem(params);
 
       if (!Item) {
-        this.logger.info(`No item in table: ${this.tableName} with key: ${this.tableKey}`);
+        this.observability.logger.info(`No item in table: ${this.tableName} with key: ${this.tableKey}`);
         return null;
       }
 
       const response = unmarshall(Item) as RecordType;
 
-      this.logger.info(`Retrieved record in table: ${this.tableName} with key: ${this.tableKey}`);
+      this.observability.logger.info(`Retrieved record in table: ${this.tableName} with key: ${this.tableKey}`);
       return response;
     } catch (error) {
-      this.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
     }
   }

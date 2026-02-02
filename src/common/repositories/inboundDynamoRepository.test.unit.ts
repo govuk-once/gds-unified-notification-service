@@ -1,7 +1,4 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   BatchWriteItemCommand,
   DynamoDB,
@@ -11,45 +8,42 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { unmarshall, marshall } from '@aws-sdk/util-dynamodb';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
-import { ConfigurationService } from '@common/services';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services', { spy: true });
 
 const mockInboundTableName = 'mockInboundTableName';
 const mockInboundTableKey = 'NotificationID';
 
 describe('InboundDynamoRepository', () => {
-  const dynamoMock = mockClient(DynamoDB);
   let inboundDynamoRepo: InboundDynamoRepository;
-  let config: ConfigurationService;
 
-  const loggerMock = vi.mocked(new Logger());
-  const tracerMock = vi.mocked(new Tracer());
-  const metricsMock = vi.mocked(new Metrics());
+  const observabilityMock = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMock);
+  const dynamoMock = mockClient(DynamoDB);
 
   beforeEach(async () => {
     dynamoMock.reset();
 
-    config = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-    config.getParameter = vi
+    serviceMocks.configurationServiceMock.getParameter = vi
       .fn()
       .mockResolvedValueOnce(mockInboundTableName)
       .mockResolvedValueOnce(mockInboundTableKey);
 
-    inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+    inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await inboundDynamoRepo.initialize();
   });
 
   describe('initialize', () => {
     it('should throw an error if table name is undefined', async () => {
       // Arrange
-      config.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+      serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
+      inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
 
       // Act
       const result = inboundDynamoRepo.initialize();
@@ -60,8 +54,11 @@ describe('InboundDynamoRepository', () => {
 
     it('should throw an error if table key is undefined', async () => {
       // Arrange
-      config.getParameter = vi.fn().mockResolvedValueOnce('mockTableName').mockResolvedValueOnce(undefined);
-      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+      serviceMocks.configurationServiceMock.getParameter = vi
+        .fn()
+        .mockResolvedValueOnce('mockTableName')
+        .mockResolvedValueOnce(undefined);
+      inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
 
       // Act
       const result = inboundDynamoRepo.initialize();
@@ -115,7 +112,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.createRecord(record);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in creating record table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });
@@ -162,7 +159,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
-      expect(loggerMock.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
+      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
     });
 
     it('should log an error if the request fails', async () => {
@@ -186,7 +183,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in creating records table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });
@@ -242,7 +239,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.updateRecord(record);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });
@@ -299,7 +296,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.getRecord(mockNotificationID);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in getting record for table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });

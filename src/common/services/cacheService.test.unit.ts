@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { CacheService } from '@common/services/cacheService';
-import { ConfigurationService } from '@common/services/configurationService';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 import redis from 'redis';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -13,11 +10,9 @@ vi.mock('@ioc', { spy: true });
 
 describe('CacheService', () => {
   // Mocks preparation
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
-  const configMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-  configMock.getParameter = vi.fn();
+  const observabilityMock = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMock);
+  serviceMocks.configurationServiceMock.getParameter = vi.fn();
 
   const createClientSpy = vi.spyOn(redis, 'createClient');
   const redisConnection = vi.fn();
@@ -27,7 +22,7 @@ describe('CacheService', () => {
   let instance: CacheService;
   beforeEach(() => {
     vi.resetAllMocks();
-    instance = new CacheService(configMock, loggerMock);
+    instance = new CacheService(serviceMocks.configurationServiceMock, observabilityMock);
     vi.spyOn(instance, 'generateSigV4').mockResolvedValue('');
     createClientSpy.mockImplementation(
       () =>
@@ -42,22 +37,22 @@ describe('CacheService', () => {
   describe('connect', () => {
     it('should fetch data from configuration service when connecting', async () => {
       // Arrange
-      configMock.getParameter.mockResolvedValueOnce('name');
-      configMock.getParameter.mockResolvedValueOnce('host');
-      configMock.getParameter.mockResolvedValueOnce('user');
+      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('name');
+      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('host');
+      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('user');
 
       // Act
       await instance.connect();
 
       // Assert
-      expect(configMock.getParameter).toHaveBeenCalledTimes(3);
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(3);
       expect(redisConnection).toHaveBeenCalled();
     });
   });
 
   it('should trigger SET command on redis connection using serialized value', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('parameter');
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('parameter');
     const key = 'a';
     const value = 'example';
 
@@ -72,7 +67,7 @@ describe('CacheService', () => {
 
   it('should trigger GET command on redis, and return undefined if no value exists', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('parameter');
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('parameter');
     getMock.mockResolvedValueOnce(undefined);
     const key = 'a';
 
@@ -88,7 +83,7 @@ describe('CacheService', () => {
   it('should trigger GET command on redis, and use provided factory to set default value', async () => {
     // Arrange
     const factory = vi.fn().mockResolvedValueOnce(7);
-    configMock.getParameter.mockResolvedValue('parameter');
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('parameter');
     getMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce(7);
     const key = 'a';
 

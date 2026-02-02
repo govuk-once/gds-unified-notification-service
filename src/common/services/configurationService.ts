@@ -1,8 +1,6 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import type { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { InMemoryTTLCache } from '@common/utils';
+import { Observability } from '@common/utils/observability';
 import * as z from 'zod';
 
 export class ConfigurationService {
@@ -11,18 +9,14 @@ export class ConfigurationService {
 
   private client;
   private prefix = process.env.PREFIX;
-  constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {
+  constructor(protected observability: Observability) {
     this.client = new SSMClient({ region: 'eu-west-2' });
     // TODO: Fix tests
     // this.tracer.captureAWSv3Client(this.client);
   }
 
   public async fetchNamespace(nextToken?: string): Promise<void> {
-    this.logger.info(`Refreshing namespace ${nextToken}`);
+    this.observability.logger.info(`Refreshing namespace ${nextToken}`);
     const params = await this.client.send(
       new GetParametersByPathCommand({
         Path: `/${this.prefix}/`,
@@ -40,11 +34,11 @@ export class ConfigurationService {
     if (params.NextToken) {
       await this.fetchNamespace(params.NextToken);
     }
-    this.logger.info(`Results`, { params: params.Parameters, cache: this.inMemoryCache.data });
+    this.observability.logger.info(`Results`, { params: params.Parameters, cache: this.inMemoryCache.data });
   }
 
   public async getParameter(namespace: string): Promise<string> {
-    this.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
+    this.observability.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
       Name: `/${this.prefix}/${namespace}`,
@@ -59,12 +53,12 @@ export class ConfigurationService {
 
       // Confirm value in cache
       if (this.inMemoryCache.has(param.Name)) {
-        this.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
+        this.observability.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
         return this.inMemoryCache.get(param.Name)!;
       }
       throw new Error('Returned parameter has no value');
     } catch (error) {
-      this.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
+      this.observability.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
       throw error;
     }
   }
@@ -79,7 +73,7 @@ export class ConfigurationService {
         return false;
       default:
         const errorMsg = `Could not parse parameter ${namespace} to a boolean`;
-        this.logger.error(errorMsg);
+        this.observability.logger.error(errorMsg);
         throw new Error(errorMsg);
     }
   }
@@ -93,7 +87,7 @@ export class ConfigurationService {
     }
 
     const errorMsg = `Could not parse parameter ${namespace} to a number`;
-    this.logger.error(errorMsg);
+    this.observability.logger.error(errorMsg);
     throw new Error(errorMsg);
   }
 
@@ -106,7 +100,7 @@ export class ConfigurationService {
     // If invalid enum
     if (result.error) {
       const errorMsg = `Could not parse parameter ${namespace} to a enum`;
-      this.logger.error(errorMsg, {
+      this.observability.logger.error(errorMsg, {
         method: 'getEnumParameter',
       });
       throw new Error(errorMsg);

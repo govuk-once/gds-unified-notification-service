@@ -1,7 +1,4 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
 import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   HandlerDependencies,
   initializeDependencies,
@@ -9,15 +6,14 @@ import {
   iocGetConfigurationService,
   iocGetDispatchQueueService,
   iocGetInboundDynamoRepository,
-  iocGetLogger,
-  iocGetMetrics,
-  iocGetTracer,
+  iocGetObservability,
 } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, DispatchQueueService } from '@common/services';
 import { BoolParameters, groupValidation } from '@common/utils';
+import { Observability } from '@common/utils/observability';
 import {
   extractIdentifiers,
   IIdentifieableMessageSchema,
@@ -66,12 +62,10 @@ export class Processing extends QueueHandler<IMessage, void> {
 
   constructor(
     public config: ConfigurationService,
-    logger: Logger,
-    metrics: Metrics,
-    tracer: Tracer,
+    observability: Observability,
     public asyncDependencies?: () => HandlerDependencies<Processing>
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   public async initialize() {
@@ -94,7 +88,7 @@ export class Processing extends QueueHandler<IMessage, void> {
         body: IIdentifieableMessageSchema,
       })
     );
-    this.logger.info(`Identifiable records`, { identifiableRecords });
+    this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
       ValidationEnum.PROCESSING
@@ -105,7 +99,10 @@ export class Processing extends QueueHandler<IMessage, void> {
       event.Records,
       SqsRecordSchema.extend({ body: IMessageSchema })
     );
-    this.logger.info(`Validation results`, { valid: validRecords.length, invalid: invalidRecords.length });
+    this.observability.logger.info(`Validation results`, {
+      valid: validRecords.length,
+      invalid: invalidRecords.length,
+    });
 
     // (MOCK) Getting the OneSignalID from UDP - For now we just map UserID to ExternalUserID 1:1
     const processedMessages = validRecords.map(({ valid: { body } }) => ({
@@ -115,7 +112,7 @@ export class Processing extends QueueHandler<IMessage, void> {
 
     // Update stored rows in inbound message
     for (const processed of processedMessages) {
-      this.logger.info(`Updating entry with timestamp`, {
+      this.observability.logger.info(`Updating entry with timestamp`, {
         NotificationID: processed.NotificationID,
         DepartmentID: processed.DepartmentID,
       });
@@ -142,10 +139,13 @@ export class Processing extends QueueHandler<IMessage, void> {
       const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
-        this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
-          raw,
-          errors,
-        });
+        this.observability.logger.info(
+          `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+          {
+            raw,
+            errors,
+          }
+        );
         continue;
       }
       await this.analyticsService.publishEvent(
@@ -160,14 +160,8 @@ export class Processing extends QueueHandler<IMessage, void> {
   }
 }
 
-export const handler = new Processing(
-  iocGetConfigurationService(),
-  iocGetLogger(),
-  iocGetMetrics(),
-  iocGetTracer(),
-  () => ({
-    analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
-    dispatchQueue: iocGetDispatchQueueService(),
-  })
-).handler();
+export const handler = new Processing(iocGetConfigurationService(), iocGetObservability(), () => ({
+  analyticsService: iocGetAnalyticsService(),
+  inboundTable: iocGetInboundDynamoRepository(),
+  dispatchQueue: iocGetDispatchQueueService(),
+})).handler();

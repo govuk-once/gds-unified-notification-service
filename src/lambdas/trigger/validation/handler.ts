@@ -1,23 +1,19 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
 import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   HandlerDependencies,
   initializeDependencies,
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
-  iocGetLogger,
-  iocGetMetrics,
+  iocGetObservability,
   iocGetProcessingQueueService,
-  iocGetTracer,
 } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, ProcessingQueueService } from '@common/services';
 import { BoolParameters, groupValidation } from '@common/utils';
+import { Observability } from '@common/utils/observability';
 import {
   extractIdentifiers,
   IIdentifieableMessageSchema,
@@ -65,12 +61,10 @@ export class Validation extends QueueHandler<IMessage> {
 
   constructor(
     protected config: ConfigurationService,
-    logger: Logger,
-    metrics: Metrics,
-    tracer: Tracer,
+    protected observability: Observability,
     public asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   public async initialize() {
@@ -94,7 +88,7 @@ export class Validation extends QueueHandler<IMessage> {
         body: IIdentifieableMessageSchema,
       })
     );
-    this.logger.info(`Identifiable records`, { identifiableRecords });
+    this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
       ValidationEnum.VALIDATING
@@ -105,7 +99,10 @@ export class Validation extends QueueHandler<IMessage> {
       event.Records,
       SqsRecordSchema.extend({ body: IMessageSchema })
     );
-    this.logger.info(`Validation results`, { valid: validRecords.length, invalid: invalidRecords.length });
+    this.observability.logger.info(`Validation results`, {
+      valid: validRecords.length,
+      invalid: invalidRecords.length,
+    });
 
     if (validRecords.length > 0) {
       // Store valid entries in inbound table
@@ -134,10 +131,13 @@ export class Validation extends QueueHandler<IMessage> {
       const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
-        this.logger.info(`Supplied message does not contain NotificationID or DepartmentID, rejecting record`, {
-          raw,
-          errors,
-        });
+        this.observability.logger.info(
+          `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+          {
+            raw,
+            errors,
+          }
+        );
         continue;
       }
       await this.analyticsService.publishEvent(
@@ -151,14 +151,8 @@ export class Validation extends QueueHandler<IMessage> {
     }
   }
 }
-export const handler = new Validation(
-  iocGetConfigurationService(),
-  iocGetLogger(),
-  iocGetMetrics(),
-  iocGetTracer(),
-  () => ({
-    analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
-    processingQueue: iocGetProcessingQueueService(),
-  })
-).handler();
+export const handler = new Validation(iocGetConfigurationService(), iocGetObservability(), () => ({
+  analyticsService: iocGetAnalyticsService(),
+  inboundTable: iocGetInboundDynamoRepository(),
+  processingQueue: iocGetProcessingQueueService(),
+})).handler();

@@ -1,8 +1,6 @@
-import type { Logger } from '@aws-lambda-powertools/logger';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
-import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import {
   type IMiddleware,
@@ -14,6 +12,7 @@ import {
   responseValidatorMiddleware,
   serializeBodyToJson,
 } from '@common/middlewares';
+import { Observability } from '@common/utils/observability';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
 import httpEventNormalizer from '@middy/http-event-normalizer';
@@ -34,11 +33,7 @@ export abstract class APIHandler<
   public abstract requestBodySchema: InputSchema;
   public abstract responseBodySchema: OutputSchema;
 
-  constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {}
+  constructor(protected observability: Observability) {}
 
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,
@@ -81,13 +76,13 @@ export abstract class APIHandler<
     // May need to re-write these middlewares to strip powertools and use @opentelemetry instances instead
     return middy
       .use(
-        injectLambdaContext(this.logger, {
+        injectLambdaContext(this.observability.logger, {
           correlationIdPath: 'requestContext.requestId',
         })
       )
-      .use(captureLambdaHandler(this.tracer))
+      .use(captureLambdaHandler(this.observability.tracer))
       .use(
-        logMetrics(this.metrics, {
+        logMetrics(this.observability.metrics, {
           captureColdStartMetric: true,
           throwOnEmptyMetrics: false,
         })
@@ -105,7 +100,7 @@ export abstract class APIHandler<
 
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
-    this.metrics.addMetric('API_CALL_TRIGGERED', MetricUnit.Count, 1);
+    this.observability.metrics.addMetric('API_CALL_TRIGGERED', MetricUnit.Count, 1);
     return this.middlewares(middy()).handler(async (event, context) => {
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,
