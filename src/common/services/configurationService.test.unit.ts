@@ -2,7 +2,7 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
 import { InMemoryTTLCache } from '@common/utils';
-import { observabilitySpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { mockClient } from 'aws-sdk-client-mock';
 import { Mocked } from 'vitest';
 import z from 'zod';

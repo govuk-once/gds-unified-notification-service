@@ -2,8 +2,8 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { v4 as uuid } from 'uuid';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

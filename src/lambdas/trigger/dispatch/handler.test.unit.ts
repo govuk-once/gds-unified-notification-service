@@ -2,7 +2,7 @@
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { NotificationAdapterResult } from '@common/services/interfaces';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';

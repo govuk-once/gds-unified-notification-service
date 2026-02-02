@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { CacheService } from '@common/services/cacheService';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import redis from 'redis';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

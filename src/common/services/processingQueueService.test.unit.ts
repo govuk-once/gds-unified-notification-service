@@ -2,7 +2,7 @@
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
-import { observabilitySpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';

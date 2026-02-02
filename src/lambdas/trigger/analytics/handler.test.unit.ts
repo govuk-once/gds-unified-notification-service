@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent } from '@common/operations';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
 import { Context, SQSRecord } from 'aws-lambda';

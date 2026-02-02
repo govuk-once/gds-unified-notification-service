@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringParameters } from '@common/utils/parameters';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';

@@ -16,6 +16,10 @@ import { Mocked } from 'vitest';
 import { Observability } from '@common/utils/observability';
 
 // Observability mocks
+/*
+  Generates a mocked instance of the Observability class.
+  Provides pre-spied Logger, Metrics, and Tracer dependencies for unit testing.
+*/
 export const observabilitySpies = (): Mocked<Observability> => {
   const loggerMock = new Logger() as Mocked<Logger>;
   const metricsMocks = new Metrics() as Mocked<Metrics>;
@@ -27,6 +31,10 @@ export const observabilitySpies = (): Mocked<Observability> => {
 };
 
 // Service and Repository Mocks
+/**
+  Factory to initialize the mock service and repository layers.
+  Organises the dependency injection of mocked services and repositories and ensuring they all share the same observability context.
+*/
 export const ServiceSpies = (observabilityMock: Mocked<Observability>): IServicesMock => {
   const configurationServiceMock = new ConfigurationService(observabilityMock) as Mocked<ConfigurationService>;
   const processingQueueServiceMock = new ProcessingQueueService(

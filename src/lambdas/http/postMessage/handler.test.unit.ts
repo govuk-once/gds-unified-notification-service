@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ITypedRequestEvent } from '@common/middlewares';
 import { ValidationEnum } from '@common/models/ValidationEnum';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Context } from 'aws-lambda';

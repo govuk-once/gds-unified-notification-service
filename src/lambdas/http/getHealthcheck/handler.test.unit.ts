@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 
 import { ITypedRequestEvent } from '@common/middlewares';
-import { observabilitySpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetHealthcheck } from '@project/lambdas/http/getHealthcheck/handler';
 import { Context } from 'aws-lambda';
 

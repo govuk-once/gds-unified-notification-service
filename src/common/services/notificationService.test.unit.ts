@@ -2,8 +2,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 // Unbound methods are allowed as that's how vi.mocked works
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockIocInstanceFactory';
-import * as z from 'zod';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

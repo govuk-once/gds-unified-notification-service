@@ -2,7 +2,7 @@
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
-import { observabilitySpies } from '@common/utils/mockIocInstanceFactory';
+import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringParameters } from '@common/utils/parameters';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
