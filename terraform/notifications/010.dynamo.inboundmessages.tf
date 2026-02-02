@@ -10,14 +10,10 @@ module "dynamodb_inbound_messages" {
 
   // Fields
   hash_key  = "NotificationID"
-  range_key = "ReceivedDateTime"
+  range_key = null
   attributes = [
     {
       name = "NotificationID"
-      type = "S"
-    },
-    {
-      name = "ReceivedDateTime"
       type = "S"
     },
     {
@@ -29,11 +25,10 @@ module "dynamodb_inbound_messages" {
   // Indexes
   global_secondary_indexes = [
     {
-      name               = "DepartmentIDIndex"
-      hash_key           = "NotificationID"
-      range_key          = "DepartmentID"
-      projection_type    = "INCLUDE"
-      non_key_attributes = ["ReceivedDateTime"]
+      name            = "DepartmentIDIndex"
+      hash_key        = "NotificationID"
+      range_key       = "DepartmentID"
+      projection_type = "KEYS_ONLY"
     }
   ]
 }
