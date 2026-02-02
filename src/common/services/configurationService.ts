@@ -1,6 +1,6 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { ObservabilityService } from '@common/services/observabilityService';
 import { InMemoryTTLCache } from '@common/utils';
-import { Observability } from '@common/utils/observability';
 import * as z from 'zod';
 
 export class ConfigurationService {
@@ -9,7 +9,7 @@ export class ConfigurationService {
 
   private client;
   private prefix = process.env.PREFIX;
-  constructor(protected observability: Observability) {
+  constructor(protected observability: ObservabilityService) {
     this.client = new SSMClient({ region: 'eu-west-2' });
     // TODO: Fix tests
     // this.tracer.captureAWSv3Client(this.client);

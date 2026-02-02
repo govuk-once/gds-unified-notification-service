@@ -4,16 +4,16 @@ import {
   NotificationAdapter,
   NotificationAdapterOneSignal,
   NotificationAdapterVoid,
+  ObservabilityService,
 } from '@common/services';
 import { NotificationAdapterRequest, NotificationAdapterResult } from '@common/services/interfaces';
 import { segment } from '@common/utils';
-import { Observability } from '@common/utils/observability';
 import * as z from 'zod';
 
 export class NotificationService {
   public adapter: NotificationAdapter;
   constructor(
-    protected observability: Observability,
+    protected observability: ObservabilityService,
     protected config: ConfigurationService
   ) {}
 

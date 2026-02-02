@@ -10,22 +10,25 @@ import {
   DispatchQueueService,
   CacheService,
   NotificationService,
+  ObservabilityService,
 } from '@common/services';
-import { IServicesMock } from '@common/models/interfaces/IServicesMocks';
 import { Mocked } from 'vitest';
-import { Observability } from '@common/utils/observability';
 
 // Observability mocks
 /*
   Generates a mocked instance of the Observability class.
   Provides pre-spied Logger, Metrics, and Tracer dependencies for unit testing.
 */
-export const observabilitySpies = (): Mocked<Observability> => {
+export const observabilitySpies = (): Mocked<ObservabilityService> => {
   const loggerMock = new Logger() as Mocked<Logger>;
   const metricsMocks = new Metrics() as Mocked<Metrics>;
   const tracerMocks = new Tracer() as Mocked<Tracer>;
 
-  const observabilityMock = new Observability(loggerMock, metricsMocks, tracerMocks) as Mocked<Observability>;
+  const observabilityMock = new ObservabilityService(
+    loggerMock,
+    metricsMocks,
+    tracerMocks
+  ) as Mocked<ObservabilityService>;
 
   return observabilityMock;
 };
@@ -35,7 +38,7 @@ export const observabilitySpies = (): Mocked<Observability> => {
   Factory to initialize the mock service and repository layers.
   Organises the dependency injection of mocked services and repositories and ensuring they all share the same observability context.
 */
-export const ServiceSpies = (observabilityMock: Mocked<Observability>): IServicesMock => {
+export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) => {
   const configurationServiceMock = new ConfigurationService(observabilityMock) as Mocked<ConfigurationService>;
   const processingQueueServiceMock = new ProcessingQueueService(
     configurationServiceMock,

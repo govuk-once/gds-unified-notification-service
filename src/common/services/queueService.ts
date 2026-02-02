@@ -1,8 +1,8 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { Observability } from '@common/utils/observability';
+import { ObservabilityService } from '@common/services/observabilityService';
 
-export const serializeRecordBodyToJson = <InputType>(body: InputType, observability: Observability): string => {
+export const serializeRecordBodyToJson = <InputType>(body: InputType, observability: ObservabilityService): string => {
   if (typeof body === 'string') {
     return body;
   }
@@ -19,7 +19,7 @@ export abstract class QueueService<InputType> {
   protected client: SQSClient;
   protected sqsQueueUrl: string;
 
-  constructor(protected observability: Observability) {}
+  constructor(protected observability: ObservabilityService) {}
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {

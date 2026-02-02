@@ -1,5 +1,5 @@
-import { APIHandler, iocGetObservability, type ITypedRequestEvent, type ITypedRequestResponse } from '@common';
-import { Observability } from '@common/utils/observability';
+import { APIHandler, iocGetObservabilityService, type ITypedRequestEvent, type ITypedRequestResponse } from '@common';
+import { ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
@@ -11,7 +11,7 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  constructor(protected observability: Observability) {
+  constructor(protected observability: ObservabilityService) {
     super(observability);
   }
 
@@ -32,4 +32,4 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   }
 }
 
-export const handler = new GetHealthcheck(iocGetObservability()).handler();
+export const handler = new GetHealthcheck(iocGetObservabilityService()).handler();

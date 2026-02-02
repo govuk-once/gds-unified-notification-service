@@ -1,13 +1,13 @@
 import { ConfigurationService } from '@common/services/configurationService';
+import { ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { Observability } from '@common/utils/observability';
 import { StringParameters } from '@common/utils/parameters';
 
 export class AnalyticsQueueService extends QueueService<unknown> {
   protected queueName: string = 'dispatch';
   constructor(
     protected config: ConfigurationService,
-    protected observability: Observability
+    protected observability: ObservabilityService
   ) {
     super(observability);
   }

@@ -7,14 +7,19 @@ import {
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetNotificationService,
-  iocGetObservability,
+  iocGetObservabilityService,
 } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, CacheService, ConfigurationService, NotificationService } from '@common/services';
+import {
+  AnalyticsService,
+  CacheService,
+  ConfigurationService,
+  NotificationService,
+  ObservabilityService,
+} from '@common/services';
 import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
-import { Observability } from '@common/utils/observability';
 import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
@@ -60,7 +65,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
 
   constructor(
     public config: ConfigurationService,
-    observability: Observability,
+    observability: ObservabilityService,
     public asyncDependencies?: () => HandlerDependencies<Dispatch>
   ) {
     super(observability);
@@ -186,7 +191,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservability(), () => ({
+export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   inboundDynamodbRepository: iocGetInboundDynamoRepository(),
   notificationsService: iocGetNotificationService(),
   analyticsService: iocGetAnalyticsService(),

@@ -1,7 +1,7 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
-import { Observability } from '@common/utils/observability';
+import { ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
@@ -18,7 +18,7 @@ export type IQueueMiddleware<InputType, OutputType> = MiddyfiedHandler<
 >;
 
 export const deserializeRecordBodyFromJson = <OutputType>(
-  observability: Observability
+  observability: ObservabilityService
 ): MiddlewareObj<SQSEvent, QueueEvent<OutputType>, Error> => ({
   before: (request): void => {
     for (let i = 0; i < request.event.Records.length; i++) {
@@ -34,7 +34,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
 export abstract class QueueHandler<InputType, OutputType = void> {
   public abstract operationId: string;
 
-  constructor(protected observability: Observability) {}
+  constructor(protected observability: ObservabilityService) {}
 
   public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
     throw new Error('Not Implemented');

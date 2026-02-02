@@ -6,14 +6,14 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
-import { Observability } from '@common/utils/observability';
+import { ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
   protected tableName: string;
   protected tableKey: string;
 
-  constructor(protected observability: Observability) {}
+  constructor(protected observability: ObservabilityService) {}
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {

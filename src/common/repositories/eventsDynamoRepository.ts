@@ -1,13 +1,12 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { ConfigurationService } from '@common/services';
-import { Observability } from '@common/utils/observability';
+import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
 export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
   constructor(
     protected config: ConfigurationService,
-    protected observability: Observability
+    protected observability: ObservabilityService
   ) {
     super(observability);
   }

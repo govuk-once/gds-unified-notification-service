@@ -160,7 +160,7 @@ describe('InboundDynamoRepository', () => {
       }
 
       // Act
-      const result = await inboundDynamoRepo.createRecordBatch(record);
+      await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(

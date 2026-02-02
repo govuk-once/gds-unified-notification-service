@@ -6,14 +6,13 @@ import {
   iocGetConfigurationService,
   iocGetDispatchQueueService,
   iocGetInboundDynamoRepository,
-  iocGetObservability,
+  iocGetObservabilityService,
 } from '@common/ioc';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ConfigurationService, DispatchQueueService } from '@common/services';
+import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
 import { BoolParameters, groupValidation } from '@common/utils';
-import { Observability } from '@common/utils/observability';
 import {
   extractIdentifiers,
   IIdentifieableMessageSchema,
@@ -62,7 +61,7 @@ export class Processing extends QueueHandler<IMessage, void> {
 
   constructor(
     public config: ConfigurationService,
-    observability: Observability,
+    observability: ObservabilityService,
     public asyncDependencies?: () => HandlerDependencies<Processing>
   ) {
     super(observability);
@@ -160,7 +159,7 @@ export class Processing extends QueueHandler<IMessage, void> {
   }
 }
 
-export const handler = new Processing(iocGetConfigurationService(), iocGetObservability(), () => ({
+export const handler = new Processing(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
   inboundTable: iocGetInboundDynamoRepository(),
   dispatchQueue: iocGetDispatchQueueService(),

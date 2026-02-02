@@ -5,15 +5,14 @@ import {
   iocGetCacheService,
   iocGetConfigurationService,
   iocGetEventsDynamoRepository,
-  iocGetObservability,
+  iocGetObservabilityService,
 } from '@common/ioc';
 import { IAnalyticsRecord } from '@common/models/interfaces/IAnalyticsRecord';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { EventsDynamoRepository } from '@common/repositories';
-import { CacheService } from '@common/services';
+import { CacheService, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
-import { Observability } from '@common/utils/observability';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Context } from 'aws-lambda';
 
@@ -48,7 +47,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 
   constructor(
     protected config: ConfigurationService,
-    protected observability: Observability,
+    protected observability: ObservabilityService,
     public asyncDependencies?: () => HandlerDependencies<Analytics>
   ) {
     super(observability);
@@ -103,7 +102,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   }
 }
 
-export const handler = new Analytics(iocGetConfigurationService(), iocGetObservability(), () => ({
+export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   events: iocGetEventsDynamoRepository(),
   cache: iocGetCacheService().connect(),
 })).handler();

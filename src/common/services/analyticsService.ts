@@ -1,7 +1,6 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ValidationEnum } from '@common/models/ValidationEnum';
-import { AnalyticsQueueService } from '@common/services';
-import { Observability } from '@common/utils/observability';
+import { AnalyticsQueueService, ObservabilityService } from '@common/services';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 
@@ -11,7 +10,7 @@ export type AnalyticsEventFromIMessage = Pick<IMessage, 'DepartmentID' | 'Notifi
 
 export class AnalyticsService {
   constructor(
-    public observability: Observability,
+    public observability: ObservabilityService,
     public queue: AnalyticsQueueService
   ) {}
 

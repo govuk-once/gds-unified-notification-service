@@ -5,7 +5,7 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
-  iocGetObservability,
+  iocGetObservabilityService,
   iocGetProcessingQueueService,
   StringParameters,
   type ITypedRequestEvent,
@@ -17,9 +17,9 @@ import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
   ConfigurationService,
+  ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
-import { Observability } from '@common/utils/observability';
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
@@ -70,7 +70,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
   constructor(
     protected config: ConfigurationService,
-    protected observability: Observability,
+    protected observability: ObservabilityService,
     public asyncDependencies?: () => HandlerDependencies<PostMessage>
   ) {
     super(observability);
@@ -141,7 +141,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   }
 }
 
-export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservability(), () => ({
+export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
   inboundTable: iocGetInboundDynamoRepository(),
   processingQueue: iocGetProcessingQueueService(),

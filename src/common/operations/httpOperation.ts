@@ -12,7 +12,7 @@ import {
   responseValidatorMiddleware,
   serializeBodyToJson,
 } from '@common/middlewares';
-import { Observability } from '@common/utils/observability';
+import { ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
 import httpEventNormalizer from '@middy/http-event-normalizer';
@@ -33,7 +33,7 @@ export abstract class APIHandler<
   public abstract requestBodySchema: InputSchema;
   public abstract responseBodySchema: OutputSchema;
 
-  constructor(protected observability: Observability) {}
+  constructor(protected observability: ObservabilityService) {}
 
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,
