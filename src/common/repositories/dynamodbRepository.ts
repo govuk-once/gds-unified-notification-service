@@ -56,8 +56,8 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
         this.observability.logger.warn(`Triggered createRecordBatch with an empty array`);
         return;
       }
-      if (batchRecords.length === 0 || batchRecords.length > 25) {
-        const errorMsg = 'To create batch records, array length must be more than 0 and at most 25.';
+      if (batchRecords.length > 25) {
+        const errorMsg = 'To create batch records, array length must be no greater than 25.';
         throw new Error(errorMsg);
       }
 

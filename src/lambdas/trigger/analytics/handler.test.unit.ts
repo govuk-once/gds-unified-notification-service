@@ -81,6 +81,34 @@ describe('Analytics QueueHandler', () => {
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', validData.Event);
   });
 
+  it('should process VALID records and handle missing values', async () => {
+    // Arrange
+    // Missing event enum
+    const validDataWithMissingValue = {
+      ...validData,
+      Event: undefined,
+    };
+    const expectedCreatedTableRows = [{ ...validDataWithMissingValue, Event: ValidationEnum.UNKNOWN }];
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
+    serviceMocks.eventsDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce();
+    serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
+
+    const event = {
+      Records: [{ body: validDataWithMissingValue as unknown as string, messageId: 'msg1' } as SQSRecord],
+    } as unknown as QueueEvent<IAnalytics>;
+
+    // Act
+    await instance.implementation(event, mockContext);
+
+    // Assert
+    // - Entries have been created
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
+    // - Cached hashmap of status and notification ID has been triggered
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', ValidationEnum.UNKNOWN);
+  });
+
   it('should process INVALID records: Update Cache to Read, Skip Queue, and Push to DyanmoDB', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');

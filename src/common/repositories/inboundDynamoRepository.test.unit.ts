@@ -70,18 +70,18 @@ describe('InboundDynamoRepository', () => {
   });
 
   describe('CreateRecord', () => {
+    const recordBody = {
+      NotificationID: '1234',
+      DepartmentID: 'TEST01',
+      UserID: 'UserID',
+      NotificationTitle: 'Hi there',
+      NotificationBody: 'You have a new message in the message center',
+      ReceivedDateTime: '202601021513',
+    };
+
     it('marshall record should be sent', async () => {
       // Arrange
-      const record: IMessageRecord = {
-        NotificationID: '1234',
-        DepartmentID: 'DVLA01',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-      };
+      const record: IMessageRecord = recordBody;
 
       // Act
       await inboundDynamoRepo.createRecord(record);
@@ -96,16 +96,7 @@ describe('InboundDynamoRepository', () => {
 
     it('should log an error if the request fails.', async () => {
       // Arrange
-      const record: IMessageRecord = {
-        NotificationID: '1234',
-        DepartmentID: 'DVLA01',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-      };
+      const record: IMessageRecord = recordBody;
       const errorMsg = 'Connection Failure';
       dynamoMock.on(PutItemCommand).rejectsOnce(new Error(errorMsg));
 
@@ -120,20 +111,18 @@ describe('InboundDynamoRepository', () => {
   });
 
   describe('CreateRecordBatch', () => {
+    const recordBody = {
+      NotificationID: '1234',
+      DepartmentID: 'TEST01',
+      UserID: 'UserID',
+      NotificationTitle: 'Hi there',
+      NotificationBody: 'You have a new message in the message center',
+      ReceivedDateTime: '202601021513',
+    };
+
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
-      const record: IMessageRecord[] = [
-        {
-          NotificationID: '1234',
-          DepartmentID: 'DVLA01',
-          UserID: 'UserID',
-          MessageTitle: 'You have a new Message',
-          MessageBody: 'Open Notification Centre to read your notifications',
-          NotificationTitle: 'You have a new medical driving license',
-          NotificationBody: 'The DVLA has issued you a new license.',
-          ReceivedDateTime: '202601021513',
-        },
-      ];
+      const record: IMessageRecord[] = [recordBody];
 
       // Act
       await inboundDynamoRepo.createRecordBatch(record);
@@ -163,20 +152,25 @@ describe('InboundDynamoRepository', () => {
       expect(observabilityMock.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
     });
 
+    it('should throw an error if record list is greater than 25.', async () => {
+      // Arrange
+      const record: IMessageRecord[] = [];
+      for (let i = 0; i < 27; i++) {
+        record.push(recordBody);
+      }
+
+      // Act
+      const result = await inboundDynamoRepo.createRecordBatch(record);
+
+      // Assert
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+        'Failure in creating records table: mockInboundTableName. Error: To create batch records, array length must be no greater than 25.'
+      );
+    });
+
     it('should log an error if the request fails', async () => {
       // Arrange
-      const record: IMessageRecord[] = [
-        {
-          NotificationID: '1234',
-          DepartmentID: 'DVLA01',
-          UserID: 'UserID',
-          MessageTitle: 'You have a new Message',
-          MessageBody: 'Open Notification Centre to read your notifications',
-          NotificationTitle: 'You have a new medical driving license',
-          NotificationBody: 'The DVLA has issued you a new license.',
-          ReceivedDateTime: '202601021513',
-        },
-      ];
+      const record: IMessageRecord[] = [recordBody];
       const errorMsg = 'Connection Failure';
       dynamoMock.on(BatchWriteItemCommand).rejectsOnce(new Error(errorMsg));
 
