@@ -95,9 +95,16 @@ describe('Dispatch QueueHandler', () => {
   beforeEach(async () => {
     // Reset all mocks
     vi.clearAllMocks();
+    vi.useRealTimers();
+
+    // Mocking successful completion of service functions
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
-    await serviceMocks.analyticsQueueServiceMock.initialize();
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`VOID`); // Adapter
+    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+
+    await serviceMocks.analyticsQueueServiceMock.initialize();
     await serviceMocks.notificationServiceMock.initialize();
 
     serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
@@ -121,8 +128,6 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
     if (processing == `disabled`) {
       serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(
@@ -139,9 +144,6 @@ describe('Dispatch QueueHandler', () => {
   it('should publish analytics events', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
@@ -175,9 +177,6 @@ describe('Dispatch QueueHandler', () => {
   it('should trigger notification service for valid messages', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
@@ -199,14 +198,14 @@ describe('Dispatch QueueHandler', () => {
   it('should update data in the inbound message table', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
@@ -216,16 +215,13 @@ describe('Dispatch QueueHandler', () => {
       DepartmentID: mockMessageBody.DepartmentID,
       NotificationID: mockMessageBody.NotificationID,
       UserID: mockMessageBody.UserID,
-      DispatchedStartDateTime: expect.any(String),
+      DispatchedStartDateTime: date.toISOString(),
     });
   });
 
   it('should trigger analytics for failure events when NotificationService fails.', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       success: false,
       errors: ['Service unavailable'],
@@ -249,9 +245,6 @@ describe('Dispatch QueueHandler', () => {
   it('should trigger analytics for failure events for invalid messages.', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
@@ -277,9 +270,6 @@ describe('Dispatch QueueHandler', () => {
   it('should log when a message has no NotificationID or DepartmentID', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValueOnce(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act

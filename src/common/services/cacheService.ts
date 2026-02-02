@@ -3,6 +3,7 @@ import { Hash } from '@aws-sdk/hash-node';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import { StringParameters } from '@common/utils';
 import { HttpRequest } from '@smithy/protocol-http';
 import { createClient } from 'redis';
 
@@ -45,9 +46,9 @@ export class CacheService {
   }
 
   async connect() {
-    const cacheName = await this.config.getParameter('config/common/cache/name');
-    const cacheHost = await this.config.getParameter('config/common/cache/host');
-    const cacheUser = await this.config.getParameter('config/common/cache/user');
+    const cacheName = await this.config.getParameter(StringParameters.Config.Cache.Name);
+    const cacheHost = await this.config.getParameter(StringParameters.Config.Cache.Host);
+    const cacheUser = await this.config.getParameter(StringParameters.Config.Cache.User);
 
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),

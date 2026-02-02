@@ -40,7 +40,12 @@ describe('Analytics QueueHandler', () => {
   };
 
   beforeEach(() => {
+    // Reset all mocks
     vi.clearAllMocks();
+
+    // Mocking successful completion of service functions
+    serviceMocks.eventsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
       events: Promise.resolve(serviceMocks.eventsDynamoRepositoryMock),
@@ -62,7 +67,6 @@ describe('Analytics QueueHandler', () => {
     // Arrange
     const expectedCreatedTableRows = [{ ...validData }];
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
-    serviceMocks.eventsDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce();
     serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
 
     const event = {
@@ -90,7 +94,6 @@ describe('Analytics QueueHandler', () => {
     };
     const expectedCreatedTableRows = [{ ...validDataWithMissingValue, Event: ValidationEnum.UNKNOWN }];
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
-    serviceMocks.eventsDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce();
     serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
 
     const event = {
