@@ -233,11 +233,11 @@ describe('Processing QueueHandler', () => {
         errors: {
           fieldErrors: {
             // TODO: Should be NotificationID
-            body: ['Invalid input: expected string, received undefined'],
+            NotificationID: ['Invalid input: expected string, received undefined'],
           },
           formErrors: [],
         },
-        raw: mockUnidentifiableEvent.Records[0],
+        raw: mockUnidentifiableEvent.Records[0].body,
       }
     );
   });
