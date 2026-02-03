@@ -74,7 +74,6 @@ export class Validation extends QueueHandler<IMessage> {
   }
 
   public async implementation(event: QueueEvent<IMessage>, context: Context) {
-    this.observability.logger.info(`Received request`, { event });
     // TODO: Implement retry mechanism - This call throw errors if service is disabled
     await this.config.ensureServiceIsEnabled(
       BoolParameters.Config.Common.Enabled,

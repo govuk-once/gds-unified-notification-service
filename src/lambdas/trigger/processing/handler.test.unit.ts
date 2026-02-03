@@ -128,7 +128,7 @@ describe('Processing QueueHandler', () => {
       );
     }
 
-    // Act & assert
+    // Act & Assert
     await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
       new Error(
         `Function disabled due to config/common/enabled or config/processing/enabled SSM param being toggled off`

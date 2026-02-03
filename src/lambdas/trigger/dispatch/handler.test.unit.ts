@@ -135,7 +135,7 @@ describe('Dispatch QueueHandler', () => {
       );
     }
 
-    // Act & assert
+    // Act & Assert
     await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
       new Error(`Function disabled due to config/common/enabled or config/dispatch/enabled SSM param being toggled off`)
     );

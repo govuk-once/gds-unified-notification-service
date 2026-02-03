@@ -90,6 +90,28 @@ describe('Validation QueueHandler', () => {
     ],
   } as unknown as QueueEvent<IMessage>;
 
+  const mockIncomingEvent: QueueEvent<string> = {
+    Records: [
+      {
+        messageId: 'mockMessageId',
+        receiptHandle: 'mockReceiptHandle',
+        attributes: {
+          ApproximateReceiveCount: '2',
+          SentTimestamp: '202601021513',
+          SenderId: 'mockSenderId',
+          ApproximateFirstReceiveTimestamp: '202601021513',
+        },
+        messageAttributes: {},
+        md5OfBody: 'mockMd5OfBody',
+        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'mockEventSourceARN',
+        awsRegion: 'eu-west2',
+        body: JSON.stringify(mockMessageBody),
+      },
+    ],
+  };
+
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
@@ -115,6 +137,35 @@ describe('Validation QueueHandler', () => {
     expect(instance.operationId).toBe('validation');
   });
 
+  it('should log when the handler is called and when it completes successfully.', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    const wrappedHandler = instance.handler();
+
+    // Act
+    await wrappedHandler(mockIncomingEvent as never, mockContext);
+
+    // Assert
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request received`, { event: mockEvent });
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request completed`);
+  });
+
+  it('should log when the handler fails to parse the message body.', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    const wrappedHandler = instance.handler();
+
+    // Act
+    await wrappedHandler(mockEvent, mockContext);
+
+    // Assert
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
+      raw: mockEvent.Records[0].body,
+    });
+  });
+
   it.each([
     [`enabled`, `disabled`],
     [`disabled`, `enabled`],
@@ -130,7 +181,7 @@ describe('Validation QueueHandler', () => {
         );
       }
 
-      // Act & assert
+      // Act & Assert
       await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
         new Error(
           `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
