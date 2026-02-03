@@ -87,37 +87,43 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
   public async updateRecord<RecordType extends object>(recordFields: RecordType): Promise<void> {
     this.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
 
+    const keyValue = recordFields[this.tableKey as keyof RecordType];
+    if (!keyValue) {
+      throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
+    }
+
+    // TODO: This needs a better solution
+    // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
+    const entries = Object.entries(recordFields)
+      .filter(([key, value]) => key !== this.tableKey && value != undefined)
+      .filter(([key, value]) => ['DepartmentID', 'NotificationID', 'EventID'].includes(key) == false);
+
+    const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
+    const expressionAttributeNames = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));
+    const expressionAttributeValues = marshall(Object.fromEntries(entries.map(([key, value]) => [`:${key}`, value])), {
+      removeUndefinedValues: true,
+    });
+
+    const params: UpdateItemCommandInput = {
+      TableName: this.tableName,
+      Key: marshall({
+        [this.tableKey]: keyValue,
+      }),
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      UpdateExpression: updateExpression,
+    };
+
     try {
-      const keyValue = recordFields[this.tableKey as keyof RecordType];
-      if (!keyValue) {
-        throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
-      }
-
-      const entries = Object.entries(recordFields).filter(
-        ([key, value]) => key !== this.tableKey && value != undefined
-      );
-
-      const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
-      const expressionAttributeNames = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));
-      const expressionAttributeValues = marshall(
-        Object.fromEntries(entries.map(([key, value]) => [`:${key}`, value])),
-        { removeUndefinedValues: true }
-      );
-
-      const params: UpdateItemCommandInput = {
-        TableName: this.tableName,
-        Key: marshall({
-          [this.tableKey]: keyValue,
-        }),
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        UpdateExpression: updateExpression,
-      };
-
       await this.client.updateItem(params);
-      this.logger.info(`Successfully updated record in table: ${this.tableName}`);
+      this.logger.info(`Successfully updated record in table: ${this.tableName}`, { params, entries, recordFields });
     } catch (error) {
-      this.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`);
+      this.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`, {
+        error,
+        params,
+        entries,
+        recordFields,
+      });
     }
   }
 

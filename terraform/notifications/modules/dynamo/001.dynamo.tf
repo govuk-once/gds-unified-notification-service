@@ -4,16 +4,6 @@ resource "aws_dynamodb_table" "this" {
   hash_key     = var.hash_key
   range_key    = var.range_key
 
-  attribute {
-    name = var.hash_key
-    type = "S"
-  }
-
-  attribute {
-    name = var.range_key
-    type = "S"
-  }
-
   dynamic "attribute" {
     for_each = var.attributes
 
