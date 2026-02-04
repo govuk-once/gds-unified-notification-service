@@ -257,13 +257,7 @@ describe('Dispatch QueueHandler', () => {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
       },
       'DISPATCHING_FAILED',
-      {
-        fieldErrors: {
-          NotificationBody: ['Invalid input: expected string, received undefined'],
-          NotificationTitle: ['Invalid input: expected string, received undefined'],
-        },
-        formErrors: [],
-      }
+      '✖ Invalid input: expected string, received undefined\n  → at NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at NotificationBody'
     );
   });
 
@@ -279,12 +273,7 @@ describe('Dispatch QueueHandler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: {
-          fieldErrors: {
-            NotificationID: ['Invalid input: expected string, received undefined'],
-          },
-          formErrors: [],
-        },
+        errors: '✖ Invalid input: expected string, received undefined\n  → at NotificationID',
         raw: {
           DepartmentID: 'invalid-id',
           ExternalUserID: 'test',

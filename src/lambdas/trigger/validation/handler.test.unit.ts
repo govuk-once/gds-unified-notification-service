@@ -281,7 +281,7 @@ describe('Validation QueueHandler', () => {
         DepartmentID: 'invalid-id',
       },
       'VALIDATION_FAILED',
-      expect.any(Object)
+      expect.stringContaining('')
     );
   });
 
@@ -291,19 +291,13 @@ describe('Validation QueueHandler', () => {
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
-    await instance.implementation(mockUnidentifiableEvent, mockContext);
+    await instance.handler()(mockUnidentifiableEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
+    expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: {
-          fieldErrors: {
-            // TODO: Should be NotificationID
-            body: ['Invalid input: expected string, received undefined'],
-          },
-          formErrors: [],
-        },
+        errors: '✖ Invalid input: expected string, received undefined\n  → at body.NotificationID',
         raw: mockUnidentifiableEvent.Records[0],
       }
     );

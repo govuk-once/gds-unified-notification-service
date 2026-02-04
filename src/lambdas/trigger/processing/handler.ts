@@ -95,8 +95,8 @@ export class Processing extends QueueHandler<IMessage, void> {
 
     // Validate Incoming messages
     const [, validRecords, invalidRecords] = groupValidation(
-      event.Records,
-      SqsRecordSchema.extend({ body: IMessageSchema })
+      event.Records.map((record) => record.body),
+      IMessageSchema
     );
     this.observability.logger.info(`Validation results`, {
       valid: validRecords.length,
@@ -104,7 +104,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     });
 
     // (MOCK) Getting the OneSignalID from UDP - For now we just map UserID to ExternalUserID 1:1
-    const processedMessages = validRecords.map(({ valid: { body } }) => ({
+    const processedMessages = validRecords.map(({ valid: body }) => ({
       ...body,
       ExternalUserID: `${body.UserID}`,
     }));
@@ -126,7 +126,7 @@ export class Processing extends QueueHandler<IMessage, void> {
 
     // Mark messages as processed
     await this.analyticsService.publishMultipleEvents(
-      validRecords.map(({ valid }) => valid.body),
+      validRecords.map(({ valid }) => valid),
       ValidationEnum.PROCESSED
     );
 
@@ -135,7 +135,7 @@ export class Processing extends QueueHandler<IMessage, void> {
 
     // Store Analytics for failed parses - if they have notificationID
     for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
+      const { NotificationID, DepartmentID } = extractIdentifiers(raw);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
         this.observability.logger.info(
