@@ -20,9 +20,9 @@ module "parameter_store_internal_configuration" {
 
     // Dynamo
     "table/events/name"  = module.dynamodb_events.table_name
-    "table/events/key"   = module.dynamodb_events.table_key
+    "table/events/keys"  = { hash_key : module.dynamodb_events.table_hash_key, range_key : module.dynamodb_events.table_range_key }
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
-    "table/inbound/key"  = module.dynamodb_inbound_messages.table_key
+    "table/inbound/keys" = { hash_key : module.dynamodb_inbound_messages.table_hash_key, range_key : module.dynamodb_inbound_messages.table_range_key }
   }
 }
 

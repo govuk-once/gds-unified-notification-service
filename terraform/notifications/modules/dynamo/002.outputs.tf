@@ -8,7 +8,17 @@ output "table_name" {
   value       = aws_dynamodb_table.this.name
 }
 
-output "table_key" {
-  description = "Key used by DynamoDB table"
+output "table_hash_key" {
+  description = "Hash key used by DynamoDB table"
   value       = aws_dynamodb_table.this.hash_key
+}
+
+output "table_range_key" {
+  description = "Range key by DynamoDB table"
+  value       = aws_dynamodb_table.this.range_key
+}
+
+output "table_attributes" {
+  description = "attributes used by DynamoDB table"
+  value       = aws_dynamodb_table.this
 }
