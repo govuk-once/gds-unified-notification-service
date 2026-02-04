@@ -1,12 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ValidationEnum } from '@common/models/ValidationEnum';
-import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
-import { ConfigurationService } from '@common/services/configurationService';
-import { Mocked } from 'vitest';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { v4 as uuid } from 'uuid';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -20,27 +16,15 @@ vi.mock('uuid', () => ({ v4: vi.fn() }));
 describe('analyticsService', () => {
   let instance: AnalyticsService;
 
-  const loggerMock = new Logger() as Mocked<Logger>;
-  const metricsMock = new Metrics() as Mocked<Metrics>;
-  const tracerMock = new Tracer() as Mocked<Tracer>;
-  const configServiceMock = new ConfigurationService(
-    loggerMock,
-    metricsMock,
-    tracerMock
-  ) as Mocked<ConfigurationService>;
-  const analyticsQueueServiceMock = new AnalyticsQueueService(
-    configServiceMock,
-    loggerMock,
-    metricsMock,
-    tracerMock
-  ) as Mocked<AnalyticsQueueService>;
+  const observabilityMock = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMock);
 
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    instance = new AnalyticsService(loggerMock, metricsMock, tracerMock, analyticsQueueServiceMock);
+    instance = new AnalyticsService(observabilityMock, serviceMocks.analyticsQueueServiceMock);
   });
 
   describe('publishMultipleEvents', () => {
@@ -73,7 +57,7 @@ describe('analyticsService', () => {
       await instance.publishMultipleEvents(mockAnalyticsEvents, ValidationEnum.VALIDATED);
 
       // Assert
-      expect(analyticsQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
+      expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
         {
           EventID: mockEventID_1,
           NotificationID: mockAnalyticsEvents[0].NotificationID,
@@ -98,7 +82,7 @@ describe('analyticsService', () => {
       await instance.publishMultipleEvents(mockAnalyticsEvents, ValidationEnum.VALIDATED);
 
       // Assert
-      expect(metricsMock.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
         `ANALYTIC_EVENTS_${ValidationEnum.VALIDATED.toUpperCase()}`,
         MetricUnit.Count,
         mockAnalyticsEvents.length
@@ -110,7 +94,7 @@ describe('analyticsService', () => {
       await instance.publishMultipleEvents([], ValidationEnum.VALIDATED);
 
       // Assert
-      expect(analyticsQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
+      expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
     });
   });
 
@@ -135,7 +119,7 @@ describe('analyticsService', () => {
       await instance.publishEvent(mockAnalyticsEvent, ValidationEnum.VALIDATED);
 
       // Assert
-      expect(analyticsQueueServiceMock.publishMessage).toHaveBeenCalledWith({
+      expect(serviceMocks.analyticsQueueServiceMock.publishMessage).toHaveBeenCalledWith({
         EventID: mockEventID,
         NotificationID: mockAnalyticsEvent.NotificationID,
         DepartmentID: mockAnalyticsEvent.DepartmentID,
@@ -150,7 +134,7 @@ describe('analyticsService', () => {
       await instance.publishEvent(mockAnalyticsEvent, ValidationEnum.VALIDATED);
 
       // Assert
-      expect(metricsMock.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
         `ANALYTIC_EVENTS_${ValidationEnum.VALIDATED.toUpperCase()}`,
         MetricUnit.Count,
         1

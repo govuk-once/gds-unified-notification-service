@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
+import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringParameters } from '@common/utils/parameters';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
@@ -22,9 +20,7 @@ describe('DispatchQueueService', () => {
   let dispatchQueueService: DispatchQueueService;
   let configurationServiceMock: ConfigurationService;
 
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
+  const observabilityMock = observabilitySpies();
   const sqsMock = mockClient(SQSClient);
 
   const mockDispatchQueueUrl = 'mockDispatchQueueUrl';
@@ -34,9 +30,9 @@ describe('DispatchQueueService', () => {
     vi.clearAllMocks();
     sqsMock.reset();
 
-    configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
+    configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
     configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockDispatchQueueUrl);
-    dispatchQueueService = new DispatchQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
+    dispatchQueueService = new DispatchQueueService(configurationServiceMock, observabilityMock);
     await dispatchQueueService.initialize();
   });
 
@@ -48,14 +44,12 @@ describe('DispatchQueueService', () => {
       // Assert
       expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Dispatch.Url);
       expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();
-      expect(loggerMock.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
+      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
     });
 
     it('should throw an error if queue url is undefined', async () => {
       // Arrange
       configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-
-      dispatchQueueService = new DispatchQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
 
       // Act
       const result = dispatchQueueService.initialize();

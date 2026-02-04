@@ -1,19 +1,14 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { ConfigurationService } from '@common/services';
+import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
 export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> {
   constructor(
     protected config: ConfigurationService,
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
+    protected observability: ObservabilityService
   ) {
-    super(logger, metrics, tracer);
+    super(observability);
   }
 
   async initialize() {

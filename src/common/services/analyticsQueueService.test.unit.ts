@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { ConfigurationService } from '@common/services/configurationService';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringParameters } from '@common/utils/parameters';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
@@ -20,11 +17,9 @@ vi.mock('@common/services/configurationService', { spy: true });
 
 describe('AnalyticsQueueService', () => {
   let analyticsQueueService: AnalyticsQueueService;
-  let configurationServiceMock: ConfigurationService;
 
-  const loggerMock = vi.mocked(new Logger());
-  const metricsMock = vi.mocked(new Metrics());
-  const tracerMock = vi.mocked(new Tracer());
+  const observabilityMock = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMock);
   const sqsMock = mockClient(SQSClient);
 
   const mockAnalyticsQueueUrl = 'mockAnalyticsQueueUrl';
@@ -34,9 +29,8 @@ describe('AnalyticsQueueService', () => {
     vi.clearAllMocks();
     sqsMock.reset();
 
-    configurationServiceMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockAnalyticsQueueUrl);
-    analyticsQueueService = new AnalyticsQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
+    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockAnalyticsQueueUrl);
+    analyticsQueueService = new AnalyticsQueueService(serviceMocks.configurationServiceMock, observabilityMock);
     await analyticsQueueService.initialize();
   });
 
@@ -46,15 +40,17 @@ describe('AnalyticsQueueService', () => {
       const result = await analyticsQueueService.initialize();
 
       // Assert
-      expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Analytics.Url);
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        StringParameters.Queue.Analytics.Url
+      );
       expectTypeOf(result).toEqualTypeOf<AnalyticsQueueService>();
-      expect(loggerMock.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');
+      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');
     });
 
     it('should throw an error if queue url is undefined', async () => {
       // Arrange
-      configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-      analyticsQueueService = new AnalyticsQueueService(configurationServiceMock, loggerMock, metricsMock, tracerMock);
+      serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
+      analyticsQueueService = new AnalyticsQueueService(serviceMocks.configurationServiceMock, observabilityMock);
 
       // Act
       const result = analyticsQueueService.initialize();

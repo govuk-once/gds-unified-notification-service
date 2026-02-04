@@ -24,7 +24,7 @@ export default defineConfig({
         lines: 80,
       },
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.{test,test.unit,mocks}.ts'],
+      exclude: ['src/**/*.{test,test.unit,mocks,util}.ts'],
       reporter: [process.env.VITEST_DETAILED_COVERAGE == 'true' ? 'text' : 'text-summary', 'lcov'],
     },
   },

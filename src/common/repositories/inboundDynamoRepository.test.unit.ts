@@ -1,7 +1,4 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import {
   BatchWriteItemCommand,
   DynamoDB,
@@ -11,46 +8,43 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
-import { ConfigurationService } from '@common/services';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services', { spy: true });
 
 const mockInboundTableName = 'mockInboundTableName';
 const mockInboundTableKey = 'NotificationID';
 
 describe('InboundDynamoRepository', () => {
-  const dynamoMock = mockClient(DynamoDB);
   let inboundDynamoRepo: InboundDynamoRepository;
-  let config: ConfigurationService;
 
-  const loggerMock = vi.mocked(new Logger());
-  const tracerMock = vi.mocked(new Tracer());
-  const metricsMock = vi.mocked(new Metrics());
+  const observabilityMock = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMock);
+  const dynamoMock = mockClient(DynamoDB);
 
   beforeEach(async () => {
     vi.resetAllMocks();
     dynamoMock.reset();
 
-    config = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-    config.getParameter = vi
+    serviceMocks.configurationServiceMock.getParameter = vi
       .fn()
       .mockResolvedValueOnce(mockInboundTableName)
       .mockResolvedValueOnce(mockInboundTableKey);
 
-    inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+    inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await inboundDynamoRepo.initialize();
   });
 
   describe('initialize', () => {
     it('should throw an error if table name is undefined', async () => {
       // Arrange
-      config.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+      serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
+      inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
 
       // Act
       const result = inboundDynamoRepo.initialize();
@@ -61,8 +55,11 @@ describe('InboundDynamoRepository', () => {
 
     it('should throw an error if table key is undefined', async () => {
       // Arrange
-      config.getParameter = vi.fn().mockResolvedValueOnce('mockTableName').mockResolvedValueOnce(undefined);
-      inboundDynamoRepo = new InboundDynamoRepository(config, loggerMock, metricsMock, tracerMock);
+      serviceMocks.configurationServiceMock.getParameter = vi
+        .fn()
+        .mockResolvedValueOnce('mockTableName')
+        .mockResolvedValueOnce(undefined);
+      inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
 
       // Act
       const result = inboundDynamoRepo.initialize();
@@ -73,18 +70,18 @@ describe('InboundDynamoRepository', () => {
   });
 
   describe('CreateRecord', () => {
+    const recordBody = {
+      NotificationID: '1234',
+      DepartmentID: 'TEST01',
+      UserID: 'UserID',
+      NotificationTitle: 'Hi there',
+      NotificationBody: 'You have a new message in the message center',
+      ReceivedDateTime: '202601021513',
+    };
+
     it('marshall record should be sent', async () => {
       // Arrange
-      const record: IMessageRecord = {
-        NotificationID: '1234',
-        DepartmentID: 'DVLA01',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-      };
+      const record: IMessageRecord = recordBody;
 
       // Act
       await inboundDynamoRepo.createRecord(record);
@@ -99,16 +96,7 @@ describe('InboundDynamoRepository', () => {
 
     it('should log an error if the request fails.', async () => {
       // Arrange
-      const record: IMessageRecord = {
-        NotificationID: '1234',
-        DepartmentID: 'DVLA01',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-      };
+      const record: IMessageRecord = recordBody;
       const errorMsg = 'Connection Failure';
       dynamoMock.on(PutItemCommand).rejectsOnce(new Error(errorMsg));
 
@@ -116,27 +104,25 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.createRecord(record);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in creating record table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });
   });
 
   describe('CreateRecordBatch', () => {
+    const recordBody = {
+      NotificationID: '1234',
+      DepartmentID: 'TEST01',
+      UserID: 'UserID',
+      NotificationTitle: 'Hi there',
+      NotificationBody: 'You have a new message in the message center',
+      ReceivedDateTime: '202601021513',
+    };
+
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
-      const record: IMessageRecord[] = [
-        {
-          NotificationID: '1234',
-          DepartmentID: 'DVLA01',
-          UserID: 'UserID',
-          MessageTitle: 'You have a new Message',
-          MessageBody: 'Open Notification Centre to read your notifications',
-          NotificationTitle: 'You have a new medical driving license',
-          NotificationBody: 'The DVLA has issued you a new license.',
-          ReceivedDateTime: '202601021513',
-        },
-      ];
+      const record: IMessageRecord[] = [recordBody];
 
       // Act
       await inboundDynamoRepo.createRecordBatch(record);
@@ -163,23 +149,28 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
-      expect(loggerMock.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
+      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
+    });
+
+    it('should throw an error if record list is greater than 25.', async () => {
+      // Arrange
+      const record: IMessageRecord[] = [];
+      for (let i = 0; i < 27; i++) {
+        record.push(recordBody);
+      }
+
+      // Act
+      await inboundDynamoRepo.createRecordBatch(record);
+
+      // Assert
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+        'Failure in creating records table: mockInboundTableName. Error: To create batch records, array length must be no greater than 25.'
+      );
     });
 
     it('should log an error if the request fails', async () => {
       // Arrange
-      const record: IMessageRecord[] = [
-        {
-          NotificationID: '1234',
-          DepartmentID: 'DVLA01',
-          UserID: 'UserID',
-          MessageTitle: 'You have a new Message',
-          MessageBody: 'Open Notification Centre to read your notifications',
-          NotificationTitle: 'You have a new medical driving license',
-          NotificationBody: 'The DVLA has issued you a new license.',
-          ReceivedDateTime: '202601021513',
-        },
-      ];
+      const record: IMessageRecord[] = [recordBody];
       const errorMsg = 'Connection Failure';
       dynamoMock.on(BatchWriteItemCommand).rejectsOnce(new Error(errorMsg));
 
@@ -187,7 +178,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.createRecordBatch(record);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in creating records table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });
@@ -243,7 +234,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.updateRecord(record);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`,
         expect.any(Object)
       );
@@ -301,7 +292,7 @@ describe('InboundDynamoRepository', () => {
       await inboundDynamoRepo.getRecord(mockNotificationID);
 
       // Assert
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in getting record for table: ${mockInboundTableName}. Error: ${errorMsg}`
       );
     });

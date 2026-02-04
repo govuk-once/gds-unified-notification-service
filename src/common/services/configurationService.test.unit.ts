@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigurationService } from '@common/services/configurationService';
+import { InMemoryTTLCache } from '@common/utils';
+import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { mockClient } from 'aws-sdk-client-mock';
 import { Mocked } from 'vitest';
 import z from 'zod';
@@ -11,21 +10,22 @@ import z from 'zod';
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@common/utils/inMemoryTTLCache', { spy: true });
 
 describe('ConfigurationService', () => {
   let config: ConfigurationService;
 
   const ssmMock = mockClient(SSMClient);
-  const loggerMock = new Logger() as Mocked<Logger>;
-  const metricsMock = new Metrics() as Mocked<Metrics>;
-  const tracerMock = new Tracer() as Mocked<Tracer>;
+  const observability = observabilitySpies();
+  const inMemoryCacheMock = new InMemoryTTLCache(60000) as Mocked<InMemoryTTLCache<string, string>>;
+  inMemoryCacheMock.has = vi.fn();
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
     ssmMock.reset();
 
-    config = new ConfigurationService(loggerMock, metricsMock, tracerMock);
+    config = new ConfigurationService(observability);
   });
 
   describe('getParameter', () => {
@@ -46,21 +46,37 @@ describe('ConfigurationService', () => {
     it('should throw an error and log when the call fails', async () => {
       // Arrange
       const errorMsg = 'AWS Error';
-      ssmMock.on(GetParametersByPathCommand).rejects(new Error(errorMsg));
+      ssmMock.on(GetParametersByPathCommand).rejectsOnce(new Error(errorMsg));
 
       // Act
       const result = config.getParameter('testNameSpace');
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(loggerMock.error).toHaveBeenCalledWith(
+      expect(observability.logger.error).toHaveBeenCalledWith(
         `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
       );
+    });
+
+    it('should throw an error if namespace is not in cache', async () => {
+      // Arrange
+      const errorMsg = 'Returned parameter has no value';
+      inMemoryCacheMock.has.mockResolvedValueOnce(false);
+      ssmMock.on(GetParametersByPathCommand).resolvesOnce({
+        Parameters: [],
+      });
+      inMemoryCacheMock.has.mockResolvedValueOnce(false);
+
+      // Act
+      const result = config.getParameter('testNameSpace');
+
+      // Assert
+      await expect(result).rejects.toThrow(new Error(errorMsg));
     });
   });
 
   describe('getBooleanParameter', () => {
-    it('should return a secret from parameter store in boolean form', async () => {
+    it('should return a secret from parameter store in boolean form - true', async () => {
       // Arrange
       const secretValue = 'true';
       ssmMock.on(GetParametersByPathCommand).resolves({
@@ -74,6 +90,20 @@ describe('ConfigurationService', () => {
       expect(parameter).toEqual(true);
     });
 
+    it('should return a secret from parameter store in boolean form - false', async () => {
+      // Arrange
+      const secretValue = 'false';
+      ssmMock.on(GetParametersByPathCommand).resolves({
+        Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
+      });
+
+      // Act
+      const parameter = await config.getBooleanParameter('testKey');
+
+      // Assert
+      expect(parameter).toEqual(false);
+    });
+
     it('should throw an error and log when the parameter cannot be parsed to a boolean', async () => {
       // Arrange
       const secretValue = 'abc';
@@ -85,7 +115,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(loggerMock.error).toHaveBeenCalledWith(`Could not parse parameter testKey to a boolean`);
+      expect(observability.logger.error).toHaveBeenCalledWith(`Could not parse parameter testKey to a boolean`);
     });
   });
 
@@ -118,7 +148,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg);
+      expect(observability.logger.error).toHaveBeenCalledWith(errorMsg);
     });
   });
 
@@ -151,7 +181,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(loggerMock.error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
+      expect(observability.logger.error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
     });
   });
 });

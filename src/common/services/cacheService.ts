@@ -1,9 +1,9 @@
-import { Logger } from '@aws-lambda-powertools/logger';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Hash } from '@aws-sdk/hash-node';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
-import { ConfigurationService } from '@common/services';
+import { ConfigurationService, ObservabilityService } from '@common/services';
+import { StringParameters } from '@common/utils';
 import { HttpRequest } from '@smithy/protocol-http';
 import { createClient } from 'redis';
 
@@ -11,7 +11,7 @@ export class CacheService {
   public cache: ReturnType<typeof createClient>;
   constructor(
     protected config: ConfigurationService,
-    public logger: Logger
+    public observability: ObservabilityService
   ) {}
 
   async generateSigV4(cacheName: string, username: string) {
@@ -46,9 +46,9 @@ export class CacheService {
   }
 
   async connect() {
-    const cacheName = await this.config.getParameter('config/common/cache/name');
-    const cacheHost = await this.config.getParameter('config/common/cache/host');
-    const cacheUser = await this.config.getParameter('config/common/cache/user');
+    const cacheName = await this.config.getParameter(StringParameters.Config.Cache.Name);
+    const cacheHost = await this.config.getParameter(StringParameters.Config.Cache.Host);
+    const cacheUser = await this.config.getParameter(StringParameters.Config.Cache.User);
 
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),
@@ -114,7 +114,7 @@ export class CacheService {
       exceeded: counter >= maxPerMinute,
       capacityRemaining: Math.max(0, counter - maxPerMinute),
     };
-    this.logger.info(`Rate limiting status`, {
+    this.observability.logger.info(`Rate limiting status`, {
       key,
       counter,
       maxPerMinute,

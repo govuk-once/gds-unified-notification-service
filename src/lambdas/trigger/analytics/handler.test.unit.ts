@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent } from '@common/operations';
-import { EventsDynamoRepository } from '@common/repositories';
-import { CacheService, ConfigurationService } from '@common/services';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/trigger/analytics/handler';
 import { Context, SQSRecord } from 'aws-lambda';
@@ -18,17 +14,8 @@ vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
 describe('Analytics QueueHandler', () => {
-  // Observability mocks
-  const loggerMock = vi.mocked(new Logger());
-  const tracerMock = vi.mocked(new Tracer());
-  const metricsMock = vi.mocked(new Metrics());
-
-  // Service mocks
-  const mockConfigurationService = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-  const mockDynamoRepo = vi.mocked(
-    new EventsDynamoRepository(mockConfigurationService, loggerMock, metricsMock, tracerMock)
-  );
-  const mockCacheService = vi.mocked(new CacheService(mockConfigurationService, loggerMock));
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   let instance: Analytics;
   let mockContext: Context;
@@ -53,10 +40,15 @@ describe('Analytics QueueHandler', () => {
   };
 
   beforeEach(() => {
+    // Reset all mocks
     vi.clearAllMocks();
-    instance = new Analytics(mockConfigurationService, loggerMock, metricsMock, tracerMock, () => ({
-      cache: Promise.resolve(mockCacheService),
-      events: Promise.resolve(mockDynamoRepo),
+
+    // Mocking successful completion of service functions
+    serviceMocks.eventsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+
+    instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      cache: Promise.resolve(serviceMocks.cacheServiceMock),
+      events: Promise.resolve(serviceMocks.eventsDynamoRepositoryMock),
     }));
 
     // Mock AWS Lambda Context
@@ -74,9 +66,8 @@ describe('Analytics QueueHandler', () => {
   it('should process VALID records: Update Cache to Processing, Publish to Queue, and Push to DynamoDB', async () => {
     // Arrange
     const expectedCreatedTableRows = [{ ...validData }];
-    mockConfigurationService.getParameter.mockResolvedValue('queue/processing/url');
-    mockDynamoRepo.createRecordBatch.mockResolvedValueOnce();
-    mockCacheService.store.mockResolvedValue('READ');
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
+    serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
 
     const event = {
       Records: [{ body: validData as unknown as string, messageId: 'msg1' } as SQSRecord],
@@ -87,16 +78,43 @@ describe('Analytics QueueHandler', () => {
 
     // Assert
     // - Entries have been created
-    expect(mockDynamoRepo.createRecordBatch).toHaveBeenCalledTimes(1);
-    expect(mockDynamoRepo.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
     // - Cached hashmap of status and notification ID has been triggered
-    expect(mockCacheService.store).toHaveBeenCalledTimes(1);
-    expect(mockCacheService.store).toHaveBeenCalledWith('/DEP1/not1/Status', validData.Event);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', validData.Event);
+  });
+
+  it('should process VALID records and handle missing values', async () => {
+    // Arrange
+    // Missing event enum
+    const validDataWithMissingValue = {
+      ...validData,
+      Event: undefined,
+    };
+    const expectedCreatedTableRows = [{ ...validDataWithMissingValue, Event: ValidationEnum.UNKNOWN }];
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
+    serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
+
+    const event = {
+      Records: [{ body: validDataWithMissingValue as unknown as string, messageId: 'msg1' } as SQSRecord],
+    } as unknown as QueueEvent<IAnalytics>;
+
+    // Act
+    await instance.implementation(event, mockContext);
+
+    // Assert
+    // - Entries have been created
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
+    // - Cached hashmap of status and notification ID has been triggered
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', ValidationEnum.UNKNOWN);
   });
 
   it('should process INVALID records: Update Cache to Read, Skip Queue, and Push to DyanmoDB', async () => {
     // Arrange
-    mockConfigurationService.getParameter.mockResolvedValue('queue/processing/url');
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
 
     const event = {
       Records: [{ body: invalidData as unknown as string, messageId: 'msg2' } as SQSRecord],
@@ -106,7 +124,7 @@ describe('Analytics QueueHandler', () => {
     await instance.implementation(event, mockContext);
 
     // Assert
-    expect(mockDynamoRepo.createRecordBatch).toHaveBeenCalledTimes(0);
-    expect(mockCacheService.store).toHaveBeenCalledTimes(0);
+    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(0);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(0);
   });
 });

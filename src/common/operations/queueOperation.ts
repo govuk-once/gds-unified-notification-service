@@ -1,9 +1,7 @@
-import type { Logger } from '@aws-lambda-powertools/logger';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import type { Metrics } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
-import type { Tracer } from '@aws-lambda-powertools/tracer';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
+import { ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
@@ -20,14 +18,14 @@ export type IQueueMiddleware<InputType, OutputType> = MiddyfiedHandler<
 >;
 
 export const deserializeRecordBodyFromJson = <OutputType>(
-  logger: Logger
+  observability: ObservabilityService
 ): MiddlewareObj<SQSEvent, QueueEvent<OutputType>, Error> => ({
   before: (request): void => {
     for (let i = 0; i < request.event.Records.length; i++) {
       try {
         request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
       } catch {
-        logger.info('Failed parsing JSON within SQS Body', { raw: request.event.Records[i].body });
+        observability.logger.info('Failed parsing JSON within SQS Body', { raw: request.event.Records[i].body });
       }
     }
   },
@@ -36,21 +34,16 @@ export const deserializeRecordBodyFromJson = <OutputType>(
 export abstract class QueueHandler<InputType, OutputType = void> {
   public abstract operationId: string;
 
-  constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer
-  ) {}
+  constructor(protected observability: ObservabilityService) {}
 
   public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
     throw new Error('Not Implemented');
   }
 
   protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
-    return this.observabilityMiddlewares(middy).use(deserializeRecordBodyFromJson(this.logger)) as IQueueMiddleware<
-      InputType,
-      OutputType
-    >;
+    return this.observabilityMiddlewares(middy).use(
+      deserializeRecordBodyFromJson(this.observability)
+    ) as IQueueMiddleware<InputType, OutputType>;
   }
 
   /**
@@ -61,13 +54,13 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   ): IQueueMiddleware<string, OutputType> {
     return middy
       .use(
-        injectLambdaContext(this.logger, {
+        injectLambdaContext(this.observability.logger, {
           correlationIdPath: 'requestContext.requestId',
         })
       )
-      .use(captureLambdaHandler(this.tracer))
+      .use(captureLambdaHandler(this.observability.tracer))
       .use(
-        logMetrics(this.metrics, {
+        logMetrics(this.observability.metrics, {
           captureColdStartMetric: true,
           throwOnEmptyMetrics: false,
         })
@@ -77,9 +70,9 @@ export abstract class QueueHandler<InputType, OutputType = void> {
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<QueueEvent<InputType>, OutputType> {
     return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
-      this.logger.info(`Request received`, { event });
+      this.observability.logger.info(`Request received`, { event });
       const result = await this.implementation(event, context);
-      this.logger.info(`Request completed`);
+      this.observability.logger.info(`Request completed`);
       return result;
     });
   }

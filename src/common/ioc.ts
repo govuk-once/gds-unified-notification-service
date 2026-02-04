@@ -10,6 +10,7 @@ import {
   ConfigurationService,
   DispatchQueueService,
   NotificationService,
+  ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
 
@@ -40,61 +41,34 @@ const metrics = new Metrics({
 });
 export const iocGetMetrics = () => metrics;
 
+const observabilitySingleton = new ObservabilityService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
+export const iocGetObservabilityService = () => observabilitySingleton;
+
 // Services
 // TODO: Singleton / TTL wrappers for IoC
-const configSingleton = new ConfigurationService(iocGetLogger(), iocGetMetrics(), iocGetTracer());
+const configSingleton = new ConfigurationService(iocGetObservabilityService());
 export const iocGetConfigurationService = () => configSingleton;
-export const iocGetCacheService = () => new CacheService(iocGetConfigurationService(), iocGetLogger());
+export const iocGetCacheService = () => new CacheService(iocGetConfigurationService(), iocGetObservabilityService());
 export const iocGetProcessingQueueService = async () =>
-  await new ProcessingQueueService(
-    iocGetConfigurationService(),
-    iocGetLogger(),
-    iocGetMetrics(),
-    iocGetTracer()
-  ).initialize();
+  await new ProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize();
 export const iocGetDispatchQueueService = async () =>
-  await new DispatchQueueService(
-    iocGetConfigurationService(),
-    iocGetLogger(),
-    iocGetMetrics(),
-    iocGetTracer()
-  ).initialize();
+  await new DispatchQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize();
 export const iocGetAnalyticsQueueService = async () =>
-  await new AnalyticsQueueService(
-    iocGetConfigurationService(),
-    iocGetLogger(),
-    iocGetMetrics(),
-    iocGetTracer()
-  ).initialize();
+  await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize();
 export const iocGetInboundDynamoRepository = async () =>
-  await new InboundDynamoRepository(
-    iocGetConfigurationService(),
-    iocGetLogger(),
-    iocGetMetrics(),
-    iocGetTracer()
-  ).initialize();
+  await new InboundDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize();
 export const iocGetEventsDynamoRepository = async () =>
-  await new EventsDynamoRepository(
-    iocGetConfigurationService(),
-    iocGetLogger(),
-    iocGetMetrics(),
-    iocGetTracer()
-  ).initialize();
+  await new EventsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize();
 
 export const iocGetNotificationService = () =>
-  new NotificationService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), iocGetConfigurationService()).initialize();
+  new NotificationService(iocGetObservabilityService(), iocGetConfigurationService()).initialize();
 
 export const iocGetAnalyticsQueue = async () => {
-  return await new AnalyticsQueueService(
-    iocGetConfigurationService(),
-    iocGetLogger(),
-    iocGetMetrics(),
-    iocGetTracer()
-  ).initialize();
+  return await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize();
 };
 
 export const iocGetAnalyticsService = async () => {
-  return new AnalyticsService(iocGetLogger(), iocGetMetrics(), iocGetTracer(), await iocGetAnalyticsQueue());
+  return new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue());
 };
 
 export const initializeDependencies = async <ClassInstance extends object, ClassProperty extends keyof ClassInstance>(

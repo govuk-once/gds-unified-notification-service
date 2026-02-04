@@ -1,13 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
-import { AnalyticsService, CacheService, ConfigurationService, NotificationService } from '@common/services';
-import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { NotificationAdapterResult } from '@common/services/interfaces';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Dispatch } from '@project/lambdas/trigger/dispatch/handler';
 import { Context } from 'aws-lambda';
@@ -25,23 +20,8 @@ mockClient(SQSClient);
 describe('Dispatch QueueHandler', () => {
   let instance: Dispatch;
 
-  // Observability mocks
-  const loggerMock = vi.mocked(new Logger());
-  const tracerMock = vi.mocked(new Tracer());
-  const metricsMock = vi.mocked(new Metrics());
-
-  // Config shims
-  const configMock = vi.mocked(new ConfigurationService(loggerMock, metricsMock, tracerMock));
-  const notificationServiceMock = vi.mocked(new NotificationService(loggerMock, metricsMock, tracerMock, configMock));
-
-  const inboundDynamoMock = vi.mocked(new InboundDynamoRepository(configMock, loggerMock, metricsMock, tracerMock));
-  const analyticsQueueServiceMock = vi.mocked(
-    new AnalyticsQueueService(configMock, loggerMock, metricsMock, tracerMock)
-  );
-  const analyticsServiceMock = vi.mocked(
-    new AnalyticsService(loggerMock, metricsMock, tracerMock, analyticsQueueServiceMock)
-  );
-  const cacheServiceMock = vi.mocked(new CacheService(configMock, loggerMock));
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Data presets
   const mockContext: Context = {
@@ -115,17 +95,24 @@ describe('Dispatch QueueHandler', () => {
   beforeEach(async () => {
     // Reset all mocks
     vi.clearAllMocks();
-    configMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
-    await analyticsQueueServiceMock.initialize();
-    configMock.getParameter.mockResolvedValueOnce(`VOID`); // Adapter
-    await notificationServiceMock.initialize();
+    vi.useRealTimers();
 
-    cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
-    instance = new Dispatch(configMock, loggerMock, metricsMock, tracerMock, () => ({
-      analyticsService: Promise.resolve(analyticsServiceMock),
-      inboundDynamodbRepository: Promise.resolve(inboundDynamoMock),
-      notificationsService: Promise.resolve(notificationServiceMock),
-      cacheService: Promise.resolve(cacheServiceMock),
+    // Mocking successful completion of service functions
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`VOID`); // Adapter
+    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+
+    await serviceMocks.analyticsQueueServiceMock.initialize();
+    await serviceMocks.notificationServiceMock.initialize();
+
+    serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
+    instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
+      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
     }));
   });
 
@@ -139,16 +126,16 @@ describe('Dispatch QueueHandler', () => {
     [`disabled`, `enabled`],
   ])('should obey SSM Enabled flags Common: %s Dispatch: %s', async (commonEnabled: string, processing: string) => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
     if (processing == `disabled`) {
-      configMock.getBooleanParameter.mockResolvedValueOnce((processing as string) == `enabled`);
+      serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(
+        (processing as string) == `enabled`
+      );
     }
 
-    // Act & assert
+    // Act & Assert
     await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
       new Error(`Function disabled due to config/common/enabled or config/dispatch/enabled SSM param being toggled off`)
     );
@@ -156,21 +143,18 @@ describe('Dispatch QueueHandler', () => {
 
   it('should publish analytics events', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    notificationServiceMock.send.mockResolvedValue({
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           DepartmentID: mockMessageBody.DepartmentID,
@@ -180,7 +164,7 @@ describe('Dispatch QueueHandler', () => {
       ],
       'DISPATCHING'
     );
-    expect(analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
@@ -192,21 +176,18 @@ describe('Dispatch QueueHandler', () => {
 
   it('should trigger notification service for valid messages', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    notificationServiceMock.send.mockResolvedValue({
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(notificationServiceMock.send).toHaveBeenCalledWith({
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
       ExternalUserID: mockMessageBody.ExternalUserID,
       NotificationID: mockMessageBody.NotificationID,
       NotificationTitle: mockMessageBody.NotificationTitle,
@@ -216,45 +197,42 @@ describe('Dispatch QueueHandler', () => {
 
   it('should update data in the inbound message table', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    notificationServiceMock.send.mockResolvedValue({
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(inboundDynamoMock.updateRecord).toHaveBeenCalledWith({
+    expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
       DepartmentID: mockMessageBody.DepartmentID,
       NotificationID: mockMessageBody.NotificationID,
       UserID: mockMessageBody.UserID,
-      DispatchedStartDateTime: expect.any(String),
+      DispatchedStartDateTime: date.toISOString(),
     });
   });
 
   it('should trigger analytics for failure events when NotificationService fails.', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    notificationServiceMock.send.mockResolvedValue({
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
       success: false,
       errors: ['Service unavailable'],
     } as unknown as NotificationAdapterResult);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
@@ -266,17 +244,14 @@ describe('Dispatch QueueHandler', () => {
 
   it('should trigger analytics for failure events for invalid messages.', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockFailedEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
@@ -294,17 +269,14 @@ describe('Dispatch QueueHandler', () => {
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
     // Arrange
-    configMock.getParameter.mockResolvedValue('');
-    inboundDynamoMock.updateRecord.mockResolvedValueOnce(undefined);
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    configMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
     await instance.implementation(mockUnidentifiableEvent, mockContext);
 
     // Assert
-    expect(loggerMock.info).toHaveBeenCalledWith(
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
         errors: {

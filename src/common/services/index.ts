@@ -4,6 +4,7 @@ export * from './analyticsService';
 export * from './cacheService';
 export * from './configurationService';
 export * from './dispatchQueueService';
+export * from './observabilityService';
 export * from './notificationService';
 export * from './processingQueueService';
 export * from './queueService';

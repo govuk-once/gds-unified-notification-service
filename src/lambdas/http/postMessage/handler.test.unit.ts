@@ -1,20 +1,10 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ITypedRequestEvent } from '@common/middlewares';
 import { ValidationEnum } from '@common/models/ValidationEnum';
-import { InboundDynamoRepository } from '@common/repositories';
-import {
-  AnalyticsQueueService,
-  AnalyticsService,
-  ConfigurationService,
-  ProcessingQueueService,
-} from '@common/services';
+import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Context } from 'aws-lambda';
-import { Mocked } from 'vitest';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -26,41 +16,8 @@ vi.mock('@common/repositories', { spy: true });
 describe('PostMessage Handler', () => {
   let instance: PostMessage;
 
-  // Observability mocks
-  const loggerMock = new Logger() as Mocked<Logger>;
-  const metricsMock = new Metrics() as Mocked<Metrics>;
-  const tracerMock = new Tracer() as Mocked<Tracer>;
-
-  // Service and Repository Mocks
-  const configurationServiceMock = new ConfigurationService(
-    loggerMock,
-    metricsMock,
-    tracerMock
-  ) as Mocked<ConfigurationService>;
-  const processingQueueServiceMock = new ProcessingQueueService(
-    configurationServiceMock,
-    loggerMock,
-    metricsMock,
-    tracerMock
-  ) as Mocked<ProcessingQueueService>;
-  const inboundDynamoRepositoryMock = new InboundDynamoRepository(
-    configurationServiceMock,
-    loggerMock,
-    metricsMock,
-    tracerMock
-  ) as Mocked<InboundDynamoRepository>;
-  const analyticsQueueServiceMock = new AnalyticsQueueService(
-    configurationServiceMock,
-    loggerMock,
-    metricsMock,
-    tracerMock
-  ) as Mocked<AnalyticsQueueService>;
-  const analyticsServiceMock = new AnalyticsService(
-    loggerMock,
-    metricsMock,
-    tracerMock,
-    analyticsQueueServiceMock
-  ) as Mocked<AnalyticsService>;
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Mock Message Body
   const mockMessageBody = {
@@ -98,24 +55,23 @@ describe('PostMessage Handler', () => {
     },
   } as unknown as ITypedRequestEvent<IMessage[]>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    configurationServiceMock.getParameter.mockResolvedValue(`sqsurl/sqsname`);
-    await analyticsQueueServiceMock.initialize();
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`sqsurl/sqsname`);
 
     // Mocking retrieving store apiKey
-    instance = new PostMessage(configurationServiceMock, loggerMock, metricsMock, tracerMock, () => ({
-      analyticsService: Promise.resolve(analyticsServiceMock),
-      inboundTable: Promise.resolve(inboundDynamoRepositoryMock),
-      processingQueue: processingQueueServiceMock.initialize(),
+    instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
     }));
 
-    analyticsServiceMock.publishMultipleEvents.mockResolvedValueOnce(undefined);
-    processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
-    inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValueOnce(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -125,18 +81,18 @@ describe('PostMessage Handler', () => {
 
   it('should send messages to processing queue.', async () => {
     // Arrange
-    configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
+    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
   });
 
   it('should make a record of inbound messages', async () => {
     // Arrange
-    configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
@@ -145,7 +101,7 @@ describe('PostMessage Handler', () => {
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+    expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         ...mockMessageBody,
         APIGWExtendedID: mockEvent.requestContext.requestId,
@@ -157,13 +113,13 @@ describe('PostMessage Handler', () => {
 
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
     // Arrange
-    configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
     await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [{ ...mockEvent.body[0], APIGWExtendedID: mockEvent.requestContext.requestId }],
       ValidationEnum.VALIDATED_API_CALL
     );
@@ -171,7 +127,7 @@ describe('PostMessage Handler', () => {
 
   it('should return a status 202 and list of NotificationIDs when call is successful.', async () => {
     // Arrange
-    configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
     const result = await instance.implementation(mockEvent, mockContext);
@@ -185,7 +141,7 @@ describe('PostMessage Handler', () => {
 
   it('should throw an error when the api call is unauthorized.', async () => {
     // Arrange
-    configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
     const result = await instance.implementation(mockUnauthorizedEvent, mockContext);

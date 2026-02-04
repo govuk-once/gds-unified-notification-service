@@ -71,6 +71,6 @@ for (const [dir, files] of Object.entries(dirs)) {
 
 if (moved && isDryRun) {
   console.log(`Process exited with an error, as the files order is incorrect`);
-  console.log(`Please run \`npm run development:organize:tf\` to re-arrange TF, or do it manually`);
+  console.log(`Please run \`npm run development:organize:tf\` to re-Arrange TF, or do it manually`);
   process.exit(1);
 }
