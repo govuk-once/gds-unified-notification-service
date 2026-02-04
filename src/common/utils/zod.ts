@@ -13,7 +13,7 @@ export const groupValidation = <T, U extends z.ZodRawShape>(data: T[], schema: z
   const invalid = records
     .filter(([, parseResult]) => parseResult.success == false)
     .map(([record, parseResult]) => {
-      const errors = parseResult.error ? z.flattenError(parseResult.error) : {};
+      const errors = parseResult.error ? z.prettifyError(parseResult.error) : {};
       const partialParse = schema.partial().safeParse(record);
       return { raw: record, errors, partialParse };
     });

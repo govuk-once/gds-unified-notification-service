@@ -230,13 +230,7 @@ describe('Processing QueueHandler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: {
-          fieldErrors: {
-            // TODO: Should be NotificationID
-            NotificationID: ['Invalid input: expected string, received undefined'],
-          },
-          formErrors: [],
-        },
+        errors: '✖ Invalid input: expected string, received undefined\n  → at NotificationID',
         raw: mockUnidentifiableEvent.Records[0].body,
       }
     );
