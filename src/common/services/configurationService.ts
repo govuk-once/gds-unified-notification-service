@@ -34,7 +34,6 @@ export class ConfigurationService {
     if (params.NextToken) {
       await this.fetchNamespace(params.NextToken);
     }
-    this.observability.logger.info(`Results`, { params: params.Parameters, cache: this.inMemoryCache.data });
   }
 
   public async getParameter(namespace: string): Promise<string> {
