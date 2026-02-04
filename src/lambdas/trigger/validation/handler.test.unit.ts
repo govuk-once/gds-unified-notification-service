@@ -299,7 +299,6 @@ describe('Validation QueueHandler', () => {
       {
         errors: {
           fieldErrors: {
-            // TODO: Should be NotificationID
             body: ['Invalid input: expected string, received undefined'],
           },
           formErrors: [],
