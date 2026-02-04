@@ -133,7 +133,7 @@ export class Validation extends QueueHandler<IMessage> {
       const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
-        this.observability.logger.info(
+        this.observability.logger.error(
           `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
           {
             raw,
