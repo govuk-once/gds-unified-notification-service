@@ -8,13 +8,11 @@ export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> 
     protected config: ConfigurationService,
     protected observability: ObservabilityService
   ) {
-    super(observability);
+    super(config, observability);
   }
 
   async initialize() {
-    this.tableName = await this.config.getParameter(StringParameters.Table.Inbound.Name);
-    this.tableKey = await this.config.getParameter(StringParameters.Table.Inbound.Key);
-    await super.initialize();
+    await super.initialize(StringParameters.Table.Inbound.KeyAttributes, StringParameters.Table.Inbound.Name);
     return this;
   }
 }

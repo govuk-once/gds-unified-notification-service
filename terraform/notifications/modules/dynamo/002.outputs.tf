@@ -20,5 +20,5 @@ output "table_range_key" {
 
 output "table_attributes" {
   description = "attributes used by DynamoDB table"
-  value       = aws_dynamodb_table.this
+  value       = [for attr in aws_dynamodb_table.this.attribute : attr.name]
 }
