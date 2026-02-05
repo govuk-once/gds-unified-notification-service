@@ -3,9 +3,9 @@ module "lambda_getHealthcheck" {
   prefix        = local.prefix
   region        = var.region
   function_name = "getHealthcheck"
-  kms_key_arn   = aws_kms_key.main.arn
 
   # Using code signing 
+  kms_key_arn            = aws_kms_key.main.arn
   bundle_path            = "../../dist/getHealthcheck"
   s3_bucket_id           = aws_s3_bucket.code_storage.id
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
