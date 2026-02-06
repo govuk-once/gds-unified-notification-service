@@ -62,16 +62,12 @@ export abstract class QueueService<InputType> {
   }
 
   public async publishMessageBatch(message: InputType[], delaySeconds = 0) {
-    this.observability.logger.info(`Publishing batch message to queue: ${this.getQueueName()}.`);
     try {
-      if (message.length > 10) {
-        while (message.length > 10) {
-          const subset = message.splice(0, 10);
-          await this.publishMessageBatch(subset);
-        }
+      while (message.length > 10) {
+        const subset = message.splice(0, 10);
+        await this.publishMessageBatch(subset);
       }
 
-      // TODO: Add recursive splitting
       const entries = message.map((body, index) => ({
         Id: (body as { NotificationID: string })?.NotificationID,
         DelaySeconds: delaySeconds,
