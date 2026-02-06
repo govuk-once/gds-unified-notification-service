@@ -104,7 +104,7 @@ describe('ProcessingQueueService', () => {
     it('should send a batch of messages when given the message params.', async () => {
       // Arrange
       sqsMock.on(SendMessageBatchCommand).resolves({
-        Successful: [{ MessageId: 'message_0', Id: 'msg_0', MD5OfMessageBody: 'X' }],
+        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
       });
 
       // Act
@@ -118,7 +118,7 @@ describe('ProcessingQueueService', () => {
           QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
           Entries: [
             {
-              Id: 'msg_0',
+              Id: mockMessageBody.NotificationID,
               DelaySeconds: 0,
               MessageBody: JSON.stringify(mockMessageBody),
             },
@@ -150,8 +150,8 @@ describe('ProcessingQueueService', () => {
       };
 
       sqsMock.on(SendMessageBatchCommand).resolves({
-        Successful: [{ MessageId: 'message_0', Id: 'msg_0', MD5OfMessageBody: 'X' }],
-        Failed: [{ Id: 'msg_1', SenderFault: false, Code: 'MockCode' }],
+        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
+        Failed: [{ Id: mockMessageBody.NotificationID, SenderFault: false, Code: 'MockCode' }],
       });
 
       // Act
@@ -162,43 +162,18 @@ describe('ProcessingQueueService', () => {
         QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
         Entries: [
           {
-            Id: 'msg_0',
+            Id: '1234',
             DelaySeconds: 0,
             MessageBody: JSON.stringify(mockMessageBody_0),
           },
           {
-            Id: 'msg_1',
+            Id: '1235',
             DelaySeconds: 0,
             MessageBody: JSON.stringify(mockMessageBody_1),
           },
         ],
       });
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish 1 messages.');
-    });
-
-    it('should throw an error when more than 10 messages are send in a batch.', async () => {
-      // Arrange
-      const mockMessageList: IMessage[] = [
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-        mockMessageBody,
-      ];
-
-      const errorMsg = 'A single message batch request can include a maximum of 10 messages';
-
-      // Act
-      await processingQueueService.publishMessageBatch(mockMessageList);
-
-      // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(errorMsg);
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {
@@ -211,6 +186,55 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
+    });
+
+    it('should use NotificationID from the message body as the batch entry Id', async () => {
+      // Arrange
+      sqsMock.on(SendMessageBatchCommand).resolves({
+        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
+      });
+
+      // Act
+      await processingQueueService.publishMessageBatch([mockMessageBody]);
+
+      // Assert
+      expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
+        QueueUrl: mockProcessingQueueUrl,
+        Entries: [
+          {
+            Id: mockMessageBody.NotificationID,
+            DelaySeconds: 0,
+            MessageBody: JSON.stringify(mockMessageBody),
+          },
+        ],
+      });
+    });
+
+    it('should split messages into batches of 10 when more than 10 messages are sent', async () => {
+      // Arrange
+      const mockMessageList: IMessage[] = Array.from({ length: 11 }, (_, i) => ({
+        ...mockMessageBody,
+        NotificationID: `notifiction-${i}`,
+        UserId: i,
+      }));
+
+      sqsMock.on(SendMessageBatchCommand).resolves({
+        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
+      });
+
+      // Act
+      await processingQueueService.publishMessageBatch(mockMessageList);
+
+      // Assert
+      expect(sqsMock.calls()).toHaveLength(2);
+      const firstBatch = (sqsMock.call(0).args[0] as SendMessageBatchCommand).input;
+      const secondBatch = (sqsMock.call(1).args[0] as SendMessageBatchCommand).input;
+
+      expect(firstBatch.Entries).toHaveLength(10);
+      expect(secondBatch.Entries).toHaveLength(1);
+
+      expect(firstBatch.Entries![0].Id).toBe('notifiction-0');
+      expect(secondBatch.Entries![0].Id).toBe('notifiction-10');
     });
   });
 });

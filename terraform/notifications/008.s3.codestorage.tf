@@ -67,7 +67,7 @@ resource "aws_signer_signing_profile" "code_signing" {
   platform_id = "AWSLambda-SHA384-ECDSA"
 
   # invalid value for name (must be alphanumeric with max length of 64 characters)
-  name = replace(join("-", [local.prefix, "signing_profile_v5"]), "-", "")
+  name = replace(join("-", [local.prefix, "signing_profile_v6"]), "-", "")
   tags = merge(local.defaultTags, {})
 
   signature_validity_period {

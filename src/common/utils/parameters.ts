@@ -44,11 +44,11 @@ export const StringParameters = {
   },
   Table: {
     Events: {
-      Key: 'table/events/key',
+      KeyAttributes: 'table/events/attributes',
       Name: 'table/events/name',
     },
     Inbound: {
-      Key: 'table/inbound/key',
+      KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
     },
   },

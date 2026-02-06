@@ -6,23 +6,25 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
-import { ObservabilityService } from '@common/services';
+import { IDynamoKeyAttributes, IDynamoKeyAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
+import { ConfigurationService, ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
+  protected keyAttributes: IDynamoKeyAttributes;
   protected tableName: string;
   protected tableKey: string;
 
-  constructor(protected observability: ObservabilityService) {}
+  constructor(
+    protected config: ConfigurationService,
+    protected observability: ObservabilityService
+  ) {}
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  public async initialize() {
-    if (this.tableName == undefined) {
-      throw new Error('Failed to fetch table name');
-    }
-    if (this.tableKey == undefined) {
-      throw new Error('Failed to fetch table key');
-    }
+  public async initialize(tableAttributesParameter: string, tableNameParameter: string) {
+    this.tableName = await this.config.getParameter(tableNameParameter);
+    this.keyAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoKeyAttributesSchema);
+    this.tableKey = this.keyAttributes.hashKey;
+
     const client = new DynamoDB({
       region: 'eu-west-2',
     });
@@ -86,11 +88,15 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
     }
 
+    const keyAttributes = Array.from(
+      new Set([this.keyAttributes.hashKey, this.keyAttributes.rangeKey, ...this.keyAttributes.attributes])
+    );
+
     // TODO: This needs a better solution
     // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
-    const entries = Object.entries(recordFields)
-      .filter(([key, value]) => key !== this.tableKey && value != undefined)
-      .filter(([key]) => ['DepartmentID', 'NotificationID', 'EventID'].includes(key) == false);
+    const entries = Object.entries(recordFields).filter(
+      ([key, value]) => keyAttributes.includes(key) == false && value != undefined
+    );
 
     const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
     const expressionAttributeNames = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));
