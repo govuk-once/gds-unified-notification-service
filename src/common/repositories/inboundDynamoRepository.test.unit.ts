@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { StringParameters } from '@common/utils';
 import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
@@ -17,14 +18,6 @@ vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
-
-const mockInboundTableName = 'mockInboundTableName';
-const mockInboundTableAttributes = {
-  attributes: ['DepartmentID', 'NotificationID'],
-  hashKey: 'NotificationID',
-  rangeKey: null,
-};
-const mockInboundTableKey = 'NotificationID';
 
 describe('InboundDynamoRepository', () => {
   let instance: InboundDynamoRepository;
@@ -43,8 +36,11 @@ describe('InboundDynamoRepository', () => {
     dynamoMock.reset();
     mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
       return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
+    serviceMocks.configurationServiceMock.getParameterAsType.mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.typeConfiguration[namespace]);
     });
 
     instance = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
@@ -91,7 +87,9 @@ describe('InboundDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as PutItemCommand;
 
-      expect(command.input.TableName).toBe(mockInboundTableName);
+      expect(command.input.TableName).toBe(
+        mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]
+      );
       expect(unmarshall(command.input.Item!)).toEqual(record);
     });
 
@@ -106,7 +104,7 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating record table: ${mockInboundTableName}. Error: ${errorMsg}`
+        `Failure in creating record table: ${mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`
       );
     });
   });
@@ -132,7 +130,7 @@ describe('InboundDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
       expect(command.input.RequestItems).toEqual({
-        [mockInboundTableName]: [
+        [mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]]: [
           {
             PutRequest: {
               Item: marshall(record[0]),
@@ -165,7 +163,7 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        'Failure in creating records table: mockInboundTableName. Error: To create batch records, array length must be no greater than 25.'
+        `Failure in creating records table: ${mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]}. Error: To create batch records, array length must be no greater than 25.`
       );
     });
 
@@ -180,7 +178,7 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${mockInboundTableName}. Error: ${errorMsg}`
+        `Failure in creating records table: ${mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`
       );
     });
   });
@@ -201,9 +199,9 @@ describe('InboundDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
       expect(command.input).toEqual({
-        TableName: mockInboundTableName,
+        TableName: mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name],
         Key: marshall({
-          [mockInboundTableKey]: mockUpdatedRecord.NotificationID,
+          ['NotificationID']: mockUpdatedRecord.NotificationID,
         }),
         ExpressionAttributeNames: {
           '#ExternalUserID': 'ExternalUserID',
@@ -236,7 +234,7 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${mockInboundTableName}. Error: ${errorMsg}`,
+        `Failure in updating record table: ${mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`,
         expect.any(Object)
       );
     });
@@ -294,7 +292,7 @@ describe('InboundDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in getting record for table: ${mockInboundTableName}. Error: ${errorMsg}`
+        `Failure in getting record for table: ${mockConfigurationImplementation.stringConfiguration[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`
       );
     });
   });

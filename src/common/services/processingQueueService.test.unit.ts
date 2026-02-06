@@ -199,7 +199,7 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
-        QueueUrl: mockProcessingQueueUrl,
+        QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
         Entries: [
           {
             Id: mockMessageBody.NotificationID,

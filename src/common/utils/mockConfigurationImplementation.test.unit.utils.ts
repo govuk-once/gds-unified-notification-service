@@ -5,6 +5,7 @@ export class MockConfigurationImplementation {
   public booleanConfiguration: Record<string, boolean> = {};
   public enumConfiguration: Record<string, string> = {};
   public numericConfiguration: Record<string, number> = {};
+  public typeConfiguration: Record<string, object> = {};
 
   public setBooleanConfig = (updates: typeof this.booleanConfiguration) =>
     (this.booleanConfiguration = { ...this.booleanConfiguration, ...updates });
@@ -17,6 +18,9 @@ export class MockConfigurationImplementation {
 
   public setStringConfig = (updates: typeof this.stringConfiguration) =>
     (this.stringConfiguration = { ...this.stringConfiguration, ...updates });
+
+  public setTypeConfig = (updates: typeof this.typeConfiguration) =>
+    (this.typeConfiguration = { ...this.typeConfiguration, ...updates });
 
   public resetConfig = () => {
     this.booleanConfiguration = {
@@ -42,9 +46,19 @@ export class MockConfigurationImplementation {
       [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
       [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
       [StringParameters.Table.Inbound.Name]: 'mockInboundTableName',
-      [StringParameters.Table.Inbound.Key]: 'NotificationID',
       [StringParameters.Table.Events.Name]: 'mockEventTableName',
-      [StringParameters.Table.Events.Key]: 'EventID',
+    };
+    this.typeConfiguration = {
+      [StringParameters.Table.Inbound.KeyAttributes]: {
+        attributes: ['DepartmentID', 'NotificationID'],
+        hashKey: 'NotificationID',
+        rangeKey: null,
+      },
+      [StringParameters.Table.Events.KeyAttributes]: {
+        attributes: ['EventID', 'EventDateTime', 'NotificationID', 'DepartmentID'],
+        hashKey: 'EventID',
+        rangeKey: 'DepartmentID',
+      },
     };
   };
 }

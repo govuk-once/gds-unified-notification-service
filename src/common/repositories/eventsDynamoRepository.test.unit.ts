@@ -2,6 +2,7 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
+import { StringParameters } from '@common/utils';
 import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
@@ -12,13 +13,6 @@ vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
-
-const mockInboundTableName = 'mockEventTableName';
-const mockInboundTableAttributes = {
-  attributes: ['EventID', 'EventDateTime', 'NotificationID', 'DepartmentID'],
-  hashKey: 'EventID',
-  rangeKey: 'DepartmentID',
-};
 
 describe('EventsDynamoRepository', () => {
   let instance: EventsDynamoRepository;
@@ -37,12 +31,15 @@ describe('EventsDynamoRepository', () => {
     dynamoMock.reset();
     mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
       return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
     });
+    serviceMocks.configurationServiceMock.getParameterAsType.mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.typeConfiguration[namespace]);
+    });
 
-    eventsDynamoRepo = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
-    await eventsDynamoRepo.initialize();
+    instance = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    await instance.initialize();
   });
 
   describe('initialize', () => {

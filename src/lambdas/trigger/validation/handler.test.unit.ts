@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
-import { BoolParameters, StringParameters } from '@common/utils';
+import { BoolParameters } from '@common/utils';
 import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
