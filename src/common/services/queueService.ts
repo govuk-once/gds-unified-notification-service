@@ -65,14 +65,15 @@ export abstract class QueueService<InputType> {
     this.observability.logger.info(`Publishing batch message to queue: ${this.getQueueName()}.`);
     try {
       if (message.length > 10) {
-        const errorMsg = 'A single message batch request can include a maximum of 10 messages';
-        this.observability.logger.error(errorMsg);
-        throw new Error(errorMsg);
+        while (message.length > 10) {
+          const subset = message.splice(0, 10);
+          await this.publishMessageBatch(subset);
+        }
       }
 
       // TODO: Add recursive splitting
       const entries = message.map((body, index) => ({
-        Id: `msg_${index}`, // TODO: How do ids need to be set
+        Id: (body as { NotificationID: string })?.NotificationID,
         DelaySeconds: delaySeconds,
         MessageBody: serializeRecordBodyToJson<InputType>(body, this.observability),
       }));
