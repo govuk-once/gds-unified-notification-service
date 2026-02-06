@@ -109,6 +109,35 @@ export class ConfigurationService {
     return result.data as z.infer<T>;
   }
 
+  public async getParameterAsType<T extends z.Schema>(namespace: string, schema: T): Promise<z.infer<T>> {
+    const parameterValue = await this.getParameter(namespace);
+
+    // Parse parameter
+    try {
+      const parsedObject = JSON.parse(parameterValue) as unknown;
+      const result = schema.safeParse(parsedObject);
+
+      // If invalid enum
+      if (result.error) {
+        const errorMsg = `Could not parse parameter ${namespace} to type.`;
+        this.observability.logger.error(errorMsg, {
+          method: 'getParameterAsType',
+          error: z.prettifyError(result.error),
+        });
+        throw new Error(errorMsg);
+      }
+
+      // Return cast value enum
+      return result.data as z.infer<T>;
+    } catch {
+      const errorMsg = `Could not parse parameter ${namespace} to type.`;
+      this.observability.logger.error(errorMsg, {
+        method: 'getParameterAsType',
+      });
+      throw new Error(errorMsg);
+    }
+  }
+
   public async ensureServiceIsEnabled(...keys: string[]) {
     for (const key of keys) {
       if ((await this.getBooleanParameter(key)) !== true) {

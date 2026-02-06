@@ -21,9 +21,9 @@ resource "aws_iam_role" "lambda" {
 
 # Gives the Lambda identity permission to interact with SQS
 resource "aws_iam_role_policy" "lambda_to_queue" {
-  count = length(var.publish_queue_arns) > 0 ? 1 : 0
+  for_each = var.publish_queues
 
-  name = join("-", [var.prefix, "iamr", var.function_name, "to-queue"])
+  name = join("-", [var.prefix, "iamr", var.function_name, "to-queue", each.key])
   role = aws_iam_role.lambda.id
 
   policy = jsonencode({
@@ -33,7 +33,7 @@ resource "aws_iam_role_policy" "lambda_to_queue" {
       {
         Effect   = "Allow"
         Action   = ["sqs:SendMessage"]
-        Resource = var.publish_queue_arns
+        Resource = values(var.publish_queues)
       },
     ]
   })
@@ -84,7 +84,7 @@ resource "aws_iam_role_policy_attachment" "core_policies" {
     "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess",
     "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
     # Allow lambdas to consume messages - if there's a trigger queue provided
-    var.trigger_queue_arn != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"] : [],
+    length(values(var.trigger_queues)) > 0 ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"] : [],
     # Allow lambdas to connect to VPCs - if there's subnet ids provided
     var.security_group_ids != null && var.subnet_ids != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"] : [],
     var.security_group_ids != null && var.subnet_ids != null ? ["arn:aws:iam::aws:policy/service-role/AWSLambdaENIManagementAccess"] : [],
@@ -95,17 +95,17 @@ resource "aws_iam_role_policy_attachment" "core_policies" {
 
 # Any additional policies to attach to role injected via module variables
 resource "aws_iam_role_policy_attachment" "additional_policies" {
-  for_each   = var.additional_policy_arns
+  for_each   = var.additional_policies
   role       = aws_iam_role.lambda.name
   policy_arn = each.value
 }
 
 # DynamoDB IAM access policy 
 resource "aws_iam_role_policy" "dynamo_access" {
-  count = length(var.dynamo_table_arns) > 0 ? 1 : 0
+  for_each = var.dynamo_tables
 
   role = aws_iam_role.lambda.id
-  name = join("-", [var.prefix, "iamr", var.function_name, "dynamo"])
+  name = join("-", [var.prefix, "iamr", var.function_name, "dynamo", each.key])
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -120,7 +120,7 @@ resource "aws_iam_role_policy" "dynamo_access" {
           "dynamodb:UpdateItem"
         ]
         Effect   = "Allow"
-        Resource = var.dynamo_table_arns
+        Resource = each.value
       }
     ]
   })

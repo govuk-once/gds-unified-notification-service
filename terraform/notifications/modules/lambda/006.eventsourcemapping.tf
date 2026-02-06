@@ -1,10 +1,10 @@
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   // Trigger
-  count   = var.trigger_queue_arn != null ? 1 : 0
-  enabled = true
+  for_each = var.trigger_queues
+  enabled  = true
 
   // Metadata
-  event_source_arn = try(var.trigger_queue_arn, null)
+  event_source_arn = each.value
   function_name    = aws_lambda_function.this.arn
   tags             = var.tags
 

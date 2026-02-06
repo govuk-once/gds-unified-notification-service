@@ -4,25 +4,27 @@ module "lambda_analytics" {
   region        = var.region
   function_name = "analytics"
 
-  // TODO: Look into a neater solution that avoids the issue raised in https://github.com/govuk-once/gds-unified-notification-service/pull/32
-  trigger_queue_arn = join("", [module.sqs_analytics.queue_arn])
-  kms_key_arn       = aws_kms_key.main.arn
-
-  dynamo_table_arns = [join("", [module.dynamodb_events.table_arn])]
-
   # Using code signing 
+  kms_key_arn            = aws_kms_key.main.arn
   bundle_path            = "../../dist/analytics"
   s3_bucket_id           = aws_s3_bucket.code_storage.id
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
-  # Place in private subnet
-  security_group_ids = [aws_security_group.public_sg.id]
-  subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
-
-  # Allow lambda to use iam elasticache user
-  additional_policy_arns = {
+  # IAM Permissions & SQS trigger linking
+  trigger_queues = {
+    analytics = module.sqs_analytics.queue_arn
+  }
+  publish_queues = {}
+  dynamo_tables = {
+    analytics = module.dynamodb_events.table_arn
+  }
+  additional_policies = {
     # Allow elasticache connection
     elasticache = aws_iam_policy.lambda_elch_policy.arn
   }
+
+  # Place in private subnet
+  security_group_ids = [aws_security_group.public_sg.id]
+  subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
 }

@@ -1,61 +1,59 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
+import { StringParameters } from '@common/utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
+import { Mocked } from 'vitest';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-const mockEventsTableName = 'mockEventsTableName';
-const mockEventsTableKey = 'NotificationID';
+const mockInboundTableName = 'mockEventTableName';
+const mockInboundTableAttributes = {
+  attributes: ['EventID', 'EventDateTime', 'NotificationID', 'DepartmentID'],
+  hashKey: 'EventID',
+  rangeKey: 'DepartmentID',
+};
 
 describe('EventsDynamoRepository', () => {
-  let eventsDynamoRepo: EventsDynamoRepository;
+  let instance: EventsDynamoRepository;
 
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
   const dynamoMock = mockClient(DynamoDB);
 
-  beforeEach(async () => {
+  beforeEach(() => {
     dynamoMock.reset();
 
-    serviceMocks.configurationServiceMock.getParameter = vi
+    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(mockInboundTableName);
+    serviceMocks.configurationServiceMock.getParameterAsType = vi
       .fn()
-      .mockResolvedValueOnce(mockEventsTableName)
-      .mockResolvedValueOnce(mockEventsTableKey);
-
-    eventsDynamoRepo = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
-    await eventsDynamoRepo.initialize();
+      .mockResolvedValueOnce(mockInboundTableAttributes);
+    instance = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
   });
 
   describe('initialize', () => {
-    it('should throw an error if table name is undefined', async () => {
+    it('should call super.initialize with correct parameters and return this', async () => {
       // Arrange
-      serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-      eventsDynamoRepo = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+      const dynamodbRepositoryMock = Object.getPrototypeOf(EventsDynamoRepository.prototype) as Mocked<
+        DynamodbRepository<IMessageRecord>
+      >;
+      dynamodbRepositoryMock.initialize = vi.fn().mockResolvedValue(undefined);
 
       // Act
-      const result = eventsDynamoRepo.initialize();
+      const result = await instance.initialize();
 
       // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch table name'));
-    });
-
-    it('should throw an error if table key is undefined', async () => {
-      // Arrange
-      serviceMocks.configurationServiceMock.getParameter = vi
-        .fn()
-        .mockResolvedValueOnce('mockTableName')
-        .mockResolvedValueOnce(undefined);
-      eventsDynamoRepo = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
-
-      // Act
-      const result = eventsDynamoRepo.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch table key'));
+      expect(dynamodbRepositoryMock.initialize).toHaveBeenCalledWith(
+        StringParameters.Table.Events.KeyAttributes,
+        StringParameters.Table.Events.Name
+      );
+      expect(result).toBe(instance);
     });
   });
 });

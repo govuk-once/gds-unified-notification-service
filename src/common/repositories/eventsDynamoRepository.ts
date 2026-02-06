@@ -8,13 +8,11 @@ export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
     protected config: ConfigurationService,
     protected observability: ObservabilityService
   ) {
-    super(observability);
+    super(config, observability);
   }
 
   async initialize() {
-    this.tableName = await this.config.getParameter(StringParameters.Table.Events.Name);
-    this.tableKey = await this.config.getParameter(StringParameters.Table.Events.Key);
-    await super.initialize();
+    await super.initialize(StringParameters.Table.Events.KeyAttributes, StringParameters.Table.Events.Name);
     return this;
   }
 }
