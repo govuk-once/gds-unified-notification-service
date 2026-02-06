@@ -20,6 +20,12 @@ variable "tags" {
   default     = {}
 }
 
+/** Encryption at rest **/
+variable "kms_key_arn" {
+  description = "ID Of ARN Key"
+  type        = string
+}
+
 /** Instance config **/
 variable "runtime" {
   description = "Lambda runtime"
@@ -33,33 +39,16 @@ variable "memory_size" {
   default     = 512
 }
 
+variable "maximum_concurrency" {
+  description = "Limits the number of concurrent instances that the event source can invoke"
+  type        = number
+  default     = 100
+}
+
 variable "timeout" {
   description = "Lambda timeout in seconds"
   type        = number
   default     = 30
-}
-
-variable "log_retention_days" {
-  description = "Number of days to retain the logs"
-  type        = number
-  default     = 30
-}
-
-variable "kms_key_arn" {
-  description = "ID Of ARN Key"
-  type        = string
-}
-
-variable "trigger_queue_arn" {
-  description = "The ARN of the SQS queue to use as an event source for this Lambda. Setting this enables the SQS trigger feature flag."
-  type        = string
-  default     = null
-}
-
-variable "publish_queue_arns" {
-  description = "A list of the ARNs of the SQS Queues to publish messages to."
-  type        = list(string)
-  default     = []
 }
 
 variable "batch_size" {
@@ -68,17 +57,12 @@ variable "batch_size" {
   default     = 10
 }
 
-variable "maximum_concurrency" {
-  description = "Limits the number of concurrent instances that the event source can invoke"
+variable "log_retention_days" {
+  description = "Number of days to retain the logs"
   type        = number
-  default     = 100
+  default     = 30
 }
 
-variable "additional_policy_arns" {
-  description = "Map of Policy ARNs"
-  type        = map(string)
-  default     = {}
-}
 
 /** Code **/
 variable "codesigning_config_id" {
@@ -100,18 +84,37 @@ variable "bundle_path" {
   type        = string
 }
 
+/** IAM **/
+variable "trigger_queues" {
+  description = "A map of the ARNs of the SQS queue to use as an event source for this Lambda. Setting this enables the SQS trigger feature flag."
+  type        = map(string)
+  default     = {}
+}
+
+variable "publish_queues" {
+  description = "A Map of the ARNs of the SQS Queues to publish messages to."
+  type        = map(string)
+  default     = {}
+}
+
+variable "dynamo_tables" {
+  description = "A list of the ARNs of the DyanmoDB"
+  type        = map(string)
+  default     = {}
+}
+
+variable "additional_policies" {
+  description = "Map of Policy ARNs"
+  type        = map(string)
+  default     = {}
+}
+
 // Lambda in VPC
 variable "security_group_ids" {
   description = "Security group IDs"
   type        = list(string)
   nullable    = true
   default     = null
-}
-
-variable "dynamo_table_arns" {
-  description = "A list of the ARNs of the DyanmoDB"
-  type        = list(string)
-  default     = []
 }
 
 variable "subnet_ids" {
