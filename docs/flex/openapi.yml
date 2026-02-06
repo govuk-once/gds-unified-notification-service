@@ -5,45 +5,21 @@ info:
   description: Work in progress
 servers:
   - url: /api
-paths:
-  /send:
-    post:
-      summary: Sends notifications
-      operationId: postMessage
-      tags:
-        - MVP
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/MessageRequest'
-        required: true
-      responses:
-        '202':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/MessageRequestResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestResponse'
-        '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
 
-  /status:
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: AWS_IAM_SIGV4
+
+security:
+  - bearerAuth: []
+
+paths:
+  /notifications:
     get:
-      summary: Gets service status
-      operationId: getStatus
+      summary: Gets users notifications
+      operationId: getNotifications
       tags:
         - MVP
       responses:
@@ -52,16 +28,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Status'
+                type: array
+                minItems: 1
+                maxItems: 50
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
         '500':
           description: Internal server error
         default:
           description: Unexpected error
 
-  /status/{notificationID}:
+  /notifications/{notificationID}:
     get:
-      summary: Gets status of notification
-      operationId: getNotificationStatus
+      summary: Gets notification by ID
+      operationId: getNotificationByID
       tags:
         - MVP
       parameters:
@@ -72,44 +58,117 @@ paths:
             type: string
       responses:
         '200':
-          description: successful operation
+          description: Notification found
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/MessageStatus'
+                $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
         '500':
           description: Internal server error
         default:
           description: Unexpected error
+    delete:
+      summary: Deletes notification by ID
+      operationId: deleteNotificationByID
+      tags:
+        - MVP
+      parameters:
+        - name: notificationID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Notification deleted (No content)
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
+  /notifications/{notificationID}/status:
+    patch:
+      summary: Update status of notification
+      operationId: patchNotificationByID
+      tags:
+        - MVP
+      parameters:
+        - name: notificationID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/Status'
+        required: true
+      responses:
+        '202':
+          description: Update accepted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
 components:
   schemas:
-    Status:
+    Notification:
       type: object
       required:
-        - status
-      properties:
-        status:
-          type: boolean
-    MessageRequest:
-      type: object
-      required:
-        - DepartmentID
         - NotificationID
-        - UserID
-        - NotificationTitle
+        - Status
         - NotificationBody
+        - NotificationTitle
+        - DispatchedAt
       properties:
-        DepartmentID:
-          type: string
-          description: ID of department sending notification
         NotificationID:
           type: string
           description: ID of the notification to be used for idempotency & analytics
-        UserID:
-          type: string
-          description: ID of the recipient fetched from UDP
+        Status:
+          $ref: '#/components/schemas/Status'
         NotificationTitle:
           type: string
           description: Title of the notification to be displayed on mobile device
@@ -122,44 +181,35 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
-        DeeplinkURL:
+        DispatchedAt:
           type: string
-          description: Deeplink url to show the notification centre
-    MessageRequestResponse:
-      type: object
-      properties:
-        NotificationID:
-          type: string
-    MessageStatus:
-      type: object
-      required:
-        - NotificationID
-        - Status
-      properties:
-        NotificationID:
-          type: string
-        Status:
-          type: string
-          enum:
-            - RECEIVED
-              - VALIDATING
-              - VALIDATED
-              - VALIDATION_FAILED
-              - PROCESSING
-              - PROCESSED
-              - PROCESSING_FAILED
-              - DISPATCHING
-              - DISPATCHED
-              - DISPATCHING_FAILED
-              - DELIVERED
-              - NOTIFICATION_CENTRE_READ
-              - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
-              - NOTIFICATION_CENTRE_HIDDEN
-        Reason:
-          type: string
-          description: Provides addition context to the state
+          format: date-time
 
-    BadRequestResponse:
+    Status:
+      type: string
+      enum:
+        - RECEIVED
+        - VALIDATING
+        - VALIDATED
+        - VALIDATION_FAILED
+        - PROCESSING
+        - PROCESSED
+        - PROCESSING_FAILED
+        - DISPATCHING
+        - DISPATCHED
+        - DISPATCHING_FAILED
+        - DELIVERED
+        - NOTIFICATION_CENTRE_READ
+        - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
+        - NOTIFICATION_CENTRE_HIDDEN
+
+    NotFoundResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    UnauthorizedResponse:
       type: object
       properties:
         message:

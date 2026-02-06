@@ -5,7 +5,35 @@ info:
   description: Work in progress
 servers:
   - url: /api
+
+securitySchemes:
+  MutualTLS:
+    type: mutualTLS
+    description: Mutual TLS authentication for secure API communication.
+
+security:
+  - MutualTLS: []
+
 paths:
+  /status:
+    get:
+      summary: Gets service status
+      operationId: getStatus
+      security: []
+      tags:
+        - MVP
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
   /send:
     post:
       summary: Sends notifications
@@ -17,6 +45,8 @@ paths:
           application/json:
             schema:
               type: array
+              minItems: 1
+              maxItems: 10
               items:
                 $ref: '#/components/schemas/MessageRequest'
         required: true
@@ -27,6 +57,8 @@ paths:
             application/json:
               schema:
                 type: array
+                minItems: 1
+                maxItems: 10
                 items:
                   $ref: '#/components/schemas/MessageRequestResponse'
         '400':
@@ -35,24 +67,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BadRequestResponse'
-        '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
-
-  /status:
-    get:
-      summary: Gets service status
-      operationId: getStatus
-      tags:
-        - MVP
-      responses:
-        '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Status'
         '500':
           description: Internal server error
         default:
@@ -77,6 +91,8 @@ paths:
             application/json:
               schema:
                 type: array
+                minItems: 1
+                maxItems: 10
                 items:
                   $ref: '#/components/schemas/MessageStatus'
         '500':
