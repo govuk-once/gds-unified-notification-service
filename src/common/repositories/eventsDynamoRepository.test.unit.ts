@@ -1,5 +1,6 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { mockClient } from 'aws-sdk-client-mock';
 
@@ -8,23 +9,26 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-const mockEventsTableName = 'mockEventsTableName';
-const mockEventsTableKey = 'NotificationID';
-
 describe('EventsDynamoRepository', () => {
   let eventsDynamoRepo: EventsDynamoRepository;
 
+  // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
   const dynamoMock = mockClient(DynamoDB);
 
-  beforeEach(async () => {
-    dynamoMock.reset();
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
 
-    serviceMocks.configurationServiceMock.getParameter = vi
-      .fn()
-      .mockResolvedValueOnce(mockEventsTableName)
-      .mockResolvedValueOnce(mockEventsTableKey);
+  beforeEach(async () => {
+    // Reset all mock
+    vi.resetAllMocks();
+    dynamoMock.reset();
+    mockConfigurationImplementation.resetConfig();
+
+    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
 
     eventsDynamoRepo = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await eventsDynamoRepo.initialize();

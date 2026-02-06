@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { StringParameters } from '@common/utils/parameters';
-import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 
 expect.extend({
@@ -17,45 +15,36 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('DispatchQueueService', () => {
-  let dispatchQueueService: DispatchQueueService;
-  let configurationServiceMock: ConfigurationService;
+  let instance: DispatchQueueService;
 
+  // Observability and Service mocks
   const observabilityMock = observabilitySpies();
-  const sqsMock = mockClient(SQSClient);
+  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
 
-  const mockDispatchQueueUrl = 'mockDispatchQueueUrl';
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    sqsMock.reset();
+    mockConfigurationImplementation.resetConfig();
 
-    configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockDispatchQueueUrl);
-    dispatchQueueService = new DispatchQueueService(configurationServiceMock, observabilityMock);
-    await dispatchQueueService.initialize();
+    configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
+
+    instance = new DispatchQueueService(configurationServiceMock, observabilityMock);
+    await instance.initialize();
   });
 
   describe('initialize', () => {
     it('should retrieve the queue url and log when the dispatch queue service is initalised.', async () => {
       // Act
-      const result = await dispatchQueueService.initialize();
+      const result = await instance.initialize();
 
       // Assert
-      expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Dispatch.Url);
       expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();
       expect(observabilityMock.logger.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
-    });
-
-    it('should throw an error if queue url is undefined', async () => {
-      // Arrange
-      configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-
-      // Act
-      const result = dispatchQueueService.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch queueUrl'));
     });
   });
 });

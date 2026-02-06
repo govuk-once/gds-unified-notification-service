@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 // Unbound methods are allowed as that's how vi.mocked works
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
+import { EnumParameters, StringParameters } from '@common/utils';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -9,11 +11,14 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 describe('NotificationService', () => {
+  let instance: NotificationService;
+
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
-  serviceMocks.configurationServiceMock.getEnumParameter = vi.fn().mockResolvedValue('OneSignal');
-  serviceMocks.configurationServiceMock.getParameter = vi.fn();
+
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
 
   const mockRequest = {
     NotificationID: 'test01',
@@ -22,16 +27,27 @@ describe('NotificationService', () => {
     NotificationBody: 'UNS Test 01 - Body',
   };
 
-  let instance: NotificationService;
   beforeEach(() => {
+    // Reset all mock
     vi.clearAllMocks();
+    mockConfigurationImplementation.resetConfig();
+
+    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
+    serviceMocks.configurationServiceMock.getEnumParameter = vi.fn().mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.enumConfiguration[namespace]);
+    });
+
     instance = new NotificationService(observabilityMock, serviceMocks.configurationServiceMock);
   });
 
   describe('initialize', () => {
     it('should fetch data from configuration service and initialize relevant adapter (void)', async () => {
       // Arrange
-      serviceMocks.configurationServiceMock.getEnumParameter.mockResolvedValueOnce('VOID');
+      mockConfigurationImplementation.setEnumConfig({
+        [EnumParameters.Config.Dispatch.Adapter]: 'VOID',
+      });
 
       // Act
       await instance.initialize();
@@ -43,11 +59,6 @@ describe('NotificationService', () => {
     });
 
     it('should fetch data from configuration service and initialize relevant adapter (onesignal)', async () => {
-      // Arrange
-      serviceMocks.configurationServiceMock.getEnumParameter.mockResolvedValueOnce('OneSignal');
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('apikey');
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('appId');
-
       // Act
       await instance.initialize();
 
@@ -61,7 +72,9 @@ describe('NotificationService', () => {
   describe('send', () => {
     it('Sends a request to the void when using Void adapter', async () => {
       // Arrange
-      serviceMocks.configurationServiceMock.getEnumParameter.mockResolvedValueOnce('VOID');
+      mockConfigurationImplementation.setEnumConfig({
+        [EnumParameters.Config.Dispatch.Adapter]: 'VOID',
+      });
 
       // Act
       await instance.initialize();
@@ -78,11 +91,12 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal and parses valid response', async () => {
       // Arrange
-      serviceMocks.configurationServiceMock.getEnumParameter.mockResolvedValueOnce('OneSignal');
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(
-        'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01'
-      );
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('ONESIGNAL_APP_ID');
+      mockConfigurationImplementation.setStringConfig({
+        [StringParameters.Dispatch.OneSignal.ApiKey]: 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01',
+      });
+      mockConfigurationImplementation.setStringConfig({
+        [StringParameters.Dispatch.OneSignal.AppId]: 'ONESIGNAL_APP_ID',
+      });
 
       // Act
       await instance.initialize();
@@ -99,17 +113,19 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal and logs errors before throwing an exception', async () => {
       // Arrange
-      serviceMocks.configurationServiceMock.getEnumParameter.mockResolvedValueOnce('OneSignal');
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(
-        'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01'
-      );
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce('ONESIGNAL_APP_ID');
+      mockConfigurationImplementation.setStringConfig({
+        [StringParameters.Dispatch.OneSignal.ApiKey]: 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01',
+      });
+      mockConfigurationImplementation.setStringConfig({
+        [StringParameters.Dispatch.OneSignal.AppId]: 'ONESIGNAL_APP_ID',
+      });
 
       // Act
       await instance.initialize();
-      await expect(instance.send(mockRequest)).rejects.toThrowError('Request failed with status code 400');
+      const result = instance.send(mockRequest);
 
       // Assert
+      await expect(result).rejects.toThrowError('Request failed with status code 400');
       expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
         NotificationID: mockRequest.NotificationID,
       });

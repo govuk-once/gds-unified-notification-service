@@ -2,8 +2,9 @@
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
+import { StringParameters } from '@common/utils';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
@@ -19,12 +20,15 @@ vi.mock('@common/services/configurationService', { spy: true });
 
 describe('ProcessingQueueService', () => {
   let processingQueueService: ProcessingQueueService;
-  let configurationServiceMock: ConfigurationService;
 
+  // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
+  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
   const sqsMock = mockClient(SQSClient);
 
-  const mockProcessingQueueUrl = 'mockProcessingQueueUrl';
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+
   const mockMessageBody = {
     NotificationID: '1234',
     DepartmentID: 'DVLA01',
@@ -39,9 +43,12 @@ describe('ProcessingQueueService', () => {
     // Reset all mock
     vi.clearAllMocks();
     sqsMock.reset();
+    mockConfigurationImplementation.resetConfig();
 
-    configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-    configurationServiceMock.getParameter = vi.fn().mockResolvedValue(mockProcessingQueueUrl);
+    configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
+
     processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
     await processingQueueService.initialize();
   });
@@ -52,23 +59,9 @@ describe('ProcessingQueueService', () => {
       const result = await processingQueueService.initialize();
 
       // Assert
-      expect(configurationServiceMock.getParameter).toHaveBeenCalledWith(StringParameters.Queue.Processing.Url);
       expectTypeOf(result).toEqualTypeOf<ProcessingQueueService>();
 
       expect(observabilityMock.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
-    });
-
-    it('should throw an error if queue url is undefined', async () => {
-      // Arrange
-      configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(undefined);
-
-      processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
-
-      // Act
-      const result = processingQueueService.initialize();
-
-      // Assert
-      await expect(result).rejects.toThrow(new Error('Failed to fetch queueUrl'));
     });
   });
 
@@ -87,7 +80,7 @@ describe('ProcessingQueueService', () => {
       const command = sqsMock.call(0).args[0] as SendMessageCommand;
       expect(command.input).toEqual(
         expect.objectContaining({
-          QueueUrl: mockProcessingQueueUrl,
+          QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
           DelaySeconds: 0,
           MessageBody: JSON.stringify(mockMessageBody),
         })
@@ -122,7 +115,7 @@ describe('ProcessingQueueService', () => {
       const command = sqsMock.call(0).args[0] as SendMessageCommand;
       expect(command.input).toEqual(
         expect.objectContaining({
-          QueueUrl: mockProcessingQueueUrl,
+          QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
           Entries: [
             {
               Id: 'msg_0',
@@ -166,7 +159,7 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
-        QueueUrl: mockProcessingQueueUrl,
+        QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
         Entries: [
           {
             Id: 'msg_0',

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ITypedRequestEvent } from '@common/middlewares';
 import { ValidationEnum } from '@common/models/ValidationEnum';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
@@ -16,8 +17,12 @@ vi.mock('@common/repositories', { spy: true });
 describe('PostMessage Handler', () => {
   let instance: PostMessage;
 
+  // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
+
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
 
   // Mock Message Body
   const mockMessageBody = {
@@ -59,8 +64,11 @@ describe('PostMessage Handler', () => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
+    mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`sqsurl/sqsname`);
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
 
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -80,9 +88,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should send messages to processing queue.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     await instance.implementation(mockEvent, mockContext);
 
@@ -92,7 +97,6 @@ describe('PostMessage Handler', () => {
 
   it('should make a record of inbound messages', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
@@ -112,9 +116,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     await instance.implementation(mockEvent, mockContext);
 
@@ -126,9 +127,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should return a status 202 and list of NotificationIDs when call is successful.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await instance.implementation(mockEvent, mockContext);
 
@@ -140,9 +138,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should throw an error when the api call is unauthorized.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await instance.implementation(mockUnauthorizedEvent, mockContext);
 

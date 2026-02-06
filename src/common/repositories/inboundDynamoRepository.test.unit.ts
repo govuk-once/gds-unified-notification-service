@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -23,18 +24,23 @@ const mockInboundTableKey = 'NotificationID';
 describe('InboundDynamoRepository', () => {
   let inboundDynamoRepo: InboundDynamoRepository;
 
+  // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
   const dynamoMock = mockClient(DynamoDB);
 
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+
   beforeEach(async () => {
+    // Reset all mock
     vi.resetAllMocks();
     dynamoMock.reset();
+    mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter = vi
-      .fn()
-      .mockResolvedValueOnce(mockInboundTableName)
-      .mockResolvedValueOnce(mockInboundTableKey);
+    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
 
     inboundDynamoRepo = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await inboundDynamoRepo.initialize();

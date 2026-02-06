@@ -16,6 +16,7 @@ vi.mock('uuid', () => ({ v4: vi.fn() }));
 describe('analyticsService', () => {
   let instance: AnalyticsService;
 
+  // Observability and Service mocks
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
 

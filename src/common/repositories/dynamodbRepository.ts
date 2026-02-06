@@ -90,7 +90,7 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
     const entries = Object.entries(recordFields)
       .filter(([key, value]) => key !== this.tableKey && value != undefined)
-      .filter(([key, value]) => ['DepartmentID', 'NotificationID', 'EventID'].includes(key) == false);
+      .filter(([key]) => ['DepartmentID', 'NotificationID', 'EventID'].includes(key) == false);
 
     const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
     const expressionAttributeNames = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));

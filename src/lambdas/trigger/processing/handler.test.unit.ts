@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
+import { BoolParameters } from '@common/utils';
+import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Processing } from '@project/lambdas/trigger/processing/handler';
@@ -19,14 +21,19 @@ mockClient(SQSClient);
 describe('Processing QueueHandler', () => {
   let instance: Processing;
 
+  // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
+
+  // Mocking implementation of the configuration service
+  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
 
   // Data presets
   const mockContext: Context = {
     functionName: 'processing',
     awsRequestId: '12345',
   } as unknown as Context;
+
   const mockMessageBody: IMessage = {
     NotificationID: '1234',
     DepartmentID: 'DVLA01',
@@ -36,6 +43,7 @@ describe('Processing QueueHandler', () => {
     MessageTitle: '',
     MessageBody: '',
   };
+
   const mockEvent: QueueEvent<IMessage> = {
     Records: [
       {
@@ -93,13 +101,20 @@ describe('Processing QueueHandler', () => {
     // Reset all mocks
     vi.resetAllMocks();
     vi.useRealTimers();
+    mockConfigurationImplementation.resetConfig();
 
     // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
     serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
+    });
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockImplementation((namespace: string) => {
+      return Promise.resolve(mockConfigurationImplementation.booleanConfiguration[namespace]);
+    });
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Processing(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -117,30 +132,32 @@ describe('Processing QueueHandler', () => {
   it.each([
     [`enabled`, `disabled`],
     [`disabled`, `enabled`],
-  ])('should obey SSM Enabled flags Common: %s Processing: %s', async (commonEnabled: string, processing: string) => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
-    if (processing == `disabled`) {
-      serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(
-        (processing as string) == `enabled`
+  ])(
+    'should obey SSM Enabled flags Common: %s Processing: %s',
+    async (commonEnabled: string, processingEnabled: string) => {
+      // Arrange
+      mockConfigurationImplementation.setBooleanConfig({
+        [BoolParameters.Config.Common.Enabled]: commonEnabled == `enabled`,
+      });
+      if (processingEnabled == `disabled`) {
+        mockConfigurationImplementation.setBooleanConfig({
+          [BoolParameters.Config.Processing.Enabled]: (processingEnabled as string) == `enabled`,
+        });
+      }
+
+      // Act
+      const result = instance.implementation(mockEvent, mockContext);
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        new Error(
+          `Function disabled due to config/common/enabled or config/processing/enabled SSM param being toggled off`
+        )
       );
     }
-
-    // Act & Assert
-    await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
-      new Error(
-        `Function disabled due to config/common/enabled or config/processing/enabled SSM param being toggled off`
-      )
-    );
-  });
+  );
 
   it('should publish analytics events', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await instance.implementation(mockEvent, mockContext);
 
@@ -175,8 +192,6 @@ describe('Processing QueueHandler', () => {
 
   it('should update data in the inbound message table', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
@@ -197,10 +212,6 @@ describe('Processing QueueHandler', () => {
   });
 
   it('should trigger analytics for failure events', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await instance.implementation(mockFailedEvent, mockContext);
 
@@ -219,10 +230,6 @@ describe('Processing QueueHandler', () => {
   });
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await instance.implementation(mockUnidentifiableEvent, mockContext);
 
