@@ -43,3 +43,9 @@ terraform {
     region = var.region
   }
 }
+
+variable "staging_account_id" {
+  description = "Staging id"
+  type        = string
+}
+

@@ -6,12 +6,13 @@ data "aws_iam_policy_document" "assume_role" {
 
     principals {
       type        = "Service"
-      identifiers = ["apigateway.amazonaws.com"]
+      identifiers = ["apigateway.amazonaws.com", "lambda.amazonaws.com"]
     }
 
     actions = ["sts:AssumeRole"]
   }
 }
+
 resource "aws_iam_role" "apigw_role" {
   name               = join("-", [var.prefix, "iamr", "apigw", var.name])
   assume_role_policy = data.aws_iam_policy_document.assume_role.json

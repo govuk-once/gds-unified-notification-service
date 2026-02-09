@@ -47,3 +47,8 @@ variable "integrations" {
     lambda_invoke_arn    = string
   }))
 }
+
+variable "staging_account_id" {
+  type        = string
+  description = "Mock passes Staging account id"
+}
