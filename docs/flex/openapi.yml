@@ -1,0 +1,216 @@
+openapi: 3.0.4
+info:
+  title: Unified Notification Service v0.1 - Flex integration
+  version: 'v0.1'
+  description: Work in progress
+servers:
+  - url: /api
+
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: AWS_IAM_SIGV4
+
+security:
+  - bearerAuth: []
+
+paths:
+  /notifications:
+    get:
+      summary: Gets users notifications
+      operationId: getNotifications
+      tags:
+        - MVP
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 1
+                maxItems: 50
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
+  /notifications/{notificationID}:
+    get:
+      summary: Gets notification by ID
+      operationId: getNotificationByID
+      tags:
+        - MVP
+      parameters:
+        - name: notificationID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+    delete:
+      summary: Deletes notification by ID
+      operationId: deleteNotificationByID
+      tags:
+        - MVP
+      parameters:
+        - name: notificationID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Notification deleted (No content)
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
+  /notifications/{notificationID}/status:
+    patch:
+      summary: Update status of notification
+      operationId: patchNotificationByID
+      tags:
+        - MVP
+      parameters:
+        - name: notificationID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/Status'
+        required: true
+      responses:
+        '202':
+          description: Update accepted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
+components:
+  schemas:
+    Notification:
+      type: object
+      required:
+        - NotificationID
+        - Status
+        - NotificationBody
+        - NotificationTitle
+        - DispatchedAt
+      properties:
+        NotificationID:
+          type: string
+          description: ID of the notification to be used for idempotency & analytics
+        Status:
+          $ref: '#/components/schemas/Status'
+        NotificationTitle:
+          type: string
+          description: Title of the notification to be displayed on mobile device
+        NotificationBody:
+          type: string
+          description: Contents of the notification to be displayed on push notification
+        MessageTitle:
+          type: string
+          description: (Optional) Title of the message displayed in the GovUK app's notification centre, falls back on notification title
+        MessageBody:
+          type: string
+          description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
+        DispatchedAt:
+          type: string
+          format: date-time
+
+    Status:
+      type: string
+      enum:
+        - RECEIVED
+        - VALIDATING
+        - VALIDATED
+        - VALIDATION_FAILED
+        - PROCESSING
+        - PROCESSED
+        - PROCESSING_FAILED
+        - DISPATCHING
+        - DISPATCHED
+        - DISPATCHING_FAILED
+        - DELIVERED
+        - NOTIFICATION_CENTRE_READ
+        - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
+        - NOTIFICATION_CENTRE_HIDDEN
+
+    NotFoundResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    UnauthorizedResponse:
+      type: object
+      properties:
+        message:
+          type: string
