@@ -1,6 +1,7 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
+import { HandlerDependencies, initializeDependencies } from '@common/ioc';
 import { ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
@@ -36,14 +37,13 @@ export abstract class QueueHandler<InputType, OutputType = void> {
 
   constructor(protected observability: ObservabilityService) {}
 
-  public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
-    throw new Error('Not Implemented');
-  }
-
-  protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
-    return this.observabilityMiddlewares(middy).use(
-      deserializeRecordBodyFromJson(this.observability)
-    ) as IQueueMiddleware<InputType, OutputType>;
+  // Storage for IOC injections
+  protected dependencies: (() => HandlerDependencies<object>)[] = [];
+  public injectDependencies(dependencies?: () => HandlerDependencies<object>) {
+    this.observability.logger.info(`IoC Injection setup!`);
+    if (dependencies) {
+      this.dependencies.push(dependencies);
+    }
   }
 
   /**
@@ -66,14 +66,27 @@ export abstract class QueueHandler<InputType, OutputType = void> {
         })
       );
   }
+  protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
+    return this.observabilityMiddlewares(middy).use(
+      deserializeRecordBodyFromJson(this.observability)
+    ) as IQueueMiddleware<InputType, OutputType>;
+  }
 
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<QueueEvent<InputType>, OutputType> {
     return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
+      // Call DI before each request is handled
+      await initializeDependencies(this, this.dependencies);
+
+      // Trigger implementation
       this.observability.logger.info(`Request received`, { event });
       const result = await this.implementation(event, context);
       this.observability.logger.info(`Request completed`);
       return result;
     });
+  }
+
+  public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
+    throw new Error('Not Implemented');
   }
 }

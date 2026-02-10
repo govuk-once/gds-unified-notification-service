@@ -1,7 +1,6 @@
 import {
   APIHandler,
   HandlerDependencies,
-  initializeDependencies,
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
@@ -71,13 +70,10 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    public asyncDependencies?: () => HandlerDependencies<PostMessage>
+    dependencies?: () => HandlerDependencies<PostMessage>
   ) {
     super(observability);
-  }
-
-  public async initialize() {
-    await initializeDependencies(this, this.asyncDependencies);
+    this.injectDependencies(dependencies);
   }
 
   public async implementation(
@@ -94,9 +90,6 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
         statusCode: 401,
       };
     }
-
-    // Initialize services
-    await this.initialize();
 
     const messages = event.body;
 

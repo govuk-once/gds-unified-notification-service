@@ -2,6 +2,7 @@ import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
+import { HandlerDependencies, initializeDependencies } from '@common/ioc';
 import {
   type IMiddleware,
   type IRequestEvent,
@@ -35,18 +36,20 @@ export abstract class APIHandler<
 
   constructor(protected observability: ObservabilityService) {}
 
+  // Storage for IOC injections - when extending use actual class name instead of <object>
+  protected dependencies: (() => HandlerDependencies<object>)[] = [];
+  public injectDependencies(dependencies?: () => HandlerDependencies<object>) {
+    this.observability.logger.info(`IoC Injection setup!`);
+    if (dependencies) {
+      this.dependencies.push(dependencies);
+    }
+  }
+
   public implementation(
     event: ITypedRequestEvent<InferredInputSchema>,
     context: Context
   ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
     throw new Error('Not Implemented');
-  }
-
-  protected middlewares(middy: IMiddleware): IMiddleware {
-    middy = this.sanitizationMiddlewares(middy);
-    middy = this.observabilityMiddlewares(middy);
-    middy = this.validationMiddlewares(middy);
-    return middy;
   }
 
   /**
@@ -98,10 +101,26 @@ export abstract class APIHandler<
       .use(responseValidatorMiddleware(this.responseBodySchema));
   }
 
+  /**
+   * Ties in separate middleware groups
+   * @param middy
+   * @returns
+   */
+  protected middlewares(middy: IMiddleware): IMiddleware {
+    middy = this.sanitizationMiddlewares(middy);
+    middy = this.observabilityMiddlewares(middy);
+    middy = this.validationMiddlewares(middy);
+    return middy;
+  }
+
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
     this.observability.metrics.addMetric('API_CALL_TRIGGERED', MetricUnit.Count, 1);
     return this.middlewares(middy()).handler(async (event, context) => {
+      // Call DI before each request is handled
+      await initializeDependencies(this, this.dependencies);
+
+      //
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,
         context

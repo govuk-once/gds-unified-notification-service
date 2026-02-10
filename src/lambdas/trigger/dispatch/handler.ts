@@ -1,7 +1,6 @@
 import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
 import {
   HandlerDependencies,
-  initializeDependencies,
   iocGetAnalyticsService,
   iocGetCacheService,
   iocGetConfigurationService,
@@ -66,13 +65,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
   constructor(
     public config: ConfigurationService,
     observability: ObservabilityService,
-    public asyncDependencies?: () => HandlerDependencies<Dispatch>
+    dependencies?: () => HandlerDependencies<Dispatch>
   ) {
     super(observability);
-  }
-
-  public async initialize() {
-    await initializeDependencies(this, this.asyncDependencies);
+    this.injectDependencies(dependencies);
   }
 
   public async implementation(event: QueueEvent<IProcessedMessage>, context: Context) {
@@ -81,8 +77,6 @@ export class Dispatch extends QueueHandler<unknown, void> {
       BoolParameters.Config.Common.Enabled,
       BoolParameters.Config.Dispatch.Enabled
     );
-
-    await this.initialize();
 
     // Trigger received notification events
     const [, identifiableRecords] = groupValidation(

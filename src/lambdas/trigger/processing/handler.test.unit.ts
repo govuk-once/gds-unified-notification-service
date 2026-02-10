@@ -18,6 +18,7 @@ mockClient(SQSClient);
 
 describe('Processing QueueHandler', () => {
   let instance: Processing;
+  let handler: ReturnType<typeof Processing.prototype.handler>;
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
@@ -107,6 +108,7 @@ describe('Processing QueueHandler', () => {
       inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
       dispatchQueue: serviceMocks.dispatchQueueServiceMock.initialize(),
     }));
+    handler = instance.handler();
   });
 
   it('should have the correct operationId', () => {
@@ -129,7 +131,7 @@ describe('Processing QueueHandler', () => {
     }
 
     // Act & Assert
-    await expect(instance.implementation(mockEvent, mockContext)).rejects.toThrow(
+    await expect(handler(mockEvent, mockContext)).rejects.toThrow(
       new Error(
         `Function disabled due to config/common/enabled or config/processing/enabled SSM param being toggled off`
       )
@@ -142,7 +144,7 @@ describe('Processing QueueHandler', () => {
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
@@ -182,7 +184,7 @@ describe('Processing QueueHandler', () => {
     vi.setSystemTime(date);
 
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
@@ -202,7 +204,7 @@ describe('Processing QueueHandler', () => {
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
-    await instance.implementation(mockFailedEvent, mockContext);
+    await handler(mockFailedEvent, mockContext);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
@@ -224,7 +226,7 @@ describe('Processing QueueHandler', () => {
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
-    await instance.implementation(mockUnidentifiableEvent, mockContext);
+    await handler(mockUnidentifiableEvent, mockContext);
 
     // Assert
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(

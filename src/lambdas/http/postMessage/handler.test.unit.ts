@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ITypedRequestEvent } from '@common/middlewares';
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -15,6 +13,8 @@ vi.mock('@common/repositories', { spy: true });
 
 describe('PostMessage Handler', () => {
   let instance: PostMessage;
+  let handler: ReturnType<typeof PostMessage.prototype.handler>;
+  type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
@@ -36,31 +36,36 @@ describe('PostMessage Handler', () => {
     awsRequestId: '12345',
   } as unknown as Context;
 
-  // Mock the QueueEvent (Mapping to your InputType)
-  const mockEvent = {
-    body: [mockMessageBody],
-    headers: {
-      'x-api-key': 'mockApiKey',
-    },
-    requestContext: {
-      requestTimeEpoch: 1428582896000,
-      requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-    },
-  } as unknown as ITypedRequestEvent<IMessage[]>;
-
-  const mockUnauthorizedEvent = {
-    ...mockEvent,
-    headers: {
-      'x-api-key': 'mockBadApiKey',
-    },
-  } as unknown as ITypedRequestEvent<IMessage[]>;
+  // Mock the event
+  let mockEvent: EventType;
+  let mockUnauthorizedEvent: EventType;
 
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
-    vi.useRealTimers();
 
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`sqsurl/sqsname`);
+    mockEvent = {
+      body: JSON.stringify([mockMessageBody]),
+      headers: {
+        'x-api-key': 'mockApiKey',
+        'Content-Type': `application/json`,
+      },
+      requestContext: {
+        requestTimeEpoch: 1428582896000,
+        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      },
+    } as unknown as EventType;
+
+    mockUnauthorizedEvent = {
+      ...mockEvent,
+      headers: {
+        'x-api-key': 'mockBadApiKey',
+        'Content-Type': `application/json`,
+      },
+    } as unknown as EventType;
+
+    // Reset body to pre-parsed value
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
 
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -68,10 +73,11 @@ describe('PostMessage Handler', () => {
       inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
       processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
     }));
+    handler = instance.handler();
 
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValueOnce(undefined);
-    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValueOnce(undefined);
-    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValueOnce(undefined);
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -84,7 +90,7 @@ describe('PostMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
@@ -98,7 +104,7 @@ describe('PostMessage Handler', () => {
     vi.setSystemTime(date);
 
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler({ ...mockEvent }, mockContext);
 
     // Assert
     expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
@@ -116,11 +122,11 @@ describe('PostMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      [{ ...mockEvent.body[0], APIGWExtendedID: mockEvent.requestContext.requestId }],
+      [{ ...mockMessageBody, APIGWExtendedID: mockEvent.requestContext.requestId }],
       ValidationEnum.VALIDATED_API_CALL
     );
   });
@@ -130,13 +136,11 @@ describe('PostMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    const result = await instance.implementation(mockEvent, mockContext);
+    const result = await handler({ ...mockEvent }, mockContext);
 
     // Assert
-    expect(result).toEqual({
-      statusCode: 202,
-      body: [{ NotificationID: mockEvent.body[0].NotificationID }],
-    });
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
   });
 
   it('should throw an error when the api call is unauthorized.', async () => {
@@ -144,12 +148,10 @@ describe('PostMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    const result = await instance.implementation(mockUnauthorizedEvent, mockContext);
+    const result = await handler(mockUnauthorizedEvent, mockContext);
 
     // Assert
-    expect(result).toEqual({
-      statusCode: 401,
-      body: {},
-    });
+    expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual({});
   });
 });
