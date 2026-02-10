@@ -1,13 +1,10 @@
-import { toIAnalyticsRecord } from '@common/builders/toIAnalyticsRecord';
 import {
   HandlerDependencies,
-  initializeDependencies,
   iocGetCacheService,
   iocGetConfigurationService,
   iocGetEventsDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
-import { IAnalyticsRecord } from '@common/models/interfaces/IAnalyticsRecord';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { EventsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
@@ -48,18 +45,13 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    public asyncDependencies?: () => HandlerDependencies<Analytics>
+    dependencies?: () => HandlerDependencies<Analytics>
   ) {
     super(observability);
-  }
-
-  public async initialize() {
-    await initializeDependencies(this, this.asyncDependencies);
+    this.injectDependencies(dependencies);
   }
 
   public async implementation(event: QueueEvent<IAnalytics>, context: Context) {
-    await this.initialize();
-
     // Validate individual records
     const [records, validRecords, invalidRecords] = groupValidation(
       event.Records.map((record) => record.body),
@@ -78,15 +70,14 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     // Map SQS Records to analytics entries
     const entries = validRecords
       .map(({ valid }) => valid)
-      .map((record) => toIAnalyticsRecord(record))
-      .filter((record) => record !== undefined) satisfies IAnalyticsRecord[];
+      .filter((record) => record !== undefined) satisfies IAnalytics[];
     const createEntriesMeta = {
       NotificationIDs: entries.map(({ NotificationID }) => NotificationID),
     };
 
     if (entries.length > 0) {
       this.observability.logger.info(`Creating entries in batch`, createEntriesMeta);
-      await this.events.createRecordBatch<IAnalyticsRecord>(entries);
+      await this.events.createRecordBatch(entries);
       this.observability.logger.info(`Completes saving entries in batch`, createEntriesMeta);
     }
 

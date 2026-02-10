@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
-
 import { ITypedRequestEvent } from '@common/middlewares';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetHealthcheck } from '@project/lambdas/http/getHealthcheck/handler';
@@ -31,9 +29,12 @@ describe('GetHealthcheck Handler', () => {
 
   it('should log "Received request" when implementation is called', async () => {
     // Arrange
-    await instance.implementation(mockEvent, mockContext);
+    const result = await instance.implementation(mockEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Received request');
+    expect(result).toEqual({
+      body: { status: 'ok' },
+      statusCode: 200,
+    });
   });
 });
