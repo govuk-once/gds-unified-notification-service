@@ -67,3 +67,11 @@ export const NumericParameters = {
     },
   },
 } as const;
+
+export const EnumParameters = {
+  Config: {
+    Dispatch: {
+      Adapter: 'config/dispatch/adapter',
+    },
+  },
+};

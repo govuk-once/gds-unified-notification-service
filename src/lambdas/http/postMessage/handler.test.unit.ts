@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ValidationEnum } from '@common/models/ValidationEnum';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { Context } from 'aws-lambda';
@@ -16,8 +20,12 @@ describe('PostMessage Handler', () => {
   let handler: ReturnType<typeof PostMessage.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
+  // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
+
+  // Mocking implementation of the configuration service
+  let mockParameterStore = mockDefaultConfig();
 
   // Mock Message Body
   const mockMessageBody = {
@@ -43,6 +51,13 @@ describe('PostMessage Handler', () => {
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
+    vi.useRealTimers();
+
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     mockEvent = {
       body: JSON.stringify([mockMessageBody]),
@@ -64,9 +79,6 @@ describe('PostMessage Handler', () => {
       },
     } as unknown as EventType;
 
-    // Reset body to pre-parsed value
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
-
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
@@ -86,11 +98,9 @@ describe('PostMessage Handler', () => {
   });
 
   it('should send messages to processing queue.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
-    await handler(mockEvent, mockContext);
+    const result = await handler(mockEvent, mockContext);
+    console.log(result);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
@@ -98,7 +108,6 @@ describe('PostMessage Handler', () => {
 
   it('should make a record of inbound messages', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
@@ -118,9 +127,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     await handler(mockEvent, mockContext);
 
@@ -132,9 +138,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should return a status 202 and list of NotificationIDs when call is successful.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler({ ...mockEvent }, mockContext);
 
@@ -144,9 +147,6 @@ describe('PostMessage Handler', () => {
   });
 
   it('should throw an error when the api call is unauthorized.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockUnauthorizedEvent, mockContext);
 

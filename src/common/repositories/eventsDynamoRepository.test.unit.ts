@@ -3,6 +3,10 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
 import { StringParameters } from '@common/utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -13,28 +17,30 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-const mockInboundTableName = 'mockEventTableName';
-const mockInboundTableAttributes = {
-  attributes: ['EventID', 'EventDateTime', 'NotificationID', 'DepartmentID'],
-  hashKey: 'EventID',
-  rangeKey: 'DepartmentID',
-};
-
 describe('EventsDynamoRepository', () => {
   let instance: EventsDynamoRepository;
 
+  // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
   const dynamoMock = mockClient(DynamoDB);
 
-  beforeEach(() => {
+  // Mocking implementation of the configuration service
+  let mockParameterStore = mockDefaultConfig();
+
+  beforeEach(async () => {
+    // Reset all mock
+    vi.resetAllMocks();
     dynamoMock.reset();
 
-    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce(mockInboundTableName);
-    serviceMocks.configurationServiceMock.getParameterAsType = vi
-      .fn()
-      .mockResolvedValueOnce(mockInboundTableAttributes);
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
+
     instance = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    await instance.initialize();
   });
 
   describe('initialize', () => {

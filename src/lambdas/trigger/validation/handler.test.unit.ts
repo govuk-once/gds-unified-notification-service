@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
+import { BoolParameters } from '@common/utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/trigger/validation/handler';
@@ -19,8 +24,12 @@ describe('Validation QueueHandler', () => {
   let instance: Validation;
   let handler: ReturnType<typeof Validation.prototype.handler>;
 
+  // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
+
+  // Mocking implementation of the configuration service
+  let mockParameterStore = mockDefaultConfig();
 
   // Data presents
   const mockContext: Context = {
@@ -91,34 +100,16 @@ describe('Validation QueueHandler', () => {
     ],
   } as unknown as QueueEvent<IMessage>;
 
-  const mockIncomingEvent: QueueEvent<string> = {
-    Records: [
-      {
-        messageId: 'mockMessageId',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
-        body: JSON.stringify(mockMessageBody),
-      },
-    ],
-  };
-
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
@@ -141,6 +132,14 @@ describe('Validation QueueHandler', () => {
 
   it('should log when the handler is called and when it completes successfully.', async () => {
     // Arrange
+    const mockIncomingEvent = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: JSON.stringify(mockEvent.Records[0].body),
+        },
+      ],
+    };
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
     serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
@@ -167,34 +166,23 @@ describe('Validation QueueHandler', () => {
   });
 
   it.each([
-    [`enabled`, `disabled`],
-    [`disabled`, `enabled`],
-  ])(
-    'should obey SSM Enabled flags Common: %s Validation: %s',
-    async (commonEnabled: string, validationEnabled: string) => {
-      // Arrange
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-      serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(commonEnabled == `enabled`);
-      if (validationEnabled == `disabled`) {
-        serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(
-          (validationEnabled as string) == `enabled`
-        );
-      }
-
-      // Act & Assert
-      await expect(handler(mockEvent, mockContext)).rejects.toThrow(
-        new Error(
-          `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
-        )
-      );
+    [`true`, `false`],
+    [`false`, `true`],
+  ])('should obey SSM Enabled flags Common: %s Validation: %s', async (commonEnabled: string, validation: string) => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
+    if (validation == `false`) {
+      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validation;
     }
-  );
+    // Act & Assert
+    await expect(handler(mockEvent, mockContext)).rejects.toThrow(
+      new Error(
+        `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
+      )
+    );
+  });
 
   it('should publish analytics events', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await handler(mockEvent, mockContext);
 
@@ -226,10 +214,6 @@ describe('Validation QueueHandler', () => {
   });
 
   it('should send a message to processing queue', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await handler(mockEvent, mockContext);
 
@@ -238,10 +222,6 @@ describe('Validation QueueHandler', () => {
   });
 
   it('should store data in the inbound message table', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await handler(mockEvent, mockContext);
 
@@ -255,10 +235,6 @@ describe('Validation QueueHandler', () => {
   });
 
   it('should trigger analytics for failure events', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await handler(mockFailedEvent, mockContext);
 
@@ -286,10 +262,6 @@ describe('Validation QueueHandler', () => {
   });
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
     await instance.handler()(mockUnidentifiableEvent, mockContext);
 
