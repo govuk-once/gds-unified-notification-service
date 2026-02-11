@@ -20,6 +20,9 @@ export const StringParameters = {
     PostMessage: {
       ApiKey: 'api/postMessage/apiKey',
     },
+    Flex: {
+      ApiKey: 'api/flex/apiKey',
+    },
   },
   Config: {
     Cache: {
