@@ -3,3 +3,9 @@ skip-check:
   # Skip reason: triggered in .github/workflows/deploy.yml - in this case parameters are locked down to environments available in GH - invalid flag.
   # Check is stored in this file as checkov doesnt support inline ignores in GH Action files
   - CKV_GHA_7
+
+  # Openapi skips, due to parsing issues, check appears to be against version 2 of specification
+  # CKV_OPENAPI_2: Ensure that if the security scheme is not of type ‘oauth2’, the array value must be empty - version 2.0 files
+  - CKV_OPENAPI_2
+  # CKV_OPENAPI_5 - "Ensure that security operations is not empty. "  - Flags in for endpoint definitions that are expected to be always available
+  - CKV_OPENAPI_5

@@ -18,6 +18,7 @@ describe('Analytics QueueHandler', () => {
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   let instance: Analytics;
+  let handler: ReturnType<typeof Analytics.prototype.handler>;
   let mockContext: Context;
 
   // Re-useable test data
@@ -50,6 +51,7 @@ describe('Analytics QueueHandler', () => {
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
       events: Promise.resolve(serviceMocks.eventsDynamoRepositoryMock),
     }));
+    handler = instance.handler();
 
     // Mock AWS Lambda Context
     mockContext = {
@@ -74,7 +76,7 @@ describe('Analytics QueueHandler', () => {
     } as unknown as QueueEvent<IAnalytics>;
 
     // Act
-    await instance.implementation(event, mockContext);
+    await handler(event, mockContext);
 
     // Assert
     // - Entries have been created
@@ -101,7 +103,7 @@ describe('Analytics QueueHandler', () => {
     } as unknown as QueueEvent<IAnalytics>;
 
     // Act
-    await instance.implementation(event, mockContext);
+    await handler(event, mockContext);
 
     // Assert
     // - Entries have been created
@@ -121,7 +123,7 @@ describe('Analytics QueueHandler', () => {
     } as unknown as QueueEvent<IAnalytics>;
 
     //  ACT
-    await instance.implementation(event, mockContext);
+    await handler(event, mockContext);
 
     // Assert
     expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(0);

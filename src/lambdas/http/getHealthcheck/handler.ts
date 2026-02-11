@@ -1,4 +1,10 @@
-import { APIHandler, iocGetObservabilityService, type ITypedRequestEvent, type ITypedRequestResponse } from '@common';
+import {
+  APIHandler,
+  HandlerDependencies,
+  iocGetObservabilityService,
+  type ITypedRequestEvent,
+  type ITypedRequestResponse,
+} from '@common';
 import { ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -11,17 +17,21 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  constructor(protected observability: ObservabilityService) {
+  constructor(
+    protected observability: ObservabilityService,
+    asyncDependencies?: () => HandlerDependencies<GetHealthcheck>
+  ) {
     super(observability);
+    this.injectDependencies(asyncDependencies);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
-    context: Context
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    // Otel examples
-    this.observability.logger.info('Received request');
     // Return placeholder status
     return {
       body: {

@@ -19,6 +19,7 @@ mockClient(SQSClient);
 
 describe('Validation QueueHandler', () => {
   let instance: Validation;
+  let handler: ReturnType<typeof Validation.prototype.handler>;
 
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
@@ -121,6 +122,7 @@ describe('Validation QueueHandler', () => {
       inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
       processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
     }));
+    handler = instance.handler();
   });
 
   it('should have the correct operationId', () => {
@@ -130,7 +132,6 @@ describe('Validation QueueHandler', () => {
 
   it('should log when the handler is called and when it completes successfully.', async () => {
     // Arrange
-    const wrappedHandler = instance.handler();
     const mockIncomingEvent = {
       Records: [
         {
@@ -139,9 +140,11 @@ describe('Validation QueueHandler', () => {
         },
       ],
     };
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
-    await wrappedHandler(mockIncomingEvent as never, mockContext);
+    await handler(mockIncomingEvent as never, mockContext);
 
     // Assert
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request received`, { event: mockEvent });
@@ -150,10 +153,11 @@ describe('Validation QueueHandler', () => {
 
   it('should log when the handler fails to parse the message body.', async () => {
     // Arrange
-    const wrappedHandler = instance.handler();
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
+    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
     // Act
-    await wrappedHandler(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
@@ -177,11 +181,8 @@ describe('Validation QueueHandler', () => {
         });
       }
 
-      // Act
-      const result = instance.implementation(mockEvent, mockContext);
-
-      // Assert
-      await expect(result).rejects.toThrow(
+      // Act & Assert
+      await expect(handler(mockEvent, mockContext)).rejects.toThrow(
         new Error(
           `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
         )
@@ -191,7 +192,7 @@ describe('Validation QueueHandler', () => {
 
   it('should publish analytics events', async () => {
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
@@ -222,7 +223,7 @@ describe('Validation QueueHandler', () => {
 
   it('should send a message to processing queue', async () => {
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
@@ -230,7 +231,7 @@ describe('Validation QueueHandler', () => {
 
   it('should store data in the inbound message table', async () => {
     // Act
-    await instance.implementation(mockEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
@@ -243,7 +244,7 @@ describe('Validation QueueHandler', () => {
 
   it('should trigger analytics for failure events', async () => {
     // Act
-    await instance.implementation(mockFailedEvent, mockContext);
+    await handler(mockFailedEvent, mockContext);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(

@@ -1,0 +1,36 @@
+name: 'Deploy to github pages'
+
+on:
+  push:
+    branches:
+      - main
+      - feat/NOT-135-API-Hosted-spec
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pages
+        uses: actions/configure-pages@v4
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+      - name: Deploy to Github pages
+        id: deployment
+        uses: actions/deploy-pages@v4
