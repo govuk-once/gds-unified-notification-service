@@ -2,7 +2,10 @@
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/trigger/validation/handler';
@@ -26,7 +29,7 @@ describe('Validation QueueHandler', () => {
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   // Data presents
   const mockContext: Context = {
@@ -100,7 +103,11 @@ describe('Validation QueueHandler', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    mockConfigurationImplementation.resetConfig();
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     // Mocking successful completion of service functions
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
@@ -108,13 +115,6 @@ describe('Validation QueueHandler', () => {
     serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.booleanConfiguration[namespace]);
-    });
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -166,29 +166,21 @@ describe('Validation QueueHandler', () => {
   });
 
   it.each([
-    [`enabled`, `disabled`],
-    [`disabled`, `enabled`],
-  ])(
-    'should obey SSM Enabled flags Common: %s Validation: %s',
-    async (commonEnabled: string, validationEnabled: string) => {
-      // Arrange
-      mockConfigurationImplementation.setBooleanConfig({
-        [BoolParameters.Config.Common.Enabled]: commonEnabled == `enabled`,
-      });
-      if (validationEnabled == `disabled`) {
-        mockConfigurationImplementation.setBooleanConfig({
-          [BoolParameters.Config.Validation.Enabled]: (validationEnabled as string) == `enabled`,
-        });
-      }
-
-      // Act & Assert
-      await expect(handler(mockEvent, mockContext)).rejects.toThrow(
-        new Error(
-          `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
-        )
-      );
+    [`true`, `false`],
+    [`false`, `true`],
+  ])('should obey SSM Enabled flags Common: %s Validation: %s', async (commonEnabled: string, validation: string) => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
+    if (validation == `false`) {
+      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validation;
     }
-  );
+    // Act & Assert
+    await expect(handler(mockEvent, mockContext)).rejects.toThrow(
+      new Error(
+        `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
+      )
+    );
+  });
 
   it('should publish analytics events', async () => {
     // Act

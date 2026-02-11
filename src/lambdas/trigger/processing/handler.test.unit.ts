@@ -2,7 +2,10 @@
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Processing } from '@project/lambdas/trigger/processing/handler';
@@ -27,7 +30,7 @@ describe('Processing QueueHandler', () => {
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   // Data presets
   const mockContext: Context = {
@@ -102,20 +105,17 @@ describe('Processing QueueHandler', () => {
     // Reset all mocks
     vi.resetAllMocks();
     vi.useRealTimers();
-    mockConfigurationImplementation.resetConfig();
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     // Mocking successful completion of service functions
     serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.booleanConfiguration[namespace]);
-    });
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Processing(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -132,19 +132,15 @@ describe('Processing QueueHandler', () => {
   });
 
   it.each([
-    [`enabled`, `disabled`],
-    [`disabled`, `enabled`],
+    [`true`, `false`],
+    [`false`, `true`],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s',
     async (commonEnabled: string, processingEnabled: string) => {
       // Arrange
-      mockConfigurationImplementation.setBooleanConfig({
-        [BoolParameters.Config.Common.Enabled]: commonEnabled == `enabled`,
-      });
-      if (processingEnabled == `disabled`) {
-        mockConfigurationImplementation.setBooleanConfig({
-          [BoolParameters.Config.Processing.Enabled]: (processingEnabled as string) == `enabled`,
-        });
+      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
+      if (processingEnabled == `false`) {
+        mockParameterStore[BoolParameters.Config.Processing.Enabled] = processingEnabled;
       }
 
       // Act & Assert

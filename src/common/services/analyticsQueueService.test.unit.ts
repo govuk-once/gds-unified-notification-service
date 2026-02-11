@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringParameters } from '@common/utils/parameters';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -25,17 +28,17 @@ describe('AnalyticsQueueService', () => {
   const sqsMock = mockClient(SQSClient);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
     sqsMock.reset();
-    mockConfigurationImplementation.resetConfig();
-
-    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     analyticsQueueService = new AnalyticsQueueService(serviceMocks.configurationServiceMock, observabilityMock);
     await analyticsQueueService.initialize();

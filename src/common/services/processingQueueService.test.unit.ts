@@ -3,7 +3,10 @@ import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -27,7 +30,7 @@ describe('ProcessingQueueService', () => {
   const sqsMock = mockClient(SQSClient);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   const mockMessageBody = {
     NotificationID: '1234',
@@ -43,11 +46,10 @@ describe('ProcessingQueueService', () => {
     // Reset all mock
     vi.clearAllMocks();
     sqsMock.reset();
-    mockConfigurationImplementation.resetConfig();
 
-    configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
 
     processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
     await processingQueueService.initialize();
@@ -80,7 +82,7 @@ describe('ProcessingQueueService', () => {
       const command = sqsMock.call(0).args[0] as SendMessageCommand;
       expect(command.input).toEqual(
         expect.objectContaining({
-          QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
+          QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
           DelaySeconds: 0,
           MessageBody: JSON.stringify(mockMessageBody),
         })
@@ -115,7 +117,7 @@ describe('ProcessingQueueService', () => {
       const command = sqsMock.call(0).args[0] as SendMessageCommand;
       expect(command.input).toEqual(
         expect.objectContaining({
-          QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
+          QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
           Entries: [
             {
               Id: mockMessageBody.NotificationID,
@@ -159,7 +161,7 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
-        QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
+        QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
         Entries: [
           {
             Id: '1234',
@@ -199,7 +201,7 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
-        QueueUrl: mockConfigurationImplementation.stringConfiguration[StringParameters.Queue.Processing.Url],
+        QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
         Entries: [
           {
             Id: mockMessageBody.NotificationID,

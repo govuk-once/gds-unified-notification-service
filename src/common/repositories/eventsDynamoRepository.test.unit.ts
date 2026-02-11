@@ -3,7 +3,10 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { EventsDynamoRepository } from '@common/repositories/eventsDynamoRepository';
 import { StringParameters } from '@common/utils';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -23,20 +26,18 @@ describe('EventsDynamoRepository', () => {
   const dynamoMock = mockClient(DynamoDB);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   beforeEach(async () => {
     // Reset all mock
     vi.resetAllMocks();
     dynamoMock.reset();
-    mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
-    serviceMocks.configurationServiceMock.getParameterAsType.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.typeConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     instance = new EventsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await instance.initialize();

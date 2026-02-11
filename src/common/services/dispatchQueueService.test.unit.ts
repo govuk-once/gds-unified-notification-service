@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ConfigurationService } from '@common/services/configurationService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 
@@ -22,16 +25,15 @@ describe('DispatchQueueService', () => {
   const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    mockConfigurationImplementation.resetConfig();
 
-    configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
 
     instance = new DispatchQueueService(configurationServiceMock, observabilityMock);
     await instance.initialize();

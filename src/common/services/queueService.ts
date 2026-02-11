@@ -43,7 +43,9 @@ export abstract class QueueService<InputType> {
   }
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
-    this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`);
+    this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`, {
+      sqsMessageBody: messageBody,
+    });
     try {
       const command = new SendMessageCommand({
         QueueUrl: this.sqsQueueUrl,

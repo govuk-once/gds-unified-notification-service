@@ -3,22 +3,26 @@
 // Unbound methods are allowed as that's how vi.mocked works
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
 import { EnumParameters, StringParameters } from '@common/utils';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@common/services/configurationService', { spy: true });
 
 describe('NotificationService', () => {
   let instance: NotificationService;
 
-  // Observability and Service mocks
+  // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMock);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   const mockRequest = {
     NotificationID: 'test01',
@@ -30,14 +34,12 @@ describe('NotificationService', () => {
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
-    mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
-    serviceMocks.configurationServiceMock.getEnumParameter = vi.fn().mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.enumConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     instance = new NotificationService(observabilityMock, serviceMocks.configurationServiceMock);
   });
@@ -45,9 +47,7 @@ describe('NotificationService', () => {
   describe('initialize', () => {
     it('should fetch data from configuration service and initialize relevant adapter (void)', async () => {
       // Arrange
-      mockConfigurationImplementation.setEnumConfig({
-        [EnumParameters.Config.Dispatch.Adapter]: 'VOID',
-      });
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'VOID';
 
       // Act
       await instance.initialize();
@@ -55,26 +55,38 @@ describe('NotificationService', () => {
       // Assert
       expect(serviceMocks.configurationServiceMock.getEnumParameter).toHaveBeenCalledTimes(1);
       expect(instance.adapter instanceof NotificationAdapterVoid).toEqual(true);
-      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(0); // Void Adapter should make not further param calls
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        EnumParameters.Config.Dispatch.Adapter
+      ); // Void Adapter should make not further param calls
     });
 
     it('should fetch data from configuration service and initialize relevant adapter (onesignal)', async () => {
+      // Arrange
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
+      const expectedParamCalls = [
+        EnumParameters.Config.Dispatch.Adapter,
+        StringParameters.Dispatch.OneSignal.ApiKey,
+        StringParameters.Dispatch.OneSignal.AppId,
+      ];
+
       // Act
       await instance.initialize();
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getEnumParameter).toHaveBeenCalledTimes(1); //
       expect(instance.adapter instanceof NotificationAdapterOneSignal).toEqual(true);
-      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(2); // AppID & API Key fetching
+      for (const param of expectedParamCalls) {
+        expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(param);
+      }
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(expectedParamCalls.length);
     });
   });
 
   describe('send', () => {
     it('Sends a request to the void when using Void adapter', async () => {
       // Arrange
-      mockConfigurationImplementation.setEnumConfig({
-        [EnumParameters.Config.Dispatch.Adapter]: 'VOID',
-      });
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'VOID';
 
       // Act
       await instance.initialize();
@@ -91,12 +103,9 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal and parses valid response', async () => {
       // Arrange
-      mockConfigurationImplementation.setStringConfig({
-        [StringParameters.Dispatch.OneSignal.ApiKey]: 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01',
-      });
-      mockConfigurationImplementation.setStringConfig({
-        [StringParameters.Dispatch.OneSignal.AppId]: 'ONESIGNAL_APP_ID',
-      });
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
 
       // Act
       await instance.initialize();
@@ -113,12 +122,9 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal and logs errors before throwing an exception', async () => {
       // Arrange
-      mockConfigurationImplementation.setStringConfig({
-        [StringParameters.Dispatch.OneSignal.ApiKey]: 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01',
-      });
-      mockConfigurationImplementation.setStringConfig({
-        [StringParameters.Dispatch.OneSignal.AppId]: 'ONESIGNAL_APP_ID',
-      });
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
 
       // Act
       await instance.initialize();

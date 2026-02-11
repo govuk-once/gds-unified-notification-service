@@ -1,13 +1,16 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { CacheService } from '@common/services/cacheService';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import redis from 'redis';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-vi.mock('@ioc', { spy: true });
+vi.mock('@common/services', { spy: true });
 
 describe('CacheService', () => {
   let instance: CacheService;
@@ -17,7 +20,7 @@ describe('CacheService', () => {
   const serviceMocks = ServiceSpies(observabilityMock);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   const createClientSpy = vi.spyOn(redis, 'createClient');
   const redisConnection = vi.fn();
@@ -27,11 +30,12 @@ describe('CacheService', () => {
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
-    mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter = vi.fn().mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     instance = new CacheService(serviceMocks.configurationServiceMock, observabilityMock);
     vi.spyOn(instance, 'generateSigV4').mockResolvedValue('');

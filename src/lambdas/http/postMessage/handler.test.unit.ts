@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ValidationEnum } from '@common/models/ValidationEnum';
-import { MockConfigurationImplementation } from '@common/utils/mockConfigurationImplementation.test.unit.utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostMessage } from '@project/lambdas/http/postMessage/handler';
 import { Context } from 'aws-lambda';
@@ -22,7 +25,7 @@ describe('PostMessage Handler', () => {
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   // Mocking implementation of the configuration service
-  const mockConfigurationImplementation: MockConfigurationImplementation = new MockConfigurationImplementation();
+  let mockParameterStore = mockDefaultConfig();
 
   // Mock Message Body
   const mockMessageBody = {
@@ -49,11 +52,12 @@ describe('PostMessage Handler', () => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
-    mockConfigurationImplementation.resetConfig();
 
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation((namespace: string) => {
-      return Promise.resolve(mockConfigurationImplementation.stringConfiguration[namespace]);
-    });
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     mockEvent = {
       body: JSON.stringify([mockMessageBody]),
@@ -75,9 +79,6 @@ describe('PostMessage Handler', () => {
       },
     } as unknown as EventType;
 
-    // Reset body to pre-parsed value
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`sqsurl/sqsname`);
-
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
@@ -98,7 +99,8 @@ describe('PostMessage Handler', () => {
 
   it('should send messages to processing queue.', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    const result = await handler(mockEvent, mockContext);
+    console.log(result);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
