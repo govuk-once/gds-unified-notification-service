@@ -9,7 +9,7 @@ resource "aws_cloudwatch_log_group" "this" {
 
 # Create dedicated log group for WAF
 resource "aws_cloudwatch_log_group" "waf_log_group" {
-  name              = "aws-waf-logs-${var.prefix}"
+  name              = "aws-waf-logs-${var.prefix}-${var.name}"
   retention_in_days = var.log_retention_days
   kms_key_id        = var.kms_key_arn
 }
