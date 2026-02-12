@@ -10,4 +10,4 @@ export const IFlexNotificationSchema = z.object({
   DispatchedAt: z.string(),
 });
 
-export type IFlexNotificationSchema = z.infer<typeof IFlexNotificationSchema>;
+export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;

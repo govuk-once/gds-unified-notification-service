@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetFlexNotification } from '@project/lambdas/http/getFlexNotification/handler';
-import { PostMessage } from '@project/lambdas/http/postMessage/handler';
-import { IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotificationSchema';
+import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -12,9 +11,9 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('PostMessage Handler', () => {
+describe('GetFlexNotification Handler', () => {
   let instance: GetFlexNotification;
-  let handler: ReturnType<typeof PostMessage.prototype.handler>;
+  let handler: ReturnType<typeof GetFlexNotification.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
@@ -29,7 +28,7 @@ describe('PostMessage Handler', () => {
   let mockUnauthorizedEvent: EventType;
   let mockEvent: EventType;
 
-  const mockMessageBody: IFlexNotificationSchema = {
+  const mockMessageBody: IFlexNotification = {
     NotificationID: '1234',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
