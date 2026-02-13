@@ -14,8 +14,8 @@ module "api_gateway_flex" {
     "getNotifications" = {
       path                 = "notifications"
       method               = "GET"
-      lambda_function_name = module.lambda_getHealthcheck.lambda_function_name
-      lambda_invoke_arn    = module.lambda_getHealthcheck.lambda_invoke_arn
+      lambda_function_name = module.lambda_getFlexNotification.lambda_function_name
+      lambda_invoke_arn    = module.lambda_getFlexNotification.lambda_invoke_arn
     }
   }
 }
