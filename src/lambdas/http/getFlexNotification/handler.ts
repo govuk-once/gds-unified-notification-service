@@ -47,9 +47,9 @@ export class GetFlexNotification extends APIHandler<typeof requestBodySchema, ty
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    const apiKey = await this.config.getParameter(StringParameters.Api.Flex.ApiKey);
-
     try {
+      const apiKey = await this.config.getParameter(StringParameters.Api.Flex.ApiKey);
+
       if (event.headers['x-api-key'] !== apiKey) {
         this.observability.logger.error('No matching API key: ', { apiKey });
         return {
@@ -69,13 +69,13 @@ export class GetFlexNotification extends APIHandler<typeof requestBodySchema, ty
             NotificationTitle: 'You have a new Notification',
             NotificationBody: 'Here is the Notification body.',
             Status: 'PENDING',
-            DispatchedAt: Date.now().toString(),
+            DispatchedAt: '2026-02-13',
           },
         ],
         statusCode: 200,
       };
     } catch (error) {
-      this.observability.logger.error('Fatal excpetion: ', { error });
+      this.observability.logger.error('Fatal exception: ', { error });
       return {
         body: [],
         statusCode: 500,

@@ -26,6 +26,7 @@ describe('GetFlexNotification Handler', () => {
 
   let mockAuthorizedEvent: EventType;
   let mockUnauthorizedEvent: EventType;
+  let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
   const mockMessageBody: IFlexNotification = {
@@ -35,7 +36,7 @@ describe('GetFlexNotification Handler', () => {
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
     Status: 'PENDING',
-    DispatchedAt: '2026-01-22T00:00:01Z',
+    DispatchedAt: '2026-02-13',
   };
 
   beforeEach(() => {
@@ -69,6 +70,8 @@ describe('GetFlexNotification Handler', () => {
       },
     } as unknown as EventType;
 
+    mockInternalServerError = null as unknown as EventType;
+
     instance = new GetFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks);
     handler = instance.handler();
   });
@@ -86,7 +89,20 @@ describe('GetFlexNotification Handler', () => {
     const result = await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.');
     expect(result.statusCode).toEqual(200);
+  });
+
+  it('should return 200 with status ok and return a notification', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    // Act
+    const result = await handler(mockAuthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([mockMessageBody]);
   });
 
   it('should return 401 with status unauthorized when valid API key is provided', async () => {
@@ -100,6 +116,18 @@ describe('GetFlexNotification Handler', () => {
     expect(result.statusCode).toEqual(401);
   });
 
+  it('should return 401 with status unauthorized and should return empty array', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    // Act
+    const result = await handler(mockUnauthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual([]);
+  });
+
   it('should fetch API key from config service', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
@@ -109,5 +137,40 @@ describe('GetFlexNotification Handler', () => {
 
     // Assert
     expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
+  });
+
+  it('should handle errors when calling API key with status internal server error', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    // Act
+    const result = await handler(mockInternalServerError, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(500);
+  });
+
+  it('return internal server error when config servers throws an error', async () => {
+    // Arrange
+    const error = new Error('Config Service Error');
+    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
+
+    // Act
+    const result = await handler(mockInternalServerError, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(500);
+  });
+
+  it('log error when config servers throws an error', async () => {
+    // Arrange
+    const error = new Error('Config Service Error');
+    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
+
+    // Act
+    await handler(mockAuthorizedEvent, mockContext);
+
+    // Assert
+    expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Fatal exception: ', { error });
   });
 });
