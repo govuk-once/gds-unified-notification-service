@@ -6,6 +6,8 @@ resource "aws_api_gateway_rest_api" "this" {
     types = ["REGIONAL"]
   }
 
+  disable_execute_api_endpoint = var.route_53_zone == null ? false : true
+
   lifecycle {
     create_before_destroy = true
   }
