@@ -47,3 +47,18 @@ variable "integrations" {
     lambda_invoke_arn    = string
   }))
 }
+
+/** Domains & mTLS **/
+variable "route_53_zone" {
+  description = "value"
+  type        = string
+  nullable    = true
+  default     = null
+}
+
+variable "mtls_truststore_url" {
+  description = "s3 object url pointing at the trust store - set to null if mTLS is not in use, note : can only be used together with route_53_zone"
+  type        = string
+  nullable    = true
+  default     = null
+}

@@ -36,6 +36,12 @@ variable "availability_zones" {
   default     = "a,b,c"
 }
 
+variable "account_domain" {
+  type        = string
+  description = "Domain already setup within the AWS account"
+  sensitive   = true
+}
+
 terraform {
   backend "s3" {
     bucket = var.bucket

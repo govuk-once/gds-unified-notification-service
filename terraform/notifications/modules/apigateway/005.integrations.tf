@@ -17,4 +17,6 @@ module "api_gateway_integration" {
   // Lambda to handle the definition
   lambda_function_name = each.value.lambda_function_name
   lambda_invoke_arn    = each.value.lambda_invoke_arn
+
+  depends_on = [aws_api_gateway_rest_api.this]
 }
