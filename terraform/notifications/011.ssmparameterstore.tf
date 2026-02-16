@@ -59,5 +59,8 @@ module "parameter_store_external_configuration" {
     # Temporary key
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "api/postMessage/apiKey" = "mockApiKey"
+
+    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
+    "api/flex/apiKey" = "mockApiKey"
   }
 }
