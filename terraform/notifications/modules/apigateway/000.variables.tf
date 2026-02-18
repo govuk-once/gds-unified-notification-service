@@ -38,12 +38,21 @@ variable "kms_key_arn" {
   type        = string
 }
 
+variable "shared_path_resources" {
+  type = map(object({
+    parent_id = optional(string)
+    path_part = string
+  }))
+  default = {}
+}
+
 /** Integrations injection for lambdas **/
 variable "integrations" {
   type = map(object({
-    method               = string
-    path                 = string
-    lambda_function_name = string
-    lambda_invoke_arn    = string
+    method                     = string
+    path                       = string
+    lambda_function_name       = string
+    lambda_invoke_arn          = string
+    existing_path_resource_ids = optional(map(string), {})
   }))
 }

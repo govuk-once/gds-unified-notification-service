@@ -42,3 +42,16 @@ variable "lambda_invoke_arn" {
   description = "Invocation ARN for the lambda"
   type        = string
 }
+
+variable "shared_segment_keys" {
+  description = "Map exsisting path to shared resouce keyd"
+  type        = map(string)
+  default     = {}
+}
+
+variable "shared_resources" {
+  description = "Map of shared API Gateway resources"
+  type        = map(any)
+  default     = {}
+}
+

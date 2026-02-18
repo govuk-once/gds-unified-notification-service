@@ -1,4 +1,3 @@
-
 // Integrate lambdas with api gateway
 module "api_gateway_integration" {
   for_each = var.integrations
@@ -17,4 +16,7 @@ module "api_gateway_integration" {
   // Lambda to handle the definition
   lambda_function_name = each.value.lambda_function_name
   lambda_invoke_arn    = each.value.lambda_invoke_arn
+
+  shared_resources    = aws_api_gateway_resource.shared
+  shared_segment_keys = each.value.existing_path_resource_ids
 }
