@@ -16,7 +16,12 @@ module "api_gateway_flex" {
       method               = "GET"
       lambda_function_name = module.lambda_getFlexNotification.lambda_function_name
       lambda_invoke_arn    = module.lambda_getFlexNotification.lambda_invoke_arn
+    },
+    "patchNotifications" = {
+      path                 = "flexStatus"
+      method               = "PATCH"
+      lambda_function_name = module.lambda_patchFlexNotification.lambda_function_name
+      lambda_invoke_arn    = module.lambda_patchFlexNotification.lambda_invoke_arn
     }
   }
 }
-
