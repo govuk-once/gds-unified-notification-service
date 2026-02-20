@@ -14,7 +14,7 @@ import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.object({ Status: z.string() });
+const responseBodySchema = z.union([z.object({ Status: z.string() }), z.object({ Message: z.string() })]);
 
 /* Lambda Request Example
 {
@@ -24,10 +24,10 @@ const responseBodySchema = z.object({ Status: z.string() });
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000
-  }
+  },
   // TODO: Remove this when the tf APIGateway segement issue if fix
-  queryStringParameters: {
-    id: '12345',
+  "queryStringParameters": {
+    "id": "12342"
   }  
 }
 */
@@ -57,7 +57,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
 
       if (!isValidApiKey) {
         return {
-          body: { Status: '' },
+          body: { Message: 'Unauthorized' },
           statusCode: 401,
         };
       }
@@ -66,7 +66,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
       if (!notificationId) {
         this.observability.logger.info('Notification Id has not been provided.');
         return {
-          body: { Status: '' },
+          body: { Message: 'Bad request' },
           statusCode: 400,
         };
       }
@@ -75,18 +75,17 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
 
       if (!notification) {
         return {
-          body: { Status: '' },
+          body: { Message: 'Not found' },
           statusCode: 404,
         };
       }
 
       const status = 'READ';
-
       const updatedAt = new Date().toISOString();
       await this.flexNotificationTable.updateRecord({
-        notificationId: notificationId,
-        status,
-        updatedAt: updatedAt,
+        NotificationID: notificationId,
+        Status: status,
+        UpdatedAt: updatedAt,
       });
 
       this.observability.logger.info('Successful request.', { notificationId, status });
@@ -100,7 +99,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
     } catch (error) {
       this.observability.logger.error('Fatal exception: ', { error });
       return {
-        body: { Status: '' },
+        body: { Message: 'Internal server error' },
         statusCode: 500,
       };
     }

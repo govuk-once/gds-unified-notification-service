@@ -14,14 +14,12 @@ import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(IFlexNotificationSchema);
+const responseBodySchema = z.union([z.array(IFlexNotificationSchema), z.object({ Message: z.string() })]);
 
 /* Lambda Request Example
 {
-  "body": "[]",
   "headers": {
-    "x-api-key": "mockApiKey",
-    "Content-Type": "application/json"
+    "x-api-key": "mockApiKey"
   },
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",

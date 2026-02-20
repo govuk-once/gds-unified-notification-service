@@ -119,9 +119,9 @@ describe('PatchFlexNotification Handler', () => {
 
     // Assert
     expect(serviceMocks.flexNotificationDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
-      notificationId: mockNotification.notificationID,
-      status: 'READ',
-      updatedAt: '2026-02-13T10:00:00.000Z',
+      NotificationID: mockNotification.notificationID,
+      Status: 'READ',
+      UpdatedAt: '2026-02-13T10:00:00.000Z',
     });
   });
 
