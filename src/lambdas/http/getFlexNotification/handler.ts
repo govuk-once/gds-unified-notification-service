@@ -1,14 +1,15 @@
 import {
-  APIHandler,
   HandlerDependencies,
   iocGetConfigurationService,
+  iocGetFlexDynamoRepository,
   iocGetObservabilityService,
-  StringParameters,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { FlexAPIHandler } from '@common/operations/flexApiHandler';
+import { FlexDynamoRepository } from '@common/repositories/flexDynamoRepository';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
@@ -29,17 +30,19 @@ const responseBodySchema = z.array(IFlexNotificationSchema);
 }
 */
 
-export class GetFlexNotification extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getFlexNotification';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+
+  public flexNotificationTable: FlexDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<GetFlexNotification>
   ) {
-    super(observability);
+    super(config, observability);
     this.injectDependencies(asyncDependencies);
   }
 
@@ -48,30 +51,21 @@ export class GetFlexNotification extends APIHandler<typeof requestBodySchema, ty
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     try {
-      const apiKey = await this.config.getParameter(StringParameters.Api.Flex.ApiKey);
+      const isValidApiKey = await this.validateApiKey(event);
 
-      if (event.headers['x-api-key'] !== apiKey) {
-        this.observability.logger.error('No matching API key: ', { apiKey });
+      if (!isValidApiKey) {
         return {
           body: [],
           statusCode: 401,
         };
       }
 
+      const notification = await this.flexNotificationTable.getRecords<IFlexNotification>();
+
       this.observability.logger.info('Successful request.');
 
       return {
-        body: [
-          {
-            NotificationID: '1234',
-            MessageTitle: 'You have a new Message',
-            MessageBody: 'Open Notification Centre to read your notifications',
-            NotificationTitle: 'You have a new Notification',
-            NotificationBody: 'Here is the Notification body.',
-            Status: 'PENDING',
-            DispatchedAt: '2026-02-13',
-          },
-        ],
+        body: notification,
         statusCode: 200,
       };
     } catch (error) {
@@ -84,4 +78,6 @@ export class GetFlexNotification extends APIHandler<typeof requestBodySchema, ty
   }
 }
 
-export const handler = new GetFlexNotification(iocGetConfigurationService(), iocGetObservabilityService()).handler();
+export const handler = new GetFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  flexNotificationTable: iocGetFlexDynamoRepository(),
+})).handler();

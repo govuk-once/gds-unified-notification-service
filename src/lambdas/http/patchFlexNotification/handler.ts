@@ -1,52 +1,50 @@
 import {
-  APIHandler,
   HandlerDependencies,
   iocGetConfigurationService,
   iocGetFlexDynamoRepository,
   iocGetObservabilityService,
-  StringParameters,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { FlexDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-//Update this...
-const requestBodySchema = z.object({ Status: z.string() });
-const responseBodySchema = z
-  .array(z.object({ NotificationID: z.string(), Status: z.string(), UpdatedAt: z.string() }))
-  .or(z.object());
+const requestBodySchema = z.any();
+const responseBodySchema = z.object({ Status: z.string() });
 
 /* Lambda Request Example
 {
-  "body": "[]",
   "headers": {
-    "x-api-key": "mockApiKey",
-    "Content-Type": "application/json"
+    "x-api-key": "mockApiKey"
   },
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000
   }
+  // TODO: Remove this when the tf APIGateway segement issue if fix
+  queryStringParameters: {
+    id: '12345',
+  }  
 }
 */
 
-export class PatchFlexNotification extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'patchFlexNotification';
+export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+  public operationId: string = 'patchFlexNotificationStatus';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public flexRepo: FlexDynamoRepository;
+  public flexNotificationTable: FlexDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<PatchFlexNotification>
   ) {
-    super(observability);
+    super(config, observability);
     this.injectDependencies(asyncDependencies);
   }
 
@@ -55,59 +53,54 @@ export class PatchFlexNotification extends APIHandler<typeof requestBodySchema, 
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     try {
-      const apiKey = await this.config.getParameter(StringParameters.Api.Flex.ApiKey);
+      const isValidApiKey = await this.validateApiKey(event);
 
-      if (event.headers['x-api-key'] !== apiKey) {
-        this.observability.logger.error('No matching API key: ', { apiKey });
+      if (!isValidApiKey) {
         return {
-          body: [],
+          body: { Status: '' },
           statusCode: 401,
         };
       }
 
-      const notificationId = event.pathParameters?.id;
+      const notificationId = event.queryStringParameters?.id;
       if (!notificationId) {
         this.observability.logger.info('Notification Id has not been provided.');
         return {
-          body: {},
+          body: { Status: '' },
           statusCode: 400,
         };
       }
 
-      const notification = await this.flexRepo!.getRecord<IFlexNotification>(notificationId);
+      const notification = await this.flexNotificationTable.getRecord<IFlexNotification>(notificationId);
 
       if (!notification) {
         return {
-          body: {},
+          body: { Status: '' },
           statusCode: 404,
         };
       }
 
-      const { Status } = event.body;
+      const status = 'READ';
 
       const updatedAt = new Date().toISOString();
-      await this.flexRepo!.updateRecord({
+      await this.flexNotificationTable.updateRecord({
         notificationId: notificationId,
-        Status,
+        status,
         updatedAt: updatedAt,
       });
 
-      this.observability.logger.info('Successful request.', { notificationId, Status });
+      this.observability.logger.info('Successful request.', { notificationId, status });
 
       return {
-        body: [
-          {
-            NotificationID: notificationId,
-            Status,
-            UpdatedAt: updatedAt,
-          },
-        ],
+        body: {
+          Status: status,
+        },
         statusCode: 202,
       };
     } catch (error) {
       this.observability.logger.error('Fatal exception: ', { error });
       return {
-        body: [],
+        body: { Status: '' },
         statusCode: 500,
       };
     }
@@ -115,5 +108,5 @@ export class PatchFlexNotification extends APIHandler<typeof requestBodySchema, 
 }
 
 export const handler = new PatchFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  flexRepo: iocGetFlexDynamoRepository(),
+  flexNotificationTable: iocGetFlexDynamoRepository(),
 })).handler();

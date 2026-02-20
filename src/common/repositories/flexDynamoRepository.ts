@@ -12,7 +12,10 @@ export class FlexDynamoRepository extends DynamodbRepository<IFlexNotification> 
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Inbound.KeyAttributes, StringParameters.Table.Inbound.Name);
+    await super.initialize(
+      StringParameters.Table.FlexNotification.KeyAttributes,
+      StringParameters.Table.FlexNotification.Name
+    );
     return this;
   }
 }

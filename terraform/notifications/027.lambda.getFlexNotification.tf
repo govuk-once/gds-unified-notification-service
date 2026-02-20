@@ -12,11 +12,8 @@ module "lambda_getFlexNotification" {
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
   // IAM Permissions & SQS trigger linking
-  trigger_queues = {}
-  publish_queues = {
-    analytics  = module.sqs_analytics.queue_arn
-    processing = module.sqs_processing.queue_arn
+  publish_queues = {}
+  dynamo_tables = {
+    flex = module.dynamodb_flexNotifications.table_arn
   }
-  additional_policies = {}
-
 }
