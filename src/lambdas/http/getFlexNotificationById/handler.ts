@@ -4,7 +4,7 @@ import {
   iocGetFlexDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
-  type ITypedRequestResponse
+  type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { FlexDynamoRepository } from '@common/repositories';
@@ -32,7 +32,7 @@ const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message:
 }
 */
 
-export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getFlexNotificationById';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
@@ -42,7 +42,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    asyncDependencies?: () => HandlerDependencies<PatchFlexNotification>
+    asyncDependencies?: () => HandlerDependencies<GetFlexNotificationById>
   ) {
     super(config, observability);
     this.injectDependencies(asyncDependencies);
@@ -83,7 +83,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
       this.observability.logger.info('Successful request.', { notificationId });
 
       return {
-        body: notification, 
+        body: notification,
         statusCode: 200,
       };
     } catch (error) {
@@ -96,6 +96,6 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
   }
 }
 
-export const handler = new PatchFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   flexNotificationTable: iocGetFlexDynamoRepository(),
 })).handler();
