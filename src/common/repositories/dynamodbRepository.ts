@@ -2,6 +2,7 @@ import {
   BatchWriteItemCommandInput,
   DynamoDB,
   PutItemCommandInput,
+  ScanCommandInput,
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
@@ -156,6 +157,27 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     } catch (error) {
       this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
+    }
+  }
+
+  public async getRecords<RecordType>(): Promise<RecordType[]> {
+    const params: ScanCommandInput = {
+      TableName: this.tableName,
+    };
+
+    try {
+      const { Items } = await this.client.scan(params);
+
+      if (!Items || Items.length === 0) {
+        return [];
+      }
+
+      const response = Items.map((item) => unmarshall(item) as RecordType);
+
+      return response;
+    } catch (error) {
+      this.observability.logger.error(`Failure in getting records for table ${this.tableName}. ${error}`);
+      return [];
     }
   }
 }

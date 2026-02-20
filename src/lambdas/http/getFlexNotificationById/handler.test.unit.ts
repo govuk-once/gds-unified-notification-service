@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { GetFlexNotification } from '@project/lambdas/http/getFlexNotification/handler';
+import { GetFlexNotificationById } from '@project/lambdas/http/getFlexNotificationById/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { Context } from 'aws-lambda';
 
@@ -11,31 +11,31 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('GetFlexNotification Handler', () => {
-  let instance: GetFlexNotification;
-  let handler: ReturnType<typeof GetFlexNotification.prototype.handler>;
+describe('GetFlexNotificationById Handler', () => {
+  let instance: GetFlexNotificationById;
+  let handler: ReturnType<typeof GetFlexNotificationById.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   const mockContext = {
-    functionName: 'getFlexNotification',
+    functionName: 'getFlexNotificationById',
     awsRequestId: '12345',
   } as unknown as Context;
 
-  let mockAuthorizedEvent: EventType;
   let mockUnauthorizedEvent: EventType;
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
+  let missingIdEvent: EventType;
 
   const mockMessageBody: IFlexNotification = {
-    NotificationID: '1234',
+    NotificationID: '12345',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
-    Status: 'PENDING',
+    Status: 'READ',
     DispatchedAt: '2026-02-13',
   };
 
@@ -50,12 +50,8 @@ describe('GetFlexNotification Handler', () => {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
-    } as unknown as EventType;
-
-    mockAuthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockApiKey',
+      queryStringParameters: {
+        id: '12345',
       },
     } as unknown as EventType;
 
@@ -66,20 +62,25 @@ describe('GetFlexNotification Handler', () => {
       },
     } as unknown as EventType;
 
+    missingIdEvent = {
+      ...mockEvent,
+      queryStringParameters: {},
+    } as unknown as EventType;
+
     mockInternalServerError = null as unknown as EventType;
 
-    instance = new GetFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+    instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       flexNotificationTable: Promise.resolve(serviceMocks.flexNotificationDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockMessageBody]);
+    serviceMocks.flexNotificationDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
   });
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('getFlexNotification');
+    expect(instance.operationId).toBe('getFlexNotificationById');
   });
 
   it('should return 200 with status ok when valid API key is provided', async () => {
@@ -87,11 +88,13 @@ describe('GetFlexNotification Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
+    const result = await handler(mockEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.');
     expect(result.statusCode).toEqual(200);
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.', {
+      notificationId: mockMessageBody.NotificationID,
+    });
   });
 
   it('should return 200 with status ok and return a notification', async () => {
@@ -99,35 +102,22 @@ describe('GetFlexNotification Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
+    const result = await handler(mockEvent, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(200);
-    expect(JSON.parse(result.body)).toEqual([mockMessageBody]);
+    expect(JSON.parse(result.body)).toEqual(mockMessageBody);
   });
 
-  it('should fetch all notifications from getRecords call', async () => {
+  it('should get notification from getRecord call', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    await handler(mockAuthorizedEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.flexNotificationDynamoRepositoryMock.getRecords).toHaveBeenCalled();
-  });
-
-  it('should return an empty array when there are no notifications', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
-
-    // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(200);
-    expect(JSON.parse(result.body)).toEqual([]);
+    expect(serviceMocks.flexNotificationDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
   });
 
   it('should return 401 with status unauthorized when valid API key is provided', async () => {
@@ -150,7 +140,6 @@ describe('GetFlexNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual([]);
   });
 
   it('should fetch API key from config service', async () => {
@@ -158,7 +147,7 @@ describe('GetFlexNotification Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    await handler(mockAuthorizedEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');

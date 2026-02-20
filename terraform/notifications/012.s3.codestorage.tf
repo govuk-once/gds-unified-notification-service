@@ -78,7 +78,7 @@ resource "aws_signer_signing_profile" "code_signing" {
 
   # Note: TF Appears to not handle deleting / importing these too well
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
     ignore_changes  = [name]
   }
 }

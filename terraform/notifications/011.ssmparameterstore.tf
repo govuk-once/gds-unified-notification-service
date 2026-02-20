@@ -31,6 +31,13 @@ module "parameter_store_internal_configuration" {
       rangeKey : module.dynamodb_inbound_messages.table_range_key
       attributes : module.dynamodb_inbound_messages.table_attributes
     })
+
+    "table/flex/name" = module.dynamodb_flexNotifications.table_name
+    "table/flex/attributes" = jsonencode({
+      hashKey    = module.dynamodb_flexNotifications.table_hash_key
+      rangeKey   = module.dynamodb_flexNotifications.table_range_key
+      attributes = module.dynamodb_flexNotifications.table_attributes
+    })
   }
 }
 
