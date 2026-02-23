@@ -62,5 +62,9 @@ module "parameter_store_external_configuration" {
 
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "api/flex/apiKey" = "mockApiKey"
+
+    # Default values for url content control within the data
+    "content/allowed/protocols"    = "govuk:,https:"
+    "content/allowed/urlHostnames" = "*.gov.uk"
   }
 }

@@ -31,6 +31,12 @@ export const StringParameters = {
       User: 'config/common/cache/user',
     },
   },
+  Content: {
+    Allowed: {
+      Protocols: 'content/allowed/protocols',
+      UrlHostnames: 'content/allowed/urlHostnames',
+    },
+  },
   Queue: {
     Analytics: {
       Url: 'queue/analytics/url',
