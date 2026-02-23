@@ -96,20 +96,6 @@ describe('PatchFlexNotification Handler', () => {
     expect(result.statusCode).toEqual(202);
   });
 
-  it('should return 202 with status ok and return a notification', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockEvent, mockContext);
-    const body = JSON.parse(result.body);
-
-    // Assert
-    expect(body).toEqual({
-      Status: 'READ',
-    });
-  });
-
   it('should call updateRecord to fetch a notification', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);

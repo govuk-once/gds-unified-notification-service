@@ -14,7 +14,7 @@ import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([z.object({ Status: z.string() }), z.object({ Message: z.string() })]);
+const responseBodySchema = z.any();
 
 /* Lambda Request Example
 {
@@ -91,9 +91,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
       this.observability.logger.info('Successful request.', { notificationId, status });
 
       return {
-        body: {
-          Status: status,
-        },
+        body: {},
         statusCode: 202,
       };
     } catch (error) {

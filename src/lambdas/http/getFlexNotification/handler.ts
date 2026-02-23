@@ -14,7 +14,7 @@ import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([z.array(IFlexNotificationSchema), z.object({ Message: z.string() })]);
+const responseBodySchema = z.array(IFlexNotificationSchema).or(z.object({ Message: z.string() }));
 
 /* Lambda Request Example
 {
@@ -58,12 +58,12 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
         };
       }
 
-      const notification = await this.inboundNotificationTable.getRecords<IFlexNotification>();
+      const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>();
 
       this.observability.logger.info('Successful request.');
 
       return {
-        body: notification,
+        body: notifications,
         statusCode: 200,
       };
     } catch (error) {
