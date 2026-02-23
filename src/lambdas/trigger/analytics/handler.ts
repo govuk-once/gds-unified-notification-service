@@ -53,7 +53,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 
   public async implementation(event: QueueEvent<IAnalytics>, context: Context) {
     // Validate individual records
-    const [records, validRecords, invalidRecords] = groupValidation(
+    const [records, validRecords, invalidRecords] = await groupValidation(
       event.Records.map((record) => record.body),
       IAnalyticsSchema
     );

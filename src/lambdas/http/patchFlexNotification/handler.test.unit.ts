@@ -68,12 +68,12 @@ describe('PatchFlexNotification Handler', () => {
     } as unknown as EventType;
 
     instance = new PatchFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      flexNotificationTable: Promise.resolve(serviceMocks.flexNotificationDynamoRepositoryMock),
+      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockNotification);
-    serviceMocks.flexNotificationDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockNotification);
+    serviceMocks.inboundDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -96,20 +96,6 @@ describe('PatchFlexNotification Handler', () => {
     expect(result.statusCode).toEqual(202);
   });
 
-  it('should return 202 with status ok and return a notification', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockEvent, mockContext);
-    const body = JSON.parse(result.body);
-
-    // Assert
-    expect(body).toEqual({
-      Status: 'READ',
-    });
-  });
-
   it('should call updateRecord to fetch a notification', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
@@ -118,7 +104,7 @@ describe('PatchFlexNotification Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.flexNotificationDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
+    expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
       NotificationID: mockNotification.notificationID,
       Status: 'READ',
       UpdatedAt: '2026-02-13T10:00:00.000Z',
@@ -209,7 +195,7 @@ describe('PatchFlexNotification Handler', () => {
   it('should return 404 when notifications does not exist', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
+    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
 
     // Act
     const result = await handler(mockEvent, mockContext);

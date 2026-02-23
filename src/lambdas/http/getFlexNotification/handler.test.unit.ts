@@ -69,12 +69,12 @@ describe('GetFlexNotification Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      flexNotificationTable: Promise.resolve(serviceMocks.flexNotificationDynamoRepositoryMock),
+      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockMessageBody]);
+    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockMessageBody]);
   });
 
   it('should have the correct operationId', () => {
@@ -114,13 +114,13 @@ describe('GetFlexNotification Handler', () => {
     await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.flexNotificationDynamoRepositoryMock.getRecords).toHaveBeenCalled();
+    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalled();
   });
 
   it('should return an empty array when there are no notifications', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
+    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
 
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);

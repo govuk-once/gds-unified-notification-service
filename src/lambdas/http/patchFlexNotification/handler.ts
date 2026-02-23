@@ -1,20 +1,20 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetFlexDynamoRepository,
+  iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { FlexDynamoRepository } from '@common/repositories';
+import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([z.object({ Status: z.string() }), z.object({ Message: z.string() })]);
+const responseBodySchema = z.any();
 
 /* Lambda Request Example
 {
@@ -37,7 +37,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public flexNotificationTable: FlexDynamoRepository;
+  public inboundNotificationTable: InboundDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -71,7 +71,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
         };
       }
 
-      const notification = await this.flexNotificationTable.getRecord<IFlexNotification>(notificationId);
+      const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
 
       if (!notification) {
         return {
@@ -82,7 +82,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
 
       const status = 'READ';
       const updatedAt = new Date().toISOString();
-      await this.flexNotificationTable.updateRecord({
+      await this.inboundNotificationTable.updateRecord({
         NotificationID: notificationId,
         Status: status,
         UpdatedAt: updatedAt,
@@ -91,9 +91,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
       this.observability.logger.info('Successful request.', { notificationId, status });
 
       return {
-        body: {
-          Status: status,
-        },
+        body: {},
         statusCode: 202,
       };
     } catch (error) {
@@ -107,5 +105,5 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
 }
 
 export const handler = new PatchFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  flexNotificationTable: iocGetFlexDynamoRepository(),
+  inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

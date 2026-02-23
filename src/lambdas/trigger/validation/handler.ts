@@ -3,6 +3,7 @@ import {
   HandlerDependencies,
   iocGetAnalyticsService,
   iocGetConfigurationService,
+  iocGetContentValidationService,
   iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
@@ -10,7 +11,13 @@ import {
 import { ValidationEnum } from '@common/models/ValidationEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ConfigurationService, ObservabilityService, ProcessingQueueService } from '@common/services';
+import {
+  AnalyticsService,
+  ConfigurationService,
+  ContentValidationService,
+  ObservabilityService,
+  ProcessingQueueService,
+} from '@common/services';
 import { BoolParameters, groupValidation } from '@common/utils';
 import {
   extractIdentifiers,
@@ -63,6 +70,7 @@ export class Validation extends QueueHandler<IMessage> {
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
+    protected contentValidationService: ContentValidationService,
     asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
     super(observability);
@@ -77,7 +85,7 @@ export class Validation extends QueueHandler<IMessage> {
     );
 
     // Trigger received notifications events
-    const [, identifiableRecords] = groupValidation(
+    const [, identifiableRecords] = await groupValidation(
       event.Records,
       SqsRecordSchema.extend({
         body: IIdentifieableMessageSchema,
@@ -90,9 +98,16 @@ export class Validation extends QueueHandler<IMessage> {
     );
 
     // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
-    const [, validRecords, invalidRecords] = groupValidation(
+    const [, validRecords, invalidRecords] = await groupValidation(
       event.Records,
-      SqsRecordSchema.extend({ body: IMessageSchema })
+      SqsRecordSchema.extend({ body: IMessageSchema }).superRefine(async (data, ctx) => {
+        // Deeplink validation injected into schema here
+        try {
+          await this.contentValidationService.validate(data.body.MessageBody);
+        } catch (e) {
+          ctx.addIssue(`${e}`);
+        }
+      })
     );
     this.observability.logger.info(`Validation results`, {
       valid: validRecords.length,
@@ -146,8 +161,13 @@ export class Validation extends QueueHandler<IMessage> {
     }
   }
 }
-export const handler = new Validation(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  analyticsService: iocGetAnalyticsService(),
-  inboundTable: iocGetInboundDynamoRepository(),
-  processingQueue: iocGetProcessingQueueService(),
-})).handler();
+export const handler = new Validation(
+  iocGetConfigurationService(),
+  iocGetObservabilityService(),
+  iocGetContentValidationService(),
+  () => ({
+    analyticsService: iocGetAnalyticsService(),
+    inboundTable: iocGetInboundDynamoRepository(),
+    processingQueue: iocGetProcessingQueueService(),
+  })
+).handler();

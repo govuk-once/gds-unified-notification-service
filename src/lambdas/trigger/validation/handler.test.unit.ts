@@ -117,11 +117,16 @@ describe('Validation QueueHandler', () => {
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
-    instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
-      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-    }));
+    instance = new Validation(
+      serviceMocks.configurationServiceMock,
+      observabilityMocks,
+      serviceMocks.contentValidationServiceMock,
+      () => ({
+        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      })
+    );
     handler = instance.handler();
   });
 
@@ -272,6 +277,30 @@ describe('Validation QueueHandler', () => {
         errors: '✖ Invalid input: expected string, received undefined\n  → at body.NotificationID',
         raw: mockUnidentifiableEvent.Records[0],
       }
+    );
+  });
+
+  it('should reject message with unknown deeplinks', async () => {
+    // Act
+    await handler(
+      {
+        ...mockEvent,
+        Records: [
+          { ...mockEvent.Records[0], body: { ...mockEvent.Records[0].body, MessageBody: 'https://google.com' } },
+        ],
+      },
+      mockContext
+    );
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
+      1,
+      {
+        DepartmentID: 'TEST01',
+        NotificationID: '1234',
+      },
+      'VALIDATION_FAILED',
+      expect.stringContaining(`https://google.com is using google.com hostname which is not on the allow list.`)
     );
   });
 });

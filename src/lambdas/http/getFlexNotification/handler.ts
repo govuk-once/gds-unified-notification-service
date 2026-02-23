@@ -1,20 +1,20 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetFlexDynamoRepository,
+  iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { FlexDynamoRepository } from '@common/repositories/flexDynamoRepository';
+import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([z.array(IFlexNotificationSchema), z.object({ Message: z.string() })]);
+const responseBodySchema = z.array(IFlexNotificationSchema).or(z.object({ Message: z.string() }));
 
 /* Lambda Request Example
 {
@@ -33,7 +33,7 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public flexNotificationTable: FlexDynamoRepository;
+  public inboundNotificationTable: InboundDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -58,12 +58,12 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
         };
       }
 
-      const notification = await this.flexNotificationTable.getRecords<IFlexNotification>();
+      const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>();
 
       this.observability.logger.info('Successful request.');
 
       return {
-        body: notification,
+        body: notifications,
         statusCode: 200,
       };
     } catch (error) {
@@ -77,5 +77,5 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
 }
 
 export const handler = new GetFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  flexNotificationTable: iocGetFlexDynamoRepository(),
+  inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

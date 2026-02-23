@@ -14,6 +14,6 @@ module "lambda_patchFlexNotification" {
   // IAM Permissions & SQS trigger linking
   publish_queues = {}
   dynamo_tables = {
-    flex = module.dynamodb_flexNotifications.table_arn
+    inbound = module.dynamodb_inbound_messages.table_arn
   }
 }

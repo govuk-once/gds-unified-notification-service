@@ -7,6 +7,7 @@ import {
   AnalyticsService,
   CacheService,
   ConfigurationService,
+  ContentValidationService,
   DispatchQueueService,
   NotificationService,
   ObservabilityService,
@@ -80,6 +81,10 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock
   ) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
+  const contentValidationServiceMock = new ContentValidationService(
+    observabilityMock,
+    configurationServiceMock
+  ) as Mocked<ContentValidationService>;
 
   return {
     configurationServiceMock: configurationServiceMock,
@@ -92,5 +97,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     eventsDynamoRepositoryMock,
     flexNotificationDynamoRepositoryMock,
     cacheServiceMock,
+    contentValidationServiceMock,
   };
 };
