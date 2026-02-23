@@ -16,6 +16,9 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.Table.Inbound.Name]: 'mockInboundTableName',
     [StringParameters.Table.Events.Name]: 'mockEventTableName',
+    // Content filtering
+    [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
+    [StringParameters.Content.Allowed.UrlHostnames]: '*.gov.uk',
     // Bool params
     [BoolParameters.Config.Common.Enabled]: `true`,
     [BoolParameters.Config.Dispatch.Enabled]: `true`,

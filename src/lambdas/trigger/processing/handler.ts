@@ -75,7 +75,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     );
 
     // Trigger received notification events
-    const [, identifiableRecords] = groupValidation(
+    const [, identifiableRecords] = await groupValidation(
       event.Records,
       SqsRecordSchema.extend({
         body: IIdentifieableMessageSchema,
@@ -88,7 +88,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     );
 
     // Validate Incoming messages
-    const [, validRecords, invalidRecords] = groupValidation(
+    const [, validRecords, invalidRecords] = await groupValidation(
       event.Records.map((record) => record.body),
       IMessageSchema
     );

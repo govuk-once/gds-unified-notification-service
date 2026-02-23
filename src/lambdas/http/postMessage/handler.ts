@@ -3,6 +3,7 @@ import {
   HandlerDependencies,
   iocGetAnalyticsService,
   iocGetConfigurationService,
+  iocGetContentValidationService,
   iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
@@ -16,6 +17,7 @@ import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
   ConfigurationService,
+  ContentValidationService,
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
@@ -70,6 +72,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
+    protected contentValidationService: ContentValidationService,
     dependencies?: () => HandlerDependencies<PostMessage>
   ) {
     super(observability);
@@ -92,6 +95,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     }
 
     const messages = event.body;
+
+    // Prevalidate all messages & reject request when one of them contains unsupported url
+    for (const mesage of messages) {
+      await this.contentValidationService.validate(mesage.MessageBody);
+    }
 
     // Publish analytics & push items to the processing queue
     this.observability.logger.trace('Publishing analytics events for validated messages.');
@@ -134,8 +142,13 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   }
 }
 
-export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  analyticsService: iocGetAnalyticsService(),
-  inboundTable: iocGetInboundDynamoRepository(),
-  processingQueue: iocGetProcessingQueueService(),
-})).handler();
+export const handler = new PostMessage(
+  iocGetConfigurationService(),
+  iocGetObservabilityService(),
+  iocGetContentValidationService(),
+  () => ({
+    analyticsService: iocGetAnalyticsService(),
+    inboundTable: iocGetInboundDynamoRepository(),
+    processingQueue: iocGetProcessingQueueService(),
+  })
+).handler();

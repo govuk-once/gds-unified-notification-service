@@ -80,11 +80,16 @@ describe('PostMessage Handler', () => {
     } as unknown as EventType;
 
     // Mocking retrieving store apiKey
-    instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
-      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-    }));
+    instance = new PostMessage(
+      serviceMocks.configurationServiceMock,
+      observabilityMocks,
+      serviceMocks.contentValidationServiceMock,
+      () => ({
+        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      })
+    );
     handler = instance.handler();
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
@@ -153,5 +158,32 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(401);
     expect(JSON.parse(result.body)).toEqual({});
+  });
+
+  it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {
+    // Act
+    const result = await handler(
+      {
+        ...mockEvent,
+        body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
+      },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+  it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
+    // Act
+    const result = await handler(
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://bitcoin.com' }]) },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(result.body).toEqual(`Bad request: 
+
+ https://bitcoin.com is using bitcoin.com hostname which is not on the allow list.`);
   });
 });

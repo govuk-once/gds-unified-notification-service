@@ -79,7 +79,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
     );
 
     // Trigger received notification events
-    const [, identifiableRecords] = groupValidation(
+    const [, identifiableRecords] = await groupValidation(
       event.Records,
       SqsRecordSchema.extend({
         body: IIdentifieableMessageSchema,
@@ -93,7 +93,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
     );
 
     // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
-    const [records, validRecords, invalidRecords] = groupValidation(
+    const [records, validRecords, invalidRecords] = await groupValidation(
       event.Records.map((record) => record.body),
       IProcessedMessageSchema
     );

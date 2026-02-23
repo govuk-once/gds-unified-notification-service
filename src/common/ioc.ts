@@ -8,6 +8,7 @@ import {
   AnalyticsService,
   CacheService,
   ConfigurationService,
+  ContentValidationService,
   DispatchQueueService,
   NotificationService,
   ObservabilityService,
@@ -146,6 +147,13 @@ export const iocGetAnalyticsService = ioc(
   `AnalyticsService`,
   Mode.SINGLETON,
   async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
+);
+
+// Services - Other
+export const iocGetContentValidationService = ioc(
+  `ContentValidationService`,
+  Mode.SINGLETON,
+  () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
 );
 
 // Utility FN simplifying integration of dependencies which depend on config within handler
