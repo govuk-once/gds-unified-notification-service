@@ -2,7 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, FlexDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
 import {
   AnalyticsQueueService,
   AnalyticsService,
@@ -128,12 +128,6 @@ export const iocGetEventsDynamoRepository = ioc(
   `NotificationService`,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new EventsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
-);
-
-export const iocGetFlexDynamoRepository = ioc(
-  `FlexService`,
-  Mode.TIMEBOUND_SINGLETON,
-  async () => await new FlexDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations

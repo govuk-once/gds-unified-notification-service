@@ -54,10 +54,6 @@ export const StringParameters = {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
     },
-    FlexNotification: {
-      KeyAttributes: 'table/flex/attributes',
-      Name: 'table/flex/name',
-    },
   },
   Dispatch: {
     OneSignal: {
