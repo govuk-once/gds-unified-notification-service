@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { PatchFlexNotification } from '@project/lambdas/http/patchFlexNotification/handler';
+import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -10,16 +10,16 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('PatchFlexNotification Handler', () => {
-  let instance: PatchFlexNotification;
-  let handler: ReturnType<typeof PatchFlexNotification.prototype.handler>;
+describe('PatchNotification Handler', () => {
+  let instance: PatchNotification;
+  let handler: ReturnType<typeof PatchNotification.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   const mockContext = {
-    functionName: 'patchFlexNotification',
+    functionName: 'patchNotification',
     awsRequestId: '12345',
   } as unknown as Context;
 
@@ -50,7 +50,7 @@ describe('PatchFlexNotification Handler', () => {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
-      queryStringParameters: {
+      pathParameters: {
         id: '12345',
       },
     } as unknown as EventType;
@@ -64,10 +64,10 @@ describe('PatchFlexNotification Handler', () => {
 
     mockMissingIdEvent = {
       ...mockEvent,
-      queryStringParameters: {},
+      pathParameters: {},
     } as unknown as EventType;
 
-    instance = new PatchFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+    instance = new PatchNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
     }));
 
@@ -82,7 +82,7 @@ describe('PatchFlexNotification Handler', () => {
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('patchFlexNotificationStatus');
+    expect(instance.operationId).toBe('patchNotification');
   });
 
   it('should return 202 with status ok when valid API key is provided', async () => {

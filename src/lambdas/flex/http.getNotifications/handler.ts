@@ -28,8 +28,8 @@ const responseBodySchema = z.array(IFlexNotificationSchema).or(z.object({ Messag
 }
 */
 
-export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'getFlexNotification';
+export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+  public operationId: string = 'getNotifications';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
@@ -38,7 +38,7 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    asyncDependencies?: () => HandlerDependencies<GetFlexNotification>
+    asyncDependencies?: () => HandlerDependencies<GetNotifications>
   ) {
     super(config, observability);
     this.injectDependencies(asyncDependencies);
@@ -76,6 +76,6 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
   }
 }
 
-export const handler = new GetFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

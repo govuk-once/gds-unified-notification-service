@@ -14,26 +14,14 @@ module "api_gateway_flex" {
     "getNotifications" = {
       path                 = "notifications"
       method               = "GET"
-      lambda_function_name = module.lambda_getFlexNotification.lambda_function_name
-      lambda_invoke_arn    = module.lambda_getFlexNotification.lambda_invoke_arn
+      lambda_function_name = module.lambda_flex_getNotifications.lambda_function_name
+      lambda_invoke_arn    = module.lambda_flex_getNotifications.lambda_invoke_arn
     },
-    "patchNotifications" = {
-      path                 = "flexStatus"
+    "patchNOtification" = {
+      path                 = "notifications/{notificationId}",
       method               = "PATCH"
-      lambda_function_name = module.lambda_patchFlexNotification.lambda_function_name
-      lambda_invoke_arn    = module.lambda_patchFlexNotification.lambda_invoke_arn
-    }
-    "postNotifications" = {
-      path                 = "notifications"
-      method               = "POST"
-      lambda_function_name = module.lambda_getFlexNotification.lambda_function_name
-      lambda_invoke_arn    = module.lambda_getFlexNotification.lambda_invoke_arn
-    }
-    "patchById" = {
-      path                 = "notifications/{notificationId}/patch",
-      method               = "PATCH"
-      lambda_function_name = module.lambda_getFlexNotification.lambda_function_name
-      lambda_invoke_arn    = module.lambda_getFlexNotification.lambda_invoke_arn
+      lambda_function_name = module.lambda_flex_patchNotification.lambda_function_name
+      lambda_invoke_arn    = module.lambda_flex_patchNotification.lambda_invoke_arn
     }
   }
 }

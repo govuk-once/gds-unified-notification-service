@@ -5,7 +5,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { PostMessage } from '@project/lambdas/http/postMessage/handler';
+import { PostMessage } from '@project/lambdas/pso/http.postMessage/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

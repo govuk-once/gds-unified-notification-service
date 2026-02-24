@@ -1,6 +1,6 @@
 import { ITypedRequestEvent } from '@common/middlewares';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { GetHealthcheck } from '@project/lambdas/http/getHealthcheck/handler';
+import { GetHealthcheck } from '@project/lambdas/pso/http.getHealthcheck/handler';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

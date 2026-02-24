@@ -1,12 +1,13 @@
-module "lambda_dispatch" {
+module "lambda_pso_dispatch" {
   source        = "./modules/lambda"
   prefix        = local.prefix
   region        = var.region
+  service_name  = "pso"
   function_name = "dispatch"
 
   # Using code signing 
   kms_key_arn            = aws_kms_key.main.arn
-  bundle_path            = "../../dist/dispatch"
+  bundle_path            = "../../dist/pso/sqs.dispatch"
   s3_bucket_id           = aws_s3_bucket.code_storage.id
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id

@@ -32,8 +32,8 @@ const responseBodySchema = z.any();
 }
 */
 
-export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'patchFlexNotificationStatus';
+export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+  public operationId: string = 'patchNotification';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
@@ -42,7 +42,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    asyncDependencies?: () => HandlerDependencies<PatchFlexNotification>
+    asyncDependencies?: () => HandlerDependencies<PatchNotification>
   ) {
     super(config, observability);
     this.injectDependencies(asyncDependencies);
@@ -62,7 +62,7 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
         };
       }
 
-      const notificationId = event.queryStringParameters?.id;
+      const notificationId = event.pathParameters?.id;
       if (!notificationId) {
         this.observability.logger.info('Notification Id has not been provided.');
         return {
@@ -104,6 +104,6 @@ export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySche
   }
 }
 
-export const handler = new PatchFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+export const handler = new PatchNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

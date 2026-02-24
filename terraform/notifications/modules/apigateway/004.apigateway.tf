@@ -39,3 +39,15 @@ resource "aws_api_gateway_rest_api" "this" {
     }
   })
 }
+
+
+resource "aws_lambda_permission" "apigw" {
+  for_each      = var.integrations
+  statement_id  = "AllowAPIGatewayInvoke-${aws_api_gateway_rest_api.this.id}-${each.key}"
+  action        = "lambda:InvokeFunction"
+  function_name = each.value.lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+
+  # The /*/* portion grants access from any api call within API Gateway within any stage
+  source_arn = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}

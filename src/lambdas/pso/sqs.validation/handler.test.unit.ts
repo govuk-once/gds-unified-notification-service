@@ -8,7 +8,7 @@ import {
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { Validation } from '@project/lambdas/trigger/validation/handler';
+import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
 import { Context } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { GetFlexNotification } from '@project/lambdas/http/getFlexNotification/handler';
+import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { Context } from 'aws-lambda';
 
@@ -11,16 +11,16 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('GetFlexNotification Handler', () => {
-  let instance: GetFlexNotification;
-  let handler: ReturnType<typeof GetFlexNotification.prototype.handler>;
+describe('getNotifications Handler', () => {
+  let instance: GetNotifications;
+  let handler: ReturnType<typeof GetNotifications.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   const mockContext = {
-    functionName: 'getFlexNotification',
+    functionName: 'getNotifications',
     awsRequestId: '12345',
   } as unknown as Context;
 
@@ -68,7 +68,7 @@ describe('GetFlexNotification Handler', () => {
 
     mockInternalServerError = null as unknown as EventType;
 
-    instance = new GetFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+    instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
     }));
 
@@ -79,7 +79,7 @@ describe('GetFlexNotification Handler', () => {
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('getFlexNotification');
+    expect(instance.operationId).toBe('getNotifications');
   });
 
   it('should return 200 with status ok when valid API key is provided', async () => {
