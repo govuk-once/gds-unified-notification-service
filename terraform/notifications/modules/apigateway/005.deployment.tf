@@ -1,10 +1,8 @@
 
 # Trigger api gateway deployment upon config change
 resource "aws_api_gateway_deployment" "this" {
+  depends_on  = [aws_api_gateway_rest_api.this]
   rest_api_id = aws_api_gateway_rest_api.this.id
-
-
-  depends_on = [module.api_gateway_integration]
 
   // Always re-trigger redeployment of the stage
   triggers = {

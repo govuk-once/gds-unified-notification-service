@@ -21,5 +21,4 @@ module "lambda_postMessage" {
     inbound = module.dynamodb_inbound_messages.table_arn
   }
   additional_policies = {}
-
 }

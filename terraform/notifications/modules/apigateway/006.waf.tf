@@ -59,7 +59,14 @@ resource "aws_wafv2_web_acl" "waf_for_apig" {
   }
 }
 
+# Enable waf logging
 resource "aws_wafv2_web_acl_logging_configuration" "waf_logging_config" {
   log_destination_configs = [aws_cloudwatch_log_group.waf_log_group.arn]
   resource_arn            = aws_wafv2_web_acl.waf_for_apig.arn
+}
+
+# Associate WAF with APIGateway
+resource "aws_wafv2_web_acl_association" "this" {
+  resource_arn = aws_api_gateway_stage.this.arn
+  web_acl_arn  = aws_wafv2_web_acl.waf_for_apig.arn
 }

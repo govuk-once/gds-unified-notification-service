@@ -18,6 +18,18 @@ module "api_gateway_main" {
       lambda_function_name = module.lambda_getHealthcheck.lambda_function_name
       lambda_invoke_arn    = module.lambda_getHealthcheck.lambda_invoke_arn
     },
+    "getHealthCheckById" = {
+      path                 = "status/{notificationId}"
+      method               = "GET"
+      lambda_function_name = module.lambda_getHealthcheck.lambda_function_name
+      lambda_invoke_arn    = module.lambda_getHealthcheck.lambda_invoke_arn
+    },
+    "postHealthCheck" = {
+      path                 = "status"
+      method               = "POST"
+      lambda_function_name = module.lambda_getHealthcheck.lambda_function_name
+      lambda_invoke_arn    = module.lambda_getHealthcheck.lambda_invoke_arn
+    },
     "postMessage" = {
       path                 = "send"
       method               = "POST"

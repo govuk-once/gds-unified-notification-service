@@ -7,9 +7,11 @@ resource "aws_s3_bucket" "code_storage" {
   #checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled" - Not needed
   #checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled" - Not needed, as this is only storing code bundles and not data
   #checkov:skip=CKV2_AWS_61: "Ensure that an S3 bucket has a lifecycle configuration" - Appears to be a known issue - https://github.com/bridgecrewio/checkov/issues/4743 - "aws_s3_bucket_lifecycle_configuration" resource is not being detected
-  bucket = join("-", [local.prefix, "s3", "codestorage"])
-  tags   = local.defaultTags
+  bucket        = join("-", [local.prefix, "s3", "codestorage"])
+  tags          = local.defaultTags
+  force_destroy = true
 }
+
 
 # Disabling public access
 resource "aws_s3_bucket_public_access_block" "code_storage" {
@@ -67,7 +69,7 @@ resource "aws_signer_signing_profile" "code_signing" {
   platform_id = "AWSLambda-SHA384-ECDSA"
 
   # invalid value for name (must be alphanumeric with max length of 64 characters)
-  name = replace(join("-", [local.prefix, "signing_profile_v6"]), "-", "")
+  name = replace(join("-", [local.prefix, "signing_profile_v11"]), "-", "")
   tags = merge(local.defaultTags, {})
 
   signature_validity_period {
@@ -77,10 +79,10 @@ resource "aws_signer_signing_profile" "code_signing" {
 
 
   # Note: TF Appears to not handle deleting / importing these too well
-  lifecycle {
-    prevent_destroy = true
-    ignore_changes  = [name]
-  }
+  # lifecycle {
+  #   prevent_destroy = true
+  #   ignore_changes  = [name]
+  # }
 }
 
 resource "aws_lambda_code_signing_config" "code_signing" {
