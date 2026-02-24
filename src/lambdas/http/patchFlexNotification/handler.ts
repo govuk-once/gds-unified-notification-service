@@ -9,12 +9,12 @@ import {
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(IFlexNotificationSchema).or(z.object({ Message: z.string() }));
+const responseBodySchema = z.any();
 
 /* Lambda Request Example
 {
@@ -24,12 +24,16 @@ const responseBodySchema = z.array(IFlexNotificationSchema).or(z.object({ Messag
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000
-  }
+  },
+  // TODO: Remove this when the tf APIGateway segement issue if fix
+  "queryStringParameters": {
+    "id": "12342"
+  }  
 }
 */
 
-export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'getFlexNotification';
+export class PatchFlexNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+  public operationId: string = 'patchFlexNotificationStatus';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
@@ -38,7 +42,7 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    asyncDependencies?: () => HandlerDependencies<GetFlexNotification>
+    asyncDependencies?: () => HandlerDependencies<PatchFlexNotification>
   ) {
     super(config, observability);
     this.injectDependencies(asyncDependencies);
@@ -53,29 +57,53 @@ export class GetFlexNotification extends FlexAPIHandler<typeof requestBodySchema
 
       if (!isValidApiKey) {
         return {
-          body: [],
+          body: { Message: 'Unauthorized' },
           statusCode: 401,
         };
       }
 
-      const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>();
+      const notificationId = event.queryStringParameters?.id;
+      if (!notificationId) {
+        this.observability.logger.info('Notification Id has not been provided.');
+        return {
+          body: { Message: 'Bad request' },
+          statusCode: 400,
+        };
+      }
 
-      this.observability.logger.info('Successful request.');
+      const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
+
+      if (!notification) {
+        return {
+          body: { Message: 'Not found' },
+          statusCode: 404,
+        };
+      }
+
+      const status = 'READ';
+      const updatedAt = new Date().toISOString();
+      await this.inboundNotificationTable.updateRecord({
+        NotificationID: notificationId,
+        Status: status,
+        UpdatedAt: updatedAt,
+      });
+
+      this.observability.logger.info('Successful request.', { notificationId, status });
 
       return {
-        body: notifications,
-        statusCode: 200,
+        body: {},
+        statusCode: 202,
       };
     } catch (error) {
       this.observability.logger.error('Fatal exception: ', { error });
       return {
-        body: [],
+        body: { Message: 'Internal server error' },
         statusCode: 500,
       };
     }
   }
 }
 
-export const handler = new GetFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+export const handler = new PatchFlexNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

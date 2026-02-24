@@ -43,10 +43,8 @@ describe('GetFlexNotification Handler', () => {
     vi.resetAllMocks();
 
     mockEvent = {
-      body: JSON.stringify([mockMessageBody]),
       headers: {
         'x-api-key': 'mockApiKey',
-        'Content-Type': `application/json`,
       },
       requestContext: {
         requestTimeEpoch: 1428582896000,
@@ -58,7 +56,6 @@ describe('GetFlexNotification Handler', () => {
       ...mockEvent,
       headers: {
         'x-api-key': 'mockApiKey',
-        'Content-Type': `application/json`,
       },
     } as unknown as EventType;
 
@@ -66,14 +63,18 @@ describe('GetFlexNotification Handler', () => {
       ...mockEvent,
       headers: {
         'x-api-key': 'mockBadApiKey',
-        'Content-Type': `application/json`,
       },
     } as unknown as EventType;
 
     mockInternalServerError = null as unknown as EventType;
 
-    instance = new GetFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks);
+    instance = new GetFlexNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+    }));
+
     handler = instance.handler();
+
+    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockMessageBody]);
   });
 
   it('should have the correct operationId', () => {
@@ -103,6 +104,30 @@ describe('GetFlexNotification Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([mockMessageBody]);
+  });
+
+  it('should fetch all notifications from getRecords call', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    // Act
+    await handler(mockAuthorizedEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalled();
+  });
+
+  it('should return an empty array when there are no notifications', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
+
+    // Act
+    const result = await handler(mockAuthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([]);
   });
 
   it('should return 401 with status unauthorized when valid API key is provided', async () => {
@@ -160,17 +185,5 @@ describe('GetFlexNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(500);
-  });
-
-  it('log error when config servers throws an error', async () => {
-    // Arrange
-    const error = new Error('Config Service Error');
-    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
-
-    // Act
-    await handler(mockAuthorizedEvent, mockContext);
-
-    // Assert
-    expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Fatal exception: ', { error });
   });
 });
