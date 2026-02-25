@@ -51,7 +51,7 @@ describe('PatchNotification Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
-        id: '12345',
+        notificationId: '12345',
       },
     } as unknown as EventType;
 
