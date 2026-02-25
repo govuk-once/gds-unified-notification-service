@@ -1,3 +1,9 @@
+locals {
+  api_ops_by_path = tomap({
+    for op in var.integrations : op.path => op...
+  })
+}
+
 # Create Gateway
 resource "aws_api_gateway_rest_api" "this" {
   name = join("-", [var.prefix, "apigw", var.name])
@@ -9,9 +15,39 @@ resource "aws_api_gateway_rest_api" "this" {
   lifecycle {
     create_before_destroy = true
   }
+
+  // Dynamically build out openapi spec from integration definitions
+  body = jsonencode({
+    openapi = "3.0.1"
+    info = {
+      title   = var.name
+      version = "1.0"
+    }
+    paths = {
+      for path, ops in local.api_ops_by_path : path => {
+        for op in ops : lower(op.method) => {
+          x-amazon-apigateway-integration = {
+            uri                  = op.lambda_invoke_arn
+            httpMethod           = op.method
+            connectionType       = "INTERNET"
+            httpMethod           = "POST"
+            payloadFormatVersion = "2.0"
+            type                 = "aws_proxy"
+          }
+        }
+      }
+    }
+  })
 }
 
-resource "aws_wafv2_web_acl_association" "this" {
-  resource_arn = aws_api_gateway_stage.this.arn
-  web_acl_arn  = aws_wafv2_web_acl.waf_for_apig.arn
+
+resource "aws_lambda_permission" "apigw" {
+  for_each      = var.integrations
+  statement_id  = "AllowAPIGatewayInvoke-${aws_api_gateway_rest_api.this.id}-${each.key}"
+  action        = "lambda:InvokeFunction"
+  function_name = each.value.lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+
+  # The /*/* portion grants access from any api call within API Gateway within any stage
+  source_arn = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
 }
