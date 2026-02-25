@@ -1,13 +1,13 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetFlexDynamoRepository,
+  iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { FlexDynamoRepository } from '@common/repositories';
+import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
@@ -36,7 +36,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public flexNotificationTable: FlexDynamoRepository;
+  public inboundNotificationTable: InboundDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -70,7 +70,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
         };
       }
 
-      const notification = await this.flexNotificationTable.getRecord<IFlexNotification>(notificationId);
+      const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
 
       if (!notification) {
         return {
@@ -104,5 +104,5 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 }
 
 export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  flexNotificationTable: iocGetFlexDynamoRepository(),
+  inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

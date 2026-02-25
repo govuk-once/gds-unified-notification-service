@@ -1,7 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, FlexDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
 import {
   AnalyticsQueueService,
   AnalyticsService,
@@ -66,10 +66,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     observabilityMock
   ) as Mocked<EventsDynamoRepository>;
-  const flexNotificationDynamoRepositoryMock = new FlexDynamoRepository(
-    configurationServiceMock,
-    observabilityMock
-  ) as Mocked<FlexDynamoRepository>;
 
   // Services
   const analyticsServiceMock = new AnalyticsService(
@@ -95,7 +91,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     notificationServiceMock,
     inboundDynamoRepositoryMock,
     eventsDynamoRepositoryMock,
-    flexNotificationDynamoRepositoryMock,
     cacheServiceMock,
     contentValidationServiceMock,
   };

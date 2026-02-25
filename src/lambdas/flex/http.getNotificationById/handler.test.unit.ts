@@ -70,12 +70,12 @@ describe('GetFlexNotificationById Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      flexNotificationTable: Promise.resolve(serviceMocks.flexNotificationDynamoRepositoryMock),
+      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.flexNotificationDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
+    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
   });
 
   it('should have the correct operationId', () => {
@@ -117,7 +117,7 @@ describe('GetFlexNotificationById Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.flexNotificationDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
+    expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
   });
 
   it('should return 401 with status unauthorized when valid API key is provided', async () => {
