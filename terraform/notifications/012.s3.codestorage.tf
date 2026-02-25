@@ -96,3 +96,40 @@ resource "aws_lambda_code_signing_config" "code_signing" {
     untrusted_artifact_on_deployment = "Warn"
   }
 }
+
+# Extra bucket policy to allow only HTTPS traffic, on tls 1.2 or higher
+# Policies based on AWS Recommendations: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/create-s3-bucket-policy-for-cloudtrail.html
+resource "aws_s3_bucket_policy" "code_storage" {
+  bucket = aws_s3_bucket.code_storage.id
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      # Extra bucket policy to allow only HTTPS traffic
+      {
+        "Sid" : "EnforceSSLOnly",
+        "Effect" : "Deny",
+        "Principal" : "*",
+        "Action" : "s3:*",
+        "Resource" : [aws_s3_bucket.code_storage.arn, "${aws_s3_bucket.code_storage.arn}/*"],
+        "Condition" : {
+          "Bool" : {
+            "aws:SecureTransport" : "false"
+          }
+        }
+      },
+      # Extra bucket policy to allow TLS 1.2 or higher 
+      {
+        "Sid" : "EnforceTLS12",
+        "Effect" : "Deny",
+        "Principal" : "*",
+        "Action" : "s3:*",
+        "Resource" : [aws_s3_bucket.code_storage.arn, "${aws_s3_bucket.code_storage.arn}/*"],
+        "Condition" : {
+          "NumericLessThan" : {
+            "s3:TlsVersion" : "1.2"
+          }
+        }
+      },
+    ]
+  })
+}

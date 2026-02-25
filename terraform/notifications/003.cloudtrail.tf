@@ -68,7 +68,33 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
             "aws:SourceArn" : "arn:aws:cloudtrail:${var.region}:${data.aws_caller_identity.aws.account_id}:trail/${join("-", [local.prefix, "cloudtrail"])}"
           }
         }
-      }
+      },
+      # Extra bucket policy to allow only HTTPS traffic
+      {
+        "Sid" : "EnforceSSLOnly",
+        "Effect" : "Deny",
+        "Principal" : "*",
+        "Action" : "s3:*",
+        "Resource" : [aws_s3_bucket.cloudtrail.arn, "${aws_s3_bucket.cloudtrail.arn}/*"],
+        "Condition" : {
+          "Bool" : {
+            "aws:SecureTransport" : "false"
+          }
+        }
+      },
+      # Extra bucket policy to allow TLS 1.2 or higher 
+      {
+        "Sid" : "EnforceTLS12",
+        "Effect" : "Deny",
+        "Principal" : "*",
+        "Action" : "s3:*",
+        "Resource" : [aws_s3_bucket.cloudtrail.arn, "${aws_s3_bucket.cloudtrail.arn}/*"],
+        "Condition" : {
+          "NumericLessThan" : {
+            "s3:TlsVersion" : "1.2"
+          }
+        }
+      },
     ]
   })
 }
