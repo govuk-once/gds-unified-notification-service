@@ -14,7 +14,7 @@ import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(IFlexNotificationSchema).or(z.object({ Message: z.string() }));
+const responseBodySchema = z.array(IFlexNotificationSchema);
 
 /* Lambda Request Example
 {
@@ -49,8 +49,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     try {
+      // Authorize
       const isValidApiKey = await this.validateApiKey(event);
-
       if (!isValidApiKey) {
         return {
           body: [],
@@ -58,12 +58,22 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         };
       }
 
-      const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>();
-
-      this.observability.logger.info('Successful request.');
+      // TODO Filter by user id, sort by date
+      const notifications = (await this.inboundNotificationTable.getRecords<IFlexNotification>()).filter(
+        (n) => n.NotificationID == 'efe72235-d02a-45a9-b9d4-a04ff992fcc3'
+      );
 
       return {
-        body: notifications,
+        body: notifications
+          .map((n) => ({
+            // TODO: Add fallbacks, probably can do something within zod schema and/or builder fn
+            ...n,
+            MessageTitle: n.MessageTitle ?? n.NotificationTitle,
+            MessageBody: n.MessageBody ?? n.NotificationBody,
+            // TODO: Figure out the current state & inject into response
+            Status: 'UNREAD',
+          }))
+          .map((n) => IFlexNotificationSchema.parse(n)), // Adding parse here strips out any extra properties that may be in dynamodb object which we wouldnt like to expose
         statusCode: 200,
       };
     } catch (error) {

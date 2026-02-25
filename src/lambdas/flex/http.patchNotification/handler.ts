@@ -6,14 +6,17 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { ValidationEnum } from '@common/models/ValidationEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
+import httpErrors from 'http-errors';
 import z from 'zod';
 
-const requestBodySchema = z.any();
+const requestBodySchema = z.object({
+  Status: z.enum([ValidationEnum.RECEIVED, ValidationEnum.READ, ValidationEnum.MARKED_AS_UNREAD]),
+});
 const responseBodySchema = z.any();
 
 /* Lambda Request Example
@@ -52,55 +55,42 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    try {
-      const isValidApiKey = await this.validateApiKey(event);
-
-      if (!isValidApiKey) {
-        return {
-          body: { Message: 'Unauthorized' },
-          statusCode: 401,
-        };
-      }
-
-      const notificationId = event.pathParameters?.id;
-      if (!notificationId) {
-        this.observability.logger.info('Notification Id has not been provided.');
-        return {
-          body: { Message: 'Bad request' },
-          statusCode: 400,
-        };
-      }
-
-      const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
-
-      if (!notification) {
-        return {
-          body: { Message: 'Not found' },
-          statusCode: 404,
-        };
-      }
-
-      const status = 'READ';
-      const updatedAt = new Date().toISOString();
-      await this.inboundNotificationTable.updateRecord({
-        NotificationID: notificationId,
-        Status: status,
-        UpdatedAt: updatedAt,
-      });
-
-      this.observability.logger.info('Successful request.', { notificationId, status });
-
-      return {
-        body: {},
-        statusCode: 202,
-      };
-    } catch (error) {
-      this.observability.logger.error('Fatal exception: ', { error });
-      return {
-        body: { Message: 'Internal server error' },
-        statusCode: 500,
-      };
+    // Authorize
+    const isValidApiKey = await this.validateApiKey(event);
+    if (!isValidApiKey) {
+      throw new httpErrors.Unauthorized();
     }
+
+    this.observability.logger.info('Received request', { event });
+    // Validate
+    const notificationId = event.pathParameters?.notificationId;
+    if (!notificationId) {
+      this.observability.logger.info('Notification Id has not been provided.');
+      throw new httpErrors.BadRequest();
+    }
+
+    // Confirm existence & ownership
+    const notification = await this.inboundNotificationTable.getRecord(notificationId);
+    if (!notification) {
+      this.observability.logger.info('Notification has does not exists');
+      throw new httpErrors.NotFound();
+    }
+
+    //
+    const { Status } = event.body;
+    const updatedAt = new Date().toISOString();
+    await this.inboundNotificationTable.updateRecord({
+      NotificationID: notificationId,
+      Status,
+      UpdatedAt: updatedAt,
+    });
+
+    this.observability.logger.info('Successful request.', { notificationId, status: Status });
+
+    return {
+      body: {},
+      statusCode: 202,
+    };
   }
 }
 
