@@ -9,6 +9,11 @@ variable "region" {
   type        = string
 }
 
+variable "service_name" {
+  description = "Name of the service lambda belongs to"
+  type        = string
+}
+
 variable "function_name" {
   description = "Name of lambda function"
   type        = string

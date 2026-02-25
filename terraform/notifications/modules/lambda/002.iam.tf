@@ -72,7 +72,7 @@ resource "aws_iam_role_policy" "lambda_to_kms" {
           "kms:Decrypt",
           "kms:GenerateDataKey"
         ]
-        Resource = var.kms_key_arn,
+        Resource = var.kms_key_arn
       }
     ]
   })

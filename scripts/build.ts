@@ -15,22 +15,22 @@ if (existsSync(OUT_DIR)) {
 
 const buildHandlers = async (dir: string) => {
   try {
-    const LAMBDAS_DIR = dir;
-    console.log(`Building lamdas in ./${relative(ROOT, LAMBDAS_DIR)}`);
+    const namespace = basename(dir);
+    console.log(`Building namespace ${namespace} ( ./${relative(ROOT, dir)} )`);
     const entryPoints = [
       ...new Glob('**/*.ts').scanSync({
-        cwd: LAMBDAS_DIR,
+        cwd: dir,
         absolute: true,
       }),
     ].filter((name) => name.endsWith('test.unit.ts') == false);
 
     if (entryPoints.length === 0) {
-      console.error(`No lambda entry points found in ./${relative(ROOT, LAMBDAS_DIR)}`);
+      console.error(`No lambda entry points found in ./${relative(ROOT, dir)}`);
       return;
     }
 
     for (const entrypoint of entryPoints) {
-      const id = basename(dirname(entrypoint));
+      const id = join(namespace, '.', basename(dirname(entrypoint)));
       await esbuild.build({
         entryPoints: [entrypoint],
         outfile: join(OUT_DIR, id, 'index.mjs'),
@@ -57,7 +57,7 @@ const buildHandlers = async (dir: string) => {
 };
 
 void (async () => {
-  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'http'));
+  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'pso'));
   console.log('');
-  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'trigger'));
+  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'flex'));
 })();

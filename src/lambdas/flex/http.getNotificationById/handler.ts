@@ -1,0 +1,108 @@
+import {
+  HandlerDependencies,
+  iocGetConfigurationService,
+  iocGetFlexDynamoRepository,
+  iocGetObservabilityService,
+  type ITypedRequestEvent,
+  type ITypedRequestResponse,
+} from '@common';
+import { FlexAPIHandler } from '@common/operations/flexApiHandler';
+import { FlexDynamoRepository } from '@common/repositories';
+import { ConfigurationService, ObservabilityService } from '@common/services';
+import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import type { Context } from 'aws-lambda';
+import z from 'zod';
+
+const requestBodySchema = z.any();
+const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message: z.string() })]);
+
+/* Lambda Request Example
+{
+  "headers": {
+    "x-api-key": "mockApiKey"
+  },
+  "requestContext": {
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTimeEpoch": 1428582896000
+  },
+  "pathParameters": {
+    "notificationId": "12342"
+  }  
+}
+*/
+
+export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+  public operationId: string = 'getNotificationById';
+  public requestBodySchema = requestBodySchema;
+  public responseBodySchema = responseBodySchema;
+
+  public flexNotificationTable: FlexDynamoRepository;
+
+  constructor(
+    protected config: ConfigurationService,
+    protected observability: ObservabilityService,
+    asyncDependencies?: () => HandlerDependencies<GetFlexNotificationById>
+  ) {
+    super(config, observability);
+    this.injectDependencies(asyncDependencies);
+  }
+
+  public async implementation(
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    context: Context
+  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    try {
+      const isValidApiKey = await this.validateApiKey(event);
+
+      if (!isValidApiKey) {
+        return {
+          body: { Message: 'Unauthorized' },
+          statusCode: 401,
+        };
+      }
+
+      const notificationId = event.pathParameters?.notificationId;
+      if (!notificationId) {
+        this.observability.logger.info('Notification Id has not been provided.');
+        return {
+          body: { Message: 'Bad Request' },
+          statusCode: 400,
+        };
+      }
+
+      const notification = await this.flexNotificationTable.getRecord<IFlexNotification>(notificationId);
+
+      if (!notification) {
+        return {
+          body: { Message: 'Not found' },
+          statusCode: 404,
+        };
+      }
+
+      this.observability.logger.info('Successful request.', { notificationId });
+
+      return {
+        body: {
+          NotificationID: notification.NotificationID,
+          Status: notification.Status,
+          NotificationTitle: notification.NotificationTitle,
+          NotificationBody: notification.NotificationBody,
+          MessageTitle: notification?.MessageTitle ?? notification.NotificationTitle,
+          MessageBody: notification?.MessageBody ?? notification.NotificationBody,
+          DispatchedAt: notification?.DispatchedAt,
+        },
+        statusCode: 200,
+      };
+    } catch (error) {
+      this.observability.logger.error('Fatal exception: ', { error });
+      return {
+        body: { Message: 'Internal server error' },
+        statusCode: 500,
+      };
+    }
+  }
+}
+
+export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  flexNotificationTable: iocGetFlexDynamoRepository(),
+})).handler();
