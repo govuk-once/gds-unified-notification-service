@@ -6,7 +6,7 @@ resource "aws_api_gateway_deployment" "this" {
 
   // Always re-trigger redeployment of the stage
   triggers = {
-    redeployment = timestamp()
+    redeployment = sha1(jsonencode(aws_api_gateway_rest_api.this.body))
   }
 
   lifecycle {
