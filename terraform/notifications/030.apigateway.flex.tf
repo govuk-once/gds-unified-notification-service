@@ -18,7 +18,7 @@ module "api_gateway_flex" {
       lambda_invoke_arn    = module.lambda_flex_getNotifications.lambda_invoke_arn
     },
     "patchNotification" = {
-      path                 = "notifications/{notificationId}",
+      path                 = "notifications/{notificationId}/status",
       method               = "PATCH"
       lambda_function_name = module.lambda_flex_patchNotification.lambda_function_name
       lambda_invoke_arn    = module.lambda_flex_patchNotification.lambda_invoke_arn

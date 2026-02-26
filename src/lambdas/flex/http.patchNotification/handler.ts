@@ -28,10 +28,12 @@ const responseBodySchema = z.any();
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000
   },
-  // TODO: Remove this when the tf APIGateway segement issue if fix
-  "queryStringParameters": {
+  "pathParemters": {
     "id": "12342"
-  }  
+  } ,
+  "body": {
+    "status": "READ"  
+  }
 }
 */
 
@@ -76,7 +78,6 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
       throw new httpErrors.NotFound();
     }
 
-    //
     const { Status } = event.body;
     const updatedAt = new Date().toISOString();
     await this.inboundNotificationTable.updateRecord({
