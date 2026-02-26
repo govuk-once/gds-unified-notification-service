@@ -160,9 +160,14 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     }
   }
 
-  public async getRecords<RecordType>(): Promise<RecordType[]> {
+  public async getRecords<RecordType>(filter?: { field: string; value: string }): Promise<RecordType[]> {
     const params: ScanCommandInput = {
       TableName: this.tableName,
+      ...(filter && {
+        FilterExpression: '#filterField = :filterValue',
+        ExpressionAttributeNames: { '#filterField': filter.field },
+        ExpressionAttributeValues: marshall({ ':filterValue': filter.value }),
+      }),
     };
 
     try {
