@@ -11,6 +11,7 @@ import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
+import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -55,50 +56,30 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       const isValidApiKey = await this.validateApiKey(event);
 
       if (!isValidApiKey) {
-        return {
-          body: { Message: 'Unauthorized' },
-          statusCode: 401,
-        };
+        throw new httpErrors.Unauthorized();
       }
 
       const notificationId = event.pathParameters?.notificationId;
       if (!notificationId) {
         this.observability.logger.info('Notification Id has not been provided.');
-        return {
-          body: { Message: 'Bad Request' },
-          statusCode: 400,
-        };
+        throw new httpErrors.BadRequest();
       }
 
       const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
 
       if (!notification) {
-        return {
-          body: { Message: 'Not found' },
-          statusCode: 404,
-        };
+        throw new httpErrors.NotFound();
       }
 
       this.observability.logger.info('Successful request.', { notificationId });
 
       return {
-        body: {
-          NotificationID: notification.NotificationID,
-          Status: notification.Status,
-          NotificationTitle: notification.NotificationTitle,
-          NotificationBody: notification.NotificationBody,
-          MessageTitle: notification?.MessageTitle ?? notification.NotificationTitle,
-          MessageBody: notification?.MessageBody ?? notification.NotificationBody,
-          DispatchedAt: notification?.DispatchedAt,
-        },
+        body: IFlexNotificationSchema.parse(notification),
         statusCode: 200,
       };
     } catch (error) {
       this.observability.logger.error('Fatal exception: ', { error });
-      return {
-        body: { Message: 'Internal server error' },
-        statusCode: 500,
-      };
+      throw new httpErrors.InternalServerError();
     }
   }
 }

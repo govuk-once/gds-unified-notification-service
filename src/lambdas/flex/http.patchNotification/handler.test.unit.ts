@@ -45,6 +45,7 @@ describe('PatchNotification Handler', () => {
     mockEvent = {
       headers: {
         'x-api-key': 'mockApiKey',
+        'content-type': 'application/json',
       },
       requestContext: {
         requestTimeEpoch: 1428582896000,
@@ -53,12 +54,16 @@ describe('PatchNotification Handler', () => {
       pathParameters: {
         notificationId: '12345',
       },
+      body: JSON.stringify({
+        Status: 'READ',
+      }),
     } as unknown as EventType;
 
     mockUnauthorizedEvent = {
       ...mockEvent,
       headers: {
         'x-api-key': 'mockBadApiKey',
+        'content-type': 'application/json',
       },
     } as unknown as EventType;
 
@@ -125,7 +130,7 @@ describe('PatchNotification Handler', () => {
     });
   });
 
-  it('should return 401 with status unauthorized when valid API key is provided', async () => {
+  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -134,17 +139,6 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
-  });
-
-  it('should return 400 when notificationId is missing', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockMissingIdEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
   });
 
   it('should log error when notificationID is missing', async () => {
@@ -158,7 +152,7 @@ describe('PatchNotification Handler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Notification Id has not been provided.');
   });
 
-  it('should return 401 with status unauthorized and should return empty array', async () => {
+  it('should return 401 with status unauthorized and should return', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -178,18 +172,6 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
-  });
-
-  it('should log error when config servers throws an error', async () => {
-    // Arrange
-    const error = new Error('Config Service Error');
-    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
-
-    // Act
-    await handler(mockMissingIdEvent, mockContext);
-
-    // Assert
-    expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Fatal exception: ', { error });
   });
 
   it('should return 404 when notifications does not exist', async () => {

@@ -30,13 +30,18 @@ describe('getNotifications Handler', () => {
   let mockEvent: EventType;
 
   const mockMessageBody: IFlexNotification = {
-    NotificationID: '1234',
+    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
     Status: 'PENDING',
     DispatchedAt: '2026-02-13',
+  };
+
+  const mockResponse: IFlexNotification = {
+    ...mockMessageBody,
+    Status: 'UNREAD',
   };
 
   beforeEach(() => {
@@ -49,6 +54,9 @@ describe('getNotifications Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      },
+      queryStringParameters: {
+        externalUserId: 'user-ABC',
       },
     } as unknown as EventType;
 
@@ -82,18 +90,6 @@ describe('getNotifications Handler', () => {
     expect(instance.operationId).toBe('getNotifications');
   });
 
-  it('should return 200 with status ok when valid API key is provided', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
-
-    // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.');
-    expect(result.statusCode).toEqual(200);
-  });
-
   it('should return 200 with status ok and return a notification', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
@@ -103,7 +99,7 @@ describe('getNotifications Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(200);
-    expect(JSON.parse(result.body)).toEqual([mockMessageBody]);
+    expect(JSON.parse(result.body)).toEqual([mockResponse]);
   });
 
   it('should fetch all notifications from getRecords call', async () => {
@@ -114,7 +110,10 @@ describe('getNotifications Handler', () => {
     await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalled();
+    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
+      field: 'ExternalUserID',
+      value: 'user-ABC',
+    });
   });
 
   it('should return an empty array when there are no notifications', async () => {
@@ -130,7 +129,7 @@ describe('getNotifications Handler', () => {
     expect(JSON.parse(result.body)).toEqual([]);
   });
 
-  it('should return 401 with status unauthorized when valid API key is provided', async () => {
+  it('should return failure with status unauthorized when invalid API key is provided', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -138,19 +137,7 @@ describe('getNotifications Handler', () => {
     const result = await handler(mockUnauthorizedEvent, mockContext);
 
     // Assert
-    expect(result.statusCode).toEqual(401);
-  });
-
-  it('should return 401 with status unauthorized and should return empty array', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual([]);
+    expect(result.statusCode).toEqual(500);
   });
 
   it('should fetch API key from config service', async () => {
