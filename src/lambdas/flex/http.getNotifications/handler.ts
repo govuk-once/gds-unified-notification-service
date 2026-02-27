@@ -11,6 +11,7 @@ import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
+import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -24,7 +25,10 @@ const responseBodySchema = z.array(IFlexNotificationSchema);
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000
-  }
+  },
+  "queryStringParameters": {
+    "ExternalUserID": "user-ABC"
+  }  
 }
 */
 
@@ -52,36 +56,26 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       // Authorize
       const isValidApiKey = await this.validateApiKey(event);
       if (!isValidApiKey) {
-        return {
-          body: [],
-          statusCode: 401,
-        };
+        throw new httpErrors.Unauthorized();
       }
 
-      // TODO Filter by user id, sort by date
-      const notifications = (await this.inboundNotificationTable.getRecords<IFlexNotification>()).filter(
-        (n) => n.NotificationID == 'efe72235-d02a-45a9-b9d4-a04ff992fcc3'
-      );
+      const externalUserId = event.queryStringParameters?.externalUserId;
+      if (!externalUserId) {
+        throw new httpErrors.BadRequest();
+      }
+
+      const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>({
+        field: 'ExternalUserID',
+        value: externalUserId,
+      });
 
       return {
-        body: notifications
-          .map((n) => ({
-            // TODO: Add fallbacks, probably can do something within zod schema and/or builder fn
-            ...n,
-            MessageTitle: n.MessageTitle ?? n.NotificationTitle,
-            MessageBody: n.MessageBody ?? n.NotificationBody,
-            // TODO: Figure out the current state & inject into response
-            Status: 'UNREAD',
-          }))
-          .map((n) => IFlexNotificationSchema.parse(n)), // Adding parse here strips out any extra properties that may be in dynamodb object which we wouldnt like to expose
+        body: notifications.map((n) => IFlexNotificationSchema.parse({ ...n, Status: 'UNREAD' })),
         statusCode: 200,
       };
     } catch (error) {
       this.observability.logger.error('Fatal exception: ', { error });
-      return {
-        body: [],
-        statusCode: 500,
-      };
+      throw new httpErrors.InternalServerError();
     }
   }
 }

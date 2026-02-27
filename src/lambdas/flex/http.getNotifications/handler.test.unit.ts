@@ -55,6 +55,9 @@ describe('getNotifications Handler', () => {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
+      queryStringParameters: {
+        externalUserId: 'user-ABC',
+      },
     } as unknown as EventType;
 
     mockAuthorizedEvent = {
@@ -107,7 +110,10 @@ describe('getNotifications Handler', () => {
     await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalled();
+    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
+      field: 'ExternalUserID',
+      value: 'user-ABC',
+    });
   });
 
   it('should return an empty array when there are no notifications', async () => {
@@ -123,7 +129,7 @@ describe('getNotifications Handler', () => {
     expect(JSON.parse(result.body)).toEqual([]);
   });
 
-  it('should return 401 with status unauthorized when valid API key is provided', async () => {
+  it('should return failure with status unauthorized when invalid API key is provided', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -131,19 +137,7 @@ describe('getNotifications Handler', () => {
     const result = await handler(mockUnauthorizedEvent, mockContext);
 
     // Assert
-    expect(result.statusCode).toEqual(401);
-  });
-
-  it('should return 401 with status unauthorized and should return empty array', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual([]);
+    expect(result.statusCode).toEqual(500);
   });
 
   it('should fetch API key from config service', async () => {

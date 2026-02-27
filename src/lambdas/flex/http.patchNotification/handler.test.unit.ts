@@ -130,7 +130,7 @@ describe('PatchNotification Handler', () => {
     });
   });
 
-  it('should return 401 with status unauthorized when valid API key is provided', async () => {
+  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -152,7 +152,7 @@ describe('PatchNotification Handler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Notification Id has not been provided.');
   });
 
-  it('should return 401 with status unauthorized and should return empty array', async () => {
+  it('should return 401 with status unauthorized and should return', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
