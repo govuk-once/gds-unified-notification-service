@@ -9,7 +9,6 @@ import {
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
@@ -28,7 +27,7 @@ const responseBodySchema = z.any();
   },
   "pathParameters": {
     "notificationId": "12342"
-  }  
+  }   
 }
 */
 
@@ -65,10 +64,11 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
         throw new httpErrors.BadRequest();
       }
 
-      const notification = await this.inboundNotificationTable.deleteRecord(notificationId);
+      await this.inboundNotificationTable.deleteRecord(notificationId);
 
+      console.log(notificationId);
       return {
-        body: IFlexNotificationSchema.parse(notification),
+        body: {},
         statusCode: 204,
       };
     } catch (error) {
