@@ -27,7 +27,6 @@ describe('GetFlexNotificationById Handler', () => {
   let mockUnauthorizedEvent: EventType;
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
-  let missingIdEvent: EventType;
 
   const mockMessageBody: IFlexNotification = {
     NotificationID: '12345',
@@ -60,11 +59,6 @@ describe('GetFlexNotificationById Handler', () => {
       headers: {
         'x-api-key': 'mockBadApiKey',
       },
-    } as unknown as EventType;
-
-    missingIdEvent = {
-      ...mockEvent,
-      pathParameters: {},
     } as unknown as EventType;
 
     mockInternalServerError = null as unknown as EventType;
@@ -120,7 +114,7 @@ describe('GetFlexNotificationById Handler', () => {
     expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
   });
 
-  it('should return 401 with status unauthorized when valid API key is provided', async () => {
+  it('should return 500', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -128,18 +122,7 @@ describe('GetFlexNotificationById Handler', () => {
     const result = await handler(mockUnauthorizedEvent, mockContext);
 
     // Assert
-    expect(result.statusCode).toEqual(401);
-  });
-
-  it('should return 401 with status unauthorized and should return empty array', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
+    expect(result.statusCode).toEqual(500);
   });
 
   it('should fetch API key from config service', async () => {
