@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
@@ -74,7 +73,8 @@ describe('DeleteNotification Handler', () => {
     }));
 
     handler = instance.handler();
-    serviceMocks.inboundDynamoRepositoryMock.deleteRecord = vi.fn().mockResolvedValue(mockMessageBody);
+    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
+    serviceMocks.inboundDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -93,15 +93,28 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(204);
   });
 
-  it('should get notification from getRecord call', async () => {
+  it('should call updateRecord with ExpiredAtEpoch set to 30 days in the future', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    const mockDateTime = new Date('2026-01-01T00:00:00.000Z');
+    vi.setSystemTime(new Date(mockDateTime));
 
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.deleteRecord).toHaveBeenCalledWith('12345');
+    const expectedDeleteAt = new Date(mockDateTime);
+    expectedDeleteAt.setDate(expectedDeleteAt.getDate() + 30);
+
+    const call = serviceMocks.inboundDynamoRepositoryMock.updateRecord.mock.calls[0][0] as {
+      NotificationID: string;
+      ExpiredAtEpoch: string;
+    };
+
+    expect(call.NotificationID).toBe('12345');
+    expect(call.ExpiredAtEpoch).toBe(expectedDeleteAt.toISOString());
+
+    vi.useRealTimers();
   });
 
   it('should handle errors when calling API key with status internal server error', async () => {

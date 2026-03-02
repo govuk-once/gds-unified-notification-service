@@ -63,7 +63,22 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       throw new httpErrors.BadRequest();
     }
 
-    await this.inboundNotificationTable.deleteRecord(notificationId);
+    const notification = await this.inboundNotificationTable.getRecord(notificationId);
+
+    if (!notification) {
+      this.observability.logger.info('Notification Id has not been provided.');
+      throw new httpErrors.NotFound();
+    }
+
+    const expiredDate = new Date();
+    expiredDate.setDate(expiredDate.getDate() + 30);
+    const expiredAtEpoch = expiredDate.toISOString();
+
+    await this.inboundNotificationTable.updateRecord({
+      NotificationID: notificationId,
+      ExpiredAtEpoch: expiredAtEpoch,
+    });
+
     return {
       body: {},
       statusCode: 204,
