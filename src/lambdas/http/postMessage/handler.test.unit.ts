@@ -122,6 +122,7 @@ describe('PostMessage Handler', () => {
         APIGWExtendedID: mockEvent.requestContext.requestId,
         ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
+        ExpirationDateTime: 'Invalid Date',
       },
     ]);
   });

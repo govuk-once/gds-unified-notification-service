@@ -12,6 +12,7 @@ import { ConfigurationService, ObservabilityService } from '@common/services';
 export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
   protected keyAttributes: IDynamoKeyAttributes;
+  protected expirationDuration: string;
   protected tableName: string;
   protected tableKey: string;
 
@@ -20,8 +21,13 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     protected observability: ObservabilityService
   ) {}
 
-  public async initialize(tableAttributesParameter: string, tableNameParameter: string) {
+  public async initialize(
+    tableAttributesParameter: string,
+    tableNameParameter: string,
+    tableExpirationParameter: string
+  ) {
     this.tableName = await this.config.getParameter(tableNameParameter);
+    this.expirationDuration = await this.config.getParameter(tableExpirationParameter);
     this.keyAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoKeyAttributesSchema);
     this.tableKey = this.keyAttributes.hashKey;
 
@@ -157,5 +163,12 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
     }
+  }
+
+  // helper function to caculate the expiration timestamp
+  public getExpirationTimestamp(startDate: string): string {
+    const duration = 30;
+    const date = new Date(startDate);
+    return new Date(date.getTime() + duration * 24 * 60 * 60 * 1000).toString();
   }
 }

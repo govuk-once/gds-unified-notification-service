@@ -37,4 +37,9 @@ resource "aws_dynamodb_table" "this" {
   }
 
   tags = var.tags
+
+  ttl {
+    attribute_name = "expiredAtEpoch"
+    enabled        = true
+  }
 }

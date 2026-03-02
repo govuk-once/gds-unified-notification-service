@@ -28,6 +28,10 @@ module "dynamodb_events" {
       name = "DepartmentID"
       type = "S"
     },
+    {
+      name = "expiredAtEpoch"
+      type = "S"
+    },
   ]
 
   // Indexes

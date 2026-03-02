@@ -18,6 +18,7 @@ export const extractIdentifiers = (partial: IIdentifieableMessage) => ({
 
 export const IMessageSchema = IIdentifieableMessageSchema.extend({
   NotificationTitle: z.string(),
+  // ExpirationDateTime: z.string(),
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
