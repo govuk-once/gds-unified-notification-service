@@ -114,17 +114,6 @@ describe('GetFlexNotificationById Handler', () => {
     expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
   });
 
-  it('should return 500', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(500);
-  });
-
   it('should fetch API key from config service', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
@@ -157,5 +146,16 @@ describe('GetFlexNotificationById Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(500);
+  });
+
+  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    // Act
+    const result = await handler(mockUnauthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(401);
   });
 });

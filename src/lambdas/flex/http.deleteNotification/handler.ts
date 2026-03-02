@@ -51,30 +51,23 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    try {
-      const isValidApiKey = await this.validateApiKey(event);
+    const isValidApiKey = await this.validateApiKey(event);
 
-      if (!isValidApiKey) {
-        throw new httpErrors.Unauthorized();
-      }
-
-      const notificationId = event.pathParameters?.notificationId;
-      if (!notificationId) {
-        this.observability.logger.info('Notification Id has not been provided.');
-        throw new httpErrors.BadRequest();
-      }
-
-      await this.inboundNotificationTable.deleteRecord(notificationId);
-
-      console.log(notificationId);
-      return {
-        body: {},
-        statusCode: 204,
-      };
-    } catch (error) {
-      this.observability.logger.error('Fatal exception: ', { error });
-      throw new httpErrors.InternalServerError();
+    if (!isValidApiKey) {
+      throw new httpErrors.Unauthorized();
     }
+
+    const notificationId = event.pathParameters?.notificationId;
+    if (!notificationId) {
+      this.observability.logger.info('Notification Id has not been provided.');
+      throw new httpErrors.BadRequest();
+    }
+
+    await this.inboundNotificationTable.deleteRecord(notificationId);
+    return {
+      body: {},
+      statusCode: 204,
+    };
   }
 }
 

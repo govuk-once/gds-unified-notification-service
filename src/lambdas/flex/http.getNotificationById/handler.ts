@@ -52,35 +52,30 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    try {
-      const isValidApiKey = await this.validateApiKey(event);
+    const isValidApiKey = await this.validateApiKey(event);
 
-      if (!isValidApiKey) {
-        throw new httpErrors.Unauthorized();
-      }
-
-      const notificationId = event.pathParameters?.notificationId;
-      if (!notificationId) {
-        this.observability.logger.info('Notification Id has not been provided.');
-        throw new httpErrors.BadRequest();
-      }
-
-      const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
-
-      if (!notification) {
-        throw new httpErrors.NotFound();
-      }
-
-      this.observability.logger.info('Successful request.', { notificationId });
-
-      return {
-        body: IFlexNotificationSchema.parse(notification),
-        statusCode: 200,
-      };
-    } catch (error) {
-      this.observability.logger.error('Fatal exception: ', { error });
-      throw new httpErrors.InternalServerError();
+    if (!isValidApiKey) {
+      throw new httpErrors.Unauthorized();
     }
+
+    const notificationId = event.pathParameters?.notificationId;
+    if (!notificationId) {
+      this.observability.logger.info('Notification Id has not been provided.');
+      throw new httpErrors.BadRequest();
+    }
+
+    const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
+
+    if (!notification) {
+      throw new httpErrors.NotFound();
+    }
+
+    this.observability.logger.info('Successful request.', { notificationId });
+
+    return {
+      body: IFlexNotificationSchema.parse(notification),
+      statusCode: 200,
+    };
   }
 }
 
