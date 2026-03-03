@@ -103,16 +103,13 @@ describe('DeleteNotification Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    const expectedDeleteAt = new Date(mockDateTime);
-    expectedDeleteAt.setDate(expectedDeleteAt.getDate() + 30);
-
     const call = serviceMocks.inboundDynamoRepositoryMock.updateRecord.mock.calls[0][0] as {
       NotificationID: string;
       ExpiredAtEpoch: string;
     };
 
     expect(call.NotificationID).toBe('12345');
-    expect(call.ExpiredAtEpoch).toBe(expectedDeleteAt.toISOString());
+    expect(call.ExpiredAtEpoch).toBe('2026-01-31T00:00:00.000Z');
 
     vi.useRealTimers();
   });
