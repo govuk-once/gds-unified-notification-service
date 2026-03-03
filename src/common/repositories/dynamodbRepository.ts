@@ -1,5 +1,6 @@
 import {
   BatchWriteItemCommandInput,
+  DeleteItemCommandInput,
   DynamoDB,
   PutItemCommandInput,
   ScanCommandInput,
@@ -157,6 +158,27 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     } catch (error) {
       this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
+    }
+  }
+
+  public async deleteRecord(keyValue: string): Promise<void> {
+    this.observability.logger.error(`Deleting record in table: ${this.tableName} with key ${this.tableKey}`);
+    const params: DeleteItemCommandInput = {
+      TableName: this.tableName,
+      Key: marshall({
+        [this.tableKey]: keyValue,
+      }),
+    };
+
+    try {
+      await this.client.deleteItem(params);
+      this.observability.logger.error(
+        `Successfully deleted record in table: ${this.tableName} with key ${this.tableKey}`
+      );
+    } catch (error) {
+      this.observability.logger.error(
+        `Failure in deleting record in table: ${this.tableName} with key ${this.tableKey}`
+      );
     }
   }
 

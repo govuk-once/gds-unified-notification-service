@@ -129,7 +129,7 @@ describe('getNotifications Handler', () => {
     expect(JSON.parse(result.body)).toEqual([]);
   });
 
-  it('should return failure with status unauthorized when invalid API key is provided', async () => {
+  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -137,7 +137,7 @@ describe('getNotifications Handler', () => {
     const result = await handler(mockUnauthorizedEvent, mockContext);
 
     // Assert
-    expect(result.statusCode).toEqual(500);
+    expect(result.statusCode).toEqual(401);
   });
 
   it('should fetch API key from config service', async () => {
