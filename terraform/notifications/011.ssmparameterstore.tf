@@ -25,12 +25,14 @@ module "parameter_store_internal_configuration" {
       rangeKey   = module.dynamodb_events.table_range_key
       attributes = module.dynamodb_events.table_attributes
     })
-    "table/inbound/name" = module.dynamodb_inbound_messages.table_name
+    "table/events/expirationduration" = module.dynamodb_events.expirationduration
+    "table/inbound/name"              = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
       hashKey : module.dynamodb_inbound_messages.table_hash_key
       rangeKey : module.dynamodb_inbound_messages.table_range_key
       attributes : module.dynamodb_inbound_messages.table_attributes
     })
+    "table/inbound/expirationduration" = module.dynamodb_inbound_messages.expirationduration
   }
 }
 

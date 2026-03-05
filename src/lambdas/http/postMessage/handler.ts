@@ -118,9 +118,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
           APIGWExtendedID: event.requestContext.requestId,
           ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
           ValidatedDateTime: new Date().toISOString(),
-          ExpirationDateTime: this.inboundTable.getExpirationTimestamp(
-            event.requestContext.requestTimeEpoch.toString()
-          ),
+          ExpirationDateTime: this.inboundTable.getExpirationTimestamp(new Date(event.requestContext.requestTimeEpoch)),
         })
       )
     );

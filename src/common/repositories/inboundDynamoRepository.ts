@@ -15,7 +15,7 @@ export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> 
     await super.initialize(
       StringParameters.Table.Inbound.KeyAttributes,
       StringParameters.Table.Inbound.Name,
-      StringParameters.Table.Inbound.ExpirationDuration
+      StringParameters.Table.Inbound.ExpirationDurationInDays
     );
     return this;
   }

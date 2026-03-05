@@ -58,7 +58,7 @@ describe('EventsDynamoRepository', () => {
       expect(dynamodbRepositoryMock.initialize).toHaveBeenCalledWith(
         StringParameters.Table.Events.KeyAttributes,
         StringParameters.Table.Events.Name,
-        StringParameters.Table.Events.ExpirationDuration
+        StringParameters.Table.Events.ExpirationDurationInDays
       );
       expect(result).toBe(instance);
     });

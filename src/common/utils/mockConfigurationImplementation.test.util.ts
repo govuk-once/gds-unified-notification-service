@@ -15,7 +15,9 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.Table.Inbound.Name]: 'mockInboundTableName',
+    [StringParameters.Table.Inbound.ExpirationDurationInDays]: '30',
     [StringParameters.Table.Events.Name]: 'mockEventTableName',
+    [StringParameters.Table.Events.ExpirationDurationInDays]: '30',
     // Bool params
     [BoolParameters.Config.Common.Enabled]: `true`,
     [BoolParameters.Config.Dispatch.Enabled]: `true`,

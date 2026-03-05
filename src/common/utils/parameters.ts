@@ -49,12 +49,12 @@ export const StringParameters = {
     Events: {
       KeyAttributes: 'table/events/attributes',
       Name: 'table/events/name',
-      ExpirationDuration: 'table/events/expirationduration',
+      ExpirationDurationInDays: 'table/events/expirationDurationInDays',
     },
     Inbound: {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
-      ExpirationDuration: 'table/inbound/expirationduration',
+      ExpirationDurationInDays: 'table/inbound/expirationDurationInDays',
     },
   },
   Dispatch: {

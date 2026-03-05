@@ -107,7 +107,9 @@ export class Validation extends QueueHandler<IMessage> {
             ...body,
             ReceivedDateTime: attributes.ApproximateFirstReceiveTimestamp,
             ValidatedDateTime: new Date().toISOString(),
-            ExpirationDateTime: this.inboundTable.getExpirationTimestamp(attributes.ApproximateFirstReceiveTimestamp),
+            ExpirationDateTime: this.inboundTable.getExpirationTimestamp(
+              new Date(parseInt(attributes.ApproximateFirstReceiveTimestamp))
+            ),
           })
         )
       );

@@ -15,7 +15,7 @@ export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
     await super.initialize(
       StringParameters.Table.Events.KeyAttributes,
       StringParameters.Table.Events.Name,
-      StringParameters.Table.Events.ExpirationDuration
+      StringParameters.Table.Events.ExpirationDurationInDays
     );
     return this;
   }
