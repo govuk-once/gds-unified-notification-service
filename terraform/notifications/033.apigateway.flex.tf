@@ -28,6 +28,12 @@ module "api_gateway_flex" {
       method               = "GET"
       lambda_function_name = module.lambda_flex_getNotificationById.lambda_function_name
       lambda_invoke_arn    = module.lambda_flex_getNotificationById.lambda_invoke_arn
+    },
+    "deleteNotification" = {
+      path                 = "notifications/{notificationId}"
+      method               = "DELETE"
+      lambda_function_name = module.lambda_flex_deleteNotification.lambda_function_name
+      lambda_invoke_arn    = module.lambda_flex_deleteNotification.lambda_invoke_arn
     }
   }
 }

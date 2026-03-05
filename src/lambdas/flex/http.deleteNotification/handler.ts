@@ -9,13 +9,12 @@ import {
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message: z.string() })]);
+const responseBodySchema = z.any();
 
 /* Lambda Request Example
 {
@@ -28,12 +27,12 @@ const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message:
   },
   "pathParameters": {
     "notificationId": "12342"
-  }  
+  }   
 }
 */
 
-export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'getNotificationById';
+export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+  public operationId: string = 'deleteNotification';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
@@ -42,7 +41,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    asyncDependencies?: () => HandlerDependencies<GetFlexNotificationById>
+    asyncDependencies?: () => HandlerDependencies<DeleteNotification>
   ) {
     super(config, observability);
     this.injectDependencies(asyncDependencies);
@@ -64,21 +63,29 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
+    const notification = await this.inboundNotificationTable.getRecord(notificationId);
 
     if (!notification) {
+      this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.NotFound();
     }
 
-    this.observability.logger.info('Successful request.', { notificationId });
+    const expiredDate = new Date();
+    expiredDate.setDate(expiredDate.getDate() + 30);
+    const expiredAtEpoch = expiredDate.toISOString();
+
+    await this.inboundNotificationTable.updateRecord({
+      NotificationID: notificationId,
+      ExpiredAtEpoch: expiredAtEpoch,
+    });
 
     return {
-      body: IFlexNotificationSchema.parse(notification),
-      statusCode: 200,
+      body: {},
+      statusCode: 204,
     };
   }
 }
 
-export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+export const handler = new DeleteNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   inboundNotificationTable: iocGetInboundDynamoRepository(),
 })).handler();

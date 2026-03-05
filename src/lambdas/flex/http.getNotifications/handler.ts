@@ -52,31 +52,26 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    try {
-      // Authorize
-      const isValidApiKey = await this.validateApiKey(event);
-      if (!isValidApiKey) {
-        throw new httpErrors.Unauthorized();
-      }
-
-      const externalUserId = event.queryStringParameters?.externalUserId;
-      if (!externalUserId) {
-        throw new httpErrors.BadRequest();
-      }
-
-      const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>({
-        field: 'ExternalUserID',
-        value: externalUserId,
-      });
-
-      return {
-        body: notifications.map((n) => IFlexNotificationSchema.parse({ ...n, Status: 'UNREAD' })),
-        statusCode: 200,
-      };
-    } catch (error) {
-      this.observability.logger.error('Fatal exception: ', { error });
-      throw new httpErrors.InternalServerError();
+    // Authorize
+    const isValidApiKey = await this.validateApiKey(event);
+    if (!isValidApiKey) {
+      throw new httpErrors.Unauthorized();
     }
+
+    const externalUserId = event.queryStringParameters?.externalUserId;
+    if (!externalUserId) {
+      throw new httpErrors.BadRequest();
+    }
+
+    const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>({
+      field: 'ExternalUserID',
+      value: externalUserId,
+    });
+
+    return {
+      body: notifications.map((n) => IFlexNotificationSchema.parse({ ...n, Status: 'UNREAD' })),
+      statusCode: 200,
+    };
   }
 }
 

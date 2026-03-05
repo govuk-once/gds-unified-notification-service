@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
+import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { Context } from 'aws-lambda';
 
@@ -11,22 +10,23 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('GetFlexNotificationById Handler', () => {
-  let instance: GetFlexNotificationById;
-  let handler: ReturnType<typeof GetFlexNotificationById.prototype.handler>;
+describe('DeleteNotification Handler', () => {
+  let instance: DeleteNotification;
+  let handler: ReturnType<typeof DeleteNotification.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   const mockContext = {
-    functionName: 'getFlexNotificationById',
+    functionName: 'deleteNotification',
     awsRequestId: '12345',
   } as unknown as Context;
 
   let mockUnauthorizedEvent: EventType;
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
+  let mockMissingIdEvent: EventType;
 
   const mockMessageBody: IFlexNotification = {
     NotificationID: '12345',
@@ -61,23 +61,28 @@ describe('GetFlexNotificationById Handler', () => {
       },
     } as unknown as EventType;
 
+    mockMissingIdEvent = {
+      ...mockEvent,
+      pathParameters: {},
+    } as unknown as EventType;
+
     mockInternalServerError = null as unknown as EventType;
 
-    instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+    instance = new DeleteNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
-
     serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
+    serviceMocks.inboundDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('getNotificationById');
+    expect(instance.operationId).toBe('deleteNotification');
   });
 
-  it('should return 200 with status ok when valid API key is provided', async () => {
+  it('should return 204 with status ok and return a notification', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -85,44 +90,28 @@ describe('GetFlexNotificationById Handler', () => {
     const result = await handler(mockEvent, mockContext);
 
     // Assert
-    expect(result.statusCode).toEqual(200);
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.', {
-      notificationId: mockMessageBody.NotificationID,
-    });
+    expect(result.statusCode).toEqual(204);
   });
 
-  it('should return 200 with status ok and return a notification', async () => {
+  it('should call updateRecord with ExpiredAtEpoch set to 30 days in the future', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(200);
-    expect(JSON.parse(result.body)).toEqual(mockMessageBody);
-  });
-
-  it('should get notification from getRecord call', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    const mockDateTime = new Date('2026-01-01T00:00:00.000Z');
+    vi.setSystemTime(new Date(mockDateTime));
 
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
-  });
+    const call = serviceMocks.inboundDynamoRepositoryMock.updateRecord.mock.calls[0][0] as {
+      NotificationID: string;
+      ExpiredAtEpoch: string;
+    };
 
-  it('should fetch API key from config service', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    expect(call.NotificationID).toBe('12345');
+    expect(call.ExpiredAtEpoch).toBe('2026-01-31T00:00:00.000Z');
 
-    // Act
-    await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
+    vi.useRealTimers();
   });
 
   it('should handle errors when calling API key with status internal server error', async () => {

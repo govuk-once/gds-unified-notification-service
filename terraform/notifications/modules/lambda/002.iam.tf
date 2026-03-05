@@ -128,6 +128,7 @@ resource "aws_iam_role_policy" "dynamo_access" {
             "dynamodb:PutItem",
             "dynamodb:UpdateItem",
             "dynamodb:BatchWriteItem",
+            "dynamodb:DeleteItem",
           ] : []
         )
         Effect   = "Allow"
