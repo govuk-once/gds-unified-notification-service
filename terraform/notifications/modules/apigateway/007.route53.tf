@@ -19,15 +19,12 @@ resource "aws_api_gateway_domain_name" "this" {
   count       = var.route_53_zone != null ? 1 : 0
   domain_name = "${join("-", [var.prefix, var.name])}.${data.aws_route53_zone.this[0].name}"
 
-  # certificate_arn = data.aws_acm_certificate.this.arn
   endpoint_configuration {
     types = ["REGIONAL"]
   }
 
   regional_certificate_arn = data.aws_acm_certificate.this[0].arn
-  # security_policy          = "SecurityPolicy_TLS13_1_3_2025_09"
-  security_policy = "TLS_1_2"
-  # endpoint_access_mode     = "STRICT"
+  security_policy          = "TLS_1_2"
 
   # # Link the trustore if one's set in variables of this module
   dynamic "mutual_tls_authentication" {
