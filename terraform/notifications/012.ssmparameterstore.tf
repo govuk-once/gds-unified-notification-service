@@ -25,12 +25,19 @@ module "parameter_store_internal_configuration" {
       rangeKey   = module.dynamodb_events.table_range_key
       attributes = module.dynamodb_events.table_attributes
     })
+
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
-      hashKey : module.dynamodb_inbound_messages.table_hash_key
-      rangeKey : module.dynamodb_inbound_messages.table_range_key
-      attributes : module.dynamodb_inbound_messages.table_attributes
+      hashKey    = module.dynamodb_inbound_messages.table_hash_key
+      rangeKey   = module.dynamodb_inbound_messages.table_range_key
+      attributes = module.dynamodb_inbound_messages.table_attributes
     })
+
+    # MTLS Configuration, pulls config entries exported by mtls repo within same aws account/env
+    # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeploygment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
+    // MTLS Configuration - Manual step post initial deployment, based on mtls configuration
+    "table/mtls/name"       = local.mtls_table_name
+    "table/mtls/attributes" = local.mtls_table_attributes
   }
 }
 

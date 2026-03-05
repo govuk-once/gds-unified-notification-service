@@ -36,6 +36,12 @@ variable "availability_zones" {
   default     = "a,b,c"
 }
 
+variable "use_mtls" {
+  type        = bool
+  description = "Whether mTLS features should be enabled - Note: disabling this is only acceptable for dev sandbox environments"
+  default     = true
+}
+
 terraform {
   backend "s3" {
     bucket = var.bucket

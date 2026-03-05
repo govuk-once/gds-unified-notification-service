@@ -60,6 +60,10 @@ export const StringParameters = {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
     },
+    MTLSRevocation: {
+      KeyAttributes: 'table/mtls/attributes',
+      Name: 'table/mtls/name',
+    },
   },
   Dispatch: {
     OneSignal: {
@@ -67,6 +71,7 @@ export const StringParameters = {
       AppId: `config/dispatch/onesignal/appId`,
     },
   },
+  Authorizers: {},
 } as const;
 
 export const NumericParameters = {

@@ -57,7 +57,7 @@ resource "aws_iam_role_policy" "lambda_to_ssm" {
   })
 }
 
-// Explicit KMS Access
+// Explicit KMS Access to main key as well as any additional ones
 resource "aws_iam_role_policy" "lambda_to_kms" {
   name = join("-", [var.prefix, "iamr", var.function_name, "to-kms"])
   role = aws_iam_role.lambda.id
@@ -72,7 +72,12 @@ resource "aws_iam_role_policy" "lambda_to_kms" {
           "kms:Decrypt",
           "kms:GenerateDataKey"
         ]
-        Resource = var.kms_key_arn
+        Resource = flatten(
+          concat(
+            [var.kms_key_arn],
+            [for value in values(var.additional_kms_decrypts) : value if value != null]
+          )
+        )
       }
     ]
   })
@@ -102,7 +107,7 @@ resource "aws_iam_role_policy_attachment" "additional_policies" {
 
 # DynamoDB IAM access policy 
 resource "aws_iam_role_policy" "dynamo_access" {
-  for_each = var.dynamo_tables
+  for_each = { for key, value in var.dynamo_tables : key => value if value.arn != null }
 
   role = aws_iam_role.lambda.id
   name = join("-", [var.prefix, "iamr", var.function_name, "dynamo", each.key])
@@ -111,16 +116,22 @@ resource "aws_iam_role_policy" "dynamo_access" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = [
-          "dynamodb:BatchWriteItem",
-          "dynamodb:GetItem",
-          "dynamodb:Query",
-          "dynamodb:PutItem",
-          "dynamodb:Scan",
-          "dynamodb:UpdateItem"
-        ]
+        Action = concat(
+          each.value.scan == true ? [
+            "dynamodb:Query",
+            "dynamodb:Scan",
+          ] : [],
+          each.value.read == true ? [
+            "dynamodb:GetItem",
+          ] : [],
+          each.value.write == true ? [
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:BatchWriteItem",
+          ] : []
+        )
         Effect   = "Allow"
-        Resource = each.value
+        Resource = each.value.arn
       }
     ]
   })
