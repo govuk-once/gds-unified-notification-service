@@ -172,8 +172,6 @@ use_mtls = ${useMtls}`);
         `config/dispatch/onesignal/appId`,
         `config/dispatch/adapter`,
       ]) {
-        console.log('');
-
         // Build param paths
         const devParamName = `/gdsuns-dev/${param}`;
         const sandboxParamName = `/gdsuns-${env}/${param}`;
