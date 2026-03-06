@@ -19,6 +19,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     // Content filtering
     [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
     [StringParameters.Content.Allowed.UrlHostnames]: '*.gov.uk',
+    [StringParameters.Notification.DeeplinkTemplate]: 'govuk://notifications?id={{id}}',
     // Bool params
     [BoolParameters.Config.Common.Enabled]: `true`,
     [BoolParameters.Config.Dispatch.Enabled]: `true`,
