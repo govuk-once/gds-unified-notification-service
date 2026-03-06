@@ -3,6 +3,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
   AnalyticsQueueService,
   AnalyticsService,
@@ -126,9 +127,16 @@ export const iocGetInboundDynamoRepository = ioc(
 );
 
 export const iocGetEventsDynamoRepository = ioc(
-  `NotificationService`,
+  `EventsDynamoRepository`,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new EventsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetMTLSRevocationDynamoRepository = ioc(
+  `MTLSRevocationDynamoRepository`,
+  Mode.TIMEBOUND_SINGLETON,
+  async () =>
+    await new MTLSRevocationDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations

@@ -15,6 +15,10 @@ module "lambda_flex_deleteNotification" {
   // IAM Permissions & SQS trigger linking
   publish_queues = {}
   dynamo_tables = {
-    inbound = module.dynamodb_inbound_messages.table_arn
+    inbound = {
+      arn   = module.dynamodb_inbound_messages.table_arn
+      read  = true
+      write = true
+    }
   }
 }
