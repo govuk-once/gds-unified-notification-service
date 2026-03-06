@@ -6,6 +6,7 @@ import {
   AnalyticsQueueService,
   AnalyticsService,
   CacheService,
+  CircuitBreakerService,
   ConfigurationService,
   ContentValidationService,
   DispatchQueueService,
@@ -77,6 +78,11 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock
   ) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
+  const circuitBreakerServiceMock = new CircuitBreakerService(
+    cacheServiceMock,
+    configurationServiceMock,
+    observabilityMock
+  ) as Mocked<CircuitBreakerService>;
   const contentValidationServiceMock = new ContentValidationService(
     observabilityMock,
     configurationServiceMock
@@ -92,6 +98,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     inboundDynamoRepositoryMock,
     eventsDynamoRepositoryMock,
     cacheServiceMock,
+    circuitBreakerServiceMock,
     contentValidationServiceMock,
   };
 };

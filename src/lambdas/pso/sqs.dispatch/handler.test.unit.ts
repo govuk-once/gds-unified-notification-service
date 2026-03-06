@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
+import { CircuitBreakerOpenError } from '@common/services';
 import { NotificationAdapterResult } from '@common/services/interfaces';
 import { BoolParameters } from '@common/utils';
 import {
@@ -121,11 +122,15 @@ describe('Dispatch QueueHandler', () => {
     await serviceMocks.notificationServiceMock.initialize();
 
     serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
+    serviceMocks.circuitBreakerServiceMock.checkCircuit.mockResolvedValue(undefined);
+    serviceMocks.circuitBreakerServiceMock.recordSuccess.mockResolvedValue(undefined);
+    serviceMocks.circuitBreakerServiceMock.recordFailure.mockResolvedValue(undefined);
     instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
       notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
       cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
+      circuitBreakerService: Promise.resolve(serviceMocks.circuitBreakerServiceMock),
     }));
     handler = instance.handler();
   });
@@ -283,5 +288,72 @@ describe('Dispatch QueueHandler', () => {
         },
       }
     );
+  });
+
+  describe('circuit breaker integration', () => {
+    it('should check the circuit breaker before dispatching', async () => {
+      // Arrange
+      serviceMocks.notificationServiceMock.send.mockResolvedValue({
+        requestId: '123',
+        success: true,
+      } as unknown as NotificationAdapterResult);
+
+      // Act
+      await handler(mockEvent, mockContext);
+
+      // Assert
+      expect(serviceMocks.circuitBreakerServiceMock.checkCircuit).toHaveBeenCalledWith('notification_dispatch');
+    });
+
+    it('should record success when notification is dispatched successfully', async () => {
+      // Arrange
+      serviceMocks.notificationServiceMock.send.mockResolvedValue({
+        requestId: '123',
+        success: true,
+      } as unknown as NotificationAdapterResult);
+
+      // Act
+      await handler(mockEvent, mockContext);
+
+      // Assert
+      expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).toHaveBeenCalledWith('notification_dispatch');
+      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).not.toHaveBeenCalled();
+    });
+
+    it('should record failure when notification service returns success: false', async () => {
+      // Arrange
+      serviceMocks.notificationServiceMock.send.mockResolvedValue({
+        success: false,
+        errors: ['Service unavailable'],
+      } as unknown as NotificationAdapterResult);
+
+      // Act
+      await handler(mockEvent, mockContext);
+
+      // Assert
+      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalledWith('notification_dispatch');
+      expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).not.toHaveBeenCalled();
+    });
+
+    it('should record failure and rethrow when notification service throws', async () => {
+      // Arrange
+      const unexpectedError = new Error('Connection timeout');
+      serviceMocks.notificationServiceMock.send.mockRejectedValue(unexpectedError);
+
+      // Act & Assert
+      await expect(handler(mockEvent, mockContext)).rejects.toThrow('Connection timeout');
+      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalledWith('notification_dispatch');
+    });
+
+    it('should rethrow CircuitBreakerOpenError without recording an additional failure', async () => {
+      // Arrange
+      const circuitOpenError = new CircuitBreakerOpenError('notification_dispatch');
+      serviceMocks.circuitBreakerServiceMock.checkCircuit.mockRejectedValue(circuitOpenError);
+
+      // Act & Assert
+      await expect(handler(mockEvent, mockContext)).rejects.toThrow(CircuitBreakerOpenError);
+      expect(serviceMocks.notificationServiceMock.send).not.toHaveBeenCalled();
+      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).not.toHaveBeenCalled();
+    });
   });
 });

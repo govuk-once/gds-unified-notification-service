@@ -29,6 +29,10 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
     // Numbers
     [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
+    [NumericParameters.CircuitBreaker.Threshold]: `5`,
+    [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
+    [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
+    [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
     // Nested objects
     [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],

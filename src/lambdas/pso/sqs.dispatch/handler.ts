@@ -14,6 +14,8 @@ import { InboundDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
+  CircuitBreakerOpenError,
+  CircuitBreakerService,
   ConfigurationService,
   NotificationService,
   ObservabilityService,
@@ -54,6 +56,8 @@ import { Context } from 'aws-lambda';
   ]
 }
  */
+const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
+
 export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
 
@@ -61,6 +65,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
   public analyticsService: AnalyticsService;
   public notificationsService: NotificationService;
   public cacheService: CacheService;
+  public circuitBreakerService: CircuitBreakerService;
 
   constructor(
     public config: ConfigurationService,
@@ -122,17 +127,30 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw new Error(`Stopping processing from continouring as rate limit has been exceeded`);
       }
 
+      // Check circuit breaker — throws CircuitBreakerOpenError if open
+      await this.circuitBreakerService.checkCircuit(DISPATCH_PLATFORM_KEY);
+
       // Prepare request
       const metadata = {
         NotificationID: valid.NotificationID,
         DepartmentID: valid.DepartmentID,
       };
-      const { requestId, success } = await this.notificationsService.send({
-        ExternalUserID: valid.ExternalUserID,
-        NotificationID: valid.NotificationID,
-        NotificationTitle: valid.NotificationTitle,
-        NotificationBody: valid.NotificationBody,
-      });
+
+      let sendResult: { requestId?: string; success: boolean };
+      try {
+        sendResult = await this.notificationsService.send({
+          ExternalUserID: valid.ExternalUserID,
+          NotificationID: valid.NotificationID,
+          NotificationTitle: valid.NotificationTitle,
+          NotificationBody: valid.NotificationBody,
+        });
+      } catch (error) {
+        // Record failure for unexpected errors; re-throw so SQS can handle visibility/DLQ
+        if (!(error instanceof CircuitBreakerOpenError)) {
+          await this.circuitBreakerService.recordFailure(DISPATCH_PLATFORM_KEY);
+        }
+        throw error;
+      }
 
       // Update stored record with timestamp
       await this.inboundDynamodbRepository.updateRecord<Partial<IMessageRecord>>({
@@ -149,11 +167,16 @@ export class Dispatch extends QueueHandler<unknown, void> {
         1
       );
 
-      // Analytics event
-      if (success) {
-        this.observability.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
+      // Analytics event + circuit breaker state management
+      if (sendResult.success) {
+        await this.circuitBreakerService.recordSuccess(DISPATCH_PLATFORM_KEY);
+        this.observability.logger.info(`Notification dispatched`, {
+          ...metadata,
+          ProviderRequestID: sendResult.requestId,
+        });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
       } else {
+        await this.circuitBreakerService.recordFailure(DISPATCH_PLATFORM_KEY);
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
       }
@@ -185,9 +208,15 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
-  notificationsService: iocGetNotificationService(),
-  analyticsService: iocGetAnalyticsService(),
-  cacheService: iocGetCacheService().connect(),
-})).handler();
+export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => {
+  const connectedCache = iocGetCacheService().connect();
+  return {
+    inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+    notificationsService: iocGetNotificationService(),
+    analyticsService: iocGetAnalyticsService(),
+    cacheService: connectedCache,
+    circuitBreakerService: connectedCache.then(
+      (cache) => new CircuitBreakerService(cache, iocGetConfigurationService(), iocGetObservabilityService())
+    ),
+  };
+}).handler();
