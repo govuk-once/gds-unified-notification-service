@@ -73,6 +73,6 @@ module "parameter_store_external_configuration" {
     # Default values for url content control within the data
     "content/allowed/protocols"     = "govuk:,https:"
     "content/allowed/urlHostnames"  = "*.gov.uk"
-    "notification/deeplinkTemplate" = "govuk://notifications?id={{id}}"
+    "notification/deeplinkTemplate" = "govuk://notifications?id={id}"
   }
 }
