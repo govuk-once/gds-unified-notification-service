@@ -29,6 +29,25 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
+// Allow API Gateway to invoke lambda authorizers
+resource "aws_iam_role_policy" "authorizer_invocation" {
+  for_each = var.authorizers
+  role     = aws_iam_role.apigw_role.id
+  name     = join("-", [var.prefix, "iamr", "authorizer_execution", each.key])
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = each.value.lambda_arn
+      }
+    ]
+  })
+}
+
 resource "aws_api_gateway_account" "apigw" {
   cloudwatch_role_arn = aws_iam_role.apigw_role.arn
 }

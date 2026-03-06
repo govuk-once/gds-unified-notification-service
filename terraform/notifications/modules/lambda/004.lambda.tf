@@ -9,7 +9,7 @@ resource "aws_lambda_function" "this" {
   #checkov:skip=CKV_AWS_116: "Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)" - TODO - TO DO - SQS Integration is planned in
 
   // Metadata & IAM
-  function_name = join("-", [var.prefix, "lmbd", var.function_name])
+  function_name = join("-", [var.prefix, "lmbd", var.service_name, var.function_name])
   tags          = var.tags
   role          = aws_iam_role.lambda.arn
 

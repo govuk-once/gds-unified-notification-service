@@ -1,7 +1,9 @@
 import {
   BatchWriteItemCommandInput,
+  DeleteItemCommandInput,
   DynamoDB,
   PutItemCommandInput,
+  ScanCommandInput,
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
@@ -171,5 +173,52 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     const expirationDurationInMs = Number(this.expirationDurationInDays) * 24 * 60 * 60 * 1000;
     const expirationDateInMs = startDateInMs + expirationDurationInMs;
     return expirationDateInMs.toString();
+  }
+
+  public async deleteRecord(keyValue: string): Promise<void> {
+    this.observability.logger.error(`Deleting record in table: ${this.tableName} with key ${this.tableKey}`);
+    const params: DeleteItemCommandInput = {
+      TableName: this.tableName,
+      Key: marshall({
+        [this.tableKey]: keyValue,
+      }),
+    };
+
+    try {
+      await this.client.deleteItem(params);
+      this.observability.logger.error(
+        `Successfully deleted record in table: ${this.tableName} with key ${this.tableKey}`
+      );
+    } catch (error) {
+      this.observability.logger.error(
+        `Failure in deleting record in table: ${this.tableName} with key ${this.tableKey}`
+      );
+    }
+  }
+
+  public async getRecords<RecordType>(filter?: { field: string; value: string }): Promise<RecordType[]> {
+    const params: ScanCommandInput = {
+      TableName: this.tableName,
+      ...(filter && {
+        FilterExpression: '#filterField = :filterValue',
+        ExpressionAttributeNames: { '#filterField': filter.field },
+        ExpressionAttributeValues: marshall({ ':filterValue': filter.value }),
+      }),
+    };
+
+    try {
+      const { Items } = await this.client.scan(params);
+
+      if (!Items || Items.length === 0) {
+        return [];
+      }
+
+      const response = Items.map((item) => unmarshall(item) as RecordType);
+
+      return response;
+    } catch (error) {
+      this.observability.logger.error(`Failure in getting records for table ${this.tableName}. ${error}`);
+      return [];
+    }
   }
 }

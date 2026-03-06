@@ -9,6 +9,11 @@ variable "region" {
   type        = string
 }
 
+variable "service_name" {
+  description = "Name of the service lambda belongs to"
+  type        = string
+}
+
 variable "function_name" {
   description = "Name of lambda function"
   type        = string
@@ -99,8 +104,13 @@ variable "publish_queues" {
 
 variable "dynamo_tables" {
   description = "A list of the ARNs of the DyanmoDB"
-  type        = map(string)
-  default     = {}
+  type = map(object({
+    arn   = string
+    read  = optional(bool)
+    write = optional(bool)
+    scan  = optional(bool)
+  }))
+  default = {}
 }
 
 variable "additional_policies" {
@@ -122,4 +132,11 @@ variable "subnet_ids" {
   type        = list(string)
   nullable    = true
   default     = null
+}
+
+# Additional KMS decrypt access
+variable "additional_kms_decrypts" {
+  description = "A Map of the ARNs of the SQS Queues to publish messages to."
+  type        = map(string)
+  default     = {}
 }

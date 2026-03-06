@@ -3,11 +3,13 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
   AnalyticsQueueService,
   AnalyticsService,
   CacheService,
   ConfigurationService,
+  ContentValidationService,
   DispatchQueueService,
   NotificationService,
   ObservabilityService,
@@ -125,9 +127,16 @@ export const iocGetInboundDynamoRepository = ioc(
 );
 
 export const iocGetEventsDynamoRepository = ioc(
-  `NotificationService`,
+  `EventsDynamoRepository`,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new EventsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetMTLSRevocationDynamoRepository = ioc(
+  `MTLSRevocationDynamoRepository`,
+  Mode.TIMEBOUND_SINGLETON,
+  async () =>
+    await new MTLSRevocationDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations
@@ -146,6 +155,13 @@ export const iocGetAnalyticsService = ioc(
   `AnalyticsService`,
   Mode.SINGLETON,
   async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
+);
+
+// Services - Other
+export const iocGetContentValidationService = ioc(
+  `ContentValidationService`,
+  Mode.SINGLETON,
+  () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
 );
 
 // Utility FN simplifying integration of dependencies which depend on config within handler

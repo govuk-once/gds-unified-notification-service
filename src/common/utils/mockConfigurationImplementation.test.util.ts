@@ -18,6 +18,11 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Table.Inbound.ExpirationDurationInDays]: '30',
     [StringParameters.Table.Events.Name]: 'mockEventTableName',
     [StringParameters.Table.Events.ExpirationDurationInDays]: '30',
+    [StringParameters.Table.MTLSRevocation.Name]: 'mockMtlsRevocationTableName',
+    // Content filtering
+    [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
+    [StringParameters.Content.Allowed.UrlHostnames]: '*.gov.uk',
+    [StringParameters.Notification.DeeplinkTemplate]: 'govuk://notifications?id={{id}}',
     // Bool params
     [BoolParameters.Config.Common.Enabled]: `true`,
     [BoolParameters.Config.Dispatch.Enabled]: `true`,
@@ -37,6 +42,11 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       attributes: ['EventID', 'EventDateTime', 'NotificationID', 'DepartmentID'],
       hashKey: 'EventID',
       rangeKey: 'DepartmentID',
+    }),
+    [StringParameters.Table.MTLSRevocation.KeyAttributes]: JSON.stringify({
+      attributes: [],
+      hashKey: 'Id',
+      rangeKey: '',
     }),
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 

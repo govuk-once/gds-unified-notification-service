@@ -21,9 +21,10 @@ resource "aws_ssm_parameter" "parameter_with_" {
   for_each = { for k, v in var.parameters : k => v if var.update_values == true }
 
   // Metadata
-  name  = "/${var.namespace}/${each.key}"
-  type  = "SecureString"
-  value = sensitive(each.value)
+  name      = "/${var.namespace}/${each.key}"
+  type      = "SecureString"
+  value     = sensitive(each.value)
+  overwrite = true
 
   // Encrypt at rest
   key_id = var.kms_key_arn

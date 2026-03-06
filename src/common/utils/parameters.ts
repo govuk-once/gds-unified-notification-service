@@ -31,6 +31,15 @@ export const StringParameters = {
       User: 'config/common/cache/user',
     },
   },
+  Content: {
+    Allowed: {
+      Protocols: 'content/allowed/protocols',
+      UrlHostnames: 'content/allowed/urlHostnames',
+    },
+  },
+  Notification: {
+    DeeplinkTemplate: 'notification/deeplinkTemplate',
+  },
   Queue: {
     Analytics: {
       Url: 'queue/analytics/url',
@@ -56,6 +65,10 @@ export const StringParameters = {
       Name: 'table/inbound/name',
       ExpirationDurationInDays: 'table/inbound/expirationDurationInDays',
     },
+    MTLSRevocation: {
+      KeyAttributes: 'table/mtls/attributes',
+      Name: 'table/mtls/name',
+    },
   },
   Dispatch: {
     OneSignal: {
@@ -63,6 +76,7 @@ export const StringParameters = {
       AppId: `config/dispatch/onesignal/appId`,
     },
   },
+  Authorizers: {},
 } as const;
 
 export const NumericParameters = {
