@@ -93,6 +93,8 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
       return this.createPolicyResponse(_event.methodArn, 'Deny');
     }
 
+    this.observability.logger.info(`Certificate record found`, { certificateRecord });
+
     // Certificate has been revoked
     if (certificateRecord.Revoked) {
       this.observability.metrics.addMetric(`MTLS_AUTH_REQUESTS_DENIED_REVOKED_CERTIFICATE_COUNT`, `Count`, 1);
