@@ -29,9 +29,10 @@ interface OnesignalPushNotificationErrorResponse {
 }
 
 export class NotificationAdapterOneSignal implements NotificationAdapter {
-  protected client: axios.Axios;
+  public client: axios.Axios;
   protected key: string;
   protected appId: string;
+  protected deeplinkTemplate: string;
   constructor(
     protected logger: Logger,
     protected metrics: Metrics,
@@ -46,8 +47,10 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     }
 
     // Fetch configs
-    this.key = (await this.config.getParameter(StringParameters.Dispatch.OneSignal.ApiKey))!;
-    this.appId = (await this.config.getParameter(StringParameters.Dispatch.OneSignal.AppId))!;
+    this.key = await this.config.getParameter(StringParameters.Dispatch.OneSignal.ApiKey);
+    this.appId = await this.config.getParameter(StringParameters.Dispatch.OneSignal.AppId);
+    this.deeplinkTemplate = await this.config.getParameter(StringParameters.Notification.DeeplinkTemplate);
+
     this.client = axios.default.create({
       baseURL: `https://api.onesignal.com/`,
       headers: {
@@ -70,6 +73,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
         idempotency_key: request.NotificationID,
         target_channel: 'push',
         include_aliases: { external_id: [request.ExternalUserID] },
+        app_url: this.deeplinkTemplate.replace('{{id}}', request.NotificationID),
       });
       this.logger.info(`Successfully sent notification using OneSignal adapter`, metadata);
 

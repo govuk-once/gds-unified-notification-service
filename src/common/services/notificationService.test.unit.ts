@@ -13,6 +13,7 @@ vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/adapters/notificationAdapterOneSignal', { spy: true });
 
 describe('NotificationService', () => {
   let instance: NotificationService;
@@ -68,6 +69,7 @@ describe('NotificationService', () => {
         EnumParameters.Config.Dispatch.Adapter,
         StringParameters.Dispatch.OneSignal.ApiKey,
         StringParameters.Dispatch.OneSignal.AppId,
+        StringParameters.Notification.DeeplinkTemplate,
       ];
 
       // Act
@@ -118,6 +120,24 @@ describe('NotificationService', () => {
       expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
         NotificationID: mockRequest.NotificationID,
       });
+    });
+
+    it('Sends a request to onesignal with a deeplink pointing at notification id', async () => {
+      // Arrange
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      await instance.initialize();
+      const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
+
+      // Act
+      await instance.send(mockRequest);
+
+      // Assert
+      expect(postSpy).toHaveBeenCalledWith(
+        '/notifications?c=push',
+        expect.objectContaining({ app_url: 'govuk://notifications?id=test01' })
+      );
     });
 
     it('Sends a request to onesignal and logs errors before throwing an exception', async () => {

@@ -37,6 +37,9 @@ export const StringParameters = {
       UrlHostnames: 'content/allowed/urlHostnames',
     },
   },
+  Notification: {
+    DeeplinkTemplate: 'notification/deeplinkTemplate',
+  },
   Queue: {
     Analytics: {
       Url: 'queue/analytics/url',
