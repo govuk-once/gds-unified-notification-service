@@ -14,7 +14,8 @@ export class MTLSRevocationDynamoRepository extends DynamodbRepository<MTLSRevoc
   async initialize() {
     await super.initialize(
       StringParameters.Table.MTLSRevocation.KeyAttributes,
-      StringParameters.Table.MTLSRevocation.Name
+      StringParameters.Table.MTLSRevocation.Name,
+      StringParameters.Table.MTLSRevocation.ExpirationDurationInDays
     );
     return this;
   }

@@ -68,6 +68,7 @@ export const StringParameters = {
     MTLSRevocation: {
       KeyAttributes: 'table/mtls/attributes',
       Name: 'table/mtls/name',
+      ExpirationDurationInDays: 'table/inbound/expirationDurationInDays',
     },
   },
   Dispatch: {

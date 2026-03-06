@@ -228,12 +228,17 @@ describe('Validation QueueHandler', () => {
 
   it('should store data in the inbound message table', async () => {
     await serviceMocks.analyticsQueueServiceMock.initialize();
-    instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      inboundTable: serviceMocks.inboundDynamoRepositoryMock.initialize(),
+    instance = new Validation(
+      serviceMocks.configurationServiceMock,
+      observabilityMocks,
+      serviceMocks.contentValidationServiceMock,
+      () => ({
+        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        inboundTable: serviceMocks.inboundDynamoRepositoryMock.initialize(),
 
-      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-    }));
+        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      })
+    );
     handler = instance.handler();
     // Act
     await handler(mockEvent, mockContext);
