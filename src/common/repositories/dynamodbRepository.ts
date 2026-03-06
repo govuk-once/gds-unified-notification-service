@@ -14,6 +14,7 @@ import { ConfigurationService, ObservabilityService } from '@common/services';
 export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
   protected keyAttributes: IDynamoKeyAttributes;
+  protected expirationDurationInDays: string;
   protected tableName: string;
   protected tableKey: string;
 
@@ -22,8 +23,13 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     protected observability: ObservabilityService
   ) {}
 
-  public async initialize(tableAttributesParameter: string, tableNameParameter: string) {
+  public async initialize(
+    tableAttributesParameter: string,
+    tableNameParameter: string,
+    tableExpirationParameter: string
+  ) {
     this.tableName = await this.config.getParameter(tableNameParameter);
+    this.expirationDurationInDays = await this.config.getParameter(tableExpirationParameter);
     this.keyAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoKeyAttributesSchema);
     this.tableKey = this.keyAttributes.hashKey;
 
@@ -159,6 +165,14 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
       this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
       return null;
     }
+  }
+
+  // helper function to caculate the expiration timestamp
+  public getExpirationTimestamp(startDate: Date): string {
+    const startDateInMs = startDate.getTime();
+    const expirationDurationInMs = Number(this.expirationDurationInDays) * 24 * 60 * 60 * 1000;
+    const expirationDateInMs = startDateInMs + expirationDurationInMs;
+    return expirationDateInMs.toString();
   }
 
   public async deleteRecord(keyValue: string): Promise<void> {

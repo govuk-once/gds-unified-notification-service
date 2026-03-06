@@ -86,7 +86,7 @@ describe('PostMessage Handler', () => {
       serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        inboundTable: serviceMocks.inboundDynamoRepositoryMock.initialize(),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })
     );
@@ -127,6 +127,7 @@ describe('PostMessage Handler', () => {
         APIGWExtendedID: mockEvent.requestContext.requestId,
         ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
+        ExpirationDateTime: (1428582896000 + 30 * 24 * 60 * 60 * 1000).toString(),
       },
     ]);
   });

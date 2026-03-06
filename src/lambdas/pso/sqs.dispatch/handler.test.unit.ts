@@ -124,6 +124,7 @@ describe('Dispatch QueueHandler', () => {
     instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      inboundTable: serviceMocks.inboundDynamoRepositoryMock.initialize(),
       notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
       cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
     }));
@@ -225,6 +226,7 @@ describe('Dispatch QueueHandler', () => {
       NotificationID: mockMessageBody.NotificationID,
       UserID: mockMessageBody.UserID,
       DispatchedStartDateTime: date.toISOString(),
+      ExpirationDateTime: (date.getTime() + 30 * 24 * 60 * 60 * 1000).toString(),
     });
   });
 
