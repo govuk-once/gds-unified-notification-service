@@ -8,12 +8,13 @@ module "api_gateway_pso" {
   stage_name = "api"
 
   // Config
-  kms_key_arn = aws_kms_key.main.arn
+  kms_key_arn                    = aws_kms_key.main.arn
+  is_main_environment_in_account = var.is_main_environment_in_account
 
   // Custom domain & mtls configuration
   // use_mtls flag allows developers to optionally disable mtls for their sandbox environments (controllable via npm run development:sandbox:setup )
   route_53_zone                = local.mtls_root_domain
-  disable_execute_api_endpoint = local.mtls_enabled
+  disable_execute_api_endpoint = false # TODO: Test with local.mtls_enabled
   mtls_truststore_url          = local.mtls_enabled ? local.mtls_pso_truststore : null
 
   // Explicit authorizer, use case: Verifying certificate revocation

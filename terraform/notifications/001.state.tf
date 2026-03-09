@@ -18,6 +18,13 @@ variable "env" {
   description = "Name of environment"
 }
 
+variable "is_main_environment_in_account" {
+  type        = bool
+  description = "Used to detect whether the environment deployed is the main one in the account (i.e. dev, uat, prod) and not sandbox/ephemeral"
+  default     = false
+}
+
+
 variable "code_version" {
   type        = string
   description = "Released code version"

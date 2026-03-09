@@ -61,7 +61,7 @@ export const iocGetLogger = ioc(
       correlationIdSearchFn: search,
       // Prevent accidental logging of message contents
       jsonReplacerFn: (key, value) => {
-        if (['NotificationTitle', 'NotificationBody', 'MessageTitle', 'MessageBody'].includes(key)) {
+        if (['NotificationTitle', 'NotificationBody', 'MessageTitle', 'MessageBody', 'clientCertPem'].includes(key)) {
           return `******`;
         }
         return value;

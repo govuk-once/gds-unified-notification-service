@@ -7,7 +7,13 @@ module "api_gateway_flex" {
   stage_name = "api"
 
   // Config
-  kms_key_arn = aws_kms_key.main.arn
+  kms_key_arn                    = aws_kms_key.main.arn
+  is_main_environment_in_account = var.is_main_environment_in_account
+
+  // Pull in route53 config, disable mtls
+  route_53_zone                = local.mtls_root_domain
+  disable_execute_api_endpoint = false
+  mtls_truststore_url          = null
 
   // Lambdas
   integrations = {

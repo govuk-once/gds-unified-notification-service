@@ -6,7 +6,10 @@ resource "aws_api_gateway_deployment" "this" {
 
   // Always re-trigger redeployment of the stage
   triggers = {
-    redeployment = sha1(jsonencode(aws_api_gateway_rest_api.this.body))
+    // TODO: Look into neater way of applying this
+    // Sha hashing does not appear to detect all of the changes, may need to bring in some other resource  attributes
+    redeployment = timestamp()
+    # redeployment = sha1(jsonencode(aws_api_gateway_rest_api.this.body))
   }
 
   lifecycle {
