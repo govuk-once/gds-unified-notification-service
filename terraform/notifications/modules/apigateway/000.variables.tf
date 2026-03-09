@@ -45,6 +45,11 @@ variable "disable_execute_api_endpoint" {
 }
 
 /** Custom domain **/
+variable "is_main_environment_in_account" {
+  type        = bool
+  description = "Used to detect whether the environment deployed is the main one in the account (i.e. dev, uat, prod) and not sandbox/ephemeral - ephemeral/sandbox domain contain env name prefix - main environments do not"
+  default     = false
+}
 variable "route_53_zone" {
   description = "value"
   type        = string

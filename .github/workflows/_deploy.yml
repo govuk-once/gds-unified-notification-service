@@ -78,4 +78,5 @@ jobs:
           TF_VAR_env: ${{ inputs.ENVIRONMENT_NAME }}
           TF_VAR_key: state.json
           TF_VAR_code_version: ${{ inputs.version }}
-          TF_VAR_use_mtls: true
+          TF_VAR_use_mtls: 'true'
+          TF_VAR_is_main_environment_in_account: 'true'

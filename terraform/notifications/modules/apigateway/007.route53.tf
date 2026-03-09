@@ -17,7 +17,7 @@ data "aws_acm_certificate" "this" {
 # Tell API Gateway about the domain name
 resource "aws_api_gateway_domain_name" "this" {
   count       = var.route_53_zone != null ? 1 : 0
-  domain_name = "${join("-", [var.prefix, var.name])}.${data.aws_route53_zone.this[0].name}"
+  domain_name = var.is_main_environment_in_account ? "${var.name}.${data.aws_route53_zone.this[0].name}" : "${join("-", [var.prefix, var.name])}.${data.aws_route53_zone.this[0].name}"
 
   endpoint_configuration {
     types = ["REGIONAL"]

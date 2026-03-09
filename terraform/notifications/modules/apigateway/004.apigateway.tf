@@ -8,8 +8,7 @@ locals {
 resource "aws_api_gateway_rest_api" "this" {
   name = join("-", [var.prefix, "apigw", var.name])
 
-  # disable_execute_api_endpoint = var.disable_execute_api_endpoint
-  disable_execute_api_endpoint = true
+  disable_execute_api_endpoint = var.disable_execute_api_endpoint
 
   endpoint_configuration {
     types = ["REGIONAL"]
