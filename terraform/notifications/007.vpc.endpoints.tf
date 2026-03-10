@@ -5,6 +5,7 @@ resource "aws_vpc_endpoint" "vpc_endpoints_interfaces" {
     "apigateway",
     "applicationinsights",
     # "elasticache", Elasticache integrates directly into subnets - and we do not interact with resource managing APIs
+    "execute-api",
     "kms",
     "lambda",
     "logs",
