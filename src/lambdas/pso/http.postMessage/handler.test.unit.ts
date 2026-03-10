@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
@@ -46,7 +46,6 @@ describe('PostMessage Handler', () => {
 
   // Mock the event
   let mockEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
 
   beforeEach(() => {
     // Reset all mock
@@ -74,7 +73,6 @@ describe('PostMessage Handler', () => {
     mockUnauthorizedEvent = {
       ...mockEvent,
       headers: {
-        'x-api-key': 'mockBadApiKey',
         'Content-Type': `application/json`,
       },
     } as unknown as EventType;
@@ -138,7 +136,7 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [{ ...mockMessageBody, APIGWExtendedID: mockEvent.requestContext.requestId }],
-      ValidationEnum.VALIDATED_API_CALL
+      NotificationStateEnum.VALIDATED_API_CALL
     );
   });
 
@@ -149,15 +147,6 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
-  });
-
-  it('should throw an error when the api call is unauthorized.', async () => {
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({});
   });
 
   it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {

@@ -8,7 +8,7 @@ import {
   iocGetObservabilityService,
   iocGetProcessingQueueService,
 } from '@common/ioc';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
 import {
@@ -94,7 +94,7 @@ export class Validation extends QueueHandler<IMessage> {
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
-      ValidationEnum.VALIDATING
+      NotificationStateEnum.VALIDATING
     );
 
     // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
@@ -122,6 +122,7 @@ export class Validation extends QueueHandler<IMessage> {
             ...body,
             ReceivedDateTime: attributes.ApproximateFirstReceiveTimestamp,
             ValidatedDateTime: new Date().toISOString(),
+            Events: [],
           })
         )
       );
@@ -129,7 +130,7 @@ export class Validation extends QueueHandler<IMessage> {
       // Publish analytics & push items to the processing queue
       await this.analyticsService.publishMultipleEvents(
         validRecords.map(({ valid }) => valid.body),
-        ValidationEnum.VALIDATED
+        NotificationStateEnum.VALIDATED
       );
 
       // Publish messages to the next stage
@@ -155,7 +156,7 @@ export class Validation extends QueueHandler<IMessage> {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
         },
-        ValidationEnum.VALIDATION_FAILED,
+        NotificationStateEnum.VALIDATION_FAILED,
         errors
       );
     }

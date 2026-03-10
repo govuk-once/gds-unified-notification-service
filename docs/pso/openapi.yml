@@ -150,27 +150,30 @@ components:
       type: object
       required:
         - NotificationID
+        - EventDateTime
         - Status
       properties:
         NotificationID:
+          type: string
+        EventDateTime:
           type: string
         Status:
           type: string
           enum:
             - RECEIVED
-              - VALIDATING
-              - VALIDATED
-              - VALIDATION_FAILED
-              - PROCESSING
-              - PROCESSED
-              - PROCESSING_FAILED
-              - DISPATCHING
-              - DISPATCHED
-              - DISPATCHING_FAILED
-              - DELIVERED
-              - NOTIFICATION_CENTRE_READ
-              - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
-              - NOTIFICATION_CENTRE_HIDDEN
+            - VALIDATING
+            - VALIDATED
+            - VALIDATION_FAILED
+            - PROCESSING
+            - PROCESSED
+            - PROCESSING_FAILED
+            - DISPATCHING
+            - DISPATCHED
+            - DISPATCHING_FAILED
+            - DELIVERED
+            - NOTIFICATION_CENTRE_READ
+            - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
+            - NOTIFICATION_CENTRE_HIDDEN
         Reason:
           type: string
           description: Provides addition context to the state

@@ -7,7 +7,7 @@ import {
   iocGetInboundDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { InboundDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
@@ -84,7 +84,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
-      ValidationEnum.PROCESSING
+      NotificationStateEnum.PROCESSING
     );
 
     // Validate Incoming messages
@@ -121,7 +121,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     // Mark messages as processed
     await this.analyticsService.publishMultipleEvents(
       validRecords.map(({ valid }) => valid),
-      ValidationEnum.PROCESSED
+      NotificationStateEnum.PROCESSED
     );
 
     // Push processed messages to Dispatch queue
@@ -146,7 +146,7 @@ export class Processing extends QueueHandler<IMessage, void> {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
         },
-        ValidationEnum.PROCESSING_FAILED,
+        NotificationStateEnum.PROCESSING_FAILED,
         errors
       );
     }

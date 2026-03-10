@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
@@ -26,7 +26,7 @@ describe('Analytics QueueHandler', () => {
     EventID: '123',
     DepartmentID: 'DEP1',
     NotificationID: 'not1',
-    Event: ValidationEnum.RECEIVED,
+    Event: NotificationStateEnum.RECEIVED,
     EventDateTime: '2026-01-22T00:00:01Z',
     APIGWExtendedID: 'testExample',
     EventReason: 'testing',
@@ -34,7 +34,7 @@ describe('Analytics QueueHandler', () => {
   const invalidData = {
     DepartmentID: undefined,
     NotificationID: undefined,
-    Event: ValidationEnum.READ,
+    Event: NotificationStateEnum.READ,
     EventDateTime: '00000000',
     APIGWExtendedID: 'testExample',
     EventReason: 'testing',
@@ -94,7 +94,7 @@ describe('Analytics QueueHandler', () => {
       ...validData,
       Event: undefined,
     };
-    const expectedCreatedTableRows = [{ ...validDataWithMissingValue, Event: ValidationEnum.UNKNOWN }];
+    const expectedCreatedTableRows = [{ ...validDataWithMissingValue, Event: NotificationStateEnum.UNKNOWN }];
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
     serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
 
@@ -111,7 +111,10 @@ describe('Analytics QueueHandler', () => {
     expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
     // - Cached hashmap of status and notification ID has been triggered
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', ValidationEnum.UNKNOWN);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+      '/DEP1/not1/Status',
+      NotificationStateEnum.UNKNOWN
+    );
   });
 
   it('should process INVALID records: Update Cache to Read, Skip Queue, and Push to DyanmoDB', async () => {

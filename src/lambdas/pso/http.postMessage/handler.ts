@@ -7,11 +7,10 @@ import {
   iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
-  StringParameters,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { InboundDynamoRepository } from '@common/repositories';
 import {
   AnalyticsEventFromIMessage,
@@ -85,15 +84,6 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request');
 
-    // MOCK authorizing request
-    const apiKey = await this.config.getParameter(StringParameters.Api.PostMessage.ApiKey);
-    if (event.headers['x-api-key'] !== apiKey) {
-      return {
-        body: {},
-        statusCode: 401,
-      };
-    }
-
     const messages = event.body;
 
     // Prevalidate all messages & reject request when one of them contains unsupported url
@@ -110,7 +100,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
           APIGWExtendedID: event.requestContext.requestId,
         })
       ),
-      ValidationEnum.VALIDATED_API_CALL
+      NotificationStateEnum.VALIDATED_API_CALL
     );
 
     // Requeue messages which passed validation to next stage
@@ -126,6 +116,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
           APIGWExtendedID: event.requestContext.requestId,
           ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
           ValidatedDateTime: new Date().toISOString(),
+          Events: [],
         })
       )
     );

@@ -1,21 +1,22 @@
 import {
   HandlerDependencies,
+  iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.object({
-  Status: z.enum([ValidationEnum.RECEIVED, ValidationEnum.READ, ValidationEnum.MARKED_AS_UNREAD]),
+  Status: z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD]),
 });
 const responseBodySchema = z.any();
 
@@ -43,6 +44,7 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
   public responseBodySchema = responseBodySchema;
 
   public inboundNotificationTable: InboundDynamoRepository;
+  public analytics: AnalyticsService;
 
   constructor(
     protected config: ConfigurationService,
@@ -78,15 +80,10 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
       throw new httpErrors.NotFound();
     }
 
-    const { Status } = event.body;
-    const updatedAt = new Date().toISOString();
-    await this.inboundNotificationTable.updateRecord({
-      NotificationID: notificationId,
-      Status,
-      UpdatedAt: updatedAt,
-    });
+    // Fire off a request with status up to analytics lambda
+    await this.analytics.publishEvent(notification, event.body.Status);
 
-    this.observability.logger.info('Successful request.', { notificationId, status: Status });
+    this.observability.logger.info('Successful request.', { notificationId, status: event.body.Status });
 
     return {
       body: {},
@@ -97,4 +94,5 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
 
 export const handler = new PatchNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   inboundNotificationTable: iocGetInboundDynamoRepository(),
+  analytics: iocGetAnalyticsService(),
 })).handler();

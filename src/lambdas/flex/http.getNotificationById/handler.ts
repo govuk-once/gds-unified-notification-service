@@ -6,16 +6,19 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import {
+  IFlexNotificationSchema,
+  IMessageRecordToIFlexNotification,
+} from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message: z.string() })]);
 
 /* Lambda Request Example
 {
@@ -32,10 +35,10 @@ const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message:
 }
 */
 
-export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof IFlexNotificationSchema> {
   public operationId: string = 'getNotificationById';
   public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+  public responseBodySchema = IFlexNotificationSchema;
 
   public inboundNotificationTable: InboundDynamoRepository;
 
@@ -51,7 +54,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+  ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
     const isValidApiKey = await this.validateApiKey(event);
 
     if (!isValidApiKey) {
@@ -64,16 +67,24 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
+    const notification = await this.inboundNotificationTable.getRecord(notificationId);
 
+    // Handle not found or hidden notifications
     if (!notification) {
       throw new httpErrors.NotFound();
     }
 
-    this.observability.logger.info('Successful request.', { notificationId });
+    // If message is marked as hidden - return 404
+    const notificationResponse = IMessageRecordToIFlexNotification(notification);
+
+    if (notificationResponse.Status == NotificationStateEnum.HIDDEN) {
+      throw new httpErrors.NotFound();
+    }
+
+    this.observability.logger.info('Successful request.', { notificationId, notification, notificationResponse });
 
     return {
-      body: IFlexNotificationSchema.parse(notification),
+      body: notificationResponse,
       statusCode: 200,
     };
   }

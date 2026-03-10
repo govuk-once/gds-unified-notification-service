@@ -1,7 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { InboundDynamoRepository } from '@common/repositories';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
   AnalyticsQueueService,
@@ -63,10 +63,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     observabilityMock
   ) as Mocked<InboundDynamoRepository>;
-  const eventsDynamoRepositoryMock = new EventsDynamoRepository(
-    configurationServiceMock,
-    observabilityMock
-  ) as Mocked<EventsDynamoRepository>;
   const mtlsRevocationDynamoRepositoryMock = new MTLSRevocationDynamoRepository(
     configurationServiceMock,
     observabilityMock
@@ -94,7 +90,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     analyticsQueueServiceMock,
     // DynamoDB
     inboundDynamoRepositoryMock,
-    eventsDynamoRepositoryMock,
     mtlsRevocationDynamoRepositoryMock,
     // Services
     configurationServiceMock: configurationServiceMock,

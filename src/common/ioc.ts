@@ -2,7 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { InboundDynamoRepository } from '@common/repositories';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
   AnalyticsQueueService,
@@ -124,12 +124,6 @@ export const iocGetInboundDynamoRepository = ioc(
   `InboundDynamoRepository`,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new InboundDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
-);
-
-export const iocGetEventsDynamoRepository = ioc(
-  `EventsDynamoRepository`,
-  Mode.TIMEBOUND_SINGLETON,
-  async () => await new EventsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetMTLSRevocationDynamoRepository = ioc(

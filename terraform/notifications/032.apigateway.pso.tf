@@ -35,6 +35,13 @@ module "api_gateway_pso" {
       lambda_invoke_arn    = module.lambda_pso_getHealthcheck.lambda_invoke_arn
       authorizer           = local.mtls_enabled ? "mtsCertificateRevocation" : null
     },
+    "getNotificationStatus" = {
+      path                 = "status/{notificationId}"
+      method               = "GET"
+      lambda_function_name = module.lambda_pso_getNotificationStatus.lambda_function_name
+      lambda_invoke_arn    = module.lambda_pso_getNotificationStatus.lambda_invoke_arn
+      authorizer           = local.mtls_enabled ? "mtsCertificateRevocation" : null
+    },
     "postMessage" = {
       path                 = "send"
       method               = "POST"

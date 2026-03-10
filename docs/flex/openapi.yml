@@ -189,19 +189,8 @@ components:
       type: string
       enum:
         - RECEIVED
-        - VALIDATING
-        - VALIDATED
-        - VALIDATION_FAILED
-        - PROCESSING
-        - PROCESSED
-        - PROCESSING_FAILED
-        - DISPATCHING
-        - DISPATCHED
-        - DISPATCHING_FAILED
-        - DELIVERED
-        - NOTIFICATION_CENTRE_READ
-        - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
-        - NOTIFICATION_CENTRE_HIDDEN
+        - READ
+        - MARKED_AS_UNREAD
 
     NotFoundResponse:
       type: object

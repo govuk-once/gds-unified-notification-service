@@ -224,7 +224,7 @@ describe('Dispatch QueueHandler', () => {
       DepartmentID: mockMessageBody.DepartmentID,
       NotificationID: mockMessageBody.NotificationID,
       UserID: mockMessageBody.UserID,
-      DispatchedStartDateTime: date.toISOString(),
+      DispatchedAt: date.toISOString(),
     });
   });
 

@@ -19,13 +19,6 @@ module "parameter_store_internal_configuration" {
     "queue/analytics/url"  = module.sqs_analytics.queue_url
 
     // Dynamo
-    "table/events/name" = module.dynamodb_events.table_name
-    "table/events/attributes" = jsonencode({
-      hashKey    = module.dynamodb_events.table_hash_key
-      rangeKey   = module.dynamodb_events.table_range_key
-      attributes = module.dynamodb_events.table_attributes
-    })
-
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
       hashKey    = module.dynamodb_inbound_messages.table_hash_key

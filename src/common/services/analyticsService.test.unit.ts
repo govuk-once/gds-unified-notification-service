@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { v4 as uuid } from 'uuid';
@@ -55,7 +55,7 @@ describe('analyticsService', () => {
       vi.mocked(uuid as () => string).mockReturnValue(mockEventID_2);
 
       // Act
-      await instance.publishMultipleEvents(mockAnalyticsEvents, ValidationEnum.VALIDATED);
+      await instance.publishMultipleEvents(mockAnalyticsEvents, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
@@ -80,11 +80,11 @@ describe('analyticsService', () => {
 
     it('should add a metric after publishing events', async () => {
       // Act
-      await instance.publishMultipleEvents(mockAnalyticsEvents, ValidationEnum.VALIDATED);
+      await instance.publishMultipleEvents(mockAnalyticsEvents, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
-        `ANALYTIC_EVENTS_${ValidationEnum.VALIDATED.toUpperCase()}`,
+        `ANALYTIC_EVENTS_${NotificationStateEnum.VALIDATED.toUpperCase()}`,
         MetricUnit.Count,
         mockAnalyticsEvents.length
       );
@@ -92,7 +92,7 @@ describe('analyticsService', () => {
 
     it('should ignore empty arrays.', async () => {
       // Act
-      await instance.publishMultipleEvents([], ValidationEnum.VALIDATED);
+      await instance.publishMultipleEvents([], NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
@@ -117,7 +117,7 @@ describe('analyticsService', () => {
       vi.mocked(uuid as () => string).mockReturnValueOnce(mockEventID);
 
       // Act
-      await instance.publishEvent(mockAnalyticsEvent, ValidationEnum.VALIDATED);
+      await instance.publishEvent(mockAnalyticsEvent, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(serviceMocks.analyticsQueueServiceMock.publishMessage).toHaveBeenCalledWith({
@@ -132,11 +132,11 @@ describe('analyticsService', () => {
 
     it('should add a metric after publishing events', async () => {
       // Act
-      await instance.publishEvent(mockAnalyticsEvent, ValidationEnum.VALIDATED);
+      await instance.publishEvent(mockAnalyticsEvent, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
-        `ANALYTIC_EVENTS_${ValidationEnum.VALIDATED.toUpperCase()}`,
+        `ANALYTIC_EVENTS_${NotificationStateEnum.VALIDATED.toUpperCase()}`,
         MetricUnit.Count,
         1
       );
