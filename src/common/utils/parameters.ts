@@ -83,6 +83,12 @@ export const NumericParameters = {
       NotificationsProviderRateLimitPerMinute: 'config/common/cache/notificationsProviderRateLimitPerMinute',
     },
   },
+  CircuitBreaker: {
+    Threshold: 'config/dispatch/circuitBreaker/threshold',
+    WindowDuration: 'config/dispatch/circuitBreaker/windowDuration',
+    HalfOpenAfter: 'config/dispatch/circuitBreaker/halfOpenAfter',
+    RateLimitWhenOpen: 'config/dispatch/circuitBreaker/rateLimitWhenOpen',
+  },
 } as const;
 
 export const EnumParameters = {

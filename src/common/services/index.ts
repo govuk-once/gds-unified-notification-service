@@ -1,4 +1,5 @@
 export * from './adapters';
+export * from './circuitBreakerService';
 export * from './analyticsQueueService';
 export * from './analyticsService';
 export * from './cacheService';

@@ -96,6 +96,12 @@ export class CacheService {
     return await this.store(`counter`, value + 1);
   }
 
+  async increment(key: string, ttlSeconds: number): Promise<number> {
+    const count = await this.cache.incrBy(key, 1);
+    await this.cache.expire(key, ttlSeconds);
+    return count;
+  }
+
   async rateLimit(key: string, maxPerMinute: number, increment?: number) {
     const unixEpoch = new Date().getTime() / 1000;
     const roundedUnixEpoch = unixEpoch - (unixEpoch % 60);
