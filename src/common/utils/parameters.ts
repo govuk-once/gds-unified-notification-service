@@ -58,14 +58,17 @@ export const StringParameters = {
     Events: {
       KeyAttributes: 'table/events/attributes',
       Name: 'table/events/name',
+      ExpirationDurationInDays: 'table/events/expirationDurationInDays',
     },
     Inbound: {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
+      ExpirationDurationInDays: 'table/inbound/expirationDurationInDays',
     },
     MTLSRevocation: {
       KeyAttributes: 'table/mtls/attributes',
       Name: 'table/mtls/name',
+      ExpirationDurationInDays: 'table/inbound/expirationDurationInDays',
     },
   },
   Dispatch: {

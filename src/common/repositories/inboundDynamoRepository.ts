@@ -12,7 +12,11 @@ export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> 
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Inbound.KeyAttributes, StringParameters.Table.Inbound.Name);
+    await super.initialize(
+      StringParameters.Table.Inbound.KeyAttributes,
+      StringParameters.Table.Inbound.Name,
+      StringParameters.Table.Inbound.ExpirationDurationInDays
+    );
     return this;
   }
 }

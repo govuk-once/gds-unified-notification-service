@@ -12,7 +12,11 @@ export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Events.KeyAttributes, StringParameters.Table.Events.Name);
+    await super.initialize(
+      StringParameters.Table.Events.KeyAttributes,
+      StringParameters.Table.Events.Name,
+      StringParameters.Table.Events.ExpirationDurationInDays
+    );
     return this;
   }
 }

@@ -35,6 +35,7 @@ describe('ProcessingQueueService', () => {
   const mockMessageBody = {
     NotificationID: '1234',
     DepartmentID: 'DVLA01',
+    ExpirationDateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toString(),
     UserID: 'UserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
@@ -135,6 +136,7 @@ describe('ProcessingQueueService', () => {
       const mockMessageBody_0 = {
         NotificationID: '1234',
         DepartmentID: 'DVLA01',
+        ExpirationDateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toString(),
         UserID: 'UserID',
         MessageTitle: 'You have a new Message',
         MessageBody: 'Open Notification Centre to read your notifications',
@@ -144,6 +146,7 @@ describe('ProcessingQueueService', () => {
       const mockMessageBody_1 = {
         NotificationID: '1235',
         DepartmentID: 'DVLA01',
+        ExpirationDateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toString(),
         UserID: 'UserID-1',
         MessageTitle: 'You have a new Message',
         MessageBody: 'Open Notification Centre to read your notifications',

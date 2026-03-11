@@ -138,6 +138,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       await this.inboundDynamodbRepository.updateRecord<Partial<IMessageRecord>>({
         ...extractIdentifiers(valid),
         DispatchedStartDateTime: new Date().toISOString(),
+        ExpirationDateTime: this.inboundDynamodbRepository.getExpirationTimestamp(new Date()),
       });
 
       // Increment rate limiter post request

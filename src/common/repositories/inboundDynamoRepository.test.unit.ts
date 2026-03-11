@@ -61,7 +61,8 @@ describe('InboundDynamoRepository', () => {
       // Assert
       expect(superInitalize).toHaveBeenCalledWith(
         StringParameters.Table.Inbound.KeyAttributes,
-        StringParameters.Table.Inbound.Name
+        StringParameters.Table.Inbound.Name,
+        StringParameters.Table.Inbound.ExpirationDurationInDays
       );
       expect(result).toBe(instance);
     });

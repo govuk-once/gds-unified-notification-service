@@ -20,6 +20,10 @@ module "dynamodb_inbound_messages" {
       name = "DepartmentID"
       type = "S"
     },
+    {
+      name = "expiredAtEpoch"
+      type = "S"
+    },
   ]
 
   // Indexes

@@ -23,4 +23,5 @@ export interface IMessageRecord {
   ProcessedDateTime?: string;
   DispatchedStartDateTime?: string;
   SentDateTime?: string;
+  ExpirationDateTime?: string;
 }
