@@ -46,6 +46,7 @@ describe('PostMessage Handler', () => {
 
   // Mock the event
   let mockEvent: EventType;
+  let mockUnauthorizedEvent: EventType;
 
   beforeEach(() => {
     // Reset all mock
@@ -125,6 +126,7 @@ describe('PostMessage Handler', () => {
         APIGWExtendedID: mockEvent.requestContext.requestId,
         ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
+        Events: [],
       },
     ]);
   });

@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -11,7 +13,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('GetFlexNotificationById Handler', () => {
+describe('GetNotificationById Handler', () => {
   let instance: GetFlexNotificationById;
   let handler: ReturnType<typeof GetFlexNotificationById.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
@@ -28,14 +30,34 @@ describe('GetFlexNotificationById Handler', () => {
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
-  const mockMessageBody: IFlexNotification = {
-    NotificationID: '12345',
+  const mockDbRecord: IMessageRecord = {
+    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
-    Status: 'READ',
+    Events: [
+      {
+        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+        DepartmentID: 'abc',
+        Event: NotificationStateEnum.RECEIVED,
+        EventDateTime: new Date().toISOString(),
+        EventReason: '',
+        APIGWExtendedID: 'Test',
+      },
+    ],
     DispatchedAt: '2026-02-13',
+  } as IMessageRecord;
+
+  const mockResponse: IFlexNotification = {
+    DispatchedAt: '2026-02-13',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    MessageTitle: 'You have a new Message',
+    NotificationBody: 'Here is the Notification body.',
+    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationTitle: 'You have a new Notification',
+    Status: NotificationStateEnum.RECEIVED,
   };
 
   beforeEach(() => {
@@ -50,7 +72,7 @@ describe('GetFlexNotificationById Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
-        notificationId: '12345',
+        notificationId: mockDbRecord.NotificationID,
       },
     } as unknown as EventType;
 
@@ -69,7 +91,7 @@ describe('GetFlexNotificationById Handler', () => {
 
     handler = instance.handler();
 
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
+    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
   });
 
   it('should have the correct operationId', () => {
@@ -87,7 +109,7 @@ describe('GetFlexNotificationById Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.', {
-      notificationId: mockMessageBody.NotificationID,
+      notificationId: mockDbRecord.NotificationID,
     });
   });
 
@@ -100,7 +122,7 @@ describe('GetFlexNotificationById Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(200);
-    expect(JSON.parse(result.body)).toEqual(mockMessageBody);
+    expect(JSON.parse(result.body)).toEqual(mockResponse);
   });
 
   it('should get notification from getRecord call', async () => {
@@ -111,7 +133,9 @@ describe('GetFlexNotificationById Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith('12345');
+    expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
+      mockEvent.pathParameters.notificationId
+    );
   });
 
   it('should fetch API key from config service', async () => {

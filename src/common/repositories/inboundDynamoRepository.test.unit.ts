@@ -75,6 +75,7 @@ describe('InboundDynamoRepository', () => {
       NotificationTitle: 'Hi there',
       NotificationBody: 'You have a new message in the message center',
       ReceivedDateTime: '202601021513',
+      Events: [],
     };
 
     it('marshall record should be sent', async () => {
@@ -116,6 +117,7 @@ describe('InboundDynamoRepository', () => {
       NotificationTitle: 'Hi there',
       NotificationBody: 'You have a new message in the message center',
       ReceivedDateTime: '202601021513',
+      Events: [],
     };
 
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
@@ -252,6 +254,7 @@ describe('InboundDynamoRepository', () => {
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
         ReceivedDateTime: '202601021513',
+        Events: [],
       };
 
       dynamoMock.on(GetItemCommand).resolves({

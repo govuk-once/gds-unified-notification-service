@@ -18,7 +18,6 @@ import {
   IMessage,
   IMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 /**
@@ -111,7 +110,7 @@ export class Processing extends QueueHandler<IMessage, void> {
       });
 
       // Store External User ID and mark record as processed
-      await this.inboundTable.updateRecord<Partial<IMessageRecord>>({
+      await this.inboundTable.updateRecord({
         ...extractIdentifiers(processed),
         ExternalUserID: processed.ExternalUserID,
         ProcessedDateTime: new Date().toISOString(),

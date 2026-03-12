@@ -5,6 +5,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { MTLSRevocation } from '@project/lambdas/interfaces/MTLSRevocationTable';
 import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
 import { Context } from 'aws-lambda';
 
@@ -92,7 +93,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   it('should generate sha256 based on the sample cert', async () => {
     // Arrange
-    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: true });
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: true } as unknown as MTLSRevocation);
 
     // Act
     const result = await instance.handler()(mockEventWithCertificate, mockContext);
@@ -106,7 +107,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   it('should deny request if certificate does not exists', async () => {
     // Arrange
-    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue(undefined);
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue(null);
 
     // Act
     const result = await instance.handler()(mockEventWithCertificate, mockContext);
@@ -123,7 +124,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   it('should deny request certificate has been revoked', async () => {
     // Arrange
-    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: true });
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: true } as unknown as MTLSRevocation);
 
     // Act
     const result = await instance.handler()(mockEventWithCertificate, mockContext);
@@ -140,7 +141,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   it('should allow request with existing certificate that has not been revoked', async () => {
     // Arrange
-    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: false });
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: false } as unknown as MTLSRevocation);
 
     // Act
     const result = await instance.handler()(mockEventWithCertificate, mockContext);

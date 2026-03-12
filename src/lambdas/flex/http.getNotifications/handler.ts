@@ -9,7 +9,11 @@ import {
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { InboundDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import {
+  IFlexNotificationSchema,
+  IMessageRecordToIFlexNotification,
+} from '@project/lambdas/interfaces/IFlexNotification';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
@@ -63,13 +67,13 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       throw new httpErrors.BadRequest();
     }
 
-    const notifications = await this.inboundNotificationTable.getRecords({
+    const notifications = await this.inboundNotificationTable.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
       value: externalUserId,
     });
 
     return {
-      body: notifications.map((n) => IFlexNotificationSchema.parse(n)),
+      body: notifications.map((n) => IMessageRecordToIFlexNotification(n)),
       statusCode: 200,
     };
   }

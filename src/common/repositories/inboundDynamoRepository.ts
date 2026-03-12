@@ -18,6 +18,6 @@ export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> 
   }
 
   public async addEvent(event: IAnalytics) {
-    return this.appendToList(event.NotificationID, 'Events', [event]);
+    return await this.appendToList(event.NotificationID, 'Events', [event]);
   }
 }

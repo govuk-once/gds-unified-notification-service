@@ -83,7 +83,7 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     // Fire off a request with status up to analytics lambda
     await this.analytics.publishEvent(notification, event.body.Status);
 
-    this.observability.logger.info('Successful request.', { notificationId, status: event.body.Status });
+    this.observability.logger.info('Successful request', { notificationId, status: event.body.Status });
 
     return {
       body: {},

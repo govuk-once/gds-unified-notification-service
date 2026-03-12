@@ -81,7 +81,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.NotFound();
     }
 
-    this.observability.logger.info('Successful request.', { notificationId, notification, notificationResponse });
+    this.observability.logger.info('Successful request.', { notificationId });
 
     return {
       body: notificationResponse,
