@@ -1,4 +1,5 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
@@ -77,6 +78,19 @@ export abstract class QueueHandler<InputType, OutputType = void> {
     return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
       // Call DI before each request is handled
       await initializeDependencies(this, this.dependencies);
+
+      for (const record of event.Records as SQSRecord[]) {
+        const receiveCount = parseInt(record.attributes?.ApproximateReceiveCount ?? '1', 10);
+        if (receiveCount > 1) {
+          this.observability.logger.warn(`SQS message retry attempt`, {
+            messageId: record.messageId,
+            receiveCount,
+            operationId: this.operationId,
+            eventSourceARN: record.eventSourceARN,
+          });
+          this.observability.metrics.addMetric(`QUEUE_MESSAGE_RETRY_ATTEMPT`, MetricUnit.Count, 1);
+        }
+      }
 
       // Trigger implementation
       this.observability.logger.info(`Request received`, { event });
