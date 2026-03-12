@@ -14,9 +14,10 @@ export class CircuitBreakerOpenError extends Error {
 
 export class CircuitBreakerService {
   constructor(
-    private cacheService: CacheService,
+    private observability: ObservabilityService,
     private config: ConfigurationService,
-    private observability: ObservabilityService
+    private cacheService: CacheService,
+    private platform: string
   ) {}
 
   private stateKey(platform: string) {
@@ -45,8 +46,8 @@ export class CircuitBreakerService {
     return now - (now % 60);
   }
 
-  async getState(platform: string): Promise<CircuitBreakerState> {
-    return (await this.cacheService.get<CircuitBreakerState>(this.stateKey(platform))) ?? 'CLOSED';
+  async getState(): Promise<CircuitBreakerState> {
+    return (await this.cacheService.get<CircuitBreakerState>(this.stateKey(this.platform))) ?? 'CLOSED';
   }
 
   /**
@@ -55,7 +56,7 @@ export class CircuitBreakerService {
    * - OPEN: blocks requests until halfOpenAfter seconds have elapsed, then transitions to HALF_OPEN
    * - HALF_OPEN: allows limited requests (rateLimitWhenOpen per minute) to probe for recovery
    */
-  async checkCircuit(platform: string): Promise<void> {
+  async checkCircuit(): Promise<void> {
     const [threshold, windowDuration, halfOpenAfter, rateLimitWhenOpen] = await Promise.all([
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.Threshold),
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.WindowDuration),
@@ -63,46 +64,46 @@ export class CircuitBreakerService {
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.RateLimitWhenOpen),
     ]);
 
-    const state = await this.getState(platform);
-    this.observability.logger.info('Circuit breaker check', { platform, state });
+    const state = await this.getState();
+    this.observability.logger.info('Circuit breaker check', { platform: this.platform, state });
 
     if (state === 'OPEN') {
-      const openedAt = (await this.cacheService.get<number>(this.openedAtKey(platform))) ?? 0;
+      const openedAt = (await this.cacheService.get<number>(this.openedAtKey(this.platform))) ?? 0;
       const now = Math.floor(Date.now() / 1000);
 
       if (now - openedAt >= halfOpenAfter) {
-        await this.cacheService.store(this.stateKey(platform), 'HALF_OPEN' as CircuitBreakerState);
-        this.observability.logger.info('Circuit breaker transitioned to HALF_OPEN', { platform });
-        await this.enforceRateLimit(platform, rateLimitWhenOpen);
+        await this.cacheService.store(this.stateKey(this.platform), 'HALF_OPEN' as CircuitBreakerState);
+        this.observability.logger.info('Circuit breaker transitioned to HALF_OPEN', { platform: this.platform });
+        await this.enforceRateLimit(rateLimitWhenOpen);
       } else {
-        throw new CircuitBreakerOpenError(platform);
+        throw new CircuitBreakerOpenError(this.platform);
       }
       return;
     }
 
     if (state === 'HALF_OPEN') {
-      await this.enforceRateLimit(platform, rateLimitWhenOpen);
+      await this.enforceRateLimit(rateLimitWhenOpen);
       return;
     }
 
     // CLOSED — check if accumulated failures should open the circuit
     const windowKey = this.currentWindowKey(windowDuration);
-    const failureCount = (await this.cacheService.get<number>(this.failureKey(platform, windowKey))) ?? 0;
+    const failureCount = (await this.cacheService.get<number>(this.failureKey(this.platform, windowKey))) ?? 0;
     if (failureCount >= threshold) {
-      await this.transitionToOpen(platform);
-      throw new CircuitBreakerOpenError(platform);
+      await this.transitionToOpen();
+      throw new CircuitBreakerOpenError(this.platform);
     }
   }
 
   /**
    * Records a successful dispatch. Transitions HALF_OPEN → CLOSED.
    */
-  async recordSuccess(platform: string): Promise<void> {
-    const state = await this.getState(platform);
+  async recordSuccess(): Promise<void> {
+    const state = await this.getState();
     if (state === 'HALF_OPEN') {
-      await this.cacheService.store(this.stateKey(platform), 'CLOSED' as CircuitBreakerState);
+      await this.cacheService.store(this.stateKey(this.platform), 'CLOSED' as CircuitBreakerState);
       this.observability.logger.info('Circuit breaker closed after successful request in HALF_OPEN state', {
-        platform,
+        platform: this.platform,
       });
     }
   }
@@ -112,50 +113,74 @@ export class CircuitBreakerService {
    * - CLOSED: increments the failure counter; opens the circuit when threshold is reached
    * - HALF_OPEN: transitions back to OPEN immediately
    */
-  async recordFailure(platform: string): Promise<void> {
+  async recordFailure(): Promise<void> {
     const [threshold, windowDuration] = await Promise.all([
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.Threshold),
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.WindowDuration),
     ]);
 
     const windowKey = this.currentWindowKey(windowDuration);
-    const newCount = await this.cacheService.increment(this.failureKey(platform, windowKey), windowDuration);
+    const newCount = await this.cacheService.increment(this.failureKey(this.platform, windowKey), windowDuration);
 
-    this.observability.logger.warn('Circuit breaker failure recorded', { platform, failureCount: newCount, threshold });
+    this.observability.logger.warn('Circuit breaker failure recorded', {
+      platform: this.platform,
+      failureCount: newCount,
+      threshold,
+    });
 
-    const state = await this.getState(platform);
+    const state = await this.getState();
 
     if (state === 'HALF_OPEN') {
-      await this.transitionToOpen(platform);
+      await this.transitionToOpen();
       return;
     }
 
     if (state === 'CLOSED' && newCount >= threshold) {
-      await this.transitionToOpen(platform);
+      await this.transitionToOpen();
     }
   }
 
-  private async transitionToOpen(platform: string): Promise<void> {
+  private async transitionToOpen(): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     await Promise.all([
-      this.cacheService.store(this.stateKey(platform), 'OPEN' as CircuitBreakerState),
-      this.cacheService.store(this.openedAtKey(platform), now),
+      this.cacheService.store(this.stateKey(this.platform), 'OPEN' as CircuitBreakerState),
+      this.cacheService.store(this.openedAtKey(this.platform), now),
     ]);
-    this.observability.logger.warn('Circuit breaker opened', { platform, openedAt: now });
+    this.observability.logger.warn('Circuit breaker opened', { platform: this.platform, openedAt: now });
   }
 
-  private async enforceRateLimit(platform: string, rateLimitWhenOpen: number): Promise<void> {
+  /**
+   * Wraps an async operation with circuit breaker protection.
+   * Handles checkCircuit, recordSuccess, and recordFailure automatically.
+   */
+  async use<T>(
+    fn: () => Promise<T>
+  ): Promise<{ result?: T; error?: unknown; circuitBreakerState: CircuitBreakerState }> {
+    try {
+      await this.checkCircuit();
+      const result = await fn();
+      await this.recordSuccess();
+      return { result, circuitBreakerState: await this.getState() };
+    } catch (error) {
+      if (!(error instanceof CircuitBreakerOpenError)) {
+        await this.recordFailure();
+      }
+      return { error, circuitBreakerState: await this.getState() };
+    }
+  }
+
+  private async enforceRateLimit(rateLimitWhenOpen: number): Promise<void> {
     const minuteKey = this.currentMinuteKey();
-    const count = await this.cacheService.increment(this.rateLimitKey(platform, minuteKey), 60);
+    const count = await this.cacheService.increment(this.rateLimitKey(this.platform, minuteKey), 60);
 
     this.observability.logger.info('Circuit breaker rate limit check (OPEN/HALF_OPEN)', {
-      platform,
+      platform: this.platform,
       count,
       limit: rateLimitWhenOpen,
     });
 
     if (count > rateLimitWhenOpen) {
-      throw new CircuitBreakerOpenError(platform);
+      throw new CircuitBreakerOpenError(this.platform);
     }
   }
 }

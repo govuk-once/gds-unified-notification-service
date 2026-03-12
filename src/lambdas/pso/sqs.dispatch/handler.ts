@@ -3,6 +3,7 @@ import {
   HandlerDependencies,
   iocGetAnalyticsService,
   iocGetCacheService,
+  iocGetCircuitBreakerService,
   iocGetConfigurationService,
   iocGetInboundDynamoRepository,
   iocGetNotificationService,
@@ -127,8 +128,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw new Error(`Stopping processing from continouring as rate limit has been exceeded`);
       }
 
-      // Check circuit breaker — throws CircuitBreakerOpenError if open
-      await this.circuitBreakerService.checkCircuit(DISPATCH_PLATFORM_KEY);
+      await this.circuitBreakerService.checkCircuit();
 
       // Prepare request
       const metadata = {
@@ -147,7 +147,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       } catch (error) {
         // Record failure for unexpected errors; re-throw so SQS can handle visibility/DLQ
         if (!(error instanceof CircuitBreakerOpenError)) {
-          await this.circuitBreakerService.recordFailure(DISPATCH_PLATFORM_KEY);
+          await this.circuitBreakerService.recordFailure();
         }
         throw error;
       }
@@ -169,14 +169,14 @@ export class Dispatch extends QueueHandler<unknown, void> {
 
       // Analytics event + circuit breaker state management
       if (sendResult.success) {
-        await this.circuitBreakerService.recordSuccess(DISPATCH_PLATFORM_KEY);
+        await this.circuitBreakerService.recordSuccess();
         this.observability.logger.info(`Notification dispatched`, {
           ...metadata,
           ProviderRequestID: sendResult.requestId,
         });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
       } else {
-        await this.circuitBreakerService.recordFailure(DISPATCH_PLATFORM_KEY);
+        await this.circuitBreakerService.recordFailure();
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
       }
@@ -208,15 +208,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 }
 
-export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => {
-  const connectedCache = iocGetCacheService().connect();
-  return {
-    inboundDynamodbRepository: iocGetInboundDynamoRepository(),
-    notificationsService: iocGetNotificationService(),
-    analyticsService: iocGetAnalyticsService(),
-    cacheService: connectedCache,
-    circuitBreakerService: connectedCache.then(
-      (cache) => new CircuitBreakerService(cache, iocGetConfigurationService(), iocGetObservabilityService())
-    ),
-  };
-}).handler();
+export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+  notificationsService: iocGetNotificationService(),
+  analyticsService: iocGetAnalyticsService(),
+  cacheService: iocGetCacheService().connect(),
+  circuitBreakerService: iocGetCircuitBreakerService(DISPATCH_PLATFORM_KEY),
+})).handler();

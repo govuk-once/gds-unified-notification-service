@@ -302,7 +302,7 @@ describe('Dispatch QueueHandler', () => {
       await handler(mockEvent, mockContext);
 
       // Assert
-      expect(serviceMocks.circuitBreakerServiceMock.checkCircuit).toHaveBeenCalledWith('notification_dispatch');
+      expect(serviceMocks.circuitBreakerServiceMock.checkCircuit).toHaveBeenCalled();
     });
 
     it('should record success when notification is dispatched successfully', async () => {
@@ -316,7 +316,7 @@ describe('Dispatch QueueHandler', () => {
       await handler(mockEvent, mockContext);
 
       // Assert
-      expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).toHaveBeenCalledWith('notification_dispatch');
+      expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).toHaveBeenCalled();
       expect(serviceMocks.circuitBreakerServiceMock.recordFailure).not.toHaveBeenCalled();
     });
 
@@ -331,7 +331,7 @@ describe('Dispatch QueueHandler', () => {
       await handler(mockEvent, mockContext);
 
       // Assert
-      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalledWith('notification_dispatch');
+      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalled();
       expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).not.toHaveBeenCalled();
     });
 
@@ -342,7 +342,7 @@ describe('Dispatch QueueHandler', () => {
 
       // Act & Assert
       await expect(handler(mockEvent, mockContext)).rejects.toThrow('Connection timeout');
-      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalledWith('notification_dispatch');
+      expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalled();
     });
 
     it('should rethrow CircuitBreakerOpenError without recording an additional failure', async () => {

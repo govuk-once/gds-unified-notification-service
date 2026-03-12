@@ -7,6 +7,7 @@ import {
   AnalyticsQueueService,
   AnalyticsService,
   CacheService,
+  CircuitBreakerService,
   ConfigurationService,
   ContentValidationService,
   DispatchQueueService,
@@ -148,6 +149,20 @@ export const iocGetAnalyticsService = ioc(
   Mode.SINGLETON,
   async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
 );
+
+// Services - Circuit Breaker (one instance per platform)
+export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBreakerService> =>
+  ioc(
+    `CircuitBreakerService:${platform}`,
+    Mode.TIMEBOUND_SINGLETON,
+    async () =>
+      new CircuitBreakerService(
+        iocGetObservabilityService(),
+        iocGetConfigurationService(),
+        await iocGetCacheService().connect(),
+        platform
+      )
+  )();
 
 // Services - Other
 export const iocGetContentValidationService = ioc(
