@@ -17,9 +17,6 @@ export const BoolParameters = {
 
 export const StringParameters = {
   Api: {
-    PostMessage: {
-      ApiKey: 'api/postMessage/apiKey',
-    },
     Flex: {
       ApiKey: 'api/flex/apiKey',
     },

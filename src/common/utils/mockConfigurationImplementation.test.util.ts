@@ -11,7 +11,6 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Queue.Analytics.Url]: 'sqsurl/sqsanalytics',
     [StringParameters.Queue.Dispatch.Url]: 'sqsurl/sqsdispatch',
     [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
-    [StringParameters.Api.PostMessage.ApiKey]: 'mockApiKey',
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.Table.Inbound.Name]: 'mocknotificationsDynamoRepositoryName',
