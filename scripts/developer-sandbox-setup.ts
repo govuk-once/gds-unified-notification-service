@@ -153,7 +153,7 @@ use_mtls = ${useMtls}`);
     // Prompt to perform tf init
     if (await confirm({ message: `Would you like to initialize terraform?`, default: false })) {
       (
-        await $.cwd('terraform/notifications')`terraform init \
+        await $.cwd('terraform/notifications')`terraform init -reconfigure \
       -backend-config "bucket=${bucket}" \
       -backend-config "key=state.tfstate" \
       -backend-config "region=eu-west-2"`
