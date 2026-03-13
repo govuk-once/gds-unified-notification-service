@@ -25,7 +25,7 @@ import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema).min(1);
+const requestBodySchema = z.array(IMessageSchema.strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
 /**
@@ -82,7 +82,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request');
+    this.observability.logger.info('Received request', { event });
 
     const messages = event.body;
 

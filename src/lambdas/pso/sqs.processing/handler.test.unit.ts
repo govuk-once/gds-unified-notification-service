@@ -39,7 +39,7 @@ describe('Processing QueueHandler', () => {
   } as unknown as Context;
 
   const mockMessageBody: IMessage = {
-    NotificationID: '1234',
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DVLA01',
     UserID: 'UserID',
     NotificationTitle: 'Hey',
@@ -89,11 +89,9 @@ describe('Processing QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          // Set NotificationID to undefined on purpose
-          NotificationID: undefined,
+          // Set DepartmentID to undefined on purpose
           UserID: 'invalid-id',
-          ExternalUserID: 'test',
-          DepartmentID: 'invalid-id',
+          DepartmentID: undefined,
           NotificationTitle: 'Boom',
           NotificationBody: 'psst',
         },
@@ -206,22 +204,12 @@ describe('Processing QueueHandler', () => {
     );
   });
 
-  it('should trigger analytics for failure events', async () => {
+  it('should not trigger analytics for unindentifeable events', async () => {
     // Act
     await handler(mockFailedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
-      1,
-      [
-        {
-          NotificationID: 'invalid-id',
-          UserID: 'invalid-id',
-          DepartmentID: 'invalid-id',
-        },
-      ],
-      'PROCESSING'
-    );
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(1, [], 'PROCESSING');
   });
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
@@ -232,7 +220,7 @@ describe('Processing QueueHandler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: '✖ Invalid input: expected string, received undefined\n  → at NotificationID',
+        errors: '✖ Invalid input: expected string, received undefined\n  → at DepartmentID',
         raw: mockUnidentifiableEvent.Records[0].body,
       }
     );

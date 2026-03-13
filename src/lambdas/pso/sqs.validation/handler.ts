@@ -100,7 +100,7 @@ export class Validation extends QueueHandler<IMessage> {
     // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
     const [, validRecords, invalidRecords] = await groupValidation(
       event.Records,
-      SqsRecordSchema.extend({ body: IMessageSchema }).superRefine(async (data, ctx) => {
+      SqsRecordSchema.extend({ body: IMessageSchema.strict() }).superRefine(async (data, ctx) => {
         // Deeplink validation injected into schema here
         try {
           await this.contentValidationService.validate(data.body.MessageBody);

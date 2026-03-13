@@ -69,7 +69,7 @@ describe('NotificationsDynamoRepository', () => {
 
   describe('CreateRecord', () => {
     const recordBody = {
-      NotificationID: '1234',
+      NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
       DepartmentID: 'TEST01',
       UserID: 'UserID',
       NotificationTitle: 'Hi there',
@@ -111,7 +111,7 @@ describe('NotificationsDynamoRepository', () => {
 
   describe('CreateRecordBatch', () => {
     const recordBody = {
-      NotificationID: '1234',
+      NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
       DepartmentID: 'TEST01',
       UserID: 'UserID',
       NotificationTitle: 'Hi there',
@@ -188,7 +188,7 @@ describe('NotificationsDynamoRepository', () => {
     it('should successful send an update item request to dynamo client.', async () => {
       // Arrange
       const mockUpdatedRecord: Partial<IMessageRecord> = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
@@ -223,7 +223,7 @@ describe('NotificationsDynamoRepository', () => {
     it('should log an error if the request fails', async () => {
       // Arrange
       const record: Partial<IMessageRecord> = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
@@ -244,9 +244,9 @@ describe('NotificationsDynamoRepository', () => {
   describe('GetRecord', () => {
     it('should return unmarshall data', async () => {
       // Arrange
-      const mockNotificationID = '1234';
+      const mockNotificationID = '2536bd9b-611b-453c-ba3d-e34783e4c9d1';
       const mockRecord: IMessageRecord = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'DVLA01',
         UserID: 'UserID',
         MessageTitle: 'You have a new Message',

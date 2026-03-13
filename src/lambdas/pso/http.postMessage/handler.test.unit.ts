@@ -29,7 +29,7 @@ describe('PostMessage Handler', () => {
 
   // Mock Message Body
   const mockMessageBody = {
-    NotificationID: '1234',
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DEP01',
     UserID: 'UserID',
     MessageTitle: 'You have a new Message',

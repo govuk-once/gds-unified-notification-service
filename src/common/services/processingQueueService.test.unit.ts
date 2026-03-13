@@ -33,7 +33,7 @@ describe('ProcessingQueueService', () => {
   let mockParameterStore = mockDefaultConfig();
 
   const mockMessageBody = {
-    NotificationID: '1234',
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DVLA01',
     UserID: 'UserID',
     MessageTitle: 'You have a new Message',
@@ -133,7 +133,7 @@ describe('ProcessingQueueService', () => {
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
       // Arrange
       const mockMessageBody_0 = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'DVLA01',
         UserID: 'UserID',
         MessageTitle: 'You have a new Message',
@@ -142,7 +142,7 @@ describe('ProcessingQueueService', () => {
         NotificationBody: 'The DVLA has issued you a new license.',
       };
       const mockMessageBody_1 = {
-        NotificationID: '1235',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'DVLA01',
         UserID: 'UserID-1',
         MessageTitle: 'You have a new Message',
@@ -164,12 +164,12 @@ describe('ProcessingQueueService', () => {
         QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
         Entries: [
           {
-            Id: '1234',
+            Id: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
             DelaySeconds: 0,
             MessageBody: JSON.stringify(mockMessageBody_0),
           },
           {
-            Id: '1235',
+            Id: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
             DelaySeconds: 0,
             MessageBody: JSON.stringify(mockMessageBody_1),
           },

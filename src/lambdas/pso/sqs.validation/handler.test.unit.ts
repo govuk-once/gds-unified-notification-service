@@ -38,7 +38,7 @@ describe('Validation QueueHandler', () => {
   } as unknown as Context;
 
   const mockMessageBody: IMessage = {
-    NotificationID: '1234',
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'TEST01',
     UserID: 'UserID',
     NotificationTitle: 'Hi there',
@@ -88,11 +88,9 @@ describe('Validation QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          // Set NotificationID to undefined on purpose
-          NotificationID: undefined,
+          // Set DepartmentID to undefined on purpose
           UserID: 'invalid-id',
-          ExternalUserID: 'test',
-          DepartmentID: 'invalid-id',
+          DepartmentID: undefined,
           NotificationTitle: 'Boom',
           NotificationBody: 'psst',
         },
@@ -239,22 +237,12 @@ describe('Validation QueueHandler', () => {
     ]);
   });
 
-  it('should trigger analytics for failure events', async () => {
+  it('should not trigger analytics for unidentifieable events', async () => {
     // Act
     await handler(mockFailedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
-      1,
-      [
-        {
-          NotificationID: 'invalid-id',
-          UserID: 'invalid-id',
-          DepartmentID: 'invalid-id',
-        },
-      ],
-      'VALIDATING'
-    );
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(1, [], 'VALIDATING');
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
       1,
       {
@@ -266,7 +254,7 @@ describe('Validation QueueHandler', () => {
     );
   });
 
-  it('should log when a message has no NotificationID or DepartmentID', async () => {
+  it('should log when a message has no DepartmentID', async () => {
     // Act
     await instance.handler()(mockUnidentifiableEvent, mockContext);
 
@@ -274,7 +262,7 @@ describe('Validation QueueHandler', () => {
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: '✖ Invalid input: expected string, received undefined\n  → at body.NotificationID',
+        errors: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
         raw: mockUnidentifiableEvent.Records[0],
       }
     );
@@ -297,7 +285,7 @@ describe('Validation QueueHandler', () => {
       1,
       {
         DepartmentID: 'TEST01',
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
       },
       'VALIDATION_FAILED',
       expect.stringContaining(`https://google.com is using google.com hostname which is not on the allow list.`)
