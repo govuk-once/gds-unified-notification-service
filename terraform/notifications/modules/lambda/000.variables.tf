@@ -140,3 +140,10 @@ variable "additional_kms_decrypts" {
   type        = map(string)
   default     = {}
 }
+
+variable "dead_letter_queue_arn" {
+  description = "Dead Letter Queue Arn"
+  type        = string
+  nullable    = true
+  default     = null
+}

@@ -55,3 +55,27 @@ variable "kms_data_key_reuse_period_seconds" {
   type        = number
   default     = 300
 }
+
+variable "create_dead_letter_queue" {
+  description = "Whether to create a Dead Letter Queue for this SQS queue"
+  type        = bool
+  default     = false
+}
+
+variable "max_receieve" {
+  description = "Number of times a message is delivered before being moved to the dead letter queue"
+  type        = number
+  default     = 3
+}
+
+variable "dead_letter_queue_delay_seconds" {
+  description = "Delivery delay for dead letter queue in seconds"
+  type        = number
+  default     = 0
+}
+
+variable "dead_letter_queue_message_retention_seconds" {
+  description = "How long the dead letter queue retains messages before expiry"
+  type        = number
+  default     = 1209600
+}
