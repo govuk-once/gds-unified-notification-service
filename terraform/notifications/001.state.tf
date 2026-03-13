@@ -48,6 +48,12 @@ variable "use_mtls" {
   description = "Whether mTLS features should be enabled - Note: disabling this is only acceptable for dev sandbox environments"
   default     = true
 }
+variable "mtls_env_to_use" {
+  type        = string
+  nullable    = true
+  default     = null
+  description = "Allows specifying which env to use mtls configuration of: defaults to current env if not defined, can be used by developers to re-use the shared configuration within dev environment instead of creating multiple PCAs"
+}
 
 terraform {
   backend "s3" {
