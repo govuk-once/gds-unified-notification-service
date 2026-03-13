@@ -4,14 +4,14 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
@@ -31,7 +31,7 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
 /**
  * Lambda handling incoming messages from a api request
  * - Validates input against zod schema
- *   - Stores messages into inbound dynamodb
+ *   - Stores messages into notifications dynamodb
  * - Fires analytics events
  * - Pushes messages into processing queue
  * 
@@ -65,7 +65,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   public responseBodySchema = responseBodySchema;
 
   public analyticsService: AnalyticsService;
-  public inboundTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
   constructor(
@@ -109,7 +109,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
     // Create a record of message in Dynamodb
     this.observability.logger.trace('Creating record of validated messages that have been passed to queue.');
-    await this.inboundTable.createRecordBatch(
+    await this.notificationsDynamoRepository.createRecordBatch(
       messages.map(
         (body): IMessageRecord => ({
           ...body,
@@ -139,7 +139,7 @@ export const handler = new PostMessage(
   iocGetContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
+    notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })
 ).handler();

@@ -1,13 +1,13 @@
 import {
   APIHandler,
   HandlerDependencies,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
@@ -43,7 +43,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
@@ -59,7 +59,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     // Fetch notification
-    const notification = await this.inboundNotificationTable.getRecord(_event.pathParameters.notificationId ?? '');
+    const notification = await this.notificationsDynamoRepository.getRecord(_event.pathParameters.notificationId ?? '');
 
     // If it doesnt exist - 404
     if (notification == null) {
@@ -81,5 +81,5 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
 }
 
 export const handler = new GetNotificationStatus(iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

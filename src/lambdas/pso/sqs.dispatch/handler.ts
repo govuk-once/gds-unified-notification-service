@@ -4,13 +4,13 @@ import {
   iocGetAnalyticsService,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetNotificationService,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
@@ -56,7 +56,7 @@ import { Context } from 'aws-lambda';
 export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
 
-  public inboundDynamodbRepository: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analyticsService: AnalyticsService;
   public notificationsService: NotificationService;
   public cacheService: CacheService;
@@ -134,7 +134,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       });
 
       // Update stored record with timestamp
-      await this.inboundDynamodbRepository.updateRecord({
+      await this.notificationsDynamoRepository.updateRecord({
         ...extractIdentifiers(valid),
         DispatchedAt: new Date().toISOString(),
       });
@@ -185,7 +185,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
 }
 
 export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   notificationsService: iocGetNotificationService(),
   analyticsService: iocGetAnalyticsService(),
   cacheService: iocGetCacheService().connect(),

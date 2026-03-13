@@ -113,7 +113,7 @@ describe('Dispatch QueueHandler', () => {
     );
 
     // Mocking successful completion of service functions
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
@@ -123,7 +123,7 @@ describe('Dispatch QueueHandler', () => {
     serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
     instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
       cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
     }));
@@ -206,7 +206,7 @@ describe('Dispatch QueueHandler', () => {
     });
   });
 
-  it('should update data in the inbound message table', async () => {
+  it('should update data in the notifications message table', async () => {
     // Arrange
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
@@ -220,7 +220,7 @@ describe('Dispatch QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
+    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
       DepartmentID: mockMessageBody.DepartmentID,
       NotificationID: mockMessageBody.NotificationID,
       UserID: mockMessageBody.UserID,

@@ -45,11 +45,11 @@ describe('Analytics QueueHandler', () => {
     vi.clearAllMocks();
 
     // Mocking successful completion of service functions
-    serviceMocks.inboundDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
 
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
-      inbound: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notifications: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
     handler = instance.handler();
 
@@ -80,8 +80,8 @@ describe('Analytics QueueHandler', () => {
 
     // Assert
     // - Entries have been created
-    expect(serviceMocks.inboundDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.inboundDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
     // - Cached hashmap of status and notification ID has been triggered
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', validData.Event);
@@ -107,8 +107,8 @@ describe('Analytics QueueHandler', () => {
 
     // Assert
     // - Entries have been created
-    expect(serviceMocks.inboundDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.inboundDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
     // - Cached hashmap of status and notification ID has been triggered
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe('Analytics QueueHandler', () => {
     await handler(event, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(0);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(0);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(0);
   });
 });

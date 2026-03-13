@@ -1,13 +1,13 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   IFlexNotificationSchema,
@@ -41,7 +41,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -67,7 +67,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       throw new httpErrors.BadRequest();
     }
 
-    const notifications = await this.inboundNotificationTable.getRecords<IMessageRecord>({
+    const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
       value: externalUserId,
     });
@@ -80,5 +80,5 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 }
 
 export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

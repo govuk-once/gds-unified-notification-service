@@ -7,7 +7,7 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -22,8 +22,8 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-describe('InboundDynamoRepository', () => {
-  let instance: InboundDynamoRepository;
+describe('NotificationsDynamoRepository', () => {
+  let instance: NotificationsDynamoRepository;
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
@@ -44,7 +44,7 @@ describe('InboundDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = new NotificationsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await instance.initialize();
   });
 
@@ -52,7 +52,7 @@ describe('InboundDynamoRepository', () => {
     it('should call super.initialize with correct parameters and return this', async () => {
       // Arrange
       const superInitalize = vi
-        .spyOn(Object.getPrototypeOf(InboundDynamoRepository.prototype), 'initialize')
+        .spyOn(Object.getPrototypeOf(NotificationsDynamoRepository.prototype), 'initialize')
         .mockResolvedValue(undefined);
 
       // Act

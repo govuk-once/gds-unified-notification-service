@@ -85,13 +85,13 @@ describe('PatchNotification Handler', () => {
     } as unknown as EventType;
 
     instance = new PatchNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       analytics: Promise.resolve(serviceMocks.analyticsServiceMock),
     }));
 
     handler = instance.handler();
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
+    serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -189,7 +189,7 @@ describe('PatchNotification Handler', () => {
   it('should return 404 when notifications does not exist', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
 
     // Act
     const result = await handler(mockEvent, mockContext);

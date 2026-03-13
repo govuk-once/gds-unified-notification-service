@@ -85,7 +85,7 @@ describe('PostMessage Handler', () => {
       serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })
     );
@@ -93,7 +93,7 @@ describe('PostMessage Handler', () => {
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
-    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -110,7 +110,7 @@ describe('PostMessage Handler', () => {
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
   });
 
-  it('should make a record of inbound messages', async () => {
+  it('should make a record of notifications messages', async () => {
     // Arrange
     vi.useFakeTimers();
     const date = new Date();
@@ -120,7 +120,7 @@ describe('PostMessage Handler', () => {
     await handler({ ...mockEvent }, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         ...mockMessageBody,
         APIGWExtendedID: mockEvent.requestContext.requestId,

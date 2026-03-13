@@ -20,7 +20,7 @@ describe('GetNotificationStatus Handler', () => {
   let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
   beforeEach(() => {
     instance = new GetNotificationStatus(observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
 
     // Mock AWS Lambda Context
@@ -41,7 +41,7 @@ describe('GetNotificationStatus Handler', () => {
 
   it('should log "Received request" when implementation is called', async () => {
     // Arrange
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(undefined);
 
     // Act
     const result = await handler(mockEvent, mockContext);

@@ -1,14 +1,14 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   IFlexNotificationSchema,
@@ -40,7 +40,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = IFlexNotificationSchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -67,7 +67,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.inboundNotificationTable.getRecord(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationId);
 
     // Handle not found or hidden notifications
     if (!notification) {
@@ -91,5 +91,5 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 }
 
 export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

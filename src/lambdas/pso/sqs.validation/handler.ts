@@ -4,13 +4,13 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   ConfigurationService,
@@ -31,7 +31,7 @@ import { Context } from 'aws-lambda';
 /**
  * Lambda handling incoming messages from a dedicated SQS Queue
  * - Validates input
- *   - Stores valid messages into inbound dynamodb
+ *   - Stores valid messages into notifications dynamodb
  * - Fires analytics events
  * - Pushes valid messages into processing queue
  * 
@@ -64,7 +64,7 @@ export class Validation extends QueueHandler<IMessage> {
   public operationId: string = 'validation';
 
   public analyticsService: AnalyticsService;
-  public inboundTable: InboundDynamoRepository;
+  public notificationsRepository: NotificationsDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
   constructor(
@@ -115,8 +115,8 @@ export class Validation extends QueueHandler<IMessage> {
     });
 
     if (validRecords.length > 0) {
-      // Store valid entries in inbound table
-      await this.inboundTable.createRecordBatch(
+      // Store valid entries in notifications repository
+      await this.notificationsRepository.createRecordBatch(
         validRecords.map(
           ({ valid: { body, attributes } }): IMessageRecord => ({
             ...body,
@@ -168,7 +168,7 @@ export const handler = new Validation(
   iocGetContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
+    notificationsRepository: iocGetNotificationDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })
 ).handler();

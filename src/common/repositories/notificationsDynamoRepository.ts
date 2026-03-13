@@ -4,7 +4,7 @@ import { StringParameters } from '@common/utils/parameters';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 
-export class InboundDynamoRepository extends DynamodbRepository<IMessageRecord> {
+export class NotificationsDynamoRepository extends DynamodbRepository<IMessageRecord> {
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService

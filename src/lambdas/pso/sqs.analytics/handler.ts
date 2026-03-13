@@ -2,11 +2,11 @@ import {
   HandlerDependencies,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
@@ -40,7 +40,7 @@ import { Context } from 'aws-lambda';
 export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
   public cache: CacheService;
-  public inbound: InboundDynamoRepository;
+  public notifications: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -74,7 +74,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 
     // Update notification object with status event
     for (const entry of entries) {
-      await this.inbound.addEvent(entry);
+      await this.notifications.addEvent(entry);
     }
 
     // For each updated row - also update the redis cache
@@ -91,5 +91,5 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   cache: iocGetCacheService().connect(),
-  inbound: iocGetInboundDynamoRepository(),
+  notifications: iocGetNotificationDynamoRepository(),
 })).handler();

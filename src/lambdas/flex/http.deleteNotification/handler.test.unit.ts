@@ -80,12 +80,12 @@ describe('DeleteNotification Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new DeleteNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
     }));
 
     handler = instance.handler();
-    serviceMocks.inboundDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
   });
 

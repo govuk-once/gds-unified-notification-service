@@ -112,7 +112,7 @@ describe('Validation QueueHandler', () => {
     // Mocking successful completion of service functions
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
@@ -123,7 +123,7 @@ describe('Validation QueueHandler', () => {
       serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })
     );
@@ -226,12 +226,12 @@ describe('Validation QueueHandler', () => {
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
   });
 
-  it('should store data in the inbound message table', async () => {
+  it('should store data in the notifications message table', async () => {
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',

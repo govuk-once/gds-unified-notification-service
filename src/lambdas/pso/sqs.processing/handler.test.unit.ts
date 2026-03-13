@@ -114,13 +114,13 @@ describe('Processing QueueHandler', () => {
     // Mocking successful completion of service functions
     serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Processing(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       dispatchQueue: serviceMocks.dispatchQueueServiceMock.initialize(),
     }));
     handler = instance.handler();
@@ -185,7 +185,7 @@ describe('Processing QueueHandler', () => {
     );
   });
 
-  it('should update data in the inbound message table', async () => {
+  it('should update data in the notifications message table', async () => {
     // Arrange
     vi.useFakeTimers();
     const date = new Date();
@@ -195,7 +195,7 @@ describe('Processing QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
+    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,

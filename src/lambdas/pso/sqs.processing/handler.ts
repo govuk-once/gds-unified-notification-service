@@ -4,12 +4,12 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetDispatchQueueService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
 import { BoolParameters, groupValidation } from '@common/utils';
 import {
@@ -54,7 +54,7 @@ export class Processing extends QueueHandler<IMessage, void> {
   public operationId: string = 'processing';
 
   public analyticsService: AnalyticsService;
-  public inboundTable: InboundDynamoRepository;
+  public notificationsRepository: NotificationsDynamoRepository;
   public dispatchQueue: DispatchQueueService;
 
   constructor(
@@ -102,7 +102,7 @@ export class Processing extends QueueHandler<IMessage, void> {
       ExternalUserID: `${body.UserID}`,
     }));
 
-    // Update stored rows in inbound message
+    // Update stored rows in notifications message
     for (const processed of processedMessages) {
       this.observability.logger.info(`Updating entry with timestamp`, {
         NotificationID: processed.NotificationID,
@@ -110,7 +110,7 @@ export class Processing extends QueueHandler<IMessage, void> {
       });
 
       // Store External User ID and mark record as processed
-      await this.inboundTable.updateRecord({
+      await this.notificationsRepository.updateRecord({
         ...extractIdentifiers(processed),
         ExternalUserID: processed.ExternalUserID,
         ProcessedDateTime: new Date().toISOString(),
@@ -154,6 +154,6 @@ export class Processing extends QueueHandler<IMessage, void> {
 
 export const handler = new Processing(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
-  inboundTable: iocGetInboundDynamoRepository(),
+  notificationsRepository: iocGetNotificationDynamoRepository(),
   dispatchQueue: iocGetDispatchQueueService(),
 })).handler();

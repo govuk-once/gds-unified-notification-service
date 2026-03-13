@@ -94,12 +94,12 @@ describe('getNotifications Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockDbRecord]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockDbRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -127,7 +127,7 @@ describe('getNotifications Handler', () => {
     await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
+    expect(serviceMocks.notificationsDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
       field: 'ExternalUserID',
       value: 'user-ABC',
     });
@@ -136,7 +136,7 @@ describe('getNotifications Handler', () => {
   it('should return an empty array when there are no notifications', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
 
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);

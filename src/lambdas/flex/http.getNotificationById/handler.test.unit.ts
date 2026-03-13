@@ -86,12 +86,12 @@ describe('GetNotificationById Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
   });
 
   it('should have the correct operationId', () => {
@@ -133,7 +133,7 @@ describe('GetNotificationById Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
+    expect(serviceMocks.notificationsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
       mockEvent.pathParameters.notificationId
     );
   });
