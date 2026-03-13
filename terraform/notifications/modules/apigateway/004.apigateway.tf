@@ -48,12 +48,12 @@ resource "aws_api_gateway_rest_api" "this" {
       securitySchemes = {
         for authorizer, config in var.authorizers : authorizer => {
           type                           = "apiKey",
-          name                           = "Authorization"
+          name                           = "Unused"
           in                             = "header"
-          "x-amazon-apigateway-authtype" = "CUSTOM"
+          "x-amazon-apigateway-authtype" = "custom"
           "x-amazon-apigateway-authorizer" = {
             type                           = "REQUEST",
-            identitySource                 = "method.request.header.Authorization",
+            identitySource                 = "context.identity.clientCert.clientCertPem", # Passes all requests to mtls authorizer
             authorizerUri                  = "${config.lambda_invoke_arn}"
             authorizerCredentials          = aws_iam_role.apigw_role.arn
             authorizerPayloadFormatVersion = "2.0",

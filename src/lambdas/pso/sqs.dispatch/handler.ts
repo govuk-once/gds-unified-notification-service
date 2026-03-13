@@ -4,13 +4,13 @@ import {
   iocGetAnalyticsService,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetNotificationService,
   iocGetObservabilityService,
 } from '@common/ioc';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
@@ -20,7 +20,6 @@ import {
 } from '@common/services';
 import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
 import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 
@@ -57,7 +56,7 @@ import { Context } from 'aws-lambda';
 export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
 
-  public inboundDynamodbRepository: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analyticsService: AnalyticsService;
   public notificationsService: NotificationService;
   public cacheService: CacheService;
@@ -89,7 +88,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
-      ValidationEnum.DISPATCHING
+      NotificationStateEnum.DISPATCHING
     );
 
     // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
@@ -135,9 +134,9 @@ export class Dispatch extends QueueHandler<unknown, void> {
       });
 
       // Update stored record with timestamp
-      await this.inboundDynamodbRepository.updateRecord<Partial<IMessageRecord>>({
+      await this.notificationsDynamoRepository.updateRecord({
         ...extractIdentifiers(valid),
-        DispatchedStartDateTime: new Date().toISOString(),
+        DispatchedAt: new Date().toISOString(),
       });
 
       // Increment rate limiter post request
@@ -152,10 +151,10 @@ export class Dispatch extends QueueHandler<unknown, void> {
       // Analytics event
       if (success) {
         this.observability.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
+        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
       } else {
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
+        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
       }
     }
 
@@ -178,7 +177,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
         },
-        ValidationEnum.DISPATCHING_FAILED,
+        NotificationStateEnum.DISPATCHING_FAILED,
         errors
       );
     }
@@ -186,7 +185,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
 }
 
 export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   notificationsService: iocGetNotificationService(),
   analyticsService: iocGetAnalyticsService(),
   cacheService: iocGetCacheService().connect(),

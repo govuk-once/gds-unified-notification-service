@@ -1,15 +1,19 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import {
+  IFlexNotificationSchema,
+  IMessageRecordToIFlexNotification,
+} from '@project/lambdas/interfaces/IFlexNotification';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
@@ -37,7 +41,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -63,18 +67,18 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       throw new httpErrors.BadRequest();
     }
 
-    const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>({
+    const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
       value: externalUserId,
     });
 
     return {
-      body: notifications.map((n) => IFlexNotificationSchema.parse({ ...n, Status: 'UNREAD' })),
+      body: notifications.map((n) => IMessageRecordToIFlexNotification(n)),
       statusCode: 200,
     };
   }
 }
 
 export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

@@ -1,14 +1,16 @@
 import {
   HandlerDependencies,
+  iocGetAnalyticsService,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { NotificationsDynamoRepository } from '@common/repositories';
+import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
@@ -36,7 +38,8 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
+  public analyticsService: AnalyticsService;
 
   constructor(
     protected config: ConfigurationService,
@@ -63,21 +66,15 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.inboundNotificationTable.getRecord(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationId);
 
     if (!notification) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.NotFound();
     }
 
-    const expiredDate = new Date();
-    expiredDate.setDate(expiredDate.getDate() + 30);
-    const expiredAtEpoch = expiredDate.toISOString();
-
-    await this.inboundNotificationTable.updateRecord({
-      NotificationID: notificationId,
-      ExpiredAtEpoch: expiredAtEpoch,
-    });
+    // Trigger marking as hidden
+    await this.analyticsService.publishEvent(notification, NotificationStateEnum.HIDDEN);
 
     return {
       body: {},
@@ -87,5 +84,6 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 }
 
 export const handler = new DeleteNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
+  analyticsService: iocGetAnalyticsService(),
 })).handler();

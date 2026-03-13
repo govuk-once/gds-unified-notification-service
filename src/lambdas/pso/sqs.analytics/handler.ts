@@ -2,11 +2,11 @@ import {
   HandlerDependencies,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetEventsDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { EventsDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
@@ -40,7 +40,7 @@ import { Context } from 'aws-lambda';
 export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
   public cache: CacheService;
-  public events: EventsDynamoRepository;
+  public notifications: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -71,14 +71,10 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     const entries = validRecords
       .map(({ valid }) => valid)
       .filter((record) => record !== undefined) satisfies IAnalytics[];
-    const createEntriesMeta = {
-      NotificationIDs: entries.map(({ NotificationID }) => NotificationID),
-    };
 
-    if (entries.length > 0) {
-      this.observability.logger.info(`Creating entries in batch`, createEntriesMeta);
-      await this.events.createRecordBatch(entries);
-      this.observability.logger.info(`Completes saving entries in batch`, createEntriesMeta);
+    // Update notification object with status event
+    for (const entry of entries) {
+      await this.notifications.addEvent(entry);
     }
 
     // For each updated row - also update the redis cache
@@ -94,6 +90,6 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 }
 
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  events: iocGetEventsDynamoRepository(),
   cache: iocGetCacheService().connect(),
+  notifications: iocGetNotificationDynamoRepository(),
 })).handler();

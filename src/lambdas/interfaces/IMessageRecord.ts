@@ -1,26 +1,34 @@
-export interface IMessageRecord {
+import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import * as z from 'zod';
+
+export const IMessageRecordSchema = z.object({
   // IDs
-  NotificationID: string;
-  DepartmentID: string;
-  UserID: string;
+  NotificationID: z.string(),
+  DepartmentID: z.string(),
+  UserID: z.string(),
 
   // External ids
-  TraceID?: string;
-  ExternalResponseID?: string;
-  OneSignalID?: string;
-  APIGWExtendedID?: string;
-  ExternalUserID?: string;
+  TraceID: z.string().optional(),
+  ExternalResponseID: z.string().optional(),
+  OneSignalID: z.string().optional(),
+  APIGWExtendedID: z.string().optional(),
+  ExternalUserID: z.string().optional(),
 
   // Contents
-  NotificationTitle: string;
-  NotificationBody: string;
-  MessageTitle?: string;
-  MessageBody?: string;
+  NotificationTitle: z.string(),
+  NotificationBody: z.string(),
+  MessageTitle: z.string().optional(),
+  MessageBody: z.string().optional(),
 
   // Events
-  ReceivedDateTime?: string;
-  ValidatedDateTime?: string;
-  ProcessedDateTime?: string;
-  DispatchedStartDateTime?: string;
-  SentDateTime?: string;
-}
+  ReceivedDateTime: z.string().optional(),
+  ValidatedDateTime: z.string().optional(),
+  ProcessedDateTime: z.string().optional(),
+  DispatchedAt: z.string().optional(),
+  SentDateTime: z.string().optional(),
+
+  // Events
+  Events: z.array(IAnalyticsSchema),
+});
+
+export type IMessageRecord = z.infer<typeof IMessageRecordSchema>;
