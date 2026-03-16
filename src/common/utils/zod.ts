@@ -12,11 +12,10 @@ export const groupValidation = async <T, U extends z.ZodRawShape>(data: T[], sch
 
   const invalid = records
     .filter(([, parseResult]) => parseResult.success == false)
-    .map(([record, parseResult]) => {
-      const errors = parseResult.error ? z.prettifyError(parseResult.error) : {};
-      const partialParse = schema.partial().safeParse(record);
-      return { raw: record, errors, partialParse };
-    });
+    .map(([record, parseResult]) => ({
+      raw: record,
+      errors: parseResult.error ? z.prettifyError(parseResult.error) : {},
+    }));
 
   return [data, valid, invalid] as const;
 };
