@@ -11,11 +11,9 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Queue.Analytics.Url]: 'sqsurl/sqsanalytics',
     [StringParameters.Queue.Dispatch.Url]: 'sqsurl/sqsdispatch',
     [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
-    [StringParameters.Api.PostMessage.ApiKey]: 'mockApiKey',
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
-    [StringParameters.Table.Inbound.Name]: 'mockInboundTableName',
-    [StringParameters.Table.Events.Name]: 'mockEventTableName',
+    [StringParameters.Table.Inbound.Name]: 'mocknotificationsDynamoRepositoryName',
     [StringParameters.Table.MTLSRevocation.Name]: 'mockMtlsRevocationTableName',
     // Content filtering
     [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
@@ -36,11 +34,6 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       hashKey: 'NotificationID',
       rangeKey: null,
     }),
-    [StringParameters.Table.Events.KeyAttributes]: JSON.stringify({
-      attributes: ['EventID', 'EventDateTime', 'NotificationID', 'DepartmentID'],
-      hashKey: 'EventID',
-      rangeKey: 'DepartmentID',
-    }),
     [StringParameters.Table.MTLSRevocation.KeyAttributes]: JSON.stringify({
       attributes: [],
       hashKey: 'Id',
@@ -54,7 +47,6 @@ export const mockGetParameterImplementation = (records: Record<string, string | 
     if (records[parameter] instanceof Error) {
       throw records[parameter];
     }
-    console.log(parameter);
     // Otherwise just return value
     return Promise.resolve(records[parameter]);
   };

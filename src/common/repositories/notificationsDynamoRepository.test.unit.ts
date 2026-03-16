@@ -7,7 +7,7 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { InboundDynamoRepository } from '@common/repositories/inboundDynamoRepository';
+import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -22,8 +22,8 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-describe('InboundDynamoRepository', () => {
-  let instance: InboundDynamoRepository;
+describe('NotificationsDynamoRepository', () => {
+  let instance: NotificationsDynamoRepository;
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
@@ -44,7 +44,7 @@ describe('InboundDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new InboundDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = new NotificationsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await instance.initialize();
   });
 
@@ -52,7 +52,7 @@ describe('InboundDynamoRepository', () => {
     it('should call super.initialize with correct parameters and return this', async () => {
       // Arrange
       const superInitalize = vi
-        .spyOn(Object.getPrototypeOf(InboundDynamoRepository.prototype), 'initialize')
+        .spyOn(Object.getPrototypeOf(NotificationsDynamoRepository.prototype), 'initialize')
         .mockResolvedValue(undefined);
 
       // Act
@@ -69,12 +69,13 @@ describe('InboundDynamoRepository', () => {
 
   describe('CreateRecord', () => {
     const recordBody = {
-      NotificationID: '1234',
+      NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
       DepartmentID: 'TEST01',
       UserID: 'UserID',
       NotificationTitle: 'Hi there',
       NotificationBody: 'You have a new message in the message center',
       ReceivedDateTime: '202601021513',
+      Events: [],
     };
 
     it('marshall record should be sent', async () => {
@@ -110,12 +111,13 @@ describe('InboundDynamoRepository', () => {
 
   describe('CreateRecordBatch', () => {
     const recordBody = {
-      NotificationID: '1234',
+      NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
       DepartmentID: 'TEST01',
       UserID: 'UserID',
       NotificationTitle: 'Hi there',
       NotificationBody: 'You have a new message in the message center',
       ReceivedDateTime: '202601021513',
+      Events: [],
     };
 
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
@@ -186,7 +188,7 @@ describe('InboundDynamoRepository', () => {
     it('should successful send an update item request to dynamo client.', async () => {
       // Arrange
       const mockUpdatedRecord: Partial<IMessageRecord> = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
@@ -221,7 +223,7 @@ describe('InboundDynamoRepository', () => {
     it('should log an error if the request fails', async () => {
       // Arrange
       const record: Partial<IMessageRecord> = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
@@ -242,9 +244,9 @@ describe('InboundDynamoRepository', () => {
   describe('GetRecord', () => {
     it('should return unmarshall data', async () => {
       // Arrange
-      const mockNotificationID = '1234';
+      const mockNotificationID = '2536bd9b-611b-453c-ba3d-e34783e4c9d1';
       const mockRecord: IMessageRecord = {
-        NotificationID: '1234',
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'DVLA01',
         UserID: 'UserID',
         MessageTitle: 'You have a new Message',
@@ -252,6 +254,7 @@ describe('InboundDynamoRepository', () => {
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
         ReceivedDateTime: '202601021513',
+        Events: [],
       };
 
       dynamoMock.on(GetItemCommand).resolves({

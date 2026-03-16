@@ -4,13 +4,13 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
 } from '@common/ioc';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   ConfigurationService,
@@ -31,7 +31,7 @@ import { Context } from 'aws-lambda';
 /**
  * Lambda handling incoming messages from a dedicated SQS Queue
  * - Validates input
- *   - Stores valid messages into inbound dynamodb
+ *   - Stores valid messages into notifications dynamodb
  * - Fires analytics events
  * - Pushes valid messages into processing queue
  * 
@@ -64,7 +64,7 @@ export class Validation extends QueueHandler<IMessage> {
   public operationId: string = 'validation';
 
   public analyticsService: AnalyticsService;
-  public inboundTable: InboundDynamoRepository;
+  public notificationsRepository: NotificationsDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
   constructor(
@@ -94,13 +94,13 @@ export class Validation extends QueueHandler<IMessage> {
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
-      ValidationEnum.VALIDATING
+      NotificationStateEnum.VALIDATING
     );
 
     // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
     const [, validRecords, invalidRecords] = await groupValidation(
       event.Records,
-      SqsRecordSchema.extend({ body: IMessageSchema }).superRefine(async (data, ctx) => {
+      SqsRecordSchema.extend({ body: IMessageSchema.strict() }).superRefine(async (data, ctx) => {
         // Deeplink validation injected into schema here
         try {
           await this.contentValidationService.validate(data.body.MessageBody);
@@ -115,13 +115,14 @@ export class Validation extends QueueHandler<IMessage> {
     });
 
     if (validRecords.length > 0) {
-      // Store valid entries in inbound table
-      await this.inboundTable.createRecordBatch(
+      // Store valid entries in notifications repository
+      await this.notificationsRepository.createRecordBatch(
         validRecords.map(
           ({ valid: { body, attributes } }): IMessageRecord => ({
             ...body,
             ReceivedDateTime: attributes.ApproximateFirstReceiveTimestamp,
             ValidatedDateTime: new Date().toISOString(),
+            Events: [],
           })
         )
       );
@@ -129,7 +130,7 @@ export class Validation extends QueueHandler<IMessage> {
       // Publish analytics & push items to the processing queue
       await this.analyticsService.publishMultipleEvents(
         validRecords.map(({ valid }) => valid.body),
-        ValidationEnum.VALIDATED
+        NotificationStateEnum.VALIDATED
       );
 
       // Publish messages to the next stage
@@ -155,7 +156,7 @@ export class Validation extends QueueHandler<IMessage> {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
         },
-        ValidationEnum.VALIDATION_FAILED,
+        NotificationStateEnum.VALIDATION_FAILED,
         errors
       );
     }
@@ -167,7 +168,7 @@ export const handler = new Validation(
   iocGetContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
+    notificationsRepository: iocGetNotificationDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })
 ).handler();

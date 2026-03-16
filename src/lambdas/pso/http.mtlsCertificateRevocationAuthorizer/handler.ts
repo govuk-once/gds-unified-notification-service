@@ -9,7 +9,6 @@ import {
 } from '@common';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import { ObservabilityService } from '@common/services';
-import { MTLSRevocation } from '@project/lambdas/interfaces/MTLSRevocationTable';
 import type { APIGatewayAuthorizerResult, Context } from 'aws-lambda';
 import { createHash } from 'node:crypto';
 import z from 'zod';
@@ -85,7 +84,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
     const certificateId = createHash('sha256')
       .update((_event.requestContext.identity.clientCert?.clientCertPem ?? 'undefined').trim())
       .digest('hex');
-    const certificateRecord = await this.mtlsRevocationDynamoRepository.getRecord<MTLSRevocation>(certificateId);
+    const certificateRecord = await this.mtlsRevocationDynamoRepository.getRecord(certificateId);
 
     // No certificate found
     if (certificateRecord == undefined) {

@@ -11,7 +11,7 @@ import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRe
 import { IDynamoKeyAttributes, IDynamoKeyAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 
-export abstract class DynamodbRepository<RecordType> implements IDynamodbRepository<RecordType> {
+export abstract class DynamodbRepository<RecordType extends object> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
   protected keyAttributes: IDynamoKeyAttributes;
   protected tableName: string;
@@ -36,7 +36,7 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     return this;
   }
 
-  public async createRecord<RecordType>(record: RecordType): Promise<void> {
+  public async createRecord(record: RecordType): Promise<void> {
     this.observability.logger.info(`Creating record in table: ${this.tableName}`);
 
     try {
@@ -82,7 +82,7 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     }
   }
 
-  public async updateRecord<RecordType extends object>(recordFields: RecordType): Promise<void> {
+  public async updateRecord(recordFields: Partial<RecordType>): Promise<void> {
     this.observability.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
 
     const keyValue = recordFields[this.tableKey as keyof RecordType];
@@ -133,7 +133,35 @@ export abstract class DynamodbRepository<RecordType> implements IDynamodbReposit
     }
   }
 
-  public async getRecord<RecordType>(keyValue: string): Promise<RecordType | null> {
+  public async appendToList<T>(keyValue: string, listKey: string, item: T) {
+    const params: UpdateItemCommandInput = {
+      TableName: this.tableName,
+      Key: marshall({
+        [this.tableKey]: keyValue,
+      }),
+      UpdateExpression: 'SET #attr = list_append(#attr, :value)',
+      ExpressionAttributeNames: { '#attr': listKey },
+      ExpressionAttributeValues: marshall({ ':value': item }),
+    };
+
+    try {
+      await this.client.updateItem(params);
+      this.observability.logger.info(`Successfully updated record in table: ${this.tableName}`, {
+        params,
+        listKey,
+        item,
+      });
+    } catch (error) {
+      this.observability.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`, {
+        error,
+        params,
+        listKey,
+        item,
+      });
+    }
+  }
+
+  public async getRecord(keyValue: string): Promise<RecordType | null> {
     this.observability.logger.info(`Retrieving record in table: ${this.tableName} with key: ${this.tableKey}`);
 
     const params = {

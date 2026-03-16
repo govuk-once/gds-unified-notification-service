@@ -1,6 +1,7 @@
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
-import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -28,18 +29,28 @@ describe('DeleteNotification Handler', () => {
   let mockEvent: EventType;
   let mockMissingIdEvent: EventType;
 
-  const mockMessageBody: IFlexNotification = {
-    NotificationID: '12345',
+  const mockDbRecord: IMessageRecord = {
+    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
-    Status: 'READ',
+    Events: [
+      {
+        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+        DepartmentID: 'abc',
+        Event: NotificationStateEnum.RECEIVED,
+        EventDateTime: new Date().toISOString(),
+        EventReason: '',
+        APIGWExtendedID: 'Test',
+      },
+    ],
     DispatchedAt: '2026-02-13',
-  };
+  } as IMessageRecord;
 
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
 
     mockEvent = {
       headers: {
@@ -69,12 +80,13 @@ describe('DeleteNotification Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new DeleteNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
     }));
 
     handler = instance.handler();
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockMessageBody);
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -93,25 +105,19 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(204);
   });
 
-  it('should call updateRecord with ExpiredAtEpoch set to 30 days in the future', async () => {
+  it('should call publish event with the NotificationStateEnum.hidden', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    const mockDateTime = new Date('2026-01-01T00:00:00.000Z');
-    vi.setSystemTime(new Date(mockDateTime));
 
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
-    const call = serviceMocks.inboundDynamoRepositoryMock.updateRecord.mock.calls[0][0] as {
-      NotificationID: string;
-      ExpiredAtEpoch: string;
-    };
-
-    expect(call.NotificationID).toBe('12345');
-    expect(call.ExpiredAtEpoch).toBe('2026-01-31T00:00:00.000Z');
-
-    vi.useRealTimers();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      mockDbRecord,
+      NotificationStateEnum.HIDDEN
+    );
   });
 
   it('should handle errors when calling API key with status internal server error', async () => {

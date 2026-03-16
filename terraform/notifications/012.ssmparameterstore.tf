@@ -19,13 +19,6 @@ module "parameter_store_internal_configuration" {
     "queue/analytics/url"  = module.sqs_analytics.queue_url
 
     // Dynamo
-    "table/events/name" = module.dynamodb_events.table_name
-    "table/events/attributes" = jsonencode({
-      hashKey    = module.dynamodb_events.table_hash_key
-      rangeKey   = module.dynamodb_events.table_range_key
-      attributes = module.dynamodb_events.table_attributes
-    })
-
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
       hashKey    = module.dynamodb_inbound_messages.table_hash_key
@@ -62,10 +55,6 @@ module "parameter_store_external_configuration" {
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "config/dispatch/onesignal/appId"                             = "placeholder"
     "config/common/cache/notificationsProviderRateLimitPerMinute" = "5"
-
-    # Temporary key
-    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
-    "api/postMessage/apiKey" = "mockApiKey"
 
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "api/flex/apiKey" = "mockApiKey"

@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -27,15 +29,25 @@ describe('PatchNotification Handler', () => {
   let mockUnauthorizedEvent: EventType;
   let mockMissingIdEvent: EventType;
 
-  const mockNotification = {
-    notificationID: '12345',
-    messageTitle: 'You have a new Message',
-    messageBody: 'Open Notification Centre to read your notifications',
-    notificationTitle: 'You have a new Notification',
-    notificationBody: 'Here is the Notification body.',
-    status: 'READ',
-    dispatchedAt: '2026-02-13T00:00:01Z',
-  };
+  const mockDbRecord: IMessageRecord = {
+    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    MessageTitle: 'You have a new Message',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    NotificationTitle: 'You have a new Notification',
+    NotificationBody: 'Here is the Notification body.',
+    Events: [
+      {
+        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+        DepartmentID: 'abc',
+        Event: NotificationStateEnum.RECEIVED,
+        EventDateTime: new Date().toISOString(),
+        EventReason: '',
+        APIGWExtendedID: 'Test',
+      },
+    ],
+    DispatchedAt: '2026-02-13',
+  } as IMessageRecord;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -52,7 +64,7 @@ describe('PatchNotification Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
-        notificationId: '12345',
+        notificationId: mockDbRecord.NotificationID,
       },
       body: JSON.stringify({
         Status: 'READ',
@@ -73,12 +85,13 @@ describe('PatchNotification Handler', () => {
     } as unknown as EventType;
 
     instance = new PatchNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      analytics: Promise.resolve(serviceMocks.analyticsServiceMock),
     }));
 
     handler = instance.handler();
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockNotification);
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
+    serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -101,7 +114,7 @@ describe('PatchNotification Handler', () => {
     expect(result.statusCode).toEqual(202);
   });
 
-  it('should call updateRecord to fetch a notification', async () => {
+  it('should call publishEvent to update the notification', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
@@ -109,11 +122,10 @@ describe('PatchNotification Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
-      NotificationID: mockNotification.notificationID,
-      Status: 'READ',
-      UpdatedAt: '2026-02-13T10:00:00.000Z',
-    });
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      mockDbRecord,
+      NotificationStateEnum.READ
+    );
   });
 
   it('should log info when updating notification status', async () => {
@@ -124,8 +136,8 @@ describe('PatchNotification Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.', {
-      notificationId: mockNotification.notificationID,
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request', {
+      notificationId: mockDbRecord.NotificationID,
       status: 'READ',
     });
   });
@@ -177,7 +189,7 @@ describe('PatchNotification Handler', () => {
   it('should return 404 when notifications does not exist', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.inboundDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
 
     // Act
     const result = await handler(mockEvent, mockContext);

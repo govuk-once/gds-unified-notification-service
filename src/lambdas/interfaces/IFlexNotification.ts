@@ -1,19 +1,38 @@
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { IMessageRecord, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessageRecord';
 import z from 'zod';
 
-export const IFlexNotificationSchema = z
-  .object({
-    NotificationID: z.string(),
-    Status: z.string().optional(),
-    NotificationTitle: z.string(),
-    NotificationBody: z.string(),
-    MessageTitle: z.string().optional(),
-    MessageBody: z.string().optional(),
-    DispatchedAt: z.string().optional(),
-  })
+export const IFlexNotificationSchema = IMessageRecordSchema.pick({
+  NotificationID: true,
+  NotificationTitle: true,
+  NotificationBody: true,
+  MessageTitle: true,
+  MessageBody: true,
+  DispatchedAt: true,
+})
+  .extend({ Status: z.enum(NotificationStateEnum).optional() })
   .transform((record) => ({
     ...record,
+    // Backfill message title and body from notification fields as a fallback
     MessageTitle: record.MessageTitle ?? record.NotificationTitle,
     MessageBody: record.MessageBody ?? record.NotificationBody,
   }));
 
 export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
+
+export const IMessageRecordToIFlexNotification = (item: IMessageRecord) => {
+  // Drop unnecessary properties
+  return IFlexNotificationSchema.parse({
+    // Explicitly map
+    NotificationID: item.NotificationID,
+    NotificationTitle: item.NotificationTitle,
+    NotificationBody: item.NotificationBody,
+    MessageTitle: item.MessageTitle,
+    MessageBody: item.MessageBody,
+    DispatchedAt: item.DispatchedAt,
+    // Infer status from Events
+    Status:
+      [...(item.Events ?? [])].sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime)).pop()?.Event ??
+      NotificationStateEnum.UNKNOWN,
+  });
+};

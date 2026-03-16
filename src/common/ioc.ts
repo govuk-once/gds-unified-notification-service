@@ -2,7 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
   AnalyticsQueueService,
@@ -120,16 +120,11 @@ export const iocGetAnalyticsQueueService = ioc(
 );
 
 // Services - DynamoDB
-export const iocGetInboundDynamoRepository = ioc(
-  `InboundDynamoRepository`,
+export const iocGetNotificationDynamoRepository = ioc(
+  `NotificationsDynamoRepository`,
   Mode.TIMEBOUND_SINGLETON,
-  async () => await new InboundDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
-);
-
-export const iocGetEventsDynamoRepository = ioc(
-  `EventsDynamoRepository`,
-  Mode.TIMEBOUND_SINGLETON,
-  async () => await new EventsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+  async () =>
+    await new NotificationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetMTLSRevocationDynamoRepository = ioc(

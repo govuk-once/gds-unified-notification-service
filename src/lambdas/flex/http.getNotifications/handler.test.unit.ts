@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -29,19 +31,34 @@ describe('getNotifications Handler', () => {
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
-  const mockMessageBody: IFlexNotification = {
+  const mockDbRecord: IMessageRecord = {
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
-    Status: 'PENDING',
+    Events: [
+      {
+        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+        DepartmentID: 'abc',
+        Event: NotificationStateEnum.RECEIVED,
+        EventDateTime: new Date().toISOString(),
+        EventReason: '',
+        APIGWExtendedID: 'Test',
+      },
+    ],
     DispatchedAt: '2026-02-13',
-  };
+  } as IMessageRecord;
 
   const mockResponse: IFlexNotification = {
-    ...mockMessageBody,
-    Status: 'UNREAD',
+    DispatchedAt: '2026-02-13',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    MessageTitle: 'You have a new Message',
+    NotificationBody: 'Here is the Notification body.',
+    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationTitle: 'You have a new Notification',
+    Status: NotificationStateEnum.RECEIVED,
   };
 
   beforeEach(() => {
@@ -77,12 +94,12 @@ describe('getNotifications Handler', () => {
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      inboundNotificationTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockMessageBody]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockDbRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -110,7 +127,7 @@ describe('getNotifications Handler', () => {
     await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
+    expect(serviceMocks.notificationsDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
       field: 'ExternalUserID',
       value: 'user-ABC',
     });
@@ -119,7 +136,7 @@ describe('getNotifications Handler', () => {
   it('should return an empty array when there are no notifications', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.inboundDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
 
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);

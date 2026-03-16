@@ -1,6 +1,6 @@
 # Fetch exports from mtls repo for current env
 locals {
-  mtls_ssm_root_path = "/gdsunsmtls-${var.env}/exports"
+  mtls_ssm_root_path = "/gdsunsmtls-${var.mtls_env_to_use == null ? var.env : var.mtls_env_to_use}/exports"
 }
 
 data "aws_ssm_parameters_by_path" "mtls" {
@@ -29,4 +29,11 @@ locals {
   mtls_table_arn        = try(local.mtls_ssm_exports["/table/mtls/arn"], null)
   mtls_table_name       = try(local.mtls_ssm_exports["/table/mtls/name"], "")
   mtls_table_attributes = try(local.mtls_ssm_exports["/table/mtls/attributes"], "")
+}
+
+# Only applying when mtls_env_to_use is set to a different value than env, which is only used in cases of developer sandbox environments
+# Remapping truststore.pem to truststore-${env}.pem when it's being reused
+# Note: Truststore in s3 has to be manually duplicated
+locals {
+  mtls_pso_truststore_mapped = (var.mtls_env_to_use != null && var.mtls_env_to_use != var.env && local.mtls_pso_truststore != null) ? replace(local.mtls_pso_truststore, ".pem", "-${var.env}.pem") : null
 }

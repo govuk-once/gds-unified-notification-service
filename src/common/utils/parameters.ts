@@ -17,9 +17,6 @@ export const BoolParameters = {
 
 export const StringParameters = {
   Api: {
-    PostMessage: {
-      ApiKey: 'api/postMessage/apiKey',
-    },
     Flex: {
       ApiKey: 'api/flex/apiKey',
     },
@@ -55,10 +52,6 @@ export const StringParameters = {
     },
   },
   Table: {
-    Events: {
-      KeyAttributes: 'table/events/attributes',
-      Name: 'table/events/name',
-    },
     Inbound: {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',

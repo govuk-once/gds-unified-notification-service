@@ -1,22 +1,16 @@
-module "lambda_flex_deleteNotification" {
+module "lambda_pso_getNotificationStatus" {
   source        = "./modules/lambda"
   prefix        = local.prefix
   region        = var.region
-  service_name  = "flex"
-  function_name = "deleteNotification"
+  service_name  = "pso"
+  function_name = "getNotificationStatus"
 
   # Using code signing 
   kms_key_arn            = aws_kms_key.main.arn
-  bundle_path            = "../../dist/flex/http.deleteNotification"
+  bundle_path            = "../../dist/pso/http.getNotificationStatus"
   s3_bucket_id           = aws_s3_bucket.code_storage.id
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
-
-
-  // IAM Permissions & SQS trigger linking
-  publish_queues = {
-    analytics = module.sqs_analytics.queue_arn
-  }
 
   dynamo_tables = {
     inbound = {
