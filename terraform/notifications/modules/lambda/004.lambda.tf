@@ -45,7 +45,6 @@ resource "aws_lambda_function" "this" {
       # Open Telemetry instrumentation vars
       AWS_LAMBDA_EXEC_WRAPPER              = "/opt/otel-instrument"
       OTEL_AWS_APPLICATION_SIGNALS_ENABLED = "false"
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS  = "none"
 
       // Flags
       AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING = true
