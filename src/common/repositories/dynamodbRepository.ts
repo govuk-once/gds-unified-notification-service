@@ -241,7 +241,8 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     }
   }
 
-  //
+  // Generates expiration field that can be injected as partial into create/update calls
+  // When expirationAttribute is not set, or expirationDurationInSeconds is 0 - empty object is returned instead
   protected createExpirationDatePartial(): Partial<RecordType> {
     return this.expirationAttribute !== null && this.expirationDurationInSeconds > 0
       ? ({

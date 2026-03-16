@@ -57,7 +57,7 @@ resource "aws_api_gateway_rest_api" "this" {
             authorizerUri                  = "${config.lambda_invoke_arn}"
             authorizerCredentials          = aws_iam_role.apigw_role.arn
             authorizerPayloadFormatVersion = "2.0",
-            authorizerResultTtlInSeconds   = 30,
+            authorizerResultTtlInSeconds   = 0,
             # enableSimpleResponses          = true # This feature flag would be amazing, but it's for HTTP api gateway only, not rest
           }
         }
