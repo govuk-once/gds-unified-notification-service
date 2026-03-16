@@ -19,7 +19,7 @@ module "api_gateway_pso" {
 
   // Explicit authorizer, use case: Verifying certificate revocation
   authorizers = local.mtls_enabled ? {
-    "mtsCertificateRevocation" = {
+    "mtlsCertificateRevocation" = {
       lambda_arn           = module.lambda_pso_mtlsCertificateRevocationAuthorizer.lambda_arn
       lambda_function_name = module.lambda_pso_mtlsCertificateRevocationAuthorizer.lambda_function_name
       lambda_invoke_arn    = module.lambda_pso_mtlsCertificateRevocationAuthorizer.lambda_invoke_arn
@@ -33,21 +33,21 @@ module "api_gateway_pso" {
       method               = "GET"
       lambda_function_name = module.lambda_pso_getHealthcheck.lambda_function_name
       lambda_invoke_arn    = module.lambda_pso_getHealthcheck.lambda_invoke_arn
-      authorizer           = local.mtls_enabled ? "mtsCertificateRevocation" : null
+      authorizer           = local.mtls_enabled ? "mtlsCertificateRevocation" : null
     },
     "getNotificationStatus" = {
       path                 = "status/{notificationId}"
       method               = "GET"
       lambda_function_name = module.lambda_pso_getNotificationStatus.lambda_function_name
       lambda_invoke_arn    = module.lambda_pso_getNotificationStatus.lambda_invoke_arn
-      authorizer           = local.mtls_enabled ? "mtsCertificateRevocation" : null
+      authorizer           = local.mtls_enabled ? "mtlsCertificateRevocation" : null
     },
     "postMessage" = {
       path                 = "send"
       method               = "POST"
       lambda_function_name = module.lambda_pso_postMessage.lambda_function_name
       lambda_invoke_arn    = module.lambda_pso_postMessage.lambda_invoke_arn
-      authorizer           = local.mtls_enabled ? "mtsCertificateRevocation" : null
+      authorizer           = local.mtls_enabled ? "mtlsCertificateRevocation" : null
     }
   }
 }
