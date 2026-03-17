@@ -219,12 +219,15 @@ describe('Dispatch QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
-      DepartmentID: mockMessageBody.DepartmentID,
-      NotificationID: mockMessageBody.NotificationID,
-      UserID: mockMessageBody.UserID,
-      DispatchedAt: date.toISOString(),
-    });
+    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+        DispatchedAt: date.toISOString(),
+      },
+      { resetExpirationDate: true }
+    );
   });
 
   it('should trigger analytics for failure events when NotificationService fails.', async () => {

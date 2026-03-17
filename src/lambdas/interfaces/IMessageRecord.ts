@@ -26,6 +26,7 @@ export const IMessageRecordSchema = z.object({
   ProcessedDateTime: z.string().optional(),
   DispatchedAt: z.string().optional(),
   SentDateTime: z.string().optional(),
+  ExpirationDateTime: z.string().optional(),
 
   // Events
   Events: z.array(IAnalyticsSchema),

@@ -99,7 +99,7 @@ describe('getNotifications Handler', () => {
 
     handler = instance.handler();
 
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([mockDbRecord]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([mockDbRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -131,6 +131,26 @@ describe('getNotifications Handler', () => {
       field: 'ExternalUserID',
       value: 'user-ABC',
     });
+  });
+
+  it('should exclude all notifications with expiry date in the pastfrom getRecords call', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([
+      {
+        ...mockDbRecord,
+        ExpirationDateTime: new Date(0).toISOString(), // 1970
+      },
+    ]);
+
+    // Act
+    const { body, statusCode } = await handler(mockAuthorizedEvent, mockContext);
+    const results = JSON.parse(body) as [];
+
+    // Assert
+    expect(statusCode).toEqual(200);
+    expect(results.length).toEqual(0);
   });
 
   it('should return an empty array when there are no notifications', async () => {

@@ -20,6 +20,10 @@ module "dynamodb_inbound_messages" {
       name = "DepartmentID"
       type = "S"
     },
+    {
+      name = "ExpirationDateTime"
+      type = "S"
+    },
   ]
 
   // Indexes
@@ -29,6 +33,15 @@ module "dynamodb_inbound_messages" {
       hash_key        = "NotificationID"
       range_key       = "DepartmentID"
       projection_type = "KEYS_ONLY"
+    },
+    {
+      name            = "ExpirationIndex"
+      hash_key        = "NotificationID"
+      range_key       = "ExpirationDateTime"
+      projection_type = "KEYS_ONLY"
     }
   ]
+
+  // TTL
+  ttl_attribute = "ExpirationDateTime"
 }

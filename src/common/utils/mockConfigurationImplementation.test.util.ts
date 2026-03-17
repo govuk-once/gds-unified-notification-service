@@ -14,6 +14,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.Table.Inbound.Name]: 'mocknotificationsDynamoRepositoryName',
+    [StringParameters.Table.Inbound.Expiration.Atttribute]: 'ExpirationDateTime',
     [StringParameters.Table.MTLSRevocation.Name]: 'mockMtlsRevocationTableName',
     // Content filtering
     [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
@@ -27,6 +28,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     // Enums
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
     // Numbers
+    [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: 60 * 60 * 24 * 30,
     [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
     // Nested objects
     [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({

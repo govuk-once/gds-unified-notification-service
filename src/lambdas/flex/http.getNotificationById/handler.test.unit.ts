@@ -30,39 +30,14 @@ describe('GetNotificationById Handler', () => {
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
-  const mockDbRecord: IMessageRecord = {
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-    Events: [
-      {
-        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-        DepartmentID: 'abc',
-        Event: NotificationStateEnum.RECEIVED,
-        EventDateTime: new Date().toISOString(),
-        EventReason: '',
-        APIGWExtendedID: 'Test',
-      },
-    ],
-    DispatchedAt: '2026-02-13',
-  } as IMessageRecord;
-
-  const mockResponse: IFlexNotification = {
-    DispatchedAt: '2026-02-13',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    MessageTitle: 'You have a new Message',
-    NotificationBody: 'Here is the Notification body.',
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-    NotificationTitle: 'You have a new Notification',
-    Status: NotificationStateEnum.RECEIVED,
-  };
+  let mockDbRecord: IMessageRecord;
+  let mockResponse: IFlexNotification;
 
   beforeEach(() => {
     vi.resetAllMocks();
-
+    //
+    const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;
+    // Mock events
     mockEvent = {
       headers: {
         'x-api-key': 'mockApiKey',
@@ -72,7 +47,7 @@ describe('GetNotificationById Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
-        notificationId: mockDbRecord.NotificationID,
+        notificationId: notificationID,
       },
     } as unknown as EventType;
 
@@ -85,13 +60,45 @@ describe('GetNotificationById Handler', () => {
 
     mockInternalServerError = null as unknown as EventType;
 
+    // Reset db object
+    mockDbRecord = {
+      NotificationID: notificationID,
+      MessageTitle: 'You have a new Message',
+      MessageBody: 'Open Notification Centre to read your notifications',
+      NotificationTitle: 'You have a new Notification',
+      NotificationBody: 'Here is the Notification body.',
+      Events: [
+        {
+          EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+          NotificationID: notificationID,
+          DepartmentID: 'abc',
+          Event: NotificationStateEnum.RECEIVED,
+          EventDateTime: new Date().toISOString(),
+          EventReason: '',
+          APIGWExtendedID: 'Test',
+        },
+      ],
+      DispatchedAt: '2026-02-13',
+    } as IMessageRecord;
+
+    // Reset expected response
+    mockResponse = {
+      DispatchedAt: '2026-02-13',
+      MessageBody: 'Open Notification Centre to read your notifications',
+      MessageTitle: 'You have a new Message',
+      NotificationBody: 'Here is the Notification body.',
+      NotificationID: notificationID,
+      NotificationTitle: 'You have a new Notification',
+      Status: NotificationStateEnum.RECEIVED,
+    };
+
     instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
   });
 
   it('should have the correct operationId', () => {
@@ -181,5 +188,20 @@ describe('GetNotificationById Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
+  });
+
+  it('should return 404 for expired notification notification from getRecord call', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue({
+      ...mockDbRecord,
+      ExpirationDateTime: new Date(0).toISOString(),
+    });
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(404);
   });
 });

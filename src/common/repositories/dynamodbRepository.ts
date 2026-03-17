@@ -17,6 +17,9 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   protected tableName: string;
   protected tableKey: string;
 
+  protected expirationDurationInSeconds: number = 0;
+  protected expirationAttribute: string | null = null;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService
@@ -42,7 +45,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     try {
       const params: PutItemCommandInput = {
         TableName: this.tableName,
-        Item: marshall(record, { removeUndefinedValues: true }),
+        Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
       };
 
       await this.client.putItem(params);
@@ -52,7 +55,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     }
   }
 
-  public async createRecordBatch<RecordType>(batchRecords: RecordType[]): Promise<void> {
+  public async createRecordBatch(batchRecords: RecordType[]): Promise<void> {
     this.observability.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableName}`);
 
     try {
@@ -61,15 +64,14 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         return;
       }
       if (batchRecords.length > 25) {
-        const errorMsg = 'To create batch records, array length must be no greater than 25.';
-        throw new Error(errorMsg);
+        throw new Error('To create batch records, array length must be no greater than 25.');
       }
 
       const params: BatchWriteItemCommandInput = {
         RequestItems: {
           [this.tableName]: batchRecords.map((record) => ({
             PutRequest: {
-              Item: marshall(record, { removeUndefinedValues: true }),
+              Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
             },
           })),
         },
@@ -82,7 +84,10 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     }
   }
 
-  public async updateRecord(recordFields: Partial<RecordType>): Promise<void> {
+  public async updateRecord(
+    recordFields: Partial<RecordType>,
+    options?: { resetExpirationDate: boolean }
+  ): Promise<void> {
     this.observability.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
 
     const keyValue = recordFields[this.tableKey as keyof RecordType];
@@ -96,7 +101,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     // TODO: This needs a better solution
     // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
-    const entries = Object.entries(recordFields).filter(
+    const entries = Object.entries(this.beforeUpdate(recordFields)).filter(
       ([key, value]) => keyAttributes.includes(key) == false && value != undefined
     );
 
@@ -210,29 +215,58 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     }
   }
 
-  public async getRecords<RecordType>(filter?: { field: string; value: string }): Promise<RecordType[]> {
+  public async getRecords<RecordType>(
+    filter?: { field: string; value: string },
+    indexName?: string
+  ): Promise<RecordType[]> {
     const params: ScanCommandInput = {
       TableName: this.tableName,
       ...(filter && {
         FilterExpression: '#filterField = :filterValue',
         ExpressionAttributeNames: { '#filterField': filter.field },
         ExpressionAttributeValues: marshall({ ':filterValue': filter.value }),
+        IndexName: indexName,
       }),
     };
 
     try {
       const { Items } = await this.client.scan(params);
-
       if (!Items || Items.length === 0) {
         return [];
       }
-
-      const response = Items.map((item) => unmarshall(item) as RecordType);
-
-      return response;
+      return Items.map((item) => unmarshall(item) as RecordType);
     } catch (error) {
       this.observability.logger.error(`Failure in getting records for table ${this.tableName}. ${error}`);
       return [];
     }
+  }
+
+  // Generates expiration field that can be injected as partial into create/update calls
+  // When expirationAttribute is not set, or expirationDurationInSeconds is 0 - empty object is returned instead
+  protected createExpirationDatePartial(): Partial<RecordType> {
+    return this.expirationAttribute !== null && this.expirationDurationInSeconds > 0
+      ? ({
+          [this.expirationAttribute]: new Date(
+            new Date().getTime() + this.expirationDurationInSeconds * 1000
+          ).toISOString(),
+        } as Partial<RecordType>)
+      : {};
+  }
+
+  // Allows overwriting logic before triggers
+  public beforeCreate(record: RecordType) {
+    return {
+      ...record,
+      // Dynamically inject expiration date if table calls for it
+      ...this.createExpirationDatePartial(),
+    } as RecordType;
+  }
+
+  public beforeUpdate(partial: Partial<RecordType>, options?: { resetExpirationDate: boolean }) {
+    return {
+      ...partial,
+      // Inject expiration date property dynamically during updates if relevant option has been set
+      ...(options?.resetExpirationDate ? this.createExpirationDatePartial() : {}),
+    };
   }
 }
