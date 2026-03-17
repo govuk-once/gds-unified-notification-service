@@ -17,6 +17,8 @@ feat(NOT-111): added unit tests
 fix(ABC-321): increased font size
 chore(JIRA-456): added endpoint
 BREAKING CHANGE(JIRA-456): removed an endpoint
+
+Readmore in .husky/README.md
 */
 
 export default {
