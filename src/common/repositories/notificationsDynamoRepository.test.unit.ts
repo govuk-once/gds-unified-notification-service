@@ -90,7 +90,7 @@ describe('NotificationsDynamoRepository', () => {
       const command = dynamoMock.call(0).args[0] as PutItemCommand;
 
       expect(command.input.TableName).toBe(mockParameterStore[StringParameters.Table.Inbound.Name]);
-      expect(unmarshall(command.input.Item!)).toEqual(record);
+      expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expect.any(String) });
     });
 
     it('should log an error if the request fails.', async () => {
@@ -134,7 +134,7 @@ describe('NotificationsDynamoRepository', () => {
         [mockParameterStore[StringParameters.Table.Inbound.Name] as string]: [
           {
             PutRequest: {
-              Item: marshall(record[0]),
+              Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
             },
           },
         ],

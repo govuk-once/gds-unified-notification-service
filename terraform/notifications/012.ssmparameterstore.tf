@@ -18,13 +18,17 @@ module "parameter_store_internal_configuration" {
     "queue/dispatch/url"   = module.sqs_dispatch.queue_url
     "queue/analytics/url"  = module.sqs_analytics.queue_url
 
-    // Dynamo
+    // TODO: Consider whether moving this struct into dynamodb module would be a nice solution
+    // TODO: Similarly, might be worth refactoring this into a single struct to reduce SSM requests
+    // Dynamo table config
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
       hashKey    = module.dynamodb_inbound_messages.table_hash_key
       rangeKey   = module.dynamodb_inbound_messages.table_range_key
       attributes = module.dynamodb_inbound_messages.table_attributes
     })
+    "table/inbound/expiration/attribute"         = module.dynamodb_inbound_messages.ttl_attribute
+    "table/inbound/expiration/durationInSeconds" = 60 * 60 * 24 * 30
 
     # MTLS Configuration, pulls config entries exported by mtls repo within same aws account/env
     # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeploygment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
@@ -62,6 +66,6 @@ module "parameter_store_external_configuration" {
     # Default values for url content control within the data
     "content/allowed/protocols"     = "govuk:,https:"
     "content/allowed/urlHostnames"  = "*.gov.uk"
-    "notification/deeplinkTemplate" = "govuk://notifications?id={id}"
+    "notification/deeplinkTemplate" = "govuk://app.gov.uk/notificationcentre/detail?id={id}"
   }
 }

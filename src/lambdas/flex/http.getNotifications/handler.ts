@@ -73,7 +73,15 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     });
 
     return {
-      body: notifications.map((n) => IMessageRecordToIFlexNotification(n)),
+      body: notifications
+        .filter((notification) => {
+          // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
+          if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+            return false;
+          }
+          return true;
+        })
+        .map((n) => IMessageRecordToIFlexNotification(n)),
       statusCode: 200,
     };
   }

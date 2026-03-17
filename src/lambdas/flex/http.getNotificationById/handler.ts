@@ -74,6 +74,11 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.NotFound();
     }
 
+    // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
+    if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+      throw new httpErrors.NotFound();
+    }
+
     // If message is marked as hidden - return 404
     const notificationResponse = IMessageRecordToIFlexNotification(notification);
 

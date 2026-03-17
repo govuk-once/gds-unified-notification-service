@@ -133,11 +133,14 @@ export class Dispatch extends QueueHandler<unknown, void> {
         NotificationBody: valid.NotificationBody,
       });
 
-      // Update stored record with timestamp
-      await this.notificationsDynamoRepository.updateRecord({
-        ...extractIdentifiers(valid),
-        DispatchedAt: new Date().toISOString(),
-      });
+      // Update stored record with timestamp - also reset expiration date
+      await this.notificationsDynamoRepository.updateRecord(
+        {
+          ...extractIdentifiers(valid),
+          DispatchedAt: new Date().toISOString(),
+        },
+        { resetExpirationDate: true }
+      );
 
       // Increment rate limiter post request
       await this.cacheService.rateLimit(
