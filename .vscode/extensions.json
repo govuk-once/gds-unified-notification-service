@@ -7,7 +7,8 @@
     "hashicorp.terraform",
     "ryanluker.vscode-coverage-gutters",
     "vitest.explorer",
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "mermaidchart.vscode-mermaid-chart"
   ],
   // List of extensions recommended by VS Code that should not be recommended for users of this workspace.
   "unwantedRecommendations": []

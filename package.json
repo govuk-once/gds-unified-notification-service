@@ -14,6 +14,7 @@
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
+    "pre-commit": "VITEST_SILENT=true bun scripts/pre-commit.ts",
     "prepare": "husky",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage",
