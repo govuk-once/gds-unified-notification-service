@@ -81,7 +81,15 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
           }
           return true;
         })
-        .map((n) => IMessageRecordToIFlexNotification(n)),
+        .map((n) => IMessageRecordToIFlexNotification(n))
+        .sort((a, b) => {
+          // Sort by dispatch time, most recent first
+          if (a.DispatchedDateTime && b.DispatchedDateTime) {
+            return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
+          }
+          // If one of the records doesnt have a dispatch time - move it to the back
+          return !a.DispatchedDateTime ? 1 : -1;
+        }),
       statusCode: 200,
     };
   }

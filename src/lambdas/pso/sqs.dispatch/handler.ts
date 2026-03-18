@@ -137,7 +137,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
       await this.notificationsDynamoRepository.updateRecord(
         {
           ...extractIdentifiers(valid),
-          DispatchedAt: new Date().toISOString(),
+          DispatchedDateTime: new Date().toISOString(),
         },
         { resetExpirationDate: true }
       );
