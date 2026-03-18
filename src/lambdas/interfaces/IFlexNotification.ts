@@ -8,7 +8,7 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
   NotificationBody: true,
   MessageTitle: true,
   MessageBody: true,
-  DispatchedAt: true,
+  DispatchedDateTime: true,
 })
   .extend({ Status: z.enum(NotificationStateEnum).optional() })
   .transform((record) => ({
@@ -20,7 +20,7 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
 
 export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
 
-export const IMessageRecordToIFlexNotification = (item: IMessageRecord) => {
+export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNotification => {
   // Drop unnecessary properties
   return IFlexNotificationSchema.parse({
     // Explicitly map
@@ -29,7 +29,7 @@ export const IMessageRecordToIFlexNotification = (item: IMessageRecord) => {
     NotificationBody: item.NotificationBody,
     MessageTitle: item.MessageTitle,
     MessageBody: item.MessageBody,
-    DispatchedAt: item.DispatchedAt,
+    DispatchedDateTime: item.DispatchedDateTime,
     // Infer status from Events
     Status:
       [...(item.Events ?? [])].sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime)).pop()?.Event ??

@@ -78,12 +78,12 @@ describe('GetNotificationById Handler', () => {
           APIGWExtendedID: 'Test',
         },
       ],
-      DispatchedAt: '2026-02-13',
+      DispatchedDateTime: '2026-02-13',
     } as IMessageRecord;
 
     // Reset expected response
     mockResponse = {
-      DispatchedAt: '2026-02-13',
+      DispatchedDateTime: '2026-02-13',
       MessageBody: 'Open Notification Centre to read your notifications',
       MessageTitle: 'You have a new Message',
       NotificationBody: 'Here is the Notification body.',

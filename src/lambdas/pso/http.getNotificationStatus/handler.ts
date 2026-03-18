@@ -67,14 +67,13 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     }
 
     this.observability.logger.info(`Found notification`, { notification });
-
     // If it does - return it's status only
     return {
       body: notification.Events.map((event) => ({
         Status: event.Event,
         NotificationID: event.NotificationID,
         EventTimestamp: event.EventDateTime,
-      })),
+      })).sort((a, b) => a.EventTimestamp.localeCompare(b.EventTimestamp)),
       statusCode: 200,
     };
   }

@@ -46,7 +46,7 @@ describe('DeleteNotification Handler', () => {
         APIGWExtendedID: 'Test',
       },
     ],
-    DispatchedAt: '2026-02-13',
+    DispatchedDateTime: '2026-02-13',
   } as IMessageRecord;
 
   beforeEach(() => {

@@ -3,7 +3,7 @@ module "lambda_flex_getNotifications" {
   prefix        = local.prefix
   region        = var.region
   service_name  = "flex"
-  function_name = "getNotification"
+  function_name = "getNotifications"
 
   # Using code signing 
   kms_key_arn            = aws_kms_key.main.arn
@@ -18,6 +18,7 @@ module "lambda_flex_getNotifications" {
     inbound = {
       arn  = module.dynamodb_inbound_messages.table_arn
       read = true
+      scan = true
     }
   }
 }
