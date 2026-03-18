@@ -131,7 +131,7 @@ Read more in : [./.husky/README.md](./.husky/README.md)
 ## Github Actions
 
 This repository is using Github Actions to support pull request review process and releasing to non production environments.
-Read more [./.github/README.md](./.github/README.md)
+Read more [./.github/README.md](./.github/README-Pipelines.md)
 
 ## Github Pages
 

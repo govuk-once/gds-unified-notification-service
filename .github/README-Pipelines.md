@@ -1,9 +1,5 @@
 ## Pipelines
 
-### Semantic Release
-
-![Image](./semantic-release.excalidraw.svg)
-
 ### PRs
 
 The PR pipeline in this repository is defined in [./.github/workflows/pr.yml](./workflows/pr.yml), it consists of the following flow
