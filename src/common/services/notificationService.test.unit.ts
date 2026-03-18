@@ -136,7 +136,7 @@ describe('NotificationService', () => {
       // Assert
       expect(postSpy).toHaveBeenCalledWith(
         '/notifications?c=push',
-        expect.objectContaining({ app_url: 'govuk://notifications?id=test01' })
+        expect.objectContaining({ data: { deeplink: 'govuk://notifications?id=test01' } })
       );
     });
 
