@@ -85,3 +85,11 @@ variable "integrations" {
     authorizer           = optional(string)
   }))
 }
+
+
+/** Private VPCe configuration **/
+variable "private_vpce" {
+  description = "IDs of private VPCes to allow traffic from"
+  type        = list(string)
+  default     = []
+}

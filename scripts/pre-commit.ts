@@ -64,7 +64,7 @@ Promise.all(Object.entries(tasks).map(([label, args]) => runCommand(label, args)
     console.log(`\nAll tasks passed ${Colors.green(`✔`)}`);
   }
   if (task.some(([_, exitCode]) => exitCode !== 0)) {
-    console.log(Colors.red(`\nAll tasks passed ✔`));
+    console.log(Colors.red(`\nSome tasks failed ✘`));
     process.exit(1);
   }
 });

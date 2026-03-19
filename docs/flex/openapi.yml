@@ -124,7 +124,7 @@ paths:
             schema:
               type: object
               properties:
-                status:
+                Status:
                   $ref: '#/components/schemas/Status'
         required: true
       responses:

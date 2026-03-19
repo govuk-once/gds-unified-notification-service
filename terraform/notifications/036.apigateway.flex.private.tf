@@ -1,7 +1,8 @@
-module "api_gateway_flex" {
+// Note this is the API Gateway that will remain in place once flex integration is completed
+module "api_gateway_flex_private" {
   source = "./modules/apigateway"
   // Metadata
-  name       = "flex"
+  name       = "flex-private"
   prefix     = local.prefix
   region     = var.region
   stage_name = "api"
@@ -11,9 +12,12 @@ module "api_gateway_flex" {
   is_main_environment_in_account = var.is_main_environment_in_account
 
   // Pull in route53 config, disable mtls
-  route_53_zone                = local.mtls_root_domain
-  disable_execute_api_endpoint = false
+  route_53_zone                = null
   mtls_truststore_url          = null
+  disable_execute_api_endpoint = false
+
+  // Only allow traffic from private VPCe's
+  private_vpce = local.flex_vpces
 
   // Lambdas
   integrations = {
