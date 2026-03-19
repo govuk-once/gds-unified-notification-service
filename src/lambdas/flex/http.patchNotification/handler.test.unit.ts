@@ -103,16 +103,33 @@ describe('PatchNotification Handler', () => {
     expect(instance.operationId).toBe('patchNotification');
   });
 
-  it('should return 202 with status ok when valid API key is provided', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+  it.each([
+    ['READ', 202],
+    ['MARKED_AS_UNREAD', 202],
+    ['read', 202],
+    ['marked_as_unread', 202],
+    ['invalid-enum', 400],
+  ])(
+    'should accept valid enums (upper and lowercased) and return 202 - %s, while rejecting any other',
+    async (enumValue: string, expectedStatusCode: number) => {
+      // Arrange
+      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
-    // Act
-    const result = await handler(mockEvent, mockContext);
+      // Act
+      const result = await handler(
+        {
+          ...mockEvent,
+          body: JSON.stringify({
+            Status: enumValue,
+          }),
+        },
+        mockContext
+      );
 
-    // Assert
-    expect(result.statusCode).toEqual(202);
-  });
+      // Assert
+      expect(result.statusCode).toEqual(expectedStatusCode);
+    }
+  );
 
   it('should call publishEvent to update the notification', async () => {
     // Arrange

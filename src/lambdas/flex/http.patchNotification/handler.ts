@@ -16,7 +16,10 @@ import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.object({
-  Status: z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD]),
+  Status: z.preprocess(
+    (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+    z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD])
+  ),
 });
 const responseBodySchema = z.any();
 
