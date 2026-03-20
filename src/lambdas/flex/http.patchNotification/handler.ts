@@ -71,6 +71,7 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     this.observability.logger.info('Received request', { event });
     // Validate
     const notificationId = event.pathParameters?.notificationId;
+    const externalUserId = event.queryStringParameters?.externalUserId;
     if (!notificationId) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
@@ -79,7 +80,12 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     // Confirm existence & ownership
     const notification = await this.notificationsDynamoRepository.getRecord(notificationId);
     if (!notification) {
-      this.observability.logger.info('Notification has does not exists');
+      this.observability.logger.info('Notification does not exists');
+      throw new httpErrors.NotFound();
+    }
+
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserId) {
       throw new httpErrors.NotFound();
     }
 

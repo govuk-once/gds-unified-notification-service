@@ -62,7 +62,10 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       throw new httpErrors.Unauthorized();
     }
 
+    // Extract details
     const externalUserId = event.queryStringParameters?.externalUserId;
+
+    // Handle missing query param
     if (!externalUserId) {
       throw new httpErrors.BadRequest();
     }

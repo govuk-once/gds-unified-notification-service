@@ -60,7 +60,11 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       throw new httpErrors.Unauthorized();
     }
 
+    // Extract details
     const notificationId = event.pathParameters?.notificationId;
+    const externalUserId = event.queryStringParameters?.externalUserId;
+
+    // Handle missing path param
     if (!notificationId) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
@@ -70,6 +74,11 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     if (!notification) {
       this.observability.logger.info('Notification Id has not been provided.');
+      throw new httpErrors.NotFound();
+    }
+
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserId) {
       throw new httpErrors.NotFound();
     }
 

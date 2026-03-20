@@ -61,7 +61,11 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.Unauthorized();
     }
 
+    // Extract details
     const notificationId = event.pathParameters?.notificationId;
+    const externalUserId = event.queryStringParameters?.externalUserId;
+
+    // Handle missing path param
     if (!notificationId) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
@@ -76,6 +80,11 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
     if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+      throw new httpErrors.NotFound();
+    }
+
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserId) {
       throw new httpErrors.NotFound();
     }
 
