@@ -47,7 +47,7 @@ describe('GetNotificationById Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
-        notificationId: notificationID,
+        notificationID: notificationID,
       },
     } as unknown as EventType;
 
@@ -116,7 +116,7 @@ describe('GetNotificationById Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.', {
-      notificationId: mockDbRecord.NotificationID,
+      notificationID: mockDbRecord.NotificationID,
     });
   });
 
@@ -141,7 +141,7 @@ describe('GetNotificationById Handler', () => {
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
-      mockEvent.pathParameters.notificationId
+      mockEvent.pathParameters.notificationID
     );
   });
 

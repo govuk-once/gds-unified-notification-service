@@ -63,16 +63,16 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     }
 
     // Extract details
-    const externalUserId = event.queryStringParameters?.externalUserId;
+    const externalUserID = event.queryStringParameters?.externalUserID;
 
     // Handle missing query param
-    if (!externalUserId) {
+    if (!externalUserID) {
       throw new httpErrors.BadRequest();
     }
 
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
-      value: externalUserId,
+      value: externalUserID,
     });
 
     return {

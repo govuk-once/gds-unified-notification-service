@@ -30,7 +30,7 @@ const requestBodySchema = z.any();
     "requestTimeEpoch": 1428582896000
   },
   "pathParameters": {
-    "notificationId": "12342"
+    "notificationID": "12342"
   }  
 }
 */
@@ -62,16 +62,16 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     }
 
     // Extract details
-    const notificationId = event.pathParameters?.notificationId;
-    const externalUserId = event.queryStringParameters?.externalUserId;
+    const notificationID = event.pathParameters?.notificationID;
+    const externalUserID = event.queryStringParameters?.externalUserID;
 
     // Handle missing path param
-    if (!notificationId) {
+    if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.notificationsDynamoRepository.getRecord(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     // Handle not found or hidden notifications
     if (!notification) {
@@ -84,7 +84,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     }
 
     // Handle user not being the owner of the notification
-    if (notification.ExternalUserID !== externalUserId) {
+    if (notification.ExternalUserID !== externalUserID) {
       throw new httpErrors.NotFound();
     }
 
@@ -95,7 +95,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new httpErrors.NotFound();
     }
 
-    this.observability.logger.info('Successful request.', { notificationId });
+    this.observability.logger.info('Successful request.', { notificationID });
 
     return {
       body: notificationResponse,

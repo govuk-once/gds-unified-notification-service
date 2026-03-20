@@ -64,7 +64,7 @@ describe('PatchNotification Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
-        notificationId: mockDbRecord.NotificationID,
+        notificationID: mockDbRecord.NotificationID,
       },
       body: JSON.stringify({
         Status: 'READ',
@@ -154,7 +154,7 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request', {
-      notificationId: mockDbRecord.NotificationID,
+      notificationID: mockDbRecord.NotificationID,
       status: 'READ',
     });
   });
