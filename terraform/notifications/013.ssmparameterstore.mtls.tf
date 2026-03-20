@@ -1,3 +1,5 @@
+// Note: Values referenced in this module are generated outside of this repository and pulled into the configuration
+
 # Fetch exports from mtls repo for current env
 locals {
   mtls_ssm_root_path = "/gdsunsmtls-${var.mtls_env_to_use == null ? var.env : var.mtls_env_to_use}/exports"
