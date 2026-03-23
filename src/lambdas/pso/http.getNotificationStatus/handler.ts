@@ -41,6 +41,8 @@ const responseBodySchema = z.array(
 export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotificationStatus';
   public requestBodySchema = requestBodySchema;
+  public requestPathParametersSchema = z.any();
+  public requestQueryParametersSchema = z.any();
   public responseBodySchema = responseBodySchema;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;

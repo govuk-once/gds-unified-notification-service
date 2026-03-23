@@ -9,6 +9,7 @@ import {
   type IRequestResponse,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
+  requestQueryParametersSchemaValidator,
   requestValidatorMiddleware,
   responseValidatorMiddleware,
   serializeBodyToJson,
@@ -19,20 +20,57 @@ import httpErrorHandler from '@middy/http-error-handler';
 import httpEventNormalizer from '@middy/http-event-normalizer';
 import httpHeaderNormalizer from '@middy/http-header-normalizer';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
-import type { ALBEvent, APIGatewayEvent, APIGatewayProxyEventV2, Context } from 'aws-lambda';
-import type { z, ZodAny, ZodType } from 'zod';
+import type { Context } from 'aws-lambda';
+import type { ZodType } from 'zod';
+import z from 'zod';
 
-export type RequestEvent = APIGatewayEvent | APIGatewayProxyEventV2 | ALBEvent;
+export type APIContract<
+  RequestBodySchema extends ZodType = ZodType,
+  RequestPathParametersSchema extends ZodType = ZodType,
+  RequestQueryParametersScehma extends ZodType = ZodType,
+  ResponseBodySchema extends ZodType = ZodType,
+> = {
+  requestBodySchema: RequestBodySchema;
+  requestPathParametersSchema: RequestPathParametersSchema;
+  requestQueryParametersSchema: RequestQueryParametersScehma;
+  responseBodySchema: ResponseBodySchema;
+};
+
+export const defineContract = <
+  RequestBodySchema extends ZodType,
+  RequestPathParametersSchema extends ZodType,
+  RequestQueryParametersScehma extends ZodType,
+  ResponseBodySchema extends ZodType,
+>(contract: {
+  requestBodySchema: RequestBodySchema;
+  requestPathParametersSchema: RequestPathParametersSchema;
+  requestQueryParametersSchema: RequestQueryParametersScehma;
+  responseBodySchema: ResponseBodySchema;
+}) => contract;
+
+export type IAPIContractEvent<Contract extends APIContract> = ITypedRequestEvent<
+  z.infer<Contract['requestBodySchema']>,
+  z.infer<Contract['requestPathParametersSchema']>,
+  z.infer<Contract['requestQueryParametersSchema']>
+>;
+export type IAPIContractResponse<Contract extends APIContract> = ITypedRequestResponse<
+  z.infer<Contract['responseBodySchema']>
+>;
 
 export abstract class APIHandler<
-  InputSchema extends ZodType = ZodAny,
-  OutputSchema extends ZodType = ZodAny,
-  InferredInputSchema = z.infer<InputSchema>,
-  InferredOutputSchema = z.infer<OutputSchema>,
+  Contract extends APIContract<
+    RequestBodySchema,
+    RequestPathParametersSchema,
+    RequestQueryParametersScehma,
+    ResponseBodySchema
+  >,
+  RequestBodySchema extends ZodType = Contract['requestBodySchema'],
+  RequestPathParametersSchema extends ZodType = Contract['requestPathParametersSchema'],
+  RequestQueryParametersScehma extends ZodType = Contract['requestQueryParametersSchema'],
+  ResponseBodySchema extends ZodType = Contract['responseBodySchema'],
 > {
   public abstract operationId: string;
-  public abstract requestBodySchema: InputSchema;
-  public abstract responseBodySchema: OutputSchema;
+  public abstract contract: Contract;
 
   constructor(protected observability: ObservabilityService) {}
 
@@ -45,10 +83,7 @@ export abstract class APIHandler<
     }
   }
 
-  public implementation(
-    event: ITypedRequestEvent<InferredInputSchema>,
-    context: Context
-  ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
+  public implementation(event: IAPIContractEvent<Contract>, context: Context): Promise<IAPIContractResponse<Contract>> {
     throw new Error('Not Implemented');
   }
 
@@ -97,8 +132,10 @@ export abstract class APIHandler<
    */
   protected validationMiddlewares(middy: IMiddleware): IMiddleware {
     return middy
-      .use(requestValidatorMiddleware(this.requestBodySchema))
-      .use(responseValidatorMiddleware(this.responseBodySchema));
+      .use(requestValidatorMiddleware(this.contract.requestBodySchema))
+      .use(requestQueryParametersSchemaValidator(this.contract.requestPathParametersSchema))
+      .use(requestQueryParametersSchemaValidator(this.contract.requestQueryParametersSchema))
+      .use(responseValidatorMiddleware(this.contract.responseBodySchema));
   }
 
   /**
@@ -121,10 +158,7 @@ export abstract class APIHandler<
       await initializeDependencies(this, this.dependencies);
 
       //
-      return (await this.implementation(
-        event as unknown as ITypedRequestEvent<InferredInputSchema>,
-        context
-      )) as IRequestResponse;
+      return (await this.implementation(event as IAPIContractEvent<Contract>, context)) as unknown as IRequestResponse;
     });
   }
 }

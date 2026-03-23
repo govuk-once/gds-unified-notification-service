@@ -3,6 +3,7 @@ import {
   DeleteItemCommandInput,
   DynamoDB,
   PutItemCommandInput,
+  ReturnConsumedCapacity,
   ScanCommandInput,
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
@@ -220,6 +221,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     indexName?: string
   ): Promise<RecordType[]> {
     const params: ScanCommandInput = {
+      ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
       TableName: this.tableName,
       ...(filter && {
         FilterExpression: '#filterField = :filterValue',
@@ -229,8 +231,12 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       }),
     };
 
+    this.observability.logger.info(`Get records command`, { params });
+
     try {
-      const { Items } = await this.client.scan(params);
+      const result = await this.client.scan(params);
+      const { Items } = result;
+      this.observability.logger.info(`Get records result`, { result });
       if (!Items || Items.length === 0) {
         return [];
       }

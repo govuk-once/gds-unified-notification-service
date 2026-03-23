@@ -1,22 +1,21 @@
 import {
+  APIHandler,
+  defineContract,
   HandlerDependencies,
+  IAPIContractEvent,
+  IAPIContractResponse,
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
+import { DeleteNotificationByIDParams, DeleteNotificationByIDQueryParams } from '@generated/flex';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
-
-const requestBodySchema = z.any();
-const responseBodySchema = z.any();
 
 /* Lambda Request Example
 {
@@ -33,33 +32,37 @@ const responseBodySchema = z.any();
 }
 */
 
-export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'deleteNotification';
-  public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+const contract = defineContract({
+  requestBodySchema: z.object(),
+  requestPathParametersSchema: DeleteNotificationByIDParams,
+  requestQueryParametersSchema: DeleteNotificationByIDQueryParams,
+  responseBodySchema: z.object({}),
+});
 
+export class DeleteNotification extends APIHandler<typeof contract> {
+  // API Definition
+  public operationId: string = 'deleteNotification';
+  public contract = contract;
+
+  // Services & Repositories
   public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analyticsService: AnalyticsService;
 
+  // Constructor
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<DeleteNotification>
   ) {
-    super(config, observability);
+    super(observability);
     this.injectDependencies(asyncDependencies);
   }
 
+  // Handler logic
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: IAPIContractEvent<typeof contract>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    const isValidApiKey = await this.validateApiKey(event);
-
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
-
+  ): Promise<IAPIContractResponse<typeof contract>> {
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
     const externalUserID = event.queryStringParameters?.externalUserID;

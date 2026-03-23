@@ -1,22 +1,14 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessageRecord, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessageRecord';
+import { GetNotificationByIDResponse as IFlexNotificationBase } from '@generated/flex';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import z from 'zod';
 
-export const IFlexNotificationSchema = IMessageRecordSchema.pick({
-  NotificationID: true,
-  NotificationTitle: true,
-  NotificationBody: true,
-  MessageTitle: true,
-  MessageBody: true,
-  DispatchedDateTime: true,
-})
-  .extend({ Status: z.enum(NotificationStateEnum).optional() })
-  .transform((record) => ({
-    ...record,
-    // Backfill message title and body from notification fields as a fallback
-    MessageTitle: record.MessageTitle ?? record.NotificationTitle,
-    MessageBody: record.MessageBody ?? record.NotificationBody,
-  }));
+export const IFlexNotificationSchema = IFlexNotificationBase.transform((record) => ({
+  ...record,
+  // Backfill message title and body from notification fields as a fallback
+  MessageTitle: record.MessageTitle ?? record.NotificationTitle,
+  MessageBody: record.MessageBody ?? record.NotificationBody,
+}));
 
 export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
 

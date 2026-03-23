@@ -1,19 +1,22 @@
 import {
+  APIHandler,
+  defineContract,
   HandlerDependencies,
+  IAPIContractEvent,
+  IAPIContractResponse,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
-  IFlexNotificationSchema,
-  IMessageRecordToIFlexNotification,
-} from '@project/lambdas/interfaces/IFlexNotification';
+  GetNotificationByIDParams,
+  GetNotificationByIDQueryParams,
+  GetNotificationByIDResponse,
+} from '@generated/flex';
+import { IMessageRecordToIFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
@@ -35,10 +38,16 @@ const requestBodySchema = z.any();
 }
 */
 
-export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof IFlexNotificationSchema> {
+const contract = defineContract({
+  requestBodySchema: z.object(),
+  requestPathParametersSchema: GetNotificationByIDParams,
+  requestQueryParametersSchema: GetNotificationByIDQueryParams,
+  responseBodySchema: GetNotificationByIDResponse,
+});
+
+export class GetFlexNotificationById extends APIHandler<typeof contract> {
   public operationId: string = 'getNotificationById';
-  public requestBodySchema = requestBodySchema;
-  public responseBodySchema = IFlexNotificationSchema;
+  public contract = contract;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
 
@@ -47,20 +56,15 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<GetFlexNotificationById>
   ) {
-    super(config, observability);
+    super(observability);
     this.injectDependencies(asyncDependencies);
   }
 
+  // Handler logic
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: IAPIContractEvent<typeof contract>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
-    const isValidApiKey = await this.validateApiKey(event);
-
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
-
+  ): Promise<IAPIContractResponse<typeof contract>> {
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
     const externalUserID = event.queryStringParameters?.externalUserID;
@@ -91,7 +95,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     // If message is marked as hidden - return 404
     const notificationResponse = IMessageRecordToIFlexNotification(notification);
 
-    if (notificationResponse.Status == NotificationStateEnum.HIDDEN) {
+    if (notificationResponse.Status.toString() == NotificationStateEnum.MARKED_AS_UNREAD.toString()) {
       throw new httpErrors.NotFound();
     }
 
