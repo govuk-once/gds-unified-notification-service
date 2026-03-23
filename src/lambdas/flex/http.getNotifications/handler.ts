@@ -1,31 +1,24 @@
 import {
+  APIHandler,
+  defineContract,
   HandlerDependencies,
+  IAPIContractEvent,
+  IAPIContractResponse,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
 } from '@common';
-import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import {
-  IFlexNotificationSchema,
-  IMessageRecordToIFlexNotification,
-} from '@project/lambdas/interfaces/IFlexNotification';
+import { GetNotificationsQueryParams, GetNotificationsResponse } from '@generated/flex';
+import { IMessageRecordToIFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
-const requestBodySchema = z.any();
-const responseBodySchema = z.array(IFlexNotificationSchema);
-
 /* Lambda Request Example
 {
-  "headers": {
-    "x-api-key": "mockApiKey"
-  },
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000
@@ -36,40 +29,47 @@ const responseBodySchema = z.array(IFlexNotificationSchema);
 }
 */
 
-export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'getNotifications';
-  public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+const contract = defineContract({
+  requestBodySchema: z.object(),
+  requestPathParametersSchema: z.object(),
+  requestQueryParametersSchema: GetNotificationsQueryParams,
+  responseBodySchema: GetNotificationsResponse,
+});
 
+export class GetNotifications extends APIHandler<typeof contract> {
+  // API Definition
+  public operationId: string = 'getNotifications';
+  public contract = contract;
+
+  // Services & Repositories
   public notificationsDynamoRepository: NotificationsDynamoRepository;
 
+  // Constructor
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<GetNotifications>
   ) {
-    super(config, observability);
+    super(observability);
     this.injectDependencies(asyncDependencies);
   }
 
+  // Handler logic
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: IAPIContractEvent<typeof contract>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    // Authorize
-    const isValidApiKey = await this.validateApiKey(event);
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
+  ): Promise<IAPIContractResponse<typeof contract>> {
+    // Extract details
+    const externalUserID = event.queryStringParameters?.externalUserID;
 
-    const externalUserId = event.queryStringParameters?.externalUserId;
-    if (!externalUserId) {
+    // Handle missing query param
+    if (!externalUserID) {
       throw new httpErrors.BadRequest();
     }
 
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
-      value: externalUserId,
+      value: externalUserID,
     });
 
     return {
@@ -95,6 +95,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   }
 }
 
+// IoC Definition
 export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

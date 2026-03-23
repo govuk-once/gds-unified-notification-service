@@ -1,27 +1,25 @@
 import {
+  APIHandler,
+  defineContract,
   HandlerDependencies,
+  IAPIContractEvent,
+  IAPIContractResponse,
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
+import {
+  PatchNotificationByIDBody,
+  PatchNotificationByIDParams,
+  PatchNotificationByIDQueryParams,
+} from '@generated/flex';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
-
-const requestBodySchema = z.object({
-  Status: z.preprocess(
-    (val) => (typeof val === 'string' ? val.toUpperCase() : val),
-    z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD])
-  ),
-});
-const responseBodySchema = z.any();
 
 /* Lambda Request Example
 {
@@ -41,11 +39,24 @@ const responseBodySchema = z.any();
 }
 */
 
-export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'patchNotification';
-  public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+const contract = defineContract({
+  requestBodySchema: PatchNotificationByIDBody.extend({
+    Status: z.preprocess(
+      (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+      z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD])
+    ),
+  }),
+  requestPathParametersSchema: PatchNotificationByIDParams,
+  requestQueryParametersSchema: PatchNotificationByIDQueryParams,
+  responseBodySchema: z.object(),
+});
 
+export class PatchNotification extends APIHandler<typeof contract> {
+  // API Definition
+  public operationId: string = 'patchNotification';
+  public contract = contract;
+
+  // Services & Repositories
   public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analytics: AnalyticsService;
 
@@ -54,39 +65,39 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<PatchNotification>
   ) {
-    super(config, observability);
+    super(observability);
     this.injectDependencies(asyncDependencies);
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: IAPIContractEvent<typeof contract>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    // Authorize
-    const isValidApiKey = await this.validateApiKey(event);
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
-
+  ): Promise<IAPIContractResponse<typeof contract>> {
     this.observability.logger.info('Received request', { event });
     // Validate
-    const notificationId = event.pathParameters?.notificationId;
-    if (!notificationId) {
+    const notificationID = event.pathParameters?.notificationID;
+    const externalUserID = event.queryStringParameters?.externalUserID;
+    if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
     }
 
     // Confirm existence & ownership
-    const notification = await this.notificationsDynamoRepository.getRecord(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
     if (!notification) {
-      this.observability.logger.info('Notification has does not exists');
+      this.observability.logger.info('Notification does not exists');
+      throw new httpErrors.NotFound();
+    }
+
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserID) {
       throw new httpErrors.NotFound();
     }
 
     // Fire off a request with status up to analytics lambda
     await this.analytics.publishEvent(notification, event.body.Status);
 
-    this.observability.logger.info('Successful request', { notificationId, status: event.body.Status });
+    this.observability.logger.info('Successful request', { notificationID, status: event.body.Status });
 
     return {
       body: {},

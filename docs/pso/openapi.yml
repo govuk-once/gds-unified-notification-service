@@ -6,14 +6,6 @@ info:
 servers:
   - url: /api
 
-securitySchemes:
-  MutualTLS:
-    type: mutualTLS
-    description: Mutual TLS authentication for secure API communication.
-
-security:
-  - MutualTLS: []
-
 paths:
   /status:
     get:
@@ -99,6 +91,7 @@ paths:
           description: Internal server error
         default:
           description: Unexpected error
+
 components:
   schemas:
     Status:

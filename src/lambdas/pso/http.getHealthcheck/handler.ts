@@ -15,6 +15,8 @@ const responseBodySchema = z.object({ status: z.string() });
 export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getHealthcheck';
   public requestBodySchema = requestBodySchema;
+  public requestPathParametersSchema = z.any();
+  public requestQueryParametersSchema = z.any();
   public responseBodySchema = responseBodySchema;
 
   constructor(

@@ -41,6 +41,8 @@ const responseBodySchema = z.array(
 export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotificationStatus';
   public requestBodySchema = requestBodySchema;
+  public requestPathParametersSchema = z.any();
+  public requestQueryParametersSchema = z.any();
   public responseBodySchema = responseBodySchema;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
@@ -59,7 +61,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     // Fetch notification
-    const notification = await this.notificationsDynamoRepository.getRecord(_event.pathParameters.notificationId ?? '');
+    const notification = await this.notificationsDynamoRepository.getRecord(_event.pathParameters.notificationID ?? '');
 
     // If it doesnt exist - 404
     if (notification == null) {

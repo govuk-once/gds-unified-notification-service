@@ -1,14 +1,15 @@
 import {
   APIHandler,
+  defineContract,
   HandlerDependencies,
+  IAPIContractEvent,
+  IAPIContractResponse,
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
-  type ITypedRequestEvent,
-  type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -20,13 +21,11 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
+import { PostMessageBodyItem } from '@generated/pso';
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
-
-const requestBodySchema = z.array(IMessageSchema.strict()).min(1);
-const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
 /**
  * Lambda handling incoming messages from a api request
@@ -59,15 +58,24 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
     }
  */
 
-export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
-  public operationId: string = 'postMessage';
-  public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+const contract = defineContract({
+  requestBodySchema: z.array(IMessageSchema.extend(PostMessageBodyItem)),
+  requestPathParametersSchema: z.any(),
+  requestQueryParametersSchema: z.any(),
+  responseBodySchema: z.array(z.object({ NotificationID: z.string() })).or(z.object()),
+});
 
+export class PostMessage extends APIHandler<typeof contract> {
+  // API Definition
+  public operationId: string = 'postMessage';
+  public contract = contract;
+
+  // Services & Repositories
   public analyticsService: AnalyticsService;
   public notificationsDynamoRepository: NotificationsDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
+  // Constructor
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
@@ -78,10 +86,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     this.injectDependencies(dependencies);
   }
 
+  // Handler logic
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: IAPIContractEvent<typeof contract>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+  ): Promise<IAPIContractResponse<typeof contract>> {
     this.observability.logger.info('Received request', { event });
 
     const messages = event.body;

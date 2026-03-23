@@ -16,6 +16,12 @@ paths:
       operationId: getNotifications
       tags:
         - MVP
+      parameters:
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successful operation
@@ -50,6 +56,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
+
       responses:
         '200':
           description: Notification found
@@ -85,6 +97,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '204':
           description: Notification deleted (No content)
@@ -115,6 +132,11 @@ paths:
       parameters:
         - name: notificationID
           in: path
+          required: true
+          schema:
+            type: string
+        - name: externalUserID
+          in: query
           required: true
           schema:
             type: string
@@ -184,6 +206,21 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
+
+    NotificationDetails:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            NotificationID:
+              type: string
+              description: ID of the notification to be used for idempotency & analytics
+            MessageTitle:
+              type: string
+              description: (Optional) Title of the message displayed in the GovUK app's notification centre, falls back on notification title
+            MessageBody:
+              type: string
+              description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
 
     Status:
       type: string
