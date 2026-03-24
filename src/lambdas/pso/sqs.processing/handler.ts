@@ -4,12 +4,12 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetDispatchQueueService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
 import { BoolParameters, groupValidation } from '@common/utils';
 import {
@@ -18,7 +18,6 @@ import {
   IMessage,
   IMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 /**
@@ -55,7 +54,7 @@ export class Processing extends QueueHandler<IMessage, void> {
   public operationId: string = 'processing';
 
   public analyticsService: AnalyticsService;
-  public inboundTable: InboundDynamoRepository;
+  public notificationsRepository: NotificationsDynamoRepository;
   public dispatchQueue: DispatchQueueService;
 
   constructor(
@@ -84,7 +83,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
-      ValidationEnum.PROCESSING
+      NotificationStateEnum.PROCESSING
     );
 
     // Validate Incoming messages
@@ -103,7 +102,7 @@ export class Processing extends QueueHandler<IMessage, void> {
       ExternalUserID: `${body.UserID}`,
     }));
 
-    // Update stored rows in inbound message
+    // Update stored rows in notifications message
     for (const processed of processedMessages) {
       this.observability.logger.info(`Updating entry with timestamp`, {
         NotificationID: processed.NotificationID,
@@ -111,7 +110,7 @@ export class Processing extends QueueHandler<IMessage, void> {
       });
 
       // Store External User ID and mark record as processed
-      await this.inboundTable.updateRecord<Partial<IMessageRecord>>({
+      await this.notificationsRepository.updateRecord({
         ...extractIdentifiers(processed),
         ExternalUserID: processed.ExternalUserID,
         ProcessedDateTime: new Date().toISOString(),
@@ -121,7 +120,7 @@ export class Processing extends QueueHandler<IMessage, void> {
     // Mark messages as processed
     await this.analyticsService.publishMultipleEvents(
       validRecords.map(({ valid }) => valid),
-      ValidationEnum.PROCESSED
+      NotificationStateEnum.PROCESSED
     );
 
     // Push processed messages to Dispatch queue
@@ -146,7 +145,7 @@ export class Processing extends QueueHandler<IMessage, void> {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
         },
-        ValidationEnum.PROCESSING_FAILED,
+        NotificationStateEnum.PROCESSING_FAILED,
         errors
       );
     }
@@ -155,6 +154,6 @@ export class Processing extends QueueHandler<IMessage, void> {
 
 export const handler = new Processing(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
-  inboundTable: iocGetInboundDynamoRepository(),
+  notificationsRepository: iocGetNotificationDynamoRepository(),
   dispatchQueue: iocGetDispatchQueueService(),
 })).handler();

@@ -1,21 +1,25 @@
 import {
   HandlerDependencies,
+  iocGetAnalyticsService,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { NotificationsDynamoRepository } from '@common/repositories';
+import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.object({
-  Status: z.enum([ValidationEnum.RECEIVED, ValidationEnum.READ, ValidationEnum.MARKED_AS_UNREAD]),
+  Status: z.preprocess(
+    (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+    z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD])
+  ),
 });
 const responseBodySchema = z.any();
 
@@ -42,7 +46,8 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
+  public analytics: AnalyticsService;
 
   constructor(
     protected config: ConfigurationService,
@@ -65,28 +70,29 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
 
     this.observability.logger.info('Received request', { event });
     // Validate
-    const notificationId = event.pathParameters?.notificationId;
-    if (!notificationId) {
+    const notificationID = event.pathParameters?.notificationID;
+    const externalUserID = event.queryStringParameters?.externalUserID;
+    if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
     }
 
     // Confirm existence & ownership
-    const notification = await this.inboundNotificationTable.getRecord(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
     if (!notification) {
-      this.observability.logger.info('Notification has does not exists');
+      this.observability.logger.info('Notification does not exists');
       throw new httpErrors.NotFound();
     }
 
-    const { Status } = event.body;
-    const updatedAt = new Date().toISOString();
-    await this.inboundNotificationTable.updateRecord({
-      NotificationID: notificationId,
-      Status,
-      UpdatedAt: updatedAt,
-    });
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserID) {
+      throw new httpErrors.NotFound();
+    }
 
-    this.observability.logger.info('Successful request.', { notificationId, status: Status });
+    // Fire off a request with status up to analytics lambda
+    await this.analytics.publishEvent(notification, event.body.Status);
+
+    this.observability.logger.info('Successful request', { notificationID, status: event.body.Status });
 
     return {
       body: {},
@@ -96,5 +102,6 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
 }
 
 export const handler = new PatchNotification(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
+  analytics: iocGetAnalyticsService(),
 })).handler();

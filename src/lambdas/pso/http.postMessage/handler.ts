@@ -4,15 +4,14 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
-  StringParameters,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { ValidationEnum } from '@common/models/ValidationEnum';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
@@ -26,13 +25,13 @@ import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema).min(1);
+const requestBodySchema = z.array(IMessageSchema.strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
 /**
  * Lambda handling incoming messages from a api request
  * - Validates input against zod schema
- *   - Stores messages into inbound dynamodb
+ *   - Stores messages into notifications dynamodb
  * - Fires analytics events
  * - Pushes messages into processing queue
  * 
@@ -66,7 +65,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   public responseBodySchema = responseBodySchema;
 
   public analyticsService: AnalyticsService;
-  public inboundTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
   constructor(
@@ -83,16 +82,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request');
-
-    // MOCK authorizing request
-    const apiKey = await this.config.getParameter(StringParameters.Api.PostMessage.ApiKey);
-    if (event.headers['x-api-key'] !== apiKey) {
-      return {
-        body: {},
-        statusCode: 401,
-      };
-    }
+    this.observability.logger.info('Received request', { event });
 
     const messages = event.body;
 
@@ -110,7 +100,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
           APIGWExtendedID: event.requestContext.requestId,
         })
       ),
-      ValidationEnum.VALIDATED_API_CALL
+      NotificationStateEnum.VALIDATED_API_CALL
     );
 
     // Requeue messages which passed validation to next stage
@@ -119,13 +109,14 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
     // Create a record of message in Dynamodb
     this.observability.logger.trace('Creating record of validated messages that have been passed to queue.');
-    await this.inboundTable.createRecordBatch(
+    await this.notificationsDynamoRepository.createRecordBatch(
       messages.map(
         (body): IMessageRecord => ({
           ...body,
           APIGWExtendedID: event.requestContext.requestId,
           ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
           ValidatedDateTime: new Date().toISOString(),
+          Events: [],
         })
       )
     );
@@ -148,7 +139,7 @@ export const handler = new PostMessage(
   iocGetContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
-    inboundTable: iocGetInboundDynamoRepository(),
+    notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })
 ).handler();

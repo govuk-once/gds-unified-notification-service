@@ -112,7 +112,6 @@ components:
       type: object
       required:
         - DepartmentID
-        - NotificationID
         - UserID
         - NotificationTitle
         - NotificationBody
@@ -122,7 +121,8 @@ components:
           description: ID of department sending notification
         NotificationID:
           type: string
-          description: ID of the notification to be used for idempotency & analytics
+          description: ID of the notification to be used for idempotency & analytics, ID will be dynamically generated if one has not been supplied
+          format: uuid
         UserID:
           type: string
           description: ID of the recipient fetched from UDP
@@ -150,27 +150,30 @@ components:
       type: object
       required:
         - NotificationID
+        - EventDateTime
         - Status
       properties:
         NotificationID:
+          type: string
+        EventDateTime:
           type: string
         Status:
           type: string
           enum:
             - RECEIVED
-              - VALIDATING
-              - VALIDATED
-              - VALIDATION_FAILED
-              - PROCESSING
-              - PROCESSED
-              - PROCESSING_FAILED
-              - DISPATCHING
-              - DISPATCHED
-              - DISPATCHING_FAILED
-              - DELIVERED
-              - NOTIFICATION_CENTRE_READ
-              - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
-              - NOTIFICATION_CENTRE_HIDDEN
+            - VALIDATING
+            - VALIDATED
+            - VALIDATION_FAILED
+            - PROCESSING
+            - PROCESSED
+            - PROCESSING_FAILED
+            - DISPATCHING
+            - DISPATCHED
+            - DISPATCHING_FAILED
+            - DELIVERED
+            - NOTIFICATION_CENTRE_READ
+            - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
+            - NOTIFICATION_CENTRE_HIDDEN
         Reason:
           type: string
           description: Provides addition context to the state

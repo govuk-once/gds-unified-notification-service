@@ -107,7 +107,7 @@ resource "aws_iam_role_policy_attachment" "additional_policies" {
 
 # DynamoDB IAM access policy 
 resource "aws_iam_role_policy" "dynamo_access" {
-  for_each = { for key, value in var.dynamo_tables : key => value if value.arn != null }
+  for_each = var.dynamo_tables
 
   role = aws_iam_role.lambda.id
   name = join("-", [var.prefix, "iamr", var.function_name, "dynamo", each.key])

@@ -36,5 +36,14 @@ resource "aws_dynamodb_table" "this" {
     kms_key_arn = var.kms_key_arn
   }
 
+  // Optional TTL config
+  dynamic "ttl" {
+    for_each = var.ttl_attribute == null ? {} : { attribute = var.ttl_attribute }
+    content {
+      attribute_name = ttl.value
+      enabled        = true
+    }
+  }
+
   tags = var.tags
 }

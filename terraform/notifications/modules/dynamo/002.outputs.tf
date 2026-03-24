@@ -22,3 +22,8 @@ output "table_attributes" {
   description = "attributes used by DynamoDB table"
   value       = [for attr in aws_dynamodb_table.this.attribute : attr.name]
 }
+
+output "ttl_attribute" {
+  description = "Name of the TTL attribute if one is set"
+  value       = var.ttl_attribute
+}

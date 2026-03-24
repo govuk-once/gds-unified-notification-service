@@ -31,4 +31,8 @@ module "lambda_pso_processing" {
       write = true
     }
   }
+
+  # Place in private subnet
+  security_group_ids = [aws_security_group.private_sg.id]
+  subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]
 }

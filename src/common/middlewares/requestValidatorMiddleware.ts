@@ -8,10 +8,12 @@ export const requestValidatorMiddleware = (
 ): MiddlewareObj<APIGatewayEvent, APIGatewayProxyStructuredResultV2, Error> => ({
   before: (request): void => {
     if (schema) {
-      const { error } = schema.safeParse(request.event.body);
+      const { error, data } = schema.safeParse(request.event.body);
       if (error) {
         throw new httpError.BadRequest(`Bad Request: \n\n${z.prettifyError(error)}`);
       }
+      // Re-inject parsed object back into the event
+      request.event.body = data as string;
     }
   },
 });

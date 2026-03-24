@@ -1,7 +1,9 @@
+import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
 export const IIdentifieableMessageSchema = z.object({
-  NotificationID: z.string(),
+  // Generate NotificationIDs if not provided
+  NotificationID: z.uuid({ version: 'v4' }).default(() => uuid()),
   UserID: z.string(),
   DepartmentID: z.string(),
 });

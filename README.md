@@ -119,10 +119,27 @@ We also have some additional flags that can adjust the way
 
 ## Pre-commit hooks
 
+A quick summary:
+
 - Husky - Automatically lint commit messages. [Husky](https://typicode.github.io/husky)
 - commitlint - Lint commit messages to adhere to a commit convention. [commitlint](https://github.com/conventional-changelog/commitlint)
 - TFLint - Framework for terraform to find possible errors for Major Cloud providers. [TFLint](https://github.com/terraform-linters/tflint)
 - TF Organizing step - in order to maintain naming convention defined in [README.md](./terraform/notifications/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
+
+Read more in : [./.husky/README.md](./.husky/README.md)
+
+## Github Actions
+
+This repository is using Github Actions to support pull request review process and releasing to non production environments.
+Read more [./.github/README.md](./.github/README-Pipelines.md)
+
+## Github Pages
+
+This repository is automatically updating the following API pages on release to main
+
+- Public Service Organization API - https://govuk-once.github.io/gds-unified-notification-service/pso/ -
+
+- Flex API - https://govuk-once.github.io/gds-unified-notification-service/flex/ -
 
 ## Contact
 

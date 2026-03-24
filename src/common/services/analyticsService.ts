@@ -1,5 +1,5 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsQueueService, ObservabilityService } from '@common/services';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
@@ -14,7 +14,7 @@ export class AnalyticsService {
     public queue: AnalyticsQueueService
   ) {}
 
-  protected createEvent<T>(message: AnalyticsEventFromIMessage, status: ValidationEnum, reason?: T) {
+  public createEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
     return {
       EventID: uuid(),
       NotificationID: message.NotificationID,
@@ -26,7 +26,11 @@ export class AnalyticsService {
     };
   }
 
-  public async publishMultipleEvents<T>(events: AnalyticsEventFromIMessage[], status: ValidationEnum, reasons?: T[]) {
+  public async publishMultipleEvents<T>(
+    events: AnalyticsEventFromIMessage[],
+    status: NotificationStateEnum,
+    reasons?: T[]
+  ) {
     // Ignore empty arrays
     if (events.length == 0) {
       return;
@@ -40,7 +44,7 @@ export class AnalyticsService {
     this.observability.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, events.length);
   }
 
-  public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: ValidationEnum, reason?: T) {
+  public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
     await this.queue.publishMessage(this.createEvent(message, status, reason));
     this.observability.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, 1);
   }

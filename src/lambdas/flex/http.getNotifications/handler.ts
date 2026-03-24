@@ -1,15 +1,19 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import {
+  IFlexNotificationSchema,
+  IMessageRecordToIFlexNotification,
+} from '@project/lambdas/interfaces/IFlexNotification';
+import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
@@ -37,7 +41,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -58,23 +62,42 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       throw new httpErrors.Unauthorized();
     }
 
-    const externalUserId = event.queryStringParameters?.externalUserId;
-    if (!externalUserId) {
+    // Extract details
+    const externalUserID = event.queryStringParameters?.externalUserID;
+
+    // Handle missing query param
+    if (!externalUserID) {
       throw new httpErrors.BadRequest();
     }
 
-    const notifications = await this.inboundNotificationTable.getRecords<IFlexNotification>({
+    const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
-      value: externalUserId,
+      value: externalUserID,
     });
 
     return {
-      body: notifications.map((n) => IFlexNotificationSchema.parse({ ...n, Status: 'UNREAD' })),
+      body: notifications
+        .filter((notification) => {
+          // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
+          if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+            return false;
+          }
+          return true;
+        })
+        .map((n) => IMessageRecordToIFlexNotification(n))
+        .sort((a, b) => {
+          // Sort by dispatch time, most recent first
+          if (a.DispatchedDateTime && b.DispatchedDateTime) {
+            return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
+          }
+          // If one of the records doesnt have a dispatch time - move it to the back
+          return !a.DispatchedDateTime ? 1 : -1;
+        }),
       statusCode: 200,
     };
   }
 }
 
 export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

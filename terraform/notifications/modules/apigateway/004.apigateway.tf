@@ -10,10 +10,25 @@ resource "aws_api_gateway_rest_api" "this" {
 
   disable_execute_api_endpoint = var.disable_execute_api_endpoint
 
-  endpoint_configuration {
-    types = ["REGIONAL"]
+  // If we're using mTLS - set endpoint type to REGIONAL, otherwise set the private APIs 
+  dynamic "endpoint_configuration" {
+    for_each = var.mtls_truststore_url != null || length(var.private_vpce) == 0 ? [true] : []
+
+    content {
+      types = ["REGIONAL"]
+    }
   }
 
+  // If we're not using mTLS AND have `private_vpce` available - set API definition to private
+  dynamic "endpoint_configuration" {
+    for_each = var.mtls_truststore_url == null && length(var.private_vpce) > 0 ? [true] : []
+
+    content {
+      types            = ["PRIVATE"]
+      vpc_endpoint_ids = sensitive(var.private_vpce)
+      ip_address_type  = "dualstack"
+    }
+  }
   lifecycle {
     create_before_destroy = true
   }
@@ -48,16 +63,16 @@ resource "aws_api_gateway_rest_api" "this" {
       securitySchemes = {
         for authorizer, config in var.authorizers : authorizer => {
           type                           = "apiKey",
-          name                           = "Authorization"
+          name                           = "Unused"
           in                             = "header"
-          "x-amazon-apigateway-authtype" = "CUSTOM"
+          "x-amazon-apigateway-authtype" = "custom"
           "x-amazon-apigateway-authorizer" = {
             type                           = "REQUEST",
-            identitySource                 = "method.request.header.Authorization",
+            identitySource                 = "context.identity.clientCert.clientCertPem", # Passes all requests to mtls authorizer
             authorizerUri                  = "${config.lambda_invoke_arn}"
             authorizerCredentials          = aws_iam_role.apigw_role.arn
             authorizerPayloadFormatVersion = "2.0",
-            authorizerResultTtlInSeconds   = 30,
+            authorizerResultTtlInSeconds   = 0,
             # enableSimpleResponses          = true # This feature flag would be amazing, but it's for HTTP api gateway only, not rest
           }
         }

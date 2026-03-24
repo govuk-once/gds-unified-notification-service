@@ -51,6 +51,7 @@ export class NotificationService {
     };
     this.observability.logger.info(`Dispatching notification`, metadata);
     const start = performance.now();
+    this.observability.metrics.addMetric(`DISPATCHING_ATTEMPTS`, MetricUnit.Count, 1);
     const result = await segment(this.observability.tracer, `Dispatching`, async (segment) => {
       segment.addMetadata(`NotificationID`, request.NotificationID);
       segment.addAnnotation(`Start`, true);
@@ -58,6 +59,7 @@ export class NotificationService {
     });
     const end = performance.now() - start;
     this.observability.metrics.addMetric(`DISPATCH_DURATION`, MetricUnit.Milliseconds, end);
+    this.observability.metrics.addMetric(`DISPATCHED`, MetricUnit.Count, 1);
 
     return result;
   }

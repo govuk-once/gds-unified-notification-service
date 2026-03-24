@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
@@ -26,7 +26,7 @@ describe('Analytics QueueHandler', () => {
     EventID: '123',
     DepartmentID: 'DEP1',
     NotificationID: 'not1',
-    Event: ValidationEnum.RECEIVED,
+    Event: NotificationStateEnum.RECEIVED,
     EventDateTime: '2026-01-22T00:00:01Z',
     APIGWExtendedID: 'testExample',
     EventReason: 'testing',
@@ -34,7 +34,7 @@ describe('Analytics QueueHandler', () => {
   const invalidData = {
     DepartmentID: undefined,
     NotificationID: undefined,
-    Event: ValidationEnum.READ,
+    Event: NotificationStateEnum.READ,
     EventDateTime: '00000000',
     APIGWExtendedID: 'testExample',
     EventReason: 'testing',
@@ -45,11 +45,11 @@ describe('Analytics QueueHandler', () => {
     vi.clearAllMocks();
 
     // Mocking successful completion of service functions
-    serviceMocks.eventsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
 
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
-      events: Promise.resolve(serviceMocks.eventsDynamoRepositoryMock),
+      notifications: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
     handler = instance.handler();
 
@@ -67,7 +67,7 @@ describe('Analytics QueueHandler', () => {
 
   it('should process VALID records: Update Cache to Processing, Publish to Queue, and Push to DynamoDB', async () => {
     // Arrange
-    const expectedCreatedTableRows = [{ ...validData }];
+    const expectedCreatedTableRows = { ...validData };
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
     serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
 
@@ -80,8 +80,8 @@ describe('Analytics QueueHandler', () => {
 
     // Assert
     // - Entries have been created
-    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
     // - Cached hashmap of status and notification ID has been triggered
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', validData.Event);
@@ -94,7 +94,7 @@ describe('Analytics QueueHandler', () => {
       ...validData,
       Event: undefined,
     };
-    const expectedCreatedTableRows = [{ ...validDataWithMissingValue, Event: ValidationEnum.UNKNOWN }];
+    const expectedCreatedTableRows = { ...validDataWithMissingValue, Event: NotificationStateEnum.UNKNOWN };
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('queue/processing/url');
     serviceMocks.cacheServiceMock.store.mockResolvedValue('READ');
 
@@ -107,11 +107,14 @@ describe('Analytics QueueHandler', () => {
 
     // Assert
     // - Entries have been created
-    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith(expectedCreatedTableRows);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
     // - Cached hashmap of status and notification ID has been triggered
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('/DEP1/not1/Status', ValidationEnum.UNKNOWN);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+      '/DEP1/not1/Status',
+      NotificationStateEnum.UNKNOWN
+    );
   });
 
   it('should process INVALID records: Update Cache to Read, Skip Queue, and Push to DyanmoDB', async () => {
@@ -126,7 +129,7 @@ describe('Analytics QueueHandler', () => {
     await handler(event, mockContext);
 
     // Assert
-    expect(serviceMocks.eventsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(0);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(0);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(0);
   });
 });
