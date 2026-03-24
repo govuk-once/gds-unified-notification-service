@@ -16,6 +16,12 @@ paths:
       operationId: getNotifications
       tags:
         - MVP
+      parameters:
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successful operation
@@ -50,6 +56,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
+
       responses:
         '200':
           description: Notification found
@@ -85,6 +97,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '204':
           description: Notification deleted (No content)
@@ -115,6 +132,11 @@ paths:
       parameters:
         - name: notificationID
           in: path
+          required: true
+          schema:
+            type: string
+        - name: externalUserID
+          in: query
           required: true
           schema:
             type: string

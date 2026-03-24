@@ -73,7 +73,7 @@ describe('getNotifications Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       queryStringParameters: {
-        externalUserId: 'user-ABC',
+        externalUserID: 'user-ABC',
       },
     } as unknown as EventType;
 

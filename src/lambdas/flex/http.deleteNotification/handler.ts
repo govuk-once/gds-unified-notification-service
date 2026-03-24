@@ -28,7 +28,7 @@ const responseBodySchema = z.any();
     "requestTimeEpoch": 1428582896000
   },
   "pathParameters": {
-    "notificationId": "12342"
+    "notificationID": "12342"
   }   
 }
 */
@@ -60,16 +60,25 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       throw new httpErrors.Unauthorized();
     }
 
-    const notificationId = event.pathParameters?.notificationId;
-    if (!notificationId) {
+    // Extract details
+    const notificationID = event.pathParameters?.notificationID;
+    const externalUserID = event.queryStringParameters?.externalUserID;
+
+    // Handle missing path param
+    if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.notificationsDynamoRepository.getRecord(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
       this.observability.logger.info('Notification Id has not been provided.');
+      throw new httpErrors.NotFound();
+    }
+
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserID) {
       throw new httpErrors.NotFound();
     }
 
