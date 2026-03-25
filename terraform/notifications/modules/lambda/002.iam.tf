@@ -137,22 +137,3 @@ resource "aws_iam_role_policy" "dynamo_access" {
     ]
   })
 }
-
-resource "aws_iam_role_policy" "lambda_dead_letter_queue" {
-  count = var.dead_letter_queue_arn != null ? 1 : 0
-
-  name = join("-", [var.prefix, "iamr", var.function_name, "to-dlq"])
-  role = aws_iam_role.lambda.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      // Allow role assumptions
-      {
-        Effect   = "Allow"
-        Action   = ["sqs:SendMessage"]
-        Resource = var.dead_letter_queue_arn
-      }
-    ]
-  })
-}
