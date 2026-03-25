@@ -62,7 +62,7 @@ variable "create_dead_letter_queue" {
   default     = false
 }
 
-variable "max_receieve" {
+variable "max_received" {
   description = "Number of times a message is delivered before being moved to the dead letter queue"
   type        = number
   default     = 3

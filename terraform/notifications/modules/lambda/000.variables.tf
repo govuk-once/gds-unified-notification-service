@@ -144,6 +144,5 @@ variable "additional_kms_decrypts" {
 variable "dead_letter_queue_arn" {
   description = "Dead Letter Queue Arn"
   type        = string
-  nullable    = true
   default     = null
 }

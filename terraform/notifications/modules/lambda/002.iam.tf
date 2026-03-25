@@ -144,9 +144,10 @@ resource "aws_iam_role_policy" "lambda_dead_letter_queue" {
   name = join("-", [var.prefix, "iamr", var.function_name, "to-dlq"])
   role = aws_iam_role.lambda.id
 
-  policy = jsondecode({
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      // Allow role assumptions
       {
         Effect   = "Allow"
         Action   = ["sqs:SendMessage"]
