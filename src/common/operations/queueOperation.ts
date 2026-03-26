@@ -34,7 +34,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
 });
 
 export abstract class QueueHandler<InputType, OutputType = void> {
-  public abstract operationId: string;
+  public operationId: string;
 
   constructor(protected observability: ObservabilityService) {}
 
@@ -89,6 +89,27 @@ export abstract class QueueHandler<InputType, OutputType = void> {
             eventSourceARN: record.eventSourceARN,
           });
           this.observability.metrics.addMetric(`QUEUE_MESSAGE_RETRY_ATTEMPT`, MetricUnit.Count, 1);
+        }
+      }
+
+      // TODO: Set a trigger for analytics that does not use NotificationTitle.
+      const eventToOperationMap: Record<string, string> = {
+        FAIL_AT_VALIDATION: 'validation',
+        FAIL_AT_PROCESSING: 'processing',
+        FAIL_AT_DISPATCH: 'dispatch',
+        FAIL_AT_ANALYTICS: 'analytics',
+      };
+
+      for (const record of event.Records as SQSRecord[]) {
+        const object =
+          typeof record.body === 'string'
+            ? (JSON.parse(record.body) as Record<string, string>)
+            : (record.body as Record<string, string>);
+        const notificationTitle = object?.NotificationTitle;
+
+        if (eventToOperationMap[notificationTitle] === this.operationId) {
+          this.observability.logger.warn(`Simulating an error for operation ${this.operationId}`);
+          throw new Error(`Simulating an error!`);
         }
       }
 
