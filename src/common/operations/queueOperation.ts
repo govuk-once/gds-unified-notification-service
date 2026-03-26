@@ -92,6 +92,7 @@ export abstract class QueueHandler<InputType, OutputType = void> {
         }
       }
 
+      // Triggers error based on operation id and notification title - to be removed from prod release!
       // TODO: Set a trigger for analytics that does not use NotificationTitle.
       const eventToOperationMap: Record<string, string> = {
         FAIL_AT_VALIDATION: 'validation',
