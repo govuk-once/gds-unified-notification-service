@@ -141,6 +141,11 @@ variable "additional_kms_decrypts" {
   default     = {}
 }
 
+variable "enable_dlq" {
+  type    = bool
+  default = false
+}
+
 variable "dead_letter_queue_arn" {
   description = "Dead Letter Queue Arn"
   type        = string

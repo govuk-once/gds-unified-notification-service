@@ -50,7 +50,8 @@ resource "aws_lambda_function" "this" {
   }
 
   dynamic "dead_letter_config" {
-    for_each = var.dead_letter_queue_arn != null ? [true] : []
+    for_each = var.enable_dlq ? [1] : []
+
     content {
       target_arn = var.dead_letter_queue_arn
     }

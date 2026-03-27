@@ -137,3 +137,23 @@ resource "aws_iam_role_policy" "dynamo_access" {
     ]
   })
 }
+
+# Gives the Lambda identity permission to interact with DLQ
+resource "aws_iam_role_policy" "lambda_to_dql" {
+  count = var.enable_dlq ? 1 : 0
+
+  name = join("-", [var.prefix, "iamr", var.function_name, "to-dlq"])
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      // Allow role assumptions
+      {
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = var.dead_letter_queue_arn
+      },
+    ]
+  })
+}
