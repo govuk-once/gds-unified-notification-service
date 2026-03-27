@@ -168,6 +168,19 @@ describe('Validation QueueHandler', () => {
     });
   });
 
+  it('should throw an error when the message title equals "FAIL_AT_VALIDATION".', async () => {
+    // Arrange
+    const mockFailOnTriggerEvent = {
+      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody, NotificationTitle: 'FAIL_AT_VALIDATION' } }],
+    };
+
+    // Act
+    const result = handler(mockFailOnTriggerEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(new Error('Simulating an error!'));
+  });
+
   it.each([
     [`true`, `false`],
     [`false`, `true`],

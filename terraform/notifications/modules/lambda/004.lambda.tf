@@ -6,8 +6,6 @@ resource "aws_lambda_function" "this" {
 
   #checkov:skip=CKV_AWS_117: "Ensure that AWS Lambda function is configured inside a VPC" - TODO - Re-evaluate - VPCs are not used by design within this project
 
-  #checkov:skip=CKV_AWS_116: "Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)" - TODO - TO DO - SQS Integration is planned in
-
   // Metadata & IAM
   function_name = join("-", [var.prefix, "lmbd", var.service_name, var.function_name])
   tags          = var.tags
@@ -48,6 +46,13 @@ resource "aws_lambda_function" "this" {
 
       // Flags
       AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING = true
+    }
+  }
+
+  dynamic "dead_letter_config" {
+    for_each = var.dead_letter_queue_arn != null ? [true] : []
+    content {
+      target_arn = var.dead_letter_queue_arn
     }
   }
 

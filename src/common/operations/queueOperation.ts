@@ -1,4 +1,5 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
@@ -33,7 +34,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
 });
 
 export abstract class QueueHandler<InputType, OutputType = void> {
-  public abstract operationId: string;
+  public operationId: string;
 
   constructor(protected observability: ObservabilityService) {}
 
@@ -77,6 +78,41 @@ export abstract class QueueHandler<InputType, OutputType = void> {
     return this.middlewares(middy()).handler(async (event: QueueEvent<InputType>, context: Context) => {
       // Call DI before each request is handled
       await initializeDependencies(this, this.dependencies);
+
+      for (const record of event.Records as SQSRecord[]) {
+        const receiveCount = parseInt(record.attributes?.ApproximateReceiveCount ?? '1', 10);
+        if (receiveCount > 1) {
+          this.observability.logger.warn(`SQS message retry attempt`, {
+            messageId: record.messageId,
+            receiveCount,
+            operationId: this.operationId,
+            eventSourceARN: record.eventSourceARN,
+          });
+          this.observability.metrics.addMetric(`QUEUE_MESSAGE_RETRY_ATTEMPT`, MetricUnit.Count, 1);
+        }
+      }
+
+      // Triggers error based on operation id and notification title - to be removed from prod release!
+      // TODO: Set a trigger for analytics that does not use NotificationTitle.
+      const eventToOperationMap: Record<string, string> = {
+        FAIL_AT_VALIDATION: 'validation',
+        FAIL_AT_PROCESSING: 'processing',
+        FAIL_AT_DISPATCH: 'dispatch',
+        FAIL_AT_ANALYTICS: 'analytics',
+      };
+
+      for (const record of event.Records as SQSRecord[]) {
+        const object =
+          typeof record.body === 'string'
+            ? (JSON.parse(record.body) as Record<string, string>)
+            : (record.body as Record<string, string>);
+        const notificationTitle = object?.NotificationTitle;
+
+        if (eventToOperationMap[notificationTitle] === this.operationId) {
+          this.observability.logger.warn(`Simulating an error for operation ${this.operationId}`);
+          throw new Error(`Simulating an error!`);
+        }
+      }
 
       // Trigger implementation
       this.observability.logger.info(`Request received`, { event });
