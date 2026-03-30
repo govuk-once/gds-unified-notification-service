@@ -12,8 +12,7 @@ module "lambda_pso_dispatch" {
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
-  enable_dlq            = true
-  dead_letter_queue_arn = module.sqs_analytics.dead_letter_queue_arn
+  dead_letter_queue_arn = module.sqs_dispatch.dead_letter_queue_arn
 
   // IAM Permissions & trigger linking
   trigger_queues = {
