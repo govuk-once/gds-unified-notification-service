@@ -129,6 +129,19 @@ describe('Processing QueueHandler', () => {
     expect(instance.operationId).toBe('processing');
   });
 
+  it('should throw an error when the message title equals "FAIL_AT_PROCESSING".', async () => {
+    // Arrange
+    const mockFailOnTriggerEvent = {
+      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody, NotificationTitle: 'FAIL_AT_PROCESSING' } }],
+    };
+
+    // Act
+    const result = handler(mockFailOnTriggerEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(new Error('Simulating an error!'));
+  });
+
   it.each([
     [`true`, `false`],
     [`false`, `true`],

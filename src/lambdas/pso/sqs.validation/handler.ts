@@ -78,7 +78,6 @@ export class Validation extends QueueHandler<IMessage> {
   }
 
   public async implementation(event: QueueEvent<IMessage>, context: Context) {
-    // TODO: Implement retry mechanism - This call throw errors if service is disabled
     await this.config.ensureServiceIsEnabled(
       BoolParameters.Config.Common.Enabled,
       BoolParameters.Config.Validation.Enabled

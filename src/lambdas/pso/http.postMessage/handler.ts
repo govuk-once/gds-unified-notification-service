@@ -39,7 +39,6 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
 {
   "body":"[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
   "headers": {
-    "x-api-key": "mockApiKey",
     "Content-Type": "application/json"
   },
   "requestContext": {

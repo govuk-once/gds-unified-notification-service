@@ -12,11 +12,15 @@ module "lambda_pso_analytics" {
   codesigning_config_id  = aws_lambda_code_signing_config.code_signing.id
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
+  dead_letter_queue_arn = module.sqs_analytics.dead_letter_queue_arn
+
   # IAM Permissions & SQS trigger linking
   trigger_queues = {
     analytics = module.sqs_analytics.queue_arn
   }
-  publish_queues = {}
+  publish_queues = {
+    dead_letter_queue = module.sqs_analytics.dead_letter_queue_arn
+  }
   dynamo_tables = {
     inbound = {
       arn   = module.dynamodb_inbound_messages.table_arn

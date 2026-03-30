@@ -154,3 +154,9 @@ variable "role_assumptions" {
   type        = map(string)
   default     = {}
 }
+
+variable "dead_letter_queue_arn" {
+  description = "Dead Letter Queue Arn"
+  type        = string
+  default     = null
+}
