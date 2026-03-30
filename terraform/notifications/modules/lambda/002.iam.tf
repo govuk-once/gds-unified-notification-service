@@ -21,7 +21,7 @@ resource "aws_iam_role" "lambda" {
 
 # Gives the Lambda identity permission to interact with SQS
 resource "aws_iam_role_policy" "lambda_to_queue" {
-  for_each = var.publish_queues
+  for_each = { for k, value in merge(var.publish_queues, { dlq = var.dead_letter_queue_arn }) : k => value if value != null }
 
   name = join("-", [var.prefix, "iamr", var.function_name, "to-queue", each.key])
   role = aws_iam_role.lambda.id
@@ -33,7 +33,7 @@ resource "aws_iam_role_policy" "lambda_to_queue" {
       {
         Effect   = "Allow"
         Action   = ["sqs:SendMessage"]
-        Resource = values(var.publish_queues)
+        Resource = each.value
       },
     ]
   })
