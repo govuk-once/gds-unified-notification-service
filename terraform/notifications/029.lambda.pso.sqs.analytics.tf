@@ -18,7 +18,9 @@ module "lambda_pso_analytics" {
   trigger_queues = {
     analytics = module.sqs_analytics.queue_arn
   }
-  publish_queues = {}
+  publish_queues = {
+    dead_letter_queue = module.sqs_analytics.dead_letter_queue_arn
+  }
   dynamo_tables = {
     inbound = {
       arn   = module.dynamodb_inbound_messages.table_arn
