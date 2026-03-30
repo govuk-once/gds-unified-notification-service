@@ -36,7 +36,7 @@ module "api_gateway_pso" {
       authorizer           = local.mtls_enabled ? "mtlsCertificateRevocation" : null
     },
     "getNotificationStatus" = {
-      path                 = "status/{notificationId}"
+      path                 = "status/{notificationID}"
       method               = "GET"
       lambda_function_name = module.lambda_pso_getNotificationStatus.lambda_function_name
       lambda_invoke_arn    = module.lambda_pso_getNotificationStatus.lambda_invoke_arn

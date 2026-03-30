@@ -19,7 +19,8 @@ module "lambda_pso_dispatch" {
     dispatch = module.sqs_dispatch.queue_arn
   }
   publish_queues = {
-    analytics = module.sqs_analytics.queue_arn
+    analytics         = module.sqs_analytics.queue_arn
+    dead_letter_queue = module.sqs_dispatch.dead_letter_queue_arn
   }
   dynamo_tables = {
     inbound = {

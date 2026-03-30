@@ -19,8 +19,9 @@ module "lambda_pso_validation" {
     incoming = module.sqs_incoming.queue_arn
   }
   publish_queues = {
-    analytics  = module.sqs_analytics.queue_arn
-    processing = module.sqs_processing.queue_arn
+    analytics         = module.sqs_analytics.queue_arn
+    processing        = module.sqs_processing.queue_arn
+    dead_letter_queue = module.sqs_incoming.dead_letter_queue_arn
   }
   dynamo_tables = {
     inbound = {
