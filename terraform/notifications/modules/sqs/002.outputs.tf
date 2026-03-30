@@ -15,5 +15,7 @@ output "queue_url" {
 
 output "dead_letter_queue_arn" {
   description = "ARN of the created sqs queue"
-  value       = aws_sqs_queue.dead_letter_queue[0].arn
+  value = try(
+    aws_sqs_queue.dead_letter_queue[0].arn, null
+  )
 }
