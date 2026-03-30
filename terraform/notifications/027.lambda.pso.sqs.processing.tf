@@ -30,6 +30,18 @@ module "lambda_pso_processing" {
     }
   }
 
+  kms_decrypts = {
+    udp = local.udp_smconfigkms
+  }
+
+  secret_manager_secrets = {
+    udp = local.udp_smconfig
+  }
+
+  role_assumptions = {
+    udp = local.udp_role
+  }
+
   # Place in private subnet
   security_group_ids = [aws_security_group.private_sg.id]
   subnet_ids         = [for key in toset(local.availability_zones) : aws_subnet.private[key].id]

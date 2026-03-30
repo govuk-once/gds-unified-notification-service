@@ -17,7 +17,7 @@ module "api_gateway_flex_private" {
   disable_execute_api_endpoint = false
 
   // Only allow traffic from private VPCe's
-  private_vpce = local.flex_vpces
+  private_vpce = local.flex_vpce == null ? [] : [local.flex_vpce]
 
   // Lambdas
   integrations = {

@@ -28,7 +28,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     // Enums
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
     // Numbers
-    [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: 60 * 60 * 24 * 30,
+    [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: (60 * 60 * 24 * 30).toString(),
     [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
     // Nested objects
     [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({

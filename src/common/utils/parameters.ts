@@ -37,6 +37,12 @@ export const StringParameters = {
   Notification: {
     DeeplinkTemplate: 'notification/deeplinkTemplate',
   },
+  UDP: {
+    Config: {
+      SM: 'udp/config/sm',
+      KMS: 'udp/config/kms',
+    },
+  },
   Queue: {
     Analytics: {
       Url: 'queue/analytics/url',
@@ -90,6 +96,9 @@ export const NumericParameters = {
 
 export const EnumParameters = {
   Config: {
+    Processing: {
+      Adapter: 'config/processing/adapter',
+    },
     Dispatch: {
       Adapter: 'config/dispatch/adapter',
     },

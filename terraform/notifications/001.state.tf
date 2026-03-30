@@ -24,7 +24,6 @@ variable "is_main_environment_in_account" {
   default     = false
 }
 
-
 variable "code_version" {
   type        = string
   description = "Released code version"
