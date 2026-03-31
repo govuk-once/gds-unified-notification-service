@@ -100,20 +100,20 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
 }
 
 #tfsec:ignore:aws-cloudtrail-ensure-cloudwatch-integration
-resource "aws_cloudtrail" "cloudtrail" {
-  #checkov:skip=CKV_AWS_252: "Ensure CloudTrail defines an SNS Topic" - Investigate whether it's necessary
-  #checkov:skip=CKV2_AWS_10: "Ensure CloudTrail trails are integrated with CloudWatch Logs" - Investigate whether it's necessary along with s3
-  depends_on = [
-    aws_kms_key.main,
-    aws_s3_bucket.cloudtrail,
-    aws_s3_bucket_policy.cloudtrail
-  ]
+# resource "aws_cloudtrail" "cloudtrail" {
+#   #checkov:skip=CKV_AWS_252: "Ensure CloudTrail defines an SNS Topic" - Investigate whether it's necessary
+#   #checkov:skip=CKV2_AWS_10: "Ensure CloudTrail trails are integrated with CloudWatch Logs" - Investigate whether it's necessary along with s3
+#   depends_on = [
+#     aws_kms_key.main,
+#     aws_s3_bucket.cloudtrail,
+#     aws_s3_bucket_policy.cloudtrail
+#   ]
 
-  name                          = join("-", [local.prefix, "cloudtrail"])
-  tags                          = local.defaultTags
-  s3_bucket_name                = aws_s3_bucket.cloudtrail.id
-  include_global_service_events = true
-  enable_log_file_validation    = true
-  kms_key_id                    = aws_kms_key.main.arn
-  is_multi_region_trail         = true
-}
+#   name                          = join("-", [local.prefix, "cloudtrail"])
+#   tags                          = local.defaultTags
+#   s3_bucket_name                = aws_s3_bucket.cloudtrail.id
+#   include_global_service_events = true
+#   enable_log_file_validation    = true
+#   kms_key_id                    = aws_kms_key.main.arn
+#   is_multi_region_trail         = true
+# }
