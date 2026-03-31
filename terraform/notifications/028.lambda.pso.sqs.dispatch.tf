@@ -20,7 +20,11 @@ module "lambda_pso_dispatch" {
     analytics = module.sqs_analytics.queue_arn
   }
   dynamo_tables = {
-    inbound = module.dynamodb_inbound_messages.table_arn
+    inbound = {
+      arn   = module.dynamodb_inbound_messages.table_arn
+      read  = true
+      write = true
+    }
   }
   additional_policies = {
     # Allow elasticache connection

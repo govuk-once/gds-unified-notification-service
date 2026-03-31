@@ -45,3 +45,11 @@ variable "global_secondary_indexes" {
   default     = []
 }
 
+variable "ttl_attribute" {
+  description = "Defines the name of TTL field"
+  type        = string
+  nullable    = true
+  default     = null
+}
+
+

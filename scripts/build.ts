@@ -22,7 +22,9 @@ const buildHandlers = async (dir: string) => {
         cwd: dir,
         absolute: true,
       }),
-    ].filter((name) => name.endsWith('test.unit.ts') == false);
+    ]
+      .filter((name) => name.endsWith('test.unit.ts') == false)
+      .sort();
 
     if (entryPoints.length === 0) {
       console.error(`No lambda entry points found in ./${relative(ROOT, dir)}`);
@@ -48,7 +50,7 @@ const buildHandlers = async (dir: string) => {
           ].join('\n'),
         },
       });
-      console.log(`${id} built successfully`);
+      console.log(` ✔ ${id}`);
     }
   } catch (error) {
     console.log('esbuild failure', error);

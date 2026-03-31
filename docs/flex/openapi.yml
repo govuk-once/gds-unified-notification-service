@@ -6,12 +6,6 @@ info:
 servers:
   - url: /api
 
-securitySchemes:
-  bearerAuth:
-    type: http
-    scheme: bearer
-    bearerFormat: AWS_IAM_SIGV4
-
 security:
   - bearerAuth: []
 
@@ -22,6 +16,12 @@ paths:
       operationId: getNotifications
       tags:
         - MVP
+      parameters:
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successful operation
@@ -56,6 +56,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
+
       responses:
         '200':
           description: Notification found
@@ -88,6 +94,11 @@ paths:
       parameters:
         - name: notificationID
           in: path
+          required: true
+          schema:
+            type: string
+        - name: externalUserID
+          in: query
           required: true
           schema:
             type: string
@@ -124,13 +135,18 @@ paths:
           required: true
           schema:
             type: string
+        - name: externalUserID
+          in: query
+          required: true
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                status:
+                Status:
                   $ref: '#/components/schemas/Status'
         required: true
       responses:
@@ -154,6 +170,12 @@ paths:
           description: Unexpected error
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: AWS_IAM_SIGV4
+
   schemas:
     Notification:
       type: object
@@ -162,7 +184,7 @@ components:
         - Status
         - NotificationBody
         - NotificationTitle
-        - DispatchedAt
+        - DispatchedDateTime
       properties:
         NotificationID:
           type: string
@@ -175,33 +197,22 @@ components:
         NotificationBody:
           type: string
           description: Contents of the notification to be displayed on push notification
+        DispatchedDateTime:
+          type: string
+          format: date-time
         MessageTitle:
           type: string
           description: (Optional) Title of the message displayed in the GovUK app's notification centre, falls back on notification title
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
-        DispatchedAt:
-          type: string
-          format: date-time
 
     Status:
       type: string
       enum:
         - RECEIVED
-        - VALIDATING
-        - VALIDATED
-        - VALIDATION_FAILED
-        - PROCESSING
-        - PROCESSED
-        - PROCESSING_FAILED
-        - DISPATCHING
-        - DISPATCHED
-        - DISPATCHING_FAILED
-        - DELIVERED
-        - NOTIFICATION_CENTRE_READ
-        - NOTIFICATION_CENTRE_MARKED_AS_UNREAD
-        - NOTIFICATION_CENTRE_HIDDEN
+        - READ
+        - MARKED_AS_UNREAD
 
     NotFoundResponse:
       type: object

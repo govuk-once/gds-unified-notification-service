@@ -5,13 +5,13 @@ import {
   iocGetCacheService,
   iocGetCircuitBreakerService,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetNotificationService,
   iocGetObservabilityService,
 } from '@common/ioc';
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
@@ -23,7 +23,6 @@ import {
 } from '@common/services';
 import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
 import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 
@@ -62,7 +61,7 @@ const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
 
-  public inboundDynamodbRepository: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analyticsService: AnalyticsService;
   public notificationsService: NotificationService;
   public cacheService: CacheService;
@@ -95,7 +94,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
-      ValidationEnum.DISPATCHING
+      NotificationStateEnum.DISPATCHING
     );
 
     // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
@@ -152,11 +151,14 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw error;
       }
 
-      // Update stored record with timestamp
-      await this.inboundDynamodbRepository.updateRecord<Partial<IMessageRecord>>({
-        ...extractIdentifiers(valid),
-        DispatchedStartDateTime: new Date().toISOString(),
-      });
+      // Update stored record with timestamp - also reset expiration date
+      await this.notificationsDynamoRepository.updateRecord(
+        {
+          ...extractIdentifiers(valid),
+          DispatchedDateTime: new Date().toISOString(),
+        },
+        { resetExpirationDate: true }
+      );
 
       // Increment rate limiter post request
       await this.cacheService.rateLimit(
@@ -174,11 +176,11 @@ export class Dispatch extends QueueHandler<unknown, void> {
           ...metadata,
           ProviderRequestID: sendResult.requestId,
         });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHED);
+        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
       } else {
         await this.circuitBreakerService.recordFailure();
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), ValidationEnum.DISPATCHING_FAILED);
+        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
       }
     }
 
@@ -201,7 +203,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
         },
-        ValidationEnum.DISPATCHING_FAILED,
+        NotificationStateEnum.DISPATCHING_FAILED,
         errors
       );
     }
@@ -209,7 +211,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
 }
 
 export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundDynamodbRepository: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   notificationsService: iocGetNotificationService(),
   analyticsService: iocGetAnalyticsService(),
   cacheService: iocGetCacheService().connect(),

@@ -91,11 +91,10 @@ describe('Dispatch QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          // Set NotificationID to undefined on purpose
-          NotificationID: undefined,
+          // Set DepartmentID to undefined on purpose
           UserID: 'invalid-id',
           ExternalUserID: 'test',
-          DepartmentID: 'invalid-id',
+          DepartmentID: undefined,
           NotificationTitle: 'Boom',
           NotificationBody: 'psst',
         },
@@ -114,7 +113,7 @@ describe('Dispatch QueueHandler', () => {
     );
 
     // Mocking successful completion of service functions
-    serviceMocks.inboundDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
@@ -127,7 +126,7 @@ describe('Dispatch QueueHandler', () => {
     serviceMocks.circuitBreakerServiceMock.recordFailure.mockResolvedValue(undefined);
     instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      inboundDynamodbRepository: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       notificationsService: Promise.resolve(serviceMocks.notificationServiceMock),
       cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
       circuitBreakerService: Promise.resolve(serviceMocks.circuitBreakerServiceMock),
@@ -211,7 +210,7 @@ describe('Dispatch QueueHandler', () => {
     });
   });
 
-  it('should update data in the inbound message table', async () => {
+  it('should update data in the notifications message table', async () => {
     // Arrange
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
@@ -225,12 +224,15 @@ describe('Dispatch QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
-      DepartmentID: mockMessageBody.DepartmentID,
-      NotificationID: mockMessageBody.NotificationID,
-      UserID: mockMessageBody.UserID,
-      DispatchedStartDateTime: date.toISOString(),
-    });
+    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+        DispatchedDateTime: date.toISOString(),
+      },
+      { resetExpirationDate: true }
+    );
   });
 
   it('should trigger analytics for failure events when NotificationService fails.', async () => {
@@ -265,7 +267,12 @@ describe('Dispatch QueueHandler', () => {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
       },
       'DISPATCHING_FAILED',
-      '✖ Invalid input: expected string, received undefined\n  → at NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at NotificationBody'
+      `✖ Invalid UUID
+  → at NotificationID
+✖ Invalid input: expected string, received undefined
+  → at NotificationTitle
+✖ Invalid input: expected string, received undefined
+  → at NotificationBody`
     );
   });
 
@@ -277,12 +284,11 @@ describe('Dispatch QueueHandler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: '✖ Invalid input: expected string, received undefined\n  → at NotificationID',
+        errors: '✖ Invalid input: expected string, received undefined\n  → at DepartmentID',
         raw: {
-          DepartmentID: 'invalid-id',
+          DepartmentID: undefined,
           ExternalUserID: 'test',
           NotificationBody: 'psst',
-          NotificationID: undefined,
           NotificationTitle: 'Boom',
           UserID: 'invalid-id',
         },

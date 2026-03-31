@@ -73,7 +73,9 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
         idempotency_key: request.NotificationID,
         target_channel: 'push',
         include_aliases: { external_id: [request.ExternalUserID] },
-        app_url: this.deeplinkTemplate.replace('{{id}}', request.NotificationID),
+        data: {
+          deeplink: this.deeplinkTemplate.replace('{id}', request.NotificationID),
+        },
       });
       this.logger.info(`Successfully sent notification using OneSignal adapter`, metadata);
 

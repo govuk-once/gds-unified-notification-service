@@ -20,13 +20,13 @@ import httpEventNormalizer from '@middy/http-event-normalizer';
 import httpHeaderNormalizer from '@middy/http-header-normalizer';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
 import type { ALBEvent, APIGatewayEvent, APIGatewayProxyEventV2, Context } from 'aws-lambda';
-import type { z, ZodType } from 'zod';
+import type { z, ZodAny, ZodType } from 'zod';
 
 export type RequestEvent = APIGatewayEvent | APIGatewayProxyEventV2 | ALBEvent;
 
 export abstract class APIHandler<
-  InputSchema extends ZodType,
-  OutputSchema extends ZodType,
+  InputSchema extends ZodType = ZodAny,
+  OutputSchema extends ZodType = ZodAny,
   InferredInputSchema = z.infer<InputSchema>,
   InferredOutputSchema = z.infer<OutputSchema>,
 > {

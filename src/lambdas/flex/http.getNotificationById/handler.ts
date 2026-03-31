@@ -1,21 +1,24 @@
 import {
   HandlerDependencies,
   iocGetConfigurationService,
-  iocGetInboundDynamoRepository,
+  iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IFlexNotification, IFlexNotificationSchema } from '@project/lambdas/interfaces/IFlexNotification';
+import {
+  IFlexNotificationSchema,
+  IMessageRecordToIFlexNotification,
+} from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message: z.string() })]);
 
 /* Lambda Request Example
 {
@@ -27,17 +30,17 @@ const responseBodySchema = z.union([IFlexNotificationSchema, z.object({ Message:
     "requestTimeEpoch": 1428582896000
   },
   "pathParameters": {
-    "notificationId": "12342"
+    "notificationID": "12342"
   }  
 }
 */
 
-export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof IFlexNotificationSchema> {
   public operationId: string = 'getNotificationById';
   public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+  public responseBodySchema = IFlexNotificationSchema;
 
-  public inboundNotificationTable: InboundDynamoRepository;
+  public notificationsDynamoRepository: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -51,34 +54,56 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+  ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
     const isValidApiKey = await this.validateApiKey(event);
 
     if (!isValidApiKey) {
       throw new httpErrors.Unauthorized();
     }
 
-    const notificationId = event.pathParameters?.notificationId;
-    if (!notificationId) {
+    // Extract details
+    const notificationID = event.pathParameters?.notificationID;
+    const externalUserID = event.queryStringParameters?.externalUserID;
+
+    // Handle missing path param
+    if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
       throw new httpErrors.BadRequest();
     }
 
-    const notification = await this.inboundNotificationTable.getRecord<IFlexNotification>(notificationId);
+    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
+    // Handle not found or hidden notifications
     if (!notification) {
       throw new httpErrors.NotFound();
     }
 
-    this.observability.logger.info('Successful request.', { notificationId });
+    // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
+    if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+      throw new httpErrors.NotFound();
+    }
+
+    // Handle user not being the owner of the notification
+    if (notification.ExternalUserID !== externalUserID) {
+      throw new httpErrors.NotFound();
+    }
+
+    // If message is marked as hidden - return 404
+    const notificationResponse = IMessageRecordToIFlexNotification(notification);
+
+    if (notificationResponse.Status == NotificationStateEnum.HIDDEN) {
+      throw new httpErrors.NotFound();
+    }
+
+    this.observability.logger.info('Successful request.', { notificationID });
 
     return {
-      body: IFlexNotificationSchema.parse(notification),
+      body: notificationResponse,
       statusCode: 200,
     };
   }
 }
 
 export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  inboundNotificationTable: iocGetInboundDynamoRepository(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
 })).handler();

@@ -1,7 +1,8 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { EventsDynamoRepository, InboundDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
+import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
   AnalyticsQueueService,
   AnalyticsService,
@@ -59,14 +60,14 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   ) as Mocked<AnalyticsQueueService>;
 
   // Dynamodb
-  const inboundDynamoRepositoryMock = new InboundDynamoRepository(
+  const notificationsDynamoRepositoryMock = new NotificationsDynamoRepository(
     configurationServiceMock,
     observabilityMock
-  ) as Mocked<InboundDynamoRepository>;
-  const eventsDynamoRepositoryMock = new EventsDynamoRepository(
+  ) as Mocked<NotificationsDynamoRepository>;
+  const mtlsRevocationDynamoRepositoryMock = new MTLSRevocationDynamoRepository(
     configurationServiceMock,
     observabilityMock
-  ) as Mocked<EventsDynamoRepository>;
+  ) as Mocked<MTLSRevocationDynamoRepository>;
 
   // Services
   const analyticsServiceMock = new AnalyticsService(
@@ -90,14 +91,17 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   ) as Mocked<ContentValidationService>;
 
   return {
-    configurationServiceMock: configurationServiceMock,
+    // Queue
     processingQueueServiceMock,
     dispatchQueueServiceMock,
     analyticsQueueServiceMock,
+    // DynamoDB
+    notificationsDynamoRepositoryMock,
+    mtlsRevocationDynamoRepositoryMock,
+    // Services
+    configurationServiceMock: configurationServiceMock,
     analyticsServiceMock,
     notificationServiceMock,
-    inboundDynamoRepositoryMock,
-    eventsDynamoRepositoryMock,
     cacheServiceMock,
     circuitBreakerServiceMock,
     contentValidationServiceMock,

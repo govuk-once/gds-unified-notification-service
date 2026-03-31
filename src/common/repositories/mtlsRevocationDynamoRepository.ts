@@ -1,9 +1,9 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
+import { MTLSRevocation } from '@project/lambdas/interfaces/MTLSRevocationTable';
 
-export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
+export class MTLSRevocationDynamoRepository extends DynamodbRepository<MTLSRevocation> {
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService
@@ -12,7 +12,10 @@ export class EventsDynamoRepository extends DynamodbRepository<IMessageRecord> {
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Events.KeyAttributes, StringParameters.Table.Events.Name);
+    await super.initialize(
+      StringParameters.Table.MTLSRevocation.KeyAttributes,
+      StringParameters.Table.MTLSRevocation.Name
+    );
     return this;
   }
 }

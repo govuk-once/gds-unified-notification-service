@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ValidationEnum } from '@common/models/ValidationEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
@@ -29,7 +29,7 @@ describe('PostMessage Handler', () => {
 
   // Mock Message Body
   const mockMessageBody = {
-    NotificationID: '1234',
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DEP01',
     UserID: 'UserID',
     MessageTitle: 'You have a new Message',
@@ -74,7 +74,6 @@ describe('PostMessage Handler', () => {
     mockUnauthorizedEvent = {
       ...mockEvent,
       headers: {
-        'x-api-key': 'mockBadApiKey',
         'Content-Type': `application/json`,
       },
     } as unknown as EventType;
@@ -86,7 +85,7 @@ describe('PostMessage Handler', () => {
       serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        inboundTable: Promise.resolve(serviceMocks.inboundDynamoRepositoryMock),
+        notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })
     );
@@ -94,7 +93,7 @@ describe('PostMessage Handler', () => {
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
-    serviceMocks.inboundDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -111,7 +110,7 @@ describe('PostMessage Handler', () => {
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
   });
 
-  it('should make a record of inbound messages', async () => {
+  it('should make a record of notifications messages', async () => {
     // Arrange
     vi.useFakeTimers();
     const date = new Date();
@@ -121,12 +120,13 @@ describe('PostMessage Handler', () => {
     await handler({ ...mockEvent }, mockContext);
 
     // Assert
-    expect(serviceMocks.inboundDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         ...mockMessageBody,
         APIGWExtendedID: mockEvent.requestContext.requestId,
         ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
+        Events: [],
       },
     ]);
   });
@@ -138,7 +138,7 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [{ ...mockMessageBody, APIGWExtendedID: mockEvent.requestContext.requestId }],
-      ValidationEnum.VALIDATED_API_CALL
+      NotificationStateEnum.VALIDATED_API_CALL
     );
   });
 
@@ -149,15 +149,6 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
-  });
-
-  it('should throw an error when the api call is unauthorized.', async () => {
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({});
   });
 
   it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {

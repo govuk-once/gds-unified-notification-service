@@ -17,9 +17,6 @@ export const BoolParameters = {
 
 export const StringParameters = {
   Api: {
-    PostMessage: {
-      ApiKey: 'api/postMessage/apiKey',
-    },
     Flex: {
       ApiKey: 'api/flex/apiKey',
     },
@@ -55,13 +52,16 @@ export const StringParameters = {
     },
   },
   Table: {
-    Events: {
-      KeyAttributes: 'table/events/attributes',
-      Name: 'table/events/name',
-    },
     Inbound: {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
+      Expiration: {
+        Atttribute: 'table/inbound/expiration/attribute',
+      },
+    },
+    MTLSRevocation: {
+      KeyAttributes: 'table/mtls/attributes',
+      Name: 'table/mtls/name',
     },
   },
   Dispatch: {
@@ -70,12 +70,20 @@ export const StringParameters = {
       AppId: `config/dispatch/onesignal/appId`,
     },
   },
+  Authorizers: {},
 } as const;
 
 export const NumericParameters = {
   Config: {
     Dispatch: {
       NotificationsProviderRateLimitPerMinute: 'config/common/cache/notificationsProviderRateLimitPerMinute',
+    },
+  },
+  Table: {
+    Inbound: {
+      Expiration: {
+        DurationInSeconds: 'table/inbound/expiration/durationInSeconds',
+      },
     },
   },
   CircuitBreaker: {

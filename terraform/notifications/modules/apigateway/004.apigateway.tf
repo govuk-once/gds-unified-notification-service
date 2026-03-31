@@ -8,13 +8,32 @@ locals {
 resource "aws_api_gateway_rest_api" "this" {
   name = join("-", [var.prefix, "apigw", var.name])
 
-  endpoint_configuration {
-    types = ["REGIONAL"]
+  disable_execute_api_endpoint = var.disable_execute_api_endpoint
+
+  // If we're using mTLS - set endpoint type to REGIONAL, otherwise set the private APIs 
+  dynamic "endpoint_configuration" {
+    for_each = var.mtls_truststore_url != null || length(var.private_vpce) == 0 ? [true] : []
+
+    content {
+      types = ["REGIONAL"]
+    }
   }
 
+  // If we're not using mTLS AND have `private_vpce` available - set API definition to private
+  dynamic "endpoint_configuration" {
+    for_each = var.mtls_truststore_url == null && length(var.private_vpce) > 0 ? [true] : []
+
+    content {
+      types            = ["PRIVATE"]
+      vpc_endpoint_ids = sensitive(var.private_vpce)
+      ip_address_type  = "dualstack"
+    }
+  }
   lifecycle {
     create_before_destroy = true
   }
+
+  fail_on_warnings = true
 
   // Dynamically build out openapi spec from integration definitions
   body = jsonencode({
@@ -26,6 +45,7 @@ resource "aws_api_gateway_rest_api" "this" {
     paths = {
       for path, ops in local.api_ops_by_path : path => {
         for op in ops : lower(op.method) => {
+          security = op.authorizer == null ? [] : [{ (op.authorizer) = [] }]
           x-amazon-apigateway-integration = {
             uri                  = op.lambda_invoke_arn
             httpMethod           = op.method
@@ -37,10 +57,31 @@ resource "aws_api_gateway_rest_api" "this" {
         }
       }
     }
+
+    # Register custom authorizers
+    components = {
+      securitySchemes = {
+        for authorizer, config in var.authorizers : authorizer => {
+          type                           = "apiKey",
+          name                           = "Unused"
+          in                             = "header"
+          "x-amazon-apigateway-authtype" = "custom"
+          "x-amazon-apigateway-authorizer" = {
+            type                           = "REQUEST",
+            identitySource                 = "context.identity.clientCert.clientCertPem", # Passes all requests to mtls authorizer
+            authorizerUri                  = "${config.lambda_invoke_arn}"
+            authorizerCredentials          = aws_iam_role.apigw_role.arn
+            authorizerPayloadFormatVersion = "2.0",
+            authorizerResultTtlInSeconds   = 0,
+            # enableSimpleResponses          = true # This feature flag would be amazing, but it's for HTTP api gateway only, not rest
+          }
+        }
+      }
+    }
   })
 }
 
-
+# API Gateway permission for execution of lambdas during event handling
 resource "aws_lambda_permission" "apigw" {
   for_each      = var.integrations
   statement_id  = "AllowAPIGatewayInvoke-${aws_api_gateway_rest_api.this.id}-${each.key}"

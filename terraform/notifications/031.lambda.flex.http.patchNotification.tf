@@ -13,8 +13,16 @@ module "lambda_flex_patchNotification" {
   codesigning_profile_id = aws_signer_signing_profile.code_signing.id
 
   // IAM Permissions & SQS trigger linking
-  publish_queues = {}
+  publish_queues = {
+    analytics = module.sqs_analytics.queue_arn
+  }
+
+  // Read only permission to read contents
   dynamo_tables = {
-    inbound = module.dynamodb_inbound_messages.table_arn
+    inbound = {
+      arn   = module.dynamodb_inbound_messages.table_arn
+      read  = true
+      write = false
+    }
   }
 }
