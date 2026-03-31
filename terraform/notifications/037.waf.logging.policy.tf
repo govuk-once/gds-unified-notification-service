@@ -13,16 +13,6 @@ data "aws_iam_policy_document" "waf_logging" {
       "${module.api_gateway_flex.aws_cloudwatch_log_group_arn}:*",
       "${module.api_gateway_flex_private.aws_cloudwatch_log_group_arn}:*"
     ]
-    condition {
-      test     = "ArnLike"
-      values   = ["arn:aws:logs:${var.region}:${data.aws_caller_identity.aws.account_id}:*"]
-      variable = "aws:SourceArn"
-    }
-    condition {
-      test     = "StringEquals"
-      values   = [tostring(data.aws_caller_identity.aws.account_id)]
-      variable = "aws:SourceAccount"
-    }
   }
 }
 
