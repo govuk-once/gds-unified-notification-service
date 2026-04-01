@@ -37,5 +37,5 @@ locals {
 # Remapping truststore.pem to truststore-${env}.pem when it's being reused
 # Note: Truststore in s3 has to be manually duplicated
 locals {
-  mtls_pso_truststore_mapped = (var.mtls_env_to_use != null && var.mtls_env_to_use != var.env && local.mtls_pso_truststore != null) ? replace(local.mtls_pso_truststore, ".pem", "-${var.env}.pem") : local.mtls_pso_truststore
+  mtls_pso_truststore_mapped = (var.mtls_env_to_use != null && var.mtls_env_to_use != var.env && var.truststore_override != null) ? var.truststore_override : local.mtls_pso_truststore
 }
