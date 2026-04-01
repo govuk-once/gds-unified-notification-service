@@ -97,7 +97,7 @@ variable "trigger_queues" {
 }
 
 variable "publish_queues" {
-  description = "A Map of the ARNs of the SQS Queues to publish messages to."
+  description = "A Map of the SQS Queue ARNs to allow publishing messages to"
   type        = map(string)
   default     = {}
 }
@@ -135,8 +135,22 @@ variable "subnet_ids" {
 }
 
 # Additional KMS decrypt access
-variable "additional_kms_decrypts" {
-  description = "A Map of the ARNs of the SQS Queues to publish messages to."
+variable "kms_decrypts" {
+  description = "A Map of the KMS ARNs to allow encryption of"
+  type        = map(string)
+  default     = {}
+}
+
+# Additional SM decrypt access
+variable "secret_manager_secrets" {
+  description = "A Map of the SM ARNs to allow fetching value of"
+  type        = map(string)
+  default     = {}
+}
+
+# Allow role assumption in other accounts
+variable "role_assumptions" {
+  description = "A Map of the Roles which this lambda can assume"
   type        = map(string)
   default     = {}
 }

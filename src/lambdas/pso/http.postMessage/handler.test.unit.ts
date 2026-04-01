@@ -103,8 +103,7 @@ describe('PostMessage Handler', () => {
 
   it('should send messages to processing queue.', async () => {
     // Act
-    const result = await handler(mockEvent, mockContext);
-    console.log(result);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);

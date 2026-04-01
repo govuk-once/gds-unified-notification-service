@@ -1,4 +1,4 @@
-# Allow lambdas to assume role
+# Allow lambdas to assume this role
 # https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html#permissions-executionrole-api
 resource "aws_iam_role" "lambda" {
   name = join("-", [var.prefix, "iamr", var.function_name])
@@ -13,11 +13,31 @@ resource "aws_iam_role" "lambda" {
           Service = "lambda.amazonaws.com"
           AWS     = data.aws_caller_identity.current.account_id
         }
-      },
+      }
     ]
   })
   tags = var.tags
 }
+
+# Allow this lambda to assume any other roles
+resource "aws_iam_role_policy" "lambda_to_sts_role_assumptions" {
+  count = length([for value in values(var.role_assumptions) : value if value != null]) > 0 ? 1 : 0
+  name  = join("-", [var.prefix, "iamr", var.function_name, "to-role-assumption"])
+  role  = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      // Allow role assumptions
+      {
+        Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
+        Resource = [for value in values(var.role_assumptions) : value if value != null]
+      }
+    ]
+  })
+}
+
 
 # Gives the Lambda identity permission to interact with SQS
 resource "aws_iam_role_policy" "lambda_to_queue" {
@@ -57,6 +77,25 @@ resource "aws_iam_role_policy" "lambda_to_ssm" {
   })
 }
 
+# Gives the Lambda permission to interact with specific SM secrets
+resource "aws_iam_role_policy" "lambda_to_sm" {
+  count = length([for value in values(var.secret_manager_secrets) : value if value != null]) > 0 ? 1 : 0
+  name  = join("-", [var.prefix, "iamr", var.function_name, "to-sm"])
+  role  = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = [for value in values(var.secret_manager_secrets) : value if value != null]
+      }
+    ]
+  })
+}
+
+
 // Explicit KMS Access to main key as well as any additional ones
 resource "aws_iam_role_policy" "lambda_to_kms" {
   name = join("-", [var.prefix, "iamr", var.function_name, "to-kms"])
@@ -75,7 +114,7 @@ resource "aws_iam_role_policy" "lambda_to_kms" {
         Resource = flatten(
           concat(
             [var.kms_key_arn],
-            [for value in values(var.additional_kms_decrypts) : value if value != null]
+            [for value in values(var.kms_decrypts) : value if value != null]
           )
         )
       }

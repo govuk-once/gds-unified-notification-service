@@ -8,4 +8,5 @@ export * from './dispatchQueueService';
 export * from './notificationService';
 export * from './observabilityService';
 export * from './processingQueueService';
+export * from './processingService';
 export * from './queueService';

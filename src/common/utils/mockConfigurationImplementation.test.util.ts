@@ -16,6 +16,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Table.Inbound.Name]: 'mocknotificationsDynamoRepositoryName',
     [StringParameters.Table.Inbound.Expiration.Atttribute]: 'ExpirationDateTime',
     [StringParameters.Table.MTLSRevocation.Name]: 'mockMtlsRevocationTableName',
+    [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
     // Content filtering
     [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
     [StringParameters.Content.Allowed.UrlHostnames]: '*.gov.uk',
@@ -27,8 +28,9 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [BoolParameters.Config.Validation.Enabled]: `true`,
     // Enums
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
+    [EnumParameters.Config.Processing.Adapter]: 'UDP',
     // Numbers
-    [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: 60 * 60 * 24 * 30,
+    [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: (60 * 60 * 24 * 30).toString(),
     [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
     // Nested objects
     [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({
