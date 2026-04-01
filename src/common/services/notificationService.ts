@@ -1,12 +1,15 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   ConfigurationService,
-  NotificationAdapter,
   NotificationAdapterOneSignal,
   NotificationAdapterVoid,
   ObservabilityService,
 } from '@common/services';
-import { NotificationAdapterRequest, NotificationAdapterResult } from '@common/services/interfaces';
+import {
+  NotificationAdapter,
+  NotificationAdapterRequest,
+  NotificationAdapterResult,
+} from '@common/services/interfaces';
 import { EnumParameters, segment } from '@common/utils';
 import * as z from 'zod';
 

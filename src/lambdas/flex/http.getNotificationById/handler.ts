@@ -6,7 +6,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
@@ -91,7 +91,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     // If message is marked as hidden - return 404
     const notificationResponse = IMessageRecordToIFlexNotification(notification);
 
-    if (notificationResponse.Status == NotificationStateEnum.HIDDEN) {
+    if (notificationResponse.Status == NotificationDispatchedStateEnum.HIDDEN) {
       throw new httpErrors.NotFound();
     }
 

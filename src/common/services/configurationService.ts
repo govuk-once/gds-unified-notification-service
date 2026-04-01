@@ -1,21 +1,18 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { InMemoryTTLCache } from '@common/utils';
-import * as z from 'zod';
 
-export class ConfigurationService {
-  // SSM Parameters should refresh every 60s
-  private inMemoryCache = new InMemoryTTLCache<string, string>(60000);
-
+export class ConfigurationService extends BaseConfigurableValueService {
+  protected inMemoryCache = new InMemoryTTLCache<string, string>(60000);
+  protected prefix = process.env.PREFIX;
   private client;
-  private prefix = process.env.PREFIX;
   constructor(protected observability: ObservabilityService) {
+    super(observability);
     this.client = new SSMClient({ region: 'eu-west-2' });
-    // TODO: Fix tests
-    // this.tracer.captureAWSv3Client(this.client);
   }
 
-  public async fetchNamespace(nextToken?: string): Promise<void> {
+  public async refreshCache(nextToken?: string): Promise<void> {
     this.observability.logger.info(`Refreshing namespace ${nextToken}`);
     const params = await this.client.send(
       new GetParametersByPathCommand({
@@ -26,13 +23,14 @@ export class ConfigurationService {
         NextToken: nextToken,
       })
     );
+
     for (const { Name, Value } of params.Parameters ?? []) {
       if (Name && Value) {
         this.inMemoryCache.set(Name, Value);
       }
     }
     if (params.NextToken) {
-      await this.fetchNamespace(params.NextToken);
+      await this.refreshCache(params.NextToken);
     }
   }
 
@@ -47,7 +45,7 @@ export class ConfigurationService {
     try {
       // If namespace does not contain value - fetch namepsace
       if (this.inMemoryCache.has(param.Name) == false) {
-        await this.fetchNamespace();
+        await this.refreshCache();
       }
 
       // Confirm value in cache
@@ -57,84 +55,8 @@ export class ConfigurationService {
       }
       throw new Error('Returned parameter has no value');
     } catch (error) {
-      this.observability.logger.error(`Failed fetching value from SSM - ${param.Name} ${error}`);
+      this.observability.logger.error(`Failed fetching value - ${param.Name} ${error}`);
       throw error;
-    }
-  }
-
-  public async getBooleanParameter(namespace: string): Promise<boolean> {
-    const parameterValue = await this.getParameter(namespace);
-
-    switch (parameterValue?.toLowerCase()) {
-      case 'true':
-        return true;
-      case 'false':
-        return false;
-      default:
-        const errorMsg = `Could not parse parameter ${namespace} to a boolean`;
-        this.observability.logger.error(errorMsg);
-        throw new Error(errorMsg);
-    }
-  }
-
-  public async getNumericParameter(namespace: string): Promise<number> {
-    const parameterValue = await this.getParameter(namespace);
-
-    const num = Number(parameterValue);
-    if (!Number.isNaN(num)) {
-      return num;
-    }
-
-    const errorMsg = `Could not parse parameter ${namespace} to a number`;
-    this.observability.logger.error(errorMsg);
-    throw new Error(errorMsg);
-  }
-
-  public async getEnumParameter<T extends z.ZodEnum>(namespace: string, schema: T): Promise<z.infer<T>> {
-    const parameterValue = await this.getParameter(namespace);
-
-    // Parse parameter
-    const result = schema.safeParse(parameterValue);
-
-    // If invalid enum
-    if (result.error) {
-      const errorMsg = `Could not parse parameter ${namespace} to a enum`;
-      this.observability.logger.error(errorMsg, {
-        method: 'getEnumParameter',
-      });
-      throw new Error(errorMsg);
-    }
-
-    // Return cast value enum
-    return result.data as z.infer<T>;
-  }
-
-  public async getParameterAsType<T extends z.Schema>(namespace: string, schema: T): Promise<z.infer<T>> {
-    const parameterValue = await this.getParameter(namespace);
-
-    // Parse parameter
-    try {
-      const parsedObject = JSON.parse(parameterValue) as unknown;
-      const result = schema.safeParse(parsedObject);
-
-      // If invalid enum
-      if (result.error) {
-        const errorMsg = `Could not parse parameter ${namespace} to type.`;
-        this.observability.logger.error(errorMsg, {
-          method: 'getParameterAsType',
-          error: z.prettifyError(result.error),
-        });
-        throw new Error(errorMsg);
-      }
-
-      // Return cast value enum
-      return result.data as z.infer<T>;
-    } catch {
-      const errorMsg = `Could not parse parameter ${namespace} to type.`;
-      this.observability.logger.error(errorMsg, {
-        method: 'getParameterAsType',
-      });
-      throw new Error(errorMsg);
     }
   }
 

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { SQSClient } from '@aws-sdk/client-sqs';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
 import {
@@ -19,7 +19,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-mockClient(SQSClient);
+mockClient(SecretsManagerClient);
 
 describe('Processing QueueHandler', () => {
   let instance: Processing;
@@ -28,6 +28,7 @@ describe('Processing QueueHandler', () => {
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
+  const smMock = mockClient(SecretsManagerClient);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -103,6 +104,17 @@ describe('Processing QueueHandler', () => {
     // Reset all mocks
     vi.resetAllMocks();
     vi.useRealTimers();
+    smMock.reset();
+    smMock.on(GetSecretValueCommand).resolvesOnce({
+      SecretString: JSON.stringify({
+        apiAccountId: `abc`,
+        apiKey: `cde`,
+        apiUrl: `efg`,
+        consumerRoleArn: `hij`,
+        region: `eu-west-2`,
+      }),
+    });
+
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
@@ -120,6 +132,7 @@ describe('Processing QueueHandler', () => {
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       dispatchQueue: serviceMocks.dispatchQueueServiceMock.initialize(),
+      processingService: serviceMocks.processingServiceMock.initialize(),
     }));
     handler = instance.handler();
   });
@@ -127,19 +140,6 @@ describe('Processing QueueHandler', () => {
   it('should have the correct operationId', () => {
     // Assert
     expect(instance.operationId).toBe('processing');
-  });
-
-  it('should throw an error when the message title equals "FAIL_AT_PROCESSING".', async () => {
-    // Arrange
-    const mockFailOnTriggerEvent = {
-      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody, NotificationTitle: 'FAIL_AT_PROCESSING' } }],
-    };
-
-    // Act
-    const result = handler(mockFailOnTriggerEvent, mockContext);
-
-    // Assert
-    await expect(result).rejects.toThrow(new Error('Simulating an error!'));
   });
 
   it.each([

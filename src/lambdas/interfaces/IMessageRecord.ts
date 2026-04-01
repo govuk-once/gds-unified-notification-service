@@ -5,14 +5,12 @@ export const IMessageRecordSchema = z.object({
   // IDs
   NotificationID: z.string(),
   DepartmentID: z.string(),
-  UserID: z.string(),
+  UserID: z.string(), // ID Supplied by PSO's
+  ExternalUserID: z.string().optional(), // ID Resolved via UDP using PSO's UserID
 
-  // External ids
-  TraceID: z.string().optional(),
+  // Tracing IDs
   ExternalResponseID: z.string().optional(),
-  OneSignalID: z.string().optional(),
   APIGWExtendedID: z.string().optional(),
-  ExternalUserID: z.string().optional(),
 
   // Contents
   NotificationTitle: z.string(),
@@ -20,14 +18,14 @@ export const IMessageRecordSchema = z.object({
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
 
-  // Events
+  // Event timestamps - triggered during handler logic
   ReceivedDateTime: z.string().optional(),
   ValidatedDateTime: z.string().optional(),
   ProcessedDateTime: z.string().optional(),
   DispatchedDateTime: z.string().optional(),
   ExpirationDateTime: z.string().optional(),
 
-  // Events
+  // Events - appended via analytics handler
   Events: z.array(IAnalyticsSchema),
 });
 
