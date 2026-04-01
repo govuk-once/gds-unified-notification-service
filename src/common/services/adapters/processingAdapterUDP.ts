@@ -29,7 +29,6 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
     protected smConfig: SMConfigurationService
   ) {}
 
-  // Empty shim
   async initialize(): Promise<void> {
     if (this.client == undefined && this.udpConfig == undefined) {
       // Fetch value from SSM - it's serialized JSON to allow it to be nullable
@@ -47,8 +46,6 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
       // Fetch config from UDPs AWS Acc
       this.udpConfig = await this.smConfig.getParameterAsType(config, UDPConfigSchema, true);
-
-      this.logger.info(`SM Param`, { paramParsed: this.udpConfig });
 
       // Create HTTP client
       this.client = axios.default.create({
@@ -88,7 +85,10 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
         .object({
           data: z.object({
             consentStatus: z.string(),
-            notificationId: z.string(),
+            pushId: z.string(),
+            // Backwards compatibility for testing purposes
+            // NotificationId was recently renamed to PushId
+            notificationId: z.string().optional(),
           }),
         })
         .parse(result.data);
@@ -96,13 +96,13 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       return {
         request,
         success: true,
-        externalUserID: data.data.notificationId,
+        externalUserID: data.data.notificationId ?? data.data.pushId,
       };
     } catch (e) {
       if (axios.isAxiosError(e)) {
-        this.logger.info(`Axios Error data`, { e, data: e.response?.data });
+        this.logger.error(`Axios Error data`, { e, data: e.response?.data });
       } else {
-        this.logger.info(`Non-axios Error`, { e });
+        this.logger.error(`Non-axios Error`, { e });
       }
     }
 

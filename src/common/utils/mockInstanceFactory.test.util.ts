@@ -14,6 +14,8 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
+import { ProcessingService } from '@common/services/processingService';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -43,6 +45,7 @@ export const observabilitySpies = (): Mocked<ObservabilityService> => {
 export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) => {
   // Config
   const configurationServiceMock = new ConfigurationService(observabilityMock) as Mocked<ConfigurationService>;
+  const smConfigurationServiceMock = new SMConfigurationService(observabilityMock) as Mocked<SMConfigurationService>;
 
   // Queues
   const processingQueueServiceMock = new ProcessingQueueService(
@@ -82,6 +85,11 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     observabilityMock,
     configurationServiceMock
   ) as Mocked<ContentValidationService>;
+  const processingServiceMock = new ProcessingService(
+    observabilityMock,
+    configurationServiceMock,
+    smConfigurationServiceMock
+  ) as Mocked<ProcessingService>;
 
   return {
     // Queue
@@ -92,10 +100,12 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     notificationsDynamoRepositoryMock,
     mtlsRevocationDynamoRepositoryMock,
     // Services
+    smConfigurationServiceMock,
     configurationServiceMock: configurationServiceMock,
     analyticsServiceMock,
     notificationServiceMock,
     cacheServiceMock,
     contentValidationServiceMock,
+    processingServiceMock,
   };
 };
