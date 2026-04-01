@@ -77,7 +77,6 @@ export class Dispatch extends QueueHandler<unknown, void> {
   }
 
   public async implementation(event: QueueEvent<IProcessedMessage>, context: Context) {
-    // TODO: Implement retry mechanism - This call throw errors if service is disabled
     await this.config.ensureServiceIsEnabled(
       BoolParameters.Config.Common.Enabled,
       BoolParameters.Config.Dispatch.Enabled
@@ -124,7 +123,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
           )
         ).exceeded
       ) {
-        throw new Error(`Stopping processing from continouring as rate limit has been exceeded`);
+        throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
       }
 
       await this.circuitBreakerService.checkCircuit();

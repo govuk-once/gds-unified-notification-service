@@ -6,3 +6,8 @@ output "waf_name" {
   description = "Name of the APIGW WAF"
   value       = aws_wafv2_web_acl.waf_for_apig.name
 }
+
+output "aws_cloudwatch_log_group_arn" {
+  description = "The ARN of the cloudwatch log group associated with this api gateway"
+  value       = aws_cloudwatch_log_group.this.arn
+}

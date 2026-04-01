@@ -139,6 +139,19 @@ describe('Dispatch QueueHandler', () => {
     expect(instance.operationId).toBe('dispatch');
   });
 
+  it('should throw an error when the message title equals "FAIL_AT_DISPATCH".', async () => {
+    // Arrange
+    const mockFailOnTriggerEvent = {
+      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody, NotificationTitle: 'FAIL_AT_DISPATCH' } }],
+    };
+
+    // Act
+    const result = handler(mockFailOnTriggerEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(new Error('Simulating an error!'));
+  });
+
   it.each([
     [`true`, `false`],
     [`false`, `true`],
