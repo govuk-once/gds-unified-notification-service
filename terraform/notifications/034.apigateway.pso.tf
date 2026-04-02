@@ -15,7 +15,7 @@ module "api_gateway_pso" {
   // use_mtls flag allows developers to optionally disable mtls for their sandbox environments (controllable via npm run development:sandbox:setup )
   route_53_zone                = local.mtls_root_domain
   disable_execute_api_endpoint = local.mtls_enabled
-  mtls_truststore_url          = local.mtls_enabled ? replace(local.mtls_pso_truststore_mapped, "juno-2b70.pem", "juno-2b70-2.pem") : null
+  mtls_truststore_url          = local.mtls_enabled ? local.mtls_pso_truststore_mapped : null
 
   // Explicit authorizer, use case: Verifying certificate revocation
   authorizers = local.mtls_enabled ? {
