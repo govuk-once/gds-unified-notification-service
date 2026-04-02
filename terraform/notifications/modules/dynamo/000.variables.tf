@@ -16,17 +16,6 @@ variable "tags" {
 }
 
 /** Instance config **/
-variable "hash_key" {
-  description = "Main primary key to use within tables, i.e. id"
-  type        = string
-  nullable    = true
-}
-
-variable "range_key" {
-  description = "Main sorting key to use within tables i.e. date"
-  type        = string
-  nullable    = true
-}
 
 variable "kms_key_arn" {
   type        = string

@@ -9,8 +9,6 @@ module "dynamodb_inbound_messages" {
   tags        = local.defaultTags
 
   // Fields
-  hash_key  = "NotificationID"
-  range_key = null
   attributes = [
     {
       name = "NotificationID"
