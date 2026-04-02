@@ -77,7 +77,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       const result = await this.client.get(`/v1/notifications`, {
         headers: {
           // TODO: Figure out nicer way of passing that in to support multiple PSO's in the future
-          'requesting-service': 'DVLA',
+          'requesting-service': 'dvla', //'dvla-service-gateway', //'DVLA' before
           'requesting-service-user-id': request.userID,
         },
       });
