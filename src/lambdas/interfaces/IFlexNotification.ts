@@ -1,4 +1,4 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationDispatchedStateEnum, NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessageRecord, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessageRecord';
 import z from 'zod';
 
@@ -10,7 +10,7 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
   MessageBody: true,
   DispatchedDateTime: true,
 })
-  .extend({ Status: z.enum(NotificationStateEnum).optional() })
+  .extend({ Status: z.enum(NotificationDispatchedStateEnum) })
   .transform((record) => ({
     ...record,
     // Backfill message title and body from notification fields as a fallback

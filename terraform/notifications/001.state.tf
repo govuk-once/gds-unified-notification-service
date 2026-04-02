@@ -24,7 +24,6 @@ variable "is_main_environment_in_account" {
   default     = false
 }
 
-
 variable "code_version" {
   type        = string
   description = "Released code version"
@@ -53,6 +52,12 @@ variable "mtls_env_to_use" {
   nullable    = true
   default     = null
   description = "Allows specifying which env to use mtls configuration of: defaults to current env if not defined, can be used by developers to re-use the shared configuration within dev environment instead of creating multiple PCAs"
+}
+variable "truststore_override" {
+  type        = string
+  nullable    = true
+  default     = null
+  description = "Allows specifying which truststore uri to use explicitly (API Gateways reserve access to S3 files, so you cannot share same file instance between gateways, this is only used in dev)"
 }
 
 terraform {

@@ -6,11 +6,13 @@ import {
   iocGetDispatchQueueService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
+  iocGetProcessingService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
+import { ProcessingService } from '@common/services/processingService';
 import { BoolParameters, groupValidation } from '@common/utils';
 import {
   extractIdentifiers,
@@ -18,6 +20,7 @@ import {
   IMessage,
   IMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
+import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 
 /**
@@ -56,6 +59,7 @@ export class Processing extends QueueHandler<IMessage, void> {
   public analyticsService: AnalyticsService;
   public notificationsRepository: NotificationsDynamoRepository;
   public dispatchQueue: DispatchQueueService;
+  public processingService: ProcessingService;
 
   constructor(
     public config: ConfigurationService,
@@ -95,11 +99,20 @@ export class Processing extends QueueHandler<IMessage, void> {
       invalid: invalidRecords.length,
     });
 
-    // (MOCK) Getting the OneSignalID from UDP - For now we just map UserID to ExternalUserID 1:1
-    const processedMessages = validRecords.map(({ valid: body }) => ({
-      ...body,
-      ExternalUserID: `${body.UserID}`,
-    }));
+    // Process messages -
+    const processedMessages: IProcessedMessage[] = [];
+    for (const message of validRecords) {
+      try {
+        this.observability.logger.info(`UDP Call:`);
+        const result = await this.processingService.send({
+          userID: message.valid.UserID,
+        });
+        this.observability.logger.info(`UDP Result:`, { result });
+        processedMessages.push({ ...message.valid, ExternalUserID: result.externalUserID! });
+      } catch (e) {
+        this.observability.logger.info(`UDP Error:`, { e });
+      }
+    }
 
     // Update stored rows in notifications message
     for (const processed of processedMessages) {
@@ -151,8 +164,10 @@ export class Processing extends QueueHandler<IMessage, void> {
   }
 }
 
+// IoC
 export const handler = new Processing(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
   notificationsRepository: iocGetNotificationDynamoRepository(),
   dispatchQueue: iocGetDispatchQueueService(),
+  processingService: iocGetProcessingService(),
 })).handler();

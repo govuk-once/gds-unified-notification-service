@@ -16,6 +16,8 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
+import { ProcessingService } from '@common/services/processingService';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { InMemoryTTLCache } from '@common/utils';
 
 enum Mode {
@@ -96,6 +98,12 @@ export const iocGetConfigurationService = ioc(
   () => new ConfigurationService(iocGetObservabilityService())
 );
 
+export const iocGetSMConfigurationService = ioc(
+  `SMConfigurationService`,
+  Mode.SINGLETON,
+  () => new SMConfigurationService(iocGetObservabilityService())
+);
+
 export const iocGetCacheService = ioc(
   `CacheService`,
   Mode.SINGLETON,
@@ -138,6 +146,14 @@ export const iocGetMTLSRevocationDynamoRepository = ioc(
 // Services - API Integrations
 export const iocGetNotificationService = ioc(`NotificationService`, Mode.TIMEBOUND_SINGLETON, () =>
   new NotificationService(iocGetObservabilityService(), iocGetConfigurationService()).initialize()
+);
+
+export const iocGetProcessingService = ioc(`ProcessingService`, Mode.TIMEBOUND_SINGLETON, () =>
+  new ProcessingService(
+    iocGetObservabilityService(),
+    iocGetConfigurationService(),
+    iocGetSMConfigurationService()
+  ).initialize()
 );
 
 // Services - Analytics wrappers

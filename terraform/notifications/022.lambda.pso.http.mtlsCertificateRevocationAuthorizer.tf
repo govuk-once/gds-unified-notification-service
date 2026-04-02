@@ -21,7 +21,7 @@ module "lambda_pso_mtlsCertificateRevocationAuthorizer" {
     }
   }
 
-  additional_kms_decrypts = {
+  kms_decrypts = {
     # Allow the authorizer to decrypt certificates revocation list stored in dynamodb
     mtls = local.mtls_kms
   }

@@ -15,11 +15,17 @@ module "parameter_store_external_configuration" {
     "config/processing/enabled" = "true"
     "config/dispatch/enabled"   = "true"
 
+    # Processing
+    "config/processing/adapter" = "VOID" # Enum: VOID, OneSignal
+
+    # Dispatch
     "config/dispatch/adapter" = "VOID" # Enum: VOID, OneSignal
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "config/dispatch/onesignal/apiKey" = "placeholder"
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
-    "config/dispatch/onesignal/appId"                             = "placeholder"
+    "config/dispatch/onesignal/appId" = "placeholder"
+
+    # Common
     "config/common/cache/notificationsProviderRateLimitPerMinute" = "5"
     # Circuit breaker config
     "config/dispatch/circuitBrekaer/threshold"         = "5"
@@ -35,7 +41,12 @@ module "parameter_store_external_configuration" {
     "content/allowed/urlHostnames"  = "*.gov.uk"
     "notification/deeplinkTemplate" = "govuk://app.gov.uk/notificationcentre/detail?id={id}"
 
-    // VPCe configuration for flex - expects JSON Serialized array of strings
-    "flex/vpce" = "[]"
+    // Configurations for FLEX & UDP - these values are serialized JSON
+    "flex/account" = "null"
+    "flex/vpce"    = "null"
+
+    "udp/config/sm"   = "null"
+    "udp/config/kms"  = "null"
+    "udp/config/role" = "null"
   }
 }

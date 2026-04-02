@@ -2,6 +2,7 @@ import { Glob } from 'bun';
 import esbuild from 'esbuild';
 import { existsSync, rmSync } from 'fs';
 import { basename, dirname, join, relative, resolve } from 'path';
+import { Colors } from 'scripts/helpers';
 
 const ROOT = dirname(import.meta.dir);
 const OUT_DIR = resolve(ROOT, 'dist');
@@ -16,7 +17,6 @@ if (existsSync(OUT_DIR)) {
 const buildHandlers = async (dir: string) => {
   try {
     const namespace = basename(dir);
-    console.log(`Building namespace ${namespace} ( ./${relative(ROOT, dir)} )`);
     const entryPoints = [
       ...new Glob('**/*.ts').scanSync({
         cwd: dir,
@@ -30,36 +30,38 @@ const buildHandlers = async (dir: string) => {
       console.error(`No lambda entry points found in ./${relative(ROOT, dir)}`);
       return;
     }
-
-    for (const entrypoint of entryPoints) {
+    const fns = entryPoints.map((entrypoint) => {
       const id = join(namespace, '.', basename(dirname(entrypoint)));
-      await esbuild.build({
-        entryPoints: [entrypoint],
-        outfile: join(OUT_DIR, id, 'index.mjs'),
-        bundle: true,
-        minify: true,
-        platform: 'node',
-        target: 'node22',
-        format: 'esm',
-        sourcemap: true,
-        banner: {
-          js: [
-            // https://middy.js.org/docs/best-practices/bundling/#esbuild
-            "import { createRequire } from 'module';",
-            'const require = createRequire(import.meta.url);',
-          ].join('\n'),
-        },
-      });
-      console.log(` ✔ ${id}`);
-    }
+      return esbuild
+        .build({
+          entryPoints: [entrypoint],
+          outfile: join(OUT_DIR, id, 'index.mjs'),
+          bundle: true,
+          minify: true,
+          platform: 'node',
+          target: 'node22',
+          format: 'esm',
+          sourcemap: true,
+          banner: {
+            js: [
+              // https://middy.js.org/docs/best-practices/bundling/#esbuild
+              "import { createRequire } from 'module';",
+              'const require = createRequire(import.meta.url);',
+            ].join('\n'),
+          },
+        })
+        .then(() => console.log(` ${Colors.green(`✔`)} ${id}`));
+    });
+    await Promise.allSettled(fns);
   } catch (error) {
-    console.log('esbuild failure', error);
+    console.log(Colors.red('Esbuild failure'), error);
     process.exit(1);
   }
 };
 
 void (async () => {
-  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'pso'));
-  console.log('');
-  await buildHandlers(resolve(ROOT, 'src', 'lambdas', 'flex'));
+  await Promise.allSettled([
+    buildHandlers(resolve(ROOT, 'src', 'lambdas', 'pso')),
+    buildHandlers(resolve(ROOT, 'src', 'lambdas', 'flex')),
+  ]);
 })();

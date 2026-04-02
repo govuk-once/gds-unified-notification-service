@@ -54,7 +54,7 @@ describe('ConfigurationService', () => {
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
       expect(observability.logger.error).toHaveBeenCalledWith(
-        `Failed fetching value from SSM - /undefined/testNameSpace Error: ${errorMsg}`
+        `Failed fetching value - /undefined/testNameSpace Error: ${errorMsg}`
       );
     });
 
@@ -115,7 +115,9 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(observability.logger.error).toHaveBeenCalledWith(`Could not parse parameter testKey to a boolean`);
+      expect(observability.logger.error).toHaveBeenCalledWith(`Could not parse parameter testKey to type`, {
+        method: 'getParameterAsType',
+      });
     });
   });
 
@@ -141,14 +143,14 @@ describe('ConfigurationService', () => {
         Parameters: [{ Value: secretValue, Name: '/undefined/testKey' }],
       });
 
-      const errorMsg = 'Could not parse parameter testKey to a number';
+      const errorMsg = 'Could not parse parameter testKey to type';
 
       // Act
       const result = config.getNumericParameter('testKey');
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(observability.logger.error).toHaveBeenCalledWith(errorMsg);
+      expect(observability.logger.error).toHaveBeenCalledWith(errorMsg, { method: `getParameterAsType` });
     });
   });
 
@@ -174,14 +176,14 @@ describe('ConfigurationService', () => {
         Parameters: [{ Value: 'yellow', Name: '/undefined/testKey' }],
       });
 
-      const errorMsg = 'Could not parse parameter testKey to a enum';
+      const errorMsg = 'Could not parse parameter testKey to type';
 
       // Act
       const result = config.getEnumParameter('testKey', enumValues);
 
       // Assert
       await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(observability.logger.error).toHaveBeenCalledWith(errorMsg, { method: 'getEnumParameter' });
+      expect(observability.logger.error).toHaveBeenCalledWith(errorMsg, { method: 'getParameterAsType' });
     });
   });
 });
