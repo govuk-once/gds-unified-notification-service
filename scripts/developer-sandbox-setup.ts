@@ -16,12 +16,19 @@
 //     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
-import { CreateBucketCommand, ListBucketsCommand, PutBucketVersioningCommand, S3Client } from '@aws-sdk/client-s3';
-import { GetParameterCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import {
+  CopyObjectCommand,
+  CreateBucketCommand,
+  ListBucketsCommand,
+  PutBucketVersioningCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { GetParameterCommand, GetParametersByPathCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
+import { v7 as ulid } from 'uuid';
 
 // Helper FN to simplify promise handling, and avoid nested try catches
 const unwrap = async <Result>(promise: Promise<Result>): Promise<[Result, undefined] | [undefined, Error]> => {
@@ -34,6 +41,20 @@ const unwrap = async <Result>(promise: Promise<Result>): Promise<[Result, undefi
 
 export const prefix = `gdsuns`;
 export const suffix = `s3-tfstate`;
+
+// Ensure AWS env vars are available
+if (
+  process.env.AWS_ACCESS_KEY_ID == undefined ||
+  process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+  process.env.AWS_REGION == undefined
+) {
+  console.log(
+    `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+  );
+  process.exit(1);
+}
+const [stsClient, s3Client, ssmClient] = [new STSClient(), new S3Client(), new SSMClient()] as const;
+
 export const getConfig = async () => {
   // Allow running `AS_ENVIRONMENT=dev npm run development:sandbox:setup` to repoint local TF to non sandbox setups
   if (process.env.AS_ENVIRONMENT !== undefined) {
@@ -59,25 +80,101 @@ export const getConfig = async () => {
   };
 };
 
+export const importSSMNamespace = async (env: string, label: string, namespace: string) => {
+  if (
+    await confirm({
+      message: `Would you like to import ${label} configuration values from dev env into sandbox?`,
+      default: false,
+    })
+  ) {
+    const params = (
+      (
+        await ssmClient.send(
+          new GetParametersByPathCommand({
+            Path: `/gdsuns-dev/${namespace}`,
+            Recursive: true,
+            WithDecryption: true,
+            MaxResults: 10,
+          })
+        )
+      ).Parameters ?? []
+    ).map((p) => p.Name!);
+
+    for (const param of params) {
+      // Build param paths
+      const sandboxParamName = param.replace(`/gdsuns-dev/`, `/gdsuns-${env}/`);
+
+      // Fetch current param values from SSM
+      const [getParameterResult, getParameterError] = await unwrap(
+        ssmClient.send(
+          new GetParameterCommand({
+            Name: param,
+            WithDecryption: true,
+          })
+        )
+      );
+      const [getParameterSandboxResult, getParameterSandboxError] = await unwrap(
+        ssmClient.send(
+          new GetParameterCommand({
+            Name: sandboxParamName,
+            WithDecryption: true,
+          })
+        )
+      );
+
+      // Only if both values exist -
+      if (getParameterResult && getParameterSandboxResult) {
+        const [dev, sandbox] = [getParameterResult.Parameter?.Value, getParameterSandboxResult.Parameter?.Value];
+        if (getParameterSandboxResult.Parameter?.Value == undefined) {
+          console.log(
+            `Parameter has not been initialized yet, please run npm run development:sandbox:release to deploy your environment first then come back to this flow.`
+          );
+          continue;
+        }
+
+        // Prompt user whether the update should be set
+        console.log(`Parameter: ${param}`);
+        if (getParameterResult.Parameter?.Value !== getParameterSandboxResult.Parameter?.Value) {
+          console.log(`Sandbox: ${sandbox}`);
+          console.log(`Dev: ${dev}`);
+          if (await confirm({ message: `Would you like to import new value?` })) {
+            const [putParameterResult, putParameterError] = await unwrap(
+              ssmClient.send(
+                new PutParameterCommand({
+                  Name: sandboxParamName,
+                  Value: dev,
+                  Type: 'SecureString',
+                  Overwrite: true,
+                })
+              )
+            );
+            if (putParameterResult) {
+              console.log(`Updated succesfully`);
+            } else {
+              console.error(`Update of ${sandboxParamName} has failed: ${putParameterError.message}`);
+            }
+          }
+        } else {
+          console.log(`Values already match, skipping...`);
+        }
+      } else {
+        console.error(`Fetching error for ${param}: ${getParameterError?.message}`);
+        console.error(`Fetching error for ${sandboxParamName}: ${getParameterSandboxError?.message}`);
+        console.error(
+          `Failed to fetch params from dev & sandbox environments - make sure to perform initial release of your sandbox (npm run development:sandbox:release)`
+        );
+      }
+    }
+  }
+};
+
 const script = async function () {
   try {
     const tfvars = `./terraform/notifications/terraform.tfvars`;
 
     const { env, bucket, label } = await getConfig();
 
-    // Ensure AWS env vars are available
-    if (
-      process.env.AWS_ACCESS_KEY_ID == undefined ||
-      process.env.AWS_SECRET_ACCESS_KEY == undefined ||
-      process.env.AWS_REGION == undefined
-    ) {
-      return console.log(
-        `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
-      );
-    }
-
     // Fetch current account id
-    const [stsClient, s3Client, ssmClient] = [new STSClient(), new S3Client(), new SSMClient()];
     const [identityResult, identityError] = await unwrap(stsClient.send(new GetCallerIdentityCommand()));
     if (identityResult == undefined) {
       return console.error(`Failed to fetch account ID :${identityError.message}`);
@@ -132,31 +229,57 @@ const script = async function () {
           return console.error(`Failed enabling of versioning on ${bucket}: ${putBucketVersioningError.message}`);
         }
         console.log(`Enabled versioning on the bucket`);
+      } else {
+        console.log(`Developer tfstate bucket ${bucket} already exists in current ${accountIdHashed}`);
       }
-    } else {
-      console.log(`Developer tfstate bucket ${bucket} already exists in current ${accountIdHashed}`);
     }
 
+    // Conditionally enable mTLS
     const useMtls = await confirm({ message: 'Would you like to enable mTLS?', default: true });
-    const mtlsEnvToUse = useMtls
-      ? (await confirm({
+    let mtlsEnvToUse: null | string = null;
+    let truststoreOverride: null | string = null;
+    if (useMtls) {
+      mtlsEnvToUse = env;
+      if (
+        await confirm({
           message: 'Would you like to use dev envs mTLS config instead of your own sandbox?',
           default: true,
-        }))
-        ? `dev`
-        : env
-      : null;
+        })
+      ) {
+        mtlsEnvToUse = 'dev';
+        // Prompt whether a new copy of truststore should be created
+        if (
+          await confirm({
+            message: 'Would you like to create a copy of the truststore from dev?',
+            default: true,
+          })
+        ) {
+          const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-certificate`;
+          const targetKey = `trustore.${env}.${ulid()}.pem`;
+          await s3Client.send(
+            new CopyObjectCommand({
+              CopySource: `${targetBucket}/truststore.pem`,
+              Bucket: targetBucket,
+              Key: targetKey,
+            })
+          );
+          truststoreOverride = `${targetBucket}/${targetKey}`;
+          console.log(` - Created ${truststoreOverride}`);
+        }
+      }
+    }
 
     // Save config to tfvars
     void file(tfvars).write(`# Auto-generated by ${import.meta.file}
 # ${label}
 
-bucket          = "${bucket}"
-key             = "state.tfstate"
-region          = "eu-west-2"
-env             = "${env}"
-use_mtls        = ${useMtls}
-mtls_env_to_use = ${mtlsEnvToUse == null ? mtlsEnvToUse : `"${mtlsEnvToUse}"`}`);
+bucket              = "${bucket}"
+key                 = "state.tfstate"
+region              = "eu-west-2"
+env                 = "${env}"
+use_mtls            = ${useMtls}
+mtls_env_to_use     = ${mtlsEnvToUse == null ? mtlsEnvToUse : `"${mtlsEnvToUse}"`}
+truststore_override = ${truststoreOverride == null ? truststoreOverride : `"${truststoreOverride}"`}`);
 
     // Prompt to perform tf init
     if (await confirm({ message: `Would you like to initialize terraform?`, default: true })) {
@@ -169,84 +292,8 @@ mtls_env_to_use = ${mtlsEnvToUse == null ? mtlsEnvToUse : `"${mtlsEnvToUse}"`}`)
     }
 
     // Post initialization - check if SSM params are set and update them with values from dev env
-    if (
-      await confirm({
-        message: `Would you like to import OneSignal API configuration values from dev env into sandbox?`,
-        default: false,
-      })
-    ) {
-      for (const param of [
-        `config/dispatch/onesignal/apiKey`,
-        `config/dispatch/onesignal/appId`,
-        `config/dispatch/adapter`,
-      ]) {
-        // Build param paths
-        const devParamName = `/gdsuns-dev/${param}`;
-        const sandboxParamName = `/gdsuns-${env}/${param}`;
-
-        // Fetch current param values from SSM
-        const [getParameterResult, getParameterError] = await unwrap(
-          ssmClient.send(
-            new GetParameterCommand({
-              Name: devParamName,
-              WithDecryption: true,
-            })
-          )
-        );
-        const [getParameterSandboxResult, getParameterSandboxError] = await unwrap(
-          ssmClient.send(
-            new GetParameterCommand({
-              Name: `${sandboxParamName}`,
-              WithDecryption: true,
-            })
-          )
-        );
-
-        // Only if both values exist -
-        if (getParameterResult && getParameterSandboxResult) {
-          const [dev, sandbox] = [getParameterResult.Parameter?.Value, getParameterSandboxResult.Parameter?.Value];
-          if (getParameterSandboxResult.Parameter?.Value == undefined) {
-            console.log(
-              `Parameter has not been initialized yet, please run npm run development:sandbox:release to deploy your environment first then come back to this flow.`
-            );
-            continue;
-          }
-
-          // Prompt user whether the update should be set
-          console.log(`Parameter: ${param}`);
-          if (getParameterResult.Parameter?.Value !== getParameterSandboxResult.Parameter?.Value) {
-            console.log(`Sandbox: ${sandbox}`);
-            console.log(`Dev: ${dev}`);
-            if (await confirm({ message: `Would you like to import new value?` })) {
-              const [putParameterResult, putParameterError] = await unwrap(
-                ssmClient.send(
-                  new PutParameterCommand({
-                    Name: sandboxParamName,
-                    Value: dev,
-                    Type: 'SecureString',
-                    Overwrite: true,
-                  })
-                )
-              );
-              if (putParameterResult) {
-                console.log(`Updated succesfully`);
-              } else {
-                console.error(`Update of ${sandboxParamName} has failed: ${putParameterError.message}`);
-              }
-            }
-          } else {
-            console.log(`Values already match, skipping...`);
-          }
-        } else {
-          console.error(`Fetching error for ${devParamName}: ${getParameterError?.message}`);
-          console.error(`Fetching error for ${sandboxParamName}: ${getParameterSandboxError?.message}`);
-          console.error(
-            `Failed to fetch params from dev & sandbox environments - make sure to perform initial release of your sandbox (npm run development:sandbox:release)`
-          );
-        }
-      }
-    }
-
+    await importSSMNamespace(env, 'Dispatch (OneSignal)', `config/dispatch`);
+    await importSSMNamespace(env, 'Processing (UDP)', `config/processing`);
     console.log(
       [
         ``,
