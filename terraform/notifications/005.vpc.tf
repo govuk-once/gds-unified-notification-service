@@ -1,3 +1,5 @@
+# VPC logs are only enabled for main environments
+#tfsec:ignore:aws-ec2-require-vpc-flow-logs-for-all-vpcs
 resource "aws_vpc" "main" {
   cidr_block = var.cidr_main
   tags = merge(local.defaultTags, {
