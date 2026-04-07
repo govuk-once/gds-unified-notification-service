@@ -279,7 +279,7 @@ region              = "eu-west-2"
 env                 = "${env}"
 use_mtls            = ${useMtls}
 mtls_env_to_use     = ${mtlsEnvToUse == null ? mtlsEnvToUse : `"${mtlsEnvToUse}"`}
-truststore_override = ${truststoreOverride == null ? truststoreOverride : `"${truststoreOverride}"`}`);
+truststore_override = ${truststoreOverride == null ? truststoreOverride : `"s3://${truststoreOverride}"`}`);
 
     // Prompt to perform tf init
     if (await confirm({ message: `Would you like to initialize terraform?`, default: true })) {
