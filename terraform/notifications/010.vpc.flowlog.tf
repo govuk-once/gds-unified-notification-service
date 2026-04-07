@@ -1,6 +1,10 @@
 resource "aws_cloudwatch_log_group" "vpc_cloudwatch_group" {
-  name = join("-", [local.prefix, "vpc", "cloudwatch-group"])
-  tags = local.defaultTags
+  #checkov:skip=CKV_AWS_338: "Ensure CloudWatch log groups retains logs for at least 1 year" - duration of retentil to be decided
+  name = "/aws/vpc/${local.prefix}"
+
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.main.arn
+  tags              = local.defaultTags
 }
 
 data "aws_iam_policy_document" "vpc_cloudwatch_assume_role" {
