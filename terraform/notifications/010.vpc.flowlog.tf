@@ -37,7 +37,7 @@ data "aws_iam_policy_document" "vpc_cloudwatch_logging_policy_document" {
       "logs:DescribeLogStreams",
     ]
 
-    resources = ["${aws_cloudwatch_log_group.vpc_cloudwatch_group.arn}:*"]
+    resources = [aws_cloudwatch_log_group.vpc_cloudwatch_group.arn]
   }
 }
 
