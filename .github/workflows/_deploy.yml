@@ -19,7 +19,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.ENVIRONMENT }}
+    environment: Dev
     timeout-minutes: 60
     steps:
       - name: Checkout Code
