@@ -46,6 +46,6 @@ jobs:
     name: Deploy to dev
     uses: ./.github/workflows/_deploy.yml
     with:
-      ENVIRONMENT: 'Dev'
+      ENVIRONMENT: Dev
       VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
     secrets: inherit
