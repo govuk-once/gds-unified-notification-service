@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Debug Secret Presence
         run: |
-          if [ -z "${{ secrets.ENVIRONMENT_SHORTHAND }}" ]; then
+          if [ -z "${{ secrets.SHORTHAND }}" ]; then
             echo "SECRET IS EMPTY"
           else
             echo "SECRET IS SET (Length is ${#VAR})"

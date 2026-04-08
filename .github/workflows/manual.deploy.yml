@@ -30,6 +30,6 @@ jobs:
     name: Deploy to staging
     uses: ./.github/workflows/_deploy.yml
     with:
-      ENVIRONMENT: Staging
+      ENVIRONMENT: staging
       VERSION: ${{ github.ref_name}}
     secrets: inherit
