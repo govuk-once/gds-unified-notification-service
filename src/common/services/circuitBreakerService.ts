@@ -171,15 +171,14 @@ export class CircuitBreakerService {
   ): Promise<{ result?: T; error?: unknown; circuitBreakerState: CircuitBreakerStateEnum }> {
     try {
       await this.checkCircuit();
-      // const result = await fn();
+      const result = await fn();
       await this.recordSuccess();
-      // const circuitBreakerState = await this.getState();
-      return { result: await fn(), circuitBreakerState: await this.getState() };
+      return { result: result, circuitBreakerState: await this.getState() };
     } catch (error) {
       if (!(error instanceof CircuitBreakerOpenError)) {
         await this.recordFailure();
       }
-      return { error: await this.recordFailure(), circuitBreakerState: await this.getState() };
+      return { error: error, circuitBreakerState: await this.getState() };
     }
   }
 

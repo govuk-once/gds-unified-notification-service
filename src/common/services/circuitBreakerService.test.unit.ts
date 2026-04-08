@@ -12,7 +12,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-import { CircuitBreakerOpenError, CircuitBreakerService, CircuitBreakerState } from '@common/services';
+import { CircuitBreakerOpenError, CircuitBreakerService, CircuitBreakerStateEnum } from '@common/services';
 
 describe('CircuitBreakerService', () => {
   const observabilityMocks = observabilitySpies();
@@ -53,7 +53,7 @@ describe('CircuitBreakerService', () => {
     });
 
     it('should return the stored state', async () => {
-      serviceMocks.cacheServiceMock.get.mockResolvedValue('OPEN' as CircuitBreakerState);
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);
       const state = await service.getState();
       expect(state).toBe('OPEN');
     });
@@ -82,7 +82,10 @@ describe('CircuitBreakerService', () => {
 
       // Act & Assert
       await expect(service.checkCircuit()).rejects.toThrow(CircuitBreakerOpenError);
-      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(expect.stringContaining(':state'), 'OPEN');
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+        expect.stringContaining(':state'),
+        CircuitBreakerStateEnum.OPEN
+      );
     });
   });
 
@@ -94,7 +97,7 @@ describe('CircuitBreakerService', () => {
       vi.setSystemTime(now * 1000);
 
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('OPEN' as CircuitBreakerState);
+        if (key.includes(':state')) return Promise.resolve('OPEN' as CircuitBreakerStateEnum);
         if (key.includes(':opened_at')) return Promise.resolve(now - 5); // 5s ago, within halfOpenAfter (30s)
         return Promise.resolve(undefined);
       });
@@ -110,7 +113,7 @@ describe('CircuitBreakerService', () => {
       vi.setSystemTime(now * 1000);
 
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('OPEN' as CircuitBreakerState);
+        if (key.includes(':state')) return Promise.resolve(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);
         if (key.includes(':opened_at')) return Promise.resolve(now - 35); // 35s ago
         return Promise.resolve(undefined);
       });
@@ -118,7 +121,10 @@ describe('CircuitBreakerService', () => {
 
       // Act & Assert — should not throw
       await expect(service.checkCircuit()).resolves.toBeUndefined();
-      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(expect.stringContaining(':state'), 'HALF_OPEN');
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+        expect.stringContaining(':state'),
+        CircuitBreakerStateEnum.HALF_OPEN
+      );
     });
 
     it('should throw when rate limit is exceeded during OPEN → HALF_OPEN transition', async () => {
@@ -128,7 +134,7 @@ describe('CircuitBreakerService', () => {
       vi.setSystemTime(now * 1000);
 
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('OPEN' as CircuitBreakerState);
+        if (key.includes(':state')) return Promise.resolve(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);
         if (key.includes(':opened_at')) return Promise.resolve(now - 35);
         return Promise.resolve(undefined);
       });
@@ -143,7 +149,8 @@ describe('CircuitBreakerService', () => {
     it('should allow request when under rate limit', async () => {
       // Arrange: HALF_OPEN, under rate limit
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('HALF_OPEN' as CircuitBreakerState);
+        if (key.includes(':state'))
+          return Promise.resolve(CircuitBreakerStateEnum.HALF_OPEN as CircuitBreakerStateEnum);
         return Promise.resolve(undefined);
       });
       serviceMocks.cacheServiceMock.increment.mockResolvedValue(3); // under limit of 5
@@ -155,7 +162,8 @@ describe('CircuitBreakerService', () => {
     it('should throw when rate limit is exceeded in HALF_OPEN state', async () => {
       // Arrange: HALF_OPEN, rate limit exceeded
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('HALF_OPEN' as CircuitBreakerState);
+        if (key.includes(':state'))
+          return Promise.resolve(CircuitBreakerStateEnum.HALF_OPEN as CircuitBreakerStateEnum);
         return Promise.resolve(undefined);
       });
       serviceMocks.cacheServiceMock.increment.mockResolvedValue(6); // exceeds limit of 5
@@ -178,11 +186,14 @@ describe('CircuitBreakerService', () => {
     });
 
     it('should transition HALF_OPEN → CLOSED on success', async () => {
-      serviceMocks.cacheServiceMock.get.mockResolvedValue('HALF_OPEN' as CircuitBreakerState);
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(CircuitBreakerStateEnum.HALF_OPEN as CircuitBreakerStateEnum);
 
       await service.recordSuccess();
 
-      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(expect.stringContaining(':state'), 'CLOSED');
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+        expect.stringContaining(':state'),
+        CircuitBreakerStateEnum.CLOSED
+      );
     });
   });
 
@@ -225,13 +236,17 @@ describe('CircuitBreakerService', () => {
       // Arrange: HALF_OPEN state
       serviceMocks.cacheServiceMock.increment.mockResolvedValue(1);
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('HALF_OPEN' as CircuitBreakerState);
+        if (key.includes(':state'))
+          return Promise.resolve(CircuitBreakerStateEnum.HALF_OPEN as CircuitBreakerStateEnum);
         return Promise.resolve(undefined);
       });
 
       await service.recordFailure();
 
-      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(expect.stringContaining(':state'), 'OPEN');
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+        expect.stringContaining(':state'),
+        CircuitBreakerStateEnum.OPEN
+      );
     });
 
     it('should not re-open when already OPEN', async () => {
@@ -239,7 +254,7 @@ describe('CircuitBreakerService', () => {
       mockParameterStore[NumericParameters.CircuitBreaker.Threshold] = '3';
       serviceMocks.cacheServiceMock.increment.mockResolvedValue(4); // above threshold
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('OPEN' as CircuitBreakerState);
+        if (key.includes(':state')) return Promise.resolve(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);
         return Promise.resolve(undefined);
       });
 
@@ -260,7 +275,7 @@ describe('CircuitBreakerService', () => {
 
       expect(result).toBe('ok');
       expect(error).toBeUndefined();
-      expect(circuitBreakerState).toBe('CLOSED');
+      expect(circuitBreakerState).toBe(CircuitBreakerStateEnum.CLOSED);
     });
 
     it('should return error without recording failure when circuit is already OPEN', async () => {
@@ -270,7 +285,7 @@ describe('CircuitBreakerService', () => {
       vi.setSystemTime(now * 1000);
 
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
-        if (key.includes(':state')) return Promise.resolve('OPEN' as CircuitBreakerState);
+        if (key.includes(':state')) return Promise.resolve(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);
         if (key.includes(':opened_at')) return Promise.resolve(now - 5); // within halfOpenAfter (30s)
         return Promise.resolve(undefined);
       });
@@ -279,7 +294,7 @@ describe('CircuitBreakerService', () => {
 
       expect(result).toBeUndefined();
       expect(error).toBeInstanceOf(CircuitBreakerOpenError);
-      expect(circuitBreakerState).toBe('OPEN');
+      expect(circuitBreakerState).toBe(CircuitBreakerStateEnum.OPEN);
       // recordFailure should NOT have been called — the error was a CircuitBreakerOpenError
       expect(serviceMocks.cacheServiceMock.increment).not.toHaveBeenCalledWith(
         expect.stringContaining(':failures:'),

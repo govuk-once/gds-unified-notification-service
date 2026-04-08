@@ -81,8 +81,6 @@ export class Dispatch extends QueueHandler<unknown, void> {
       BoolParameters.Config.Dispatch.Enabled
     );
 
-    await this.circuitBreakerService.checkCircuit();
-
     // Trigger received notification events
     const [, identifiableRecords] = await groupValidation(
       event.Records,
@@ -127,6 +125,8 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
       }
 
+      await this.circuitBreakerService.checkCircuit();
+
       // Prepare request
       const metadata = {
         NotificationID: valid.NotificationID,
@@ -161,15 +161,13 @@ export class Dispatch extends QueueHandler<unknown, void> {
       );
 
       // Analytics event + circuit breaker state management
-      if (result.result) {
-        await this.circuitBreakerService.use(() => this.circuitBreakerService.recordSuccess());
+      if (result.result?.success) {
         this.observability.logger.info(`Notification dispatched`, {
           ...metadata,
           ProviderRequestID: result.result.requestId,
         });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
       } else {
-        await this.circuitBreakerService.use(() => this.circuitBreakerService.recordFailure());
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
       }
