@@ -7,12 +7,8 @@ permissions:
 on:
   workflow_call:
     inputs:
-      ENVIRONMENT_NAME:
-        description: 'Environment name'
-        type: string
-        required: true
-      ENVIRONMENT_SHORTHAND:
-        description: 'Environment name'
+      ENVIRONMENT:
+        description: 'Github environment to use'
         type: string
         required: true
       VERSION:
@@ -23,8 +19,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT }}
     timeout-minutes: 60
-    environment: ${{ inputs.ENVIRONMENT_NAME }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -37,10 +33,6 @@ jobs:
           TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")
           ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r .value)
           echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r '.sub'
-
-      - name: Use environment variable
-        run: |
-          echo "The value of TEST is ${{ secrets.TEST }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5.1.1
@@ -74,7 +66,7 @@ jobs:
         env:
           TF_VAR_region: ${{ secrets.AWS_REGION }}
           TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
-          TF_VAR_env: ${{ inputs.ENVIRONMENT_SHORTHAND }}
+          TF_VAR_env: ${{ secrets.ENVIRONMENT_SHORTHAND }}
           TF_VAR_key: state.json
           TF_VAR_code_version: ${{ inputs.version }}
           TF_VAR_use_mtls: 'true'

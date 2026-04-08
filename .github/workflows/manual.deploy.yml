@@ -21,8 +21,7 @@ jobs:
     name: Deploy to dev
     uses: ./.github/workflows/_deploy.yml
     with:
-      ENVIRONMENT_NAME: 'Dev'
-      ENVIRONMENT_SHORTHAND: 'dev'
+      ENVIRONMENT: Dev
       VERSION: ${{ github.ref_name}}
     secrets: inherit
 
@@ -31,7 +30,6 @@ jobs:
     name: Deploy to staging
     uses: ./.github/workflows/_deploy.yml
     with:
-      ENVIRONMENT_NAME: 'Staging'
-      ENVIRONMENT_SHORTHAND: 'stg'
+      ENVIRONMENT: Staging
       VERSION: ${{ github.ref_name}}
     secrets: inherit
