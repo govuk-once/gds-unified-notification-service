@@ -41,33 +41,33 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # - name: Setup Node.js
-      #   uses: actions/setup-node@v6
-      #   with:
-      #     node-version-file: '.node-version'
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
 
-      # - name: Install Dependencies
-      #   run: npm ci
+      - name: Install Dependencies
+        run: npm ci
 
-      # - name: Build bundles
-      #   run: npm run build
+      - name: Build bundles
+        run: npm run build
 
-      # - name: Setup Terraform
-      #   uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      # - name: Terraform deploy
-      #   working-directory: ./terraform/notifications
-      #   run: |
-      #     terraform init \
-      #       -backend-config "region=$TF_VAR_region" \
-      #       -backend-config "bucket=$TF_VAR_bucket" \
-      #       -backend-config "key=$TF_VAR_key"
-      #     terraform apply -auto-approve
-      #   env:
-      #     TF_VAR_region: ${{ secrets.AWS_REGION }}
-      #     TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
-      #     TF_VAR_env: ${{ secrets.ENVIRONMENT_SHORTHAND }}
-      #     TF_VAR_key: state.json
-      #     TF_VAR_code_version: ${{ inputs.version }}
-      #     TF_VAR_use_mtls: 'true'
-      #     TF_VAR_is_main_environment_in_account: 'true'
+      - name: Terraform deploy
+        working-directory: ./terraform/notifications
+        run: |
+          terraform init \
+            -backend-config "region=$TF_VAR_region" \
+            -backend-config "bucket=$TF_VAR_bucket" \
+            -backend-config "key=$TF_VAR_key"
+          terraform apply -auto-approve
+        env:
+          TF_VAR_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
+          TF_VAR_env: ${{ secrets.ENVIRONMENT_SHORTHAND }}
+          TF_VAR_key: state.json
+          TF_VAR_code_version: ${{ inputs.version }}
+          TF_VAR_use_mtls: 'true'
+          TF_VAR_is_main_environment_in_account: 'true'
