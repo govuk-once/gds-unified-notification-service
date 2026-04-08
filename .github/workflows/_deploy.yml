@@ -23,6 +23,14 @@ jobs:
       name: ${{ inputs.ENVIRONMENT }}
     timeout-minutes: 60
     steps:
+      - name: Debug Secret Presence
+        run: |
+          if [ -z "${{ secrets.ENVIRONMENT_SHORTHAND }}" ]; then
+            echo "SECRET IS EMPTY"
+          else
+            echo "SECRET IS SET (Length is ${#VAR})"
+          fi
+
       - name: Checkout Code
         uses: actions/checkout@v6
 
@@ -53,22 +61,22 @@ jobs:
       - name: Build bundles
         run: npm run build
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      # - name: Setup Terraform
+      #   uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform deploy
-        working-directory: ./terraform/notifications
-        run: |
-          terraform init \
-            -backend-config "region=$TF_VAR_region" \
-            -backend-config "bucket=$TF_VAR_bucket" \
-            -backend-config "key=$TF_VAR_key"
-          terraform plan
-        env:
-          TF_VAR_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
-          TF_VAR_env: '${{ secrets.ENVIRONMENT_SHORTHAND }}'
-          TF_VAR_key: state.json
-          TF_VAR_code_version: ${{ inputs.VERSION }}
-          TF_VAR_use_mtls: 'true'
-          TF_VAR_is_main_environment_in_account: 'true'
+      # - name: Terraform deploy
+      #   working-directory: ./terraform/notifications
+      #   run: |
+      #     terraform init \
+      #       -backend-config "region=$TF_VAR_region" \
+      #       -backend-config "bucket=$TF_VAR_bucket" \
+      #       -backend-config "key=$TF_VAR_key"
+      #     terraform plan
+      #   env:
+      #     TF_VAR_region: ${{ secrets.AWS_REGION }}
+      #     TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
+      #     TF_VAR_env: '${{ secrets.ENVIRONMENT_SHORTHAND }}'
+      #     TF_VAR_key: state.json
+      #     TF_VAR_code_version: ${{ inputs.VERSION }}
+      #     TF_VAR_use_mtls: 'true'
+      #     TF_VAR_is_main_environment_in_account: 'true'
