@@ -23,6 +23,7 @@ jobs:
     with:
       ENVIRONMENT: Dev
       VERSION: ${{ github.ref_name}}
+    secrets: inherit
 
   releaseStaging:
     if: ${{ inputs.deploy_to_stg }}
@@ -31,3 +32,4 @@ jobs:
     with:
       ENVIRONMENT: Staging
       VERSION: ${{ github.ref_name}}
+    secrets: inherit

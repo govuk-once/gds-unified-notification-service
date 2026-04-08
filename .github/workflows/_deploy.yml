@@ -19,7 +19,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: Dev
+    environment:
+      name: ${{ inputs.ENVIRONMENT }}
     timeout-minutes: 60
     steps:
       - name: Checkout Code
@@ -68,6 +69,6 @@ jobs:
           TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
           TF_VAR_env: ${{ secrets.ENVIRONMENT_SHORTHAND }}
           TF_VAR_key: state.json
-          TF_VAR_code_version: ${{ inputs.version }}
+          TF_VAR_code_version: ${{ inputs.VERSION }}
           TF_VAR_use_mtls: 'true'
           TF_VAR_is_main_environment_in_account: 'true'
