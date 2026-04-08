@@ -3,7 +3,14 @@ import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { NumericParameters } from '@common/utils';
 
-export type CircuitBreakerState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+// export type CircuitBreakerStateEnum
+// = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+
+export enum CircuitBreakerStateEnum {
+  CLOSED = 'CLOSED',
+  OPEN = 'OPEN',
+  HALF_OPEN = 'HALF_OPEN',
+}
 
 export class CircuitBreakerOpenError extends Error {
   constructor(platform: string) {
@@ -46,8 +53,11 @@ export class CircuitBreakerService {
     return now - (now % 60);
   }
 
-  async getState(): Promise<CircuitBreakerState> {
-    return (await this.cacheService.get<CircuitBreakerState>(this.stateKey(this.platform))) ?? 'CLOSED';
+  async getState(): Promise<CircuitBreakerStateEnum> {
+    return (
+      (await this.cacheService.get<CircuitBreakerStateEnum>(this.stateKey(this.platform))) ??
+      CircuitBreakerStateEnum.CLOSED
+    );
   }
 
   /**
@@ -67,12 +77,12 @@ export class CircuitBreakerService {
     const state = await this.getState();
     this.observability.logger.info('Circuit breaker check', { platform: this.platform, state });
 
-    if (state === 'OPEN') {
+    if (state == CircuitBreakerStateEnum.OPEN) {
       const openedAt = (await this.cacheService.get<number>(this.openedAtKey(this.platform))) ?? 0;
       const now = Math.floor(Date.now() / 1000);
 
       if (now - openedAt >= halfOpenAfter) {
-        await this.cacheService.store(this.stateKey(this.platform), 'HALF_OPEN' as CircuitBreakerState);
+        await this.cacheService.store(this.stateKey(this.platform), 'HALF_OPEN' as CircuitBreakerStateEnum);
         this.observability.logger.info('Circuit breaker transitioned to HALF_OPEN', { platform: this.platform });
         await this.enforceRateLimit(rateLimitWhenOpen);
       } else {
@@ -81,7 +91,7 @@ export class CircuitBreakerService {
       return;
     }
 
-    if (state === 'HALF_OPEN') {
+    if (state == CircuitBreakerStateEnum.HALF_OPEN) {
       await this.enforceRateLimit(rateLimitWhenOpen);
       return;
     }
@@ -100,8 +110,11 @@ export class CircuitBreakerService {
    */
   async recordSuccess(): Promise<void> {
     const state = await this.getState();
-    if (state === 'HALF_OPEN') {
-      await this.cacheService.store(this.stateKey(this.platform), 'CLOSED' as CircuitBreakerState);
+    if (state == CircuitBreakerStateEnum.HALF_OPEN) {
+      await this.cacheService.store(
+        this.stateKey(this.platform),
+        CircuitBreakerStateEnum.CLOSED as CircuitBreakerStateEnum
+      );
       this.observability.logger.info('Circuit breaker closed after successful request in HALF_OPEN state', {
         platform: this.platform,
       });
@@ -130,12 +143,12 @@ export class CircuitBreakerService {
 
     const state = await this.getState();
 
-    if (state === 'HALF_OPEN') {
+    if (state == CircuitBreakerStateEnum.HALF_OPEN) {
       await this.transitionToOpen();
       return;
     }
 
-    if (state === 'CLOSED' && newCount >= threshold) {
+    if (state == CircuitBreakerStateEnum.CLOSED && newCount >= threshold) {
       await this.transitionToOpen();
     }
   }
@@ -143,7 +156,7 @@ export class CircuitBreakerService {
   private async transitionToOpen(): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     await Promise.all([
-      this.cacheService.store(this.stateKey(this.platform), 'OPEN' as CircuitBreakerState),
+      this.cacheService.store(this.stateKey(this.platform), CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum),
       this.cacheService.store(this.openedAtKey(this.platform), now),
     ]);
     this.observability.logger.warn('Circuit breaker opened', { platform: this.platform, openedAt: now });
@@ -155,17 +168,18 @@ export class CircuitBreakerService {
    */
   async use<T>(
     fn: () => Promise<T>
-  ): Promise<{ result?: T; error?: unknown; circuitBreakerState: CircuitBreakerState }> {
+  ): Promise<{ result?: T; error?: unknown; circuitBreakerState: CircuitBreakerStateEnum }> {
     try {
       await this.checkCircuit();
-      const result = await fn();
+      // const result = await fn();
       await this.recordSuccess();
-      return { result, circuitBreakerState: await this.getState() };
+      // const circuitBreakerState = await this.getState();
+      return { result: await fn(), circuitBreakerState: await this.getState() };
     } catch (error) {
       if (!(error instanceof CircuitBreakerOpenError)) {
         await this.recordFailure();
       }
-      return { error, circuitBreakerState: await this.getState() };
+      return { error: await this.recordFailure(), circuitBreakerState: await this.getState() };
     }
   }
 

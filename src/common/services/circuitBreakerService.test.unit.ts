@@ -167,10 +167,13 @@ describe('CircuitBreakerService', () => {
 
   describe('recordSuccess', () => {
     it('should not change state when circuit is CLOSED', async () => {
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(undefined); // CLOSED
+      // Arrange: CLOSED
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(undefined);
 
+      // Act
       await service.recordSuccess();
 
+      // Assert
       expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
     });
 

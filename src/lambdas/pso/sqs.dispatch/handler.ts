@@ -15,7 +15,6 @@ import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
-  CircuitBreakerOpenError,
   CircuitBreakerService,
   ConfigurationService,
   NotificationService,
@@ -82,6 +81,8 @@ export class Dispatch extends QueueHandler<unknown, void> {
       BoolParameters.Config.Dispatch.Enabled
     );
 
+    await this.circuitBreakerService.checkCircuit();
+
     // Trigger received notification events
     const [, identifiableRecords] = await groupValidation(
       event.Records,
@@ -126,29 +127,20 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
       }
 
-      await this.circuitBreakerService.checkCircuit();
-
       // Prepare request
       const metadata = {
         NotificationID: valid.NotificationID,
         DepartmentID: valid.DepartmentID,
       };
 
-      let sendResult: { requestId?: string; success: boolean };
-      try {
-        sendResult = await this.notificationsService.send({
+      const result = await this.circuitBreakerService.use(() =>
+        this.notificationsService.send({
           ExternalUserID: valid.ExternalUserID,
           NotificationID: valid.NotificationID,
           NotificationTitle: valid.NotificationTitle,
           NotificationBody: valid.NotificationBody,
-        });
-      } catch (error) {
-        // Record failure for unexpected errors; re-throw so SQS can handle visibility/DLQ
-        if (!(error instanceof CircuitBreakerOpenError)) {
-          await this.circuitBreakerService.recordFailure();
-        }
-        throw error;
-      }
+        })
+      );
 
       // Update stored record with timestamp - also reset expiration date
       await this.notificationsDynamoRepository.updateRecord(
@@ -169,15 +161,15 @@ export class Dispatch extends QueueHandler<unknown, void> {
       );
 
       // Analytics event + circuit breaker state management
-      if (sendResult.success) {
-        await this.circuitBreakerService.recordSuccess();
+      if (result.result) {
+        await this.circuitBreakerService.use(() => this.circuitBreakerService.recordSuccess());
         this.observability.logger.info(`Notification dispatched`, {
           ...metadata,
-          ProviderRequestID: sendResult.requestId,
+          ProviderRequestID: result.result.requestId,
         });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
       } else {
-        await this.circuitBreakerService.recordFailure();
+        await this.circuitBreakerService.use(() => this.circuitBreakerService.recordFailure());
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
       }
