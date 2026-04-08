@@ -24,6 +24,7 @@ jobs:
       ENVIRONMENT_NAME: 'Dev'
       ENVIRONMENT_SHORTHAND: 'dev'
       VERSION: ${{ github.ref_name}}
+    secrets: inherit
 
   releaseStaging:
     if: ${{ inputs.deploy_to_stg }}
@@ -33,3 +34,4 @@ jobs:
       ENVIRONMENT_NAME: 'Staging'
       ENVIRONMENT_SHORTHAND: 'stg'
       VERSION: ${{ github.ref_name}}
+    secrets: inherit

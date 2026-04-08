@@ -49,3 +49,4 @@ jobs:
       ENVIRONMENT_NAME: 'Dev'
       ENVIRONMENT_SHORTHAND: 'dev'
       VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
+    secrets: inherit
