@@ -3,9 +3,6 @@ import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { NumericParameters } from '@common/utils';
 
-// export type CircuitBreakerStateEnum
-// = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
-
 export enum CircuitBreakerStateEnum {
   CLOSED = 'CLOSED',
   OPEN = 'OPEN',
