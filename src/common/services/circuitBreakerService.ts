@@ -1,13 +1,8 @@
+import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { NumericParameters } from '@common/utils';
-
-export enum CircuitBreakerStateEnum {
-  CLOSED = 'CLOSED',
-  OPEN = 'OPEN',
-  HALF_OPEN = 'HALF_OPEN',
-}
 
 export class CircuitBreakerOpenError extends Error {
   constructor(platform: string) {
@@ -169,7 +164,6 @@ export class CircuitBreakerService {
     try {
       await this.checkCircuit();
       const result = await fn();
-      await this.recordSuccess();
       return { result: result, circuitBreakerState: await this.getState() };
     } catch (error) {
       if (!(error instanceof CircuitBreakerOpenError)) {

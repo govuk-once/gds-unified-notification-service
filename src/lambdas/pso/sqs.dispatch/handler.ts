@@ -89,6 +89,8 @@ export class Dispatch extends QueueHandler<unknown, void> {
       })
     );
 
+    await this.circuitBreakerService.checkCircuit();
+
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
       identifiableRecords.map(({ valid }) => valid.body),
@@ -125,22 +127,34 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
       }
 
-      await this.circuitBreakerService.checkCircuit();
-
       // Prepare request
       const metadata = {
         NotificationID: valid.NotificationID,
         DepartmentID: valid.DepartmentID,
       };
 
-      const result = await this.circuitBreakerService.use(() =>
-        this.notificationsService.send({
+      // const result = await this.circuitBreakerService.use(() =>
+      //   this.notificationsService.send({
+      //     ExternalUserID: valid.ExternalUserID,
+      //     NotificationID: valid.NotificationID,
+      //     NotificationTitle: valid.NotificationTitle,
+      //     NotificationBody: valid.NotificationBody,
+      //   })
+      // );
+
+      const result = await this.circuitBreakerService.use(async () => {
+        const result = await this.notificationsService.send({
           ExternalUserID: valid.ExternalUserID,
           NotificationID: valid.NotificationID,
           NotificationTitle: valid.NotificationTitle,
           NotificationBody: valid.NotificationBody,
-        })
-      );
+        });
+        if (result.success) {
+          await this.circuitBreakerService.recordSuccess();
+          return result;
+        }
+        throw new Error('Failed');
+      });
 
       // Update stored record with timestamp - also reset expiration date
       await this.notificationsDynamoRepository.updateRecord(
@@ -161,13 +175,18 @@ export class Dispatch extends QueueHandler<unknown, void> {
       );
 
       // Analytics event + circuit breaker state management
-      if (result.result?.success) {
-        this.observability.logger.info(`Notification dispatched`, {
-          ...metadata,
-          ProviderRequestID: result.result.requestId,
-        });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
-      } else {
+      try {
+        if (result.result?.success) {
+          this.observability.logger.info(`Notification dispatched`, {
+            ...metadata,
+            ProviderRequestID: result.result.requestId,
+          });
+          await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
+        } else {
+          this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
+          await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
+        }
+      } catch {
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
       }

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
@@ -12,7 +13,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-import { CircuitBreakerOpenError, CircuitBreakerService, CircuitBreakerStateEnum } from '@common/services';
+import { CircuitBreakerOpenError, CircuitBreakerService } from '@common/services';
 
 describe('CircuitBreakerService', () => {
   const observabilityMocks = observabilitySpies();

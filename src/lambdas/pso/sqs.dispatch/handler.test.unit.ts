@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
+import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import { QueueEvent } from '@common/operations';
-import { CircuitBreakerOpenError, CircuitBreakerStateEnum } from '@common/services';
+import { CircuitBreakerOpenError } from '@common/services';
 import { NotificationAdapterResult } from '@common/services/interfaces';
 import { BoolParameters } from '@common/utils';
 import {
@@ -342,7 +343,7 @@ describe('Dispatch QueueHandler', () => {
 
     it('should record failure when notification service returns success: false', async () => {
       // Arrange
-      serviceMocks.notificationServiceMock.send.mockRejectedValue({
+      serviceMocks.notificationServiceMock.send.mockResolvedValue({
         success: false,
         errors: ['Service unavailable'],
       } as unknown as NotificationAdapterResult);
@@ -360,8 +361,10 @@ describe('Dispatch QueueHandler', () => {
       const unexpectedError = new Error('Connection timeout');
       serviceMocks.notificationServiceMock.send.mockRejectedValue(unexpectedError);
 
-      // Act & Assert
+      // Act
       await handler(mockEvent, mockContext);
+
+      // Assert
       expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalled();
     });
 
@@ -370,8 +373,10 @@ describe('Dispatch QueueHandler', () => {
       const circuitOpenError = new CircuitBreakerOpenError('notification_dispatch');
       serviceMocks.circuitBreakerServiceMock.checkCircuit.mockRejectedValue(circuitOpenError);
 
-      // Act & Assert
+      // Act
       await expect(handler(mockEvent, mockContext)).rejects.toThrow(CircuitBreakerOpenError);
+
+      // Assert
       expect(serviceMocks.notificationServiceMock.send).not.toHaveBeenCalled();
       expect(serviceMocks.circuitBreakerServiceMock.recordFailure).not.toHaveBeenCalled();
     });
