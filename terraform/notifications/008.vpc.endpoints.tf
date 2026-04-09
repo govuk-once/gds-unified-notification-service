@@ -15,6 +15,7 @@ resource "aws_vpc_endpoint" "vpc_endpoints_interfaces" {
     "secretsmanager",
     "sqs",
     "ssm",
+    "s3",
     "xray"
   ])
 
@@ -32,6 +33,10 @@ resource "aws_vpc_endpoint" "vpc_endpoints_interfaces" {
 
   private_dns_enabled = true
 
+  dns_options {
+    private_dns_only_for_inbound_resolver_endpoint = each.value == "s3"
+  }
+
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "endpoint", each.value])
   })
@@ -42,7 +47,7 @@ resource "aws_vpc_endpoint" "vpc_endpoints_gateways" {
   for_each = toset([
     # service names follow: com.amazonaws.{region}.{name} pattern
     "dynamodb",
-    // "s3" // TODO: Investigate -  'To set PrivateDnsOnlyForInboundResolverEndpoint to true, the VPC vpc-** must have a Gateway endpoint for the service.'
+    "s3"
   ])
 
   region            = var.region
