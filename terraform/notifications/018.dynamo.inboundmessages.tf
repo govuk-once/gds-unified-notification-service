@@ -2,7 +2,7 @@ module "dynamodb_inbound_messages" {
   // Metadata
   source     = "./modules/dynamo"
   prefix     = local.prefix
-  table_name = "inboundMessages"
+  table_name = "messages"
 
   // Encrpytion at rest
   kms_key_arn = aws_kms_key.main.arn
