@@ -133,15 +133,6 @@ export class Dispatch extends QueueHandler<unknown, void> {
         DepartmentID: valid.DepartmentID,
       };
 
-      // const result = await this.circuitBreakerService.use(() =>
-      //   this.notificationsService.send({
-      //     ExternalUserID: valid.ExternalUserID,
-      //     NotificationID: valid.NotificationID,
-      //     NotificationTitle: valid.NotificationTitle,
-      //     NotificationBody: valid.NotificationBody,
-      //   })
-      // );
-
       const result = await this.circuitBreakerService.use(async () => {
         const result = await this.notificationsService.send({
           ExternalUserID: valid.ExternalUserID,
