@@ -15,7 +15,6 @@ resource "aws_vpc_endpoint" "vpc_endpoints_interfaces" {
     "secretsmanager",
     "sqs",
     "ssm",
-    "s3",
     "xray"
   ])
 
@@ -32,11 +31,6 @@ resource "aws_vpc_endpoint" "vpc_endpoints_interfaces" {
   ])
 
   private_dns_enabled = true
-
-  # Enables resolver for s3 - reduces cost by routing request either by gateway or interface
-  dns_options {
-    private_dns_only_for_inbound_resolver_endpoint = each.value == "s3"
-  }
 
   tags = merge(local.defaultTags, {
     Name = join("-", [local.prefix, "endpoint", each.value])
