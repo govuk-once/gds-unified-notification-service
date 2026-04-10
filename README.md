@@ -69,10 +69,13 @@ There's a set of utility scripts allows easy setting up of brand new developers 
 Pre-requisites: access to AWS account, [gds-cli](https://docs.publishing.service.gov.uk/manual/get-started.html) setup locally, git config user.name configured correctly.
 
 Note: for a bit of a shortcut it's worth adding the following two aliases into your ~/.zshrc
+If you are using mise-en-place, those aliases are [already setup](https://mise.jdx.dev/shell-aliases.html) via [./mise.toml](./mise.toml)
 
 ```sh
-alias notificationssandbox='eval $(gds-cli aws once-notifications-development-admin -e)'
-alias notificationssandboxweb='gds-cli aws once-notifications-development-admin -l'
+alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
+alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
+alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
+alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
 ```
 
 First one authenticates your shell session with the sandbox aws account, second one opens the AWS console with a pre-authenticated session within the correct account.

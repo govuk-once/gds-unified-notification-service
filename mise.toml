@@ -5,3 +5,9 @@ idiomatic_version_file_enable_tools = ['node', 'terraform']
 checkov = "latest"
 tflint = "latest"
 tfsec = "latest"
+
+[shell_alias]
+"aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
+"aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
+"aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
+"aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
