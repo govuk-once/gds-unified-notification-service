@@ -3,6 +3,7 @@ import {
   HandlerDependencies,
   iocGetAnalyticsService,
   iocGetCacheService,
+  iocGetCircuitBreakerService,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetNotificationService,
@@ -14,6 +15,7 @@ import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
+  CircuitBreakerService,
   ConfigurationService,
   NotificationService,
   ObservabilityService,
@@ -53,6 +55,8 @@ import { Context } from 'aws-lambda';
   ]
 }
  */
+const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
+
 export class Dispatch extends QueueHandler<unknown, void> {
   public operationId: string = 'dispatch';
 
@@ -60,6 +64,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
   public analyticsService: AnalyticsService;
   public notificationsService: NotificationService;
   public cacheService: CacheService;
+  public circuitBreakerService: CircuitBreakerService;
 
   constructor(
     public config: ConfigurationService,
@@ -83,6 +88,8 @@ export class Dispatch extends QueueHandler<unknown, void> {
         body: IIdentifieableMessageSchema,
       })
     );
+
+    await this.circuitBreakerService.checkCircuit();
 
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });
     await this.analyticsService.publishMultipleEvents(
@@ -125,11 +132,19 @@ export class Dispatch extends QueueHandler<unknown, void> {
         NotificationID: valid.NotificationID,
         DepartmentID: valid.DepartmentID,
       };
-      const { requestId, success } = await this.notificationsService.send({
-        ExternalUserID: valid.ExternalUserID,
-        NotificationID: valid.NotificationID,
-        NotificationTitle: valid.NotificationTitle,
-        NotificationBody: valid.NotificationBody,
+
+      const result = await this.circuitBreakerService.use(async () => {
+        const result = await this.notificationsService.send({
+          ExternalUserID: valid.ExternalUserID,
+          NotificationID: valid.NotificationID,
+          NotificationTitle: valid.NotificationTitle,
+          NotificationBody: valid.NotificationBody,
+        });
+        if (result.success) {
+          await this.circuitBreakerService.recordSuccess();
+          return result;
+        }
+        throw new Error('Failed');
       });
 
       // Update stored record with timestamp - also reset expiration date
@@ -150,11 +165,19 @@ export class Dispatch extends QueueHandler<unknown, void> {
         1
       );
 
-      // Analytics event
-      if (success) {
-        this.observability.logger.info(`Notification dispatched`, { ...metadata, ProviderRequestID: requestId });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
-      } else {
+      // Analytics event + circuit breaker state management
+      try {
+        if (result.result?.success) {
+          this.observability.logger.info(`Notification dispatched`, {
+            ...metadata,
+            ProviderRequestID: result.result.requestId,
+          });
+          await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
+        } else {
+          this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
+          await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
+        }
+      } catch {
         this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
         await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
       }
@@ -191,4 +214,5 @@ export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservab
   notificationsService: iocGetNotificationService(),
   analyticsService: iocGetAnalyticsService(),
   cacheService: iocGetCacheService().connect(),
+  circuitBreakerService: iocGetCircuitBreakerService(DISPATCH_PLATFORM_KEY),
 })).handler();

@@ -27,6 +27,11 @@ module "parameter_store_external_configuration" {
 
     # Common
     "config/common/cache/notificationsProviderRateLimitPerMinute" = "5"
+    # Circuit breaker config
+    "config/dispatch/circuitBrekaer/threshold"         = "5"
+    "config/dispatch/circuitBrekaer/halfOpenAfter"     = "30"
+    "config/dispatch/circuitBrekaer/windowDuration"    = "60"
+    "config/dispatch/circuitBrekaer/rateLimitWhenOpen" = "5"
 
     #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
     "api/flex/apiKey" = "mockApiKey"

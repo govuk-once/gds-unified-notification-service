@@ -7,6 +7,7 @@ import {
   AnalyticsQueueService,
   AnalyticsService,
   CacheService,
+  CircuitBreakerService,
   ConfigurationService,
   ContentValidationService,
   DispatchQueueService,
@@ -81,6 +82,12 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock
   ) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
+  const circuitBreakerServiceMock = new CircuitBreakerService(
+    observabilityMock,
+    configurationServiceMock,
+    cacheServiceMock,
+    'mock_platform'
+  ) as Mocked<CircuitBreakerService>;
   const contentValidationServiceMock = new ContentValidationService(
     observabilityMock,
     configurationServiceMock
@@ -105,6 +112,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     analyticsServiceMock,
     notificationServiceMock,
     cacheServiceMock,
+    circuitBreakerServiceMock,
     contentValidationServiceMock,
     processingServiceMock,
   };

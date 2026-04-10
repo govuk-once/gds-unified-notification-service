@@ -92,6 +92,12 @@ export const NumericParameters = {
       },
     },
   },
+  CircuitBreaker: {
+    Threshold: 'config/dispatch/circuitBrekaer/threshold',
+    WindowDuration: 'config/dispatch/circuitBrekaer/windowDuration',
+    HalfOpenAfter: 'config/dispatch/circuitBrekaer/halfOpenAfter',
+    RateLimitWhenOpen: 'config/dispatch/circuitBrekaer/rateLimitWhenOpen',
+  },
 } as const;
 
 export const EnumParameters = {

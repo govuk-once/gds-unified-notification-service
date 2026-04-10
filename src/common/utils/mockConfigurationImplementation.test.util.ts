@@ -32,6 +32,10 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     // Numbers
     [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: (60 * 60 * 24 * 30).toString(),
     [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
+    [NumericParameters.CircuitBreaker.Threshold]: `5`,
+    [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
+    [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
+    [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
     // Nested objects
     [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],
