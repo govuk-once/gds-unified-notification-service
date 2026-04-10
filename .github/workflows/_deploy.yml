@@ -23,7 +23,8 @@ jobs:
       name: ${{ inputs.ENVIRONMENT }}
     timeout-minutes: 60
     steps:
-      - name: Checkout Code
+      # Setup
+      - name: ⚙️ Checkout Code
         uses: actions/checkout@v6
 
       - name: Show OIDC claims (right before assume)
@@ -35,28 +36,29 @@ jobs:
           ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r .value)
           echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r '.sub'
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5.1.1
+      - name: ⚙️ Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           audience: sts.amazonaws.com
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version-file: '.node-version'
 
-      - name: Install Dependencies
+      - name: ⚙️ Setup Terraform
+        uses: hashicorp/setup-terraform@a1502cd9e758c50496cc9ac5308c4843bcd56d36 # v3
+
+      - name: ⚙️ Install Dependencies
         run: npm ci
 
-      - name: Build bundles
+      # Build & release
+      - name: 🔨 Build bundles
         run: npm run build
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Deploy
+      - name: 🏗️ Terraform Deploy
         working-directory: ./terraform/notifications
         run: |
           terraform init \
