@@ -61,3 +61,101 @@ sequenceDiagram
 
 - Run SonarQube Scan: Finally, this step runs a SonarQube scan to analyze the code for quality and security issues. SonarQube provides detailed reports on code smells, bugs, vulnerabilities, and other metrics to help you maintain high-quality software development practices.
 </details>
+
+### Release
+
+The release pipeline in this repository is defined in [./.github/workflows/release.yml](./workflows/release.yml), it consists of the following flow
+
+```mermaid
+sequenceDiagram
+    alt Semantic Release Steps
+      Phase 1->Phase 2: Checkout Code
+      Phase 1->Phase 2: Setup Node.js
+      Phase 1->Phase 2: Install Dependencies
+      Phase 1->Phase 2: Run Semantic Release
+      Phase 1->Phase 2: Version
+    end
+    alt Deployment Steps
+      Phase 2-->Phase 3: Checkout Code
+      Phase 2-->Phase 3: Show OIDC claims (right before assume)
+      Phase 2-->Phase 3: Configure AWS credentials
+      Phase 2-->Phase 3: Setup Node.js
+      Phase 2-->Phase 3: Install Dependencies
+      Phase 2-->Phase 3: Build bundles
+      Phase 2-->Phase 3: Setup Terraform
+      Phase 2-->Phase 3: Terraform Deploy
+    end
+```
+
+<details>
+  <summary>Step summaries</summary>
+
+- Checkout Code: This step checks out the code from the GitHub repository for the semantic release.
+
+- Setup Node.js: This step sets up the Node.js environment for the repository for the semantic release.
+
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager) for the semantic release.
+
+- Run Semantic Release: Determines the next semantic version number based on the commit messages and tags the release with the version.
+
+- Version: Outputs the semantic version number to the pipeline console.
+
+- Checkout Code: This step checks out the code from the GitHub repository for the deployment.
+
+- Show OIDC claims: Outputs the OIDC claim before configuring AWS credentials (only used in debugger).
+
+- Configure AWS credentials: Uses the OIDC claim to authenticate to AWS.
+
+- Setup Node.js: This step sets up the Node.js environment for the repository for the deployment.
+
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager) for the deployment.
+
+- Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager) for the deployment.
+
+- Setup Terraform: This step sets up Terraform in the checked-out code.
+
+- Terraform Deploy: This step uses Terraform to deploy the infrastructure to AWS configured using the environment variables.
+
+</details>
+
+### Manually Deployment
+
+The release pipeline in this repository is defined in [./.github/workflows/manual.deploy.yml](./workflows/manual.deploy.yml), it consists of the following flow
+
+```mermaid
+sequenceDiagram
+    alt Environment Settings
+      Phase 1->Phase 2: Choosing Environment
+    end
+    alt Deployment Steps
+      Phase 2->Phase 3: Checkout Code
+      Phase 2->Phase 3: Show OIDC claims (right before assume)
+      Phase 2->Phase 3: Configure AWS credentials
+      Phase 2->Phase 3: Setup Node.js
+      Phase 2->Phase 3: Install Dependencies
+      Phase 2->Phase 3: Build bundles
+      Phase 2->Phase 3: Setup Terraform
+      Phase 2->Phase 3: Terraform Deploy
+    end
+```
+
+<details>
+  <summary>Step summaries</summary>
+
+- Choosing Environment: Chooses which environment to deploy the build to.
+
+- Show OIDC claims: Outputs the OIDC claim before configuring AWS credentials (only used in debugger).
+
+- Configure AWS credentials: Uses the OIDC claim to authenticate to AWS.
+
+- Setup Node.js: This step sets up the Node.js environment for the repository.
+
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager).
+
+- Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager).
+
+- Setup Terraform: This step sets up Terraform in the checked-out code.
+
+- Terraform Deploy: This step uses Terraform to deploy the infrastructure to AWS configured using the environment variables.
+
+</details>
