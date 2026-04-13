@@ -13,6 +13,7 @@ This service is ran with AWS using serverless architecture.
 - TFlint v0.60.0
 - TFSec v1.28.14
 - Checkov v3.2.490
+- AWS Cli v2.34.29
 
 Recommending use of [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm), [tfenv](https://github.com/tfutils/tfenv)
 
@@ -95,6 +96,14 @@ npm run development:sandbox:release:plan
 
 Both versions will convert TS bundles into JS, and execute terraform.
 Plan will only output the expected changes, release will allow deploying to AWS (sandbox).
+
+There's also CLI utility which allows you to tail logs from your environment
+
+```sh
+npm run development:cloudwatch:tail
+```
+
+This allows you to listen to all of the logs for your sandbox environment in a single terminal session - which can be a bit easier than checking individual cloudwatch groups per lambda.
 
 ## Testing
 

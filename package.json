@@ -8,6 +8,7 @@
     "build:validate": "tsc",
     "checkov": "checkov --directory . --quiet",
     "commit": "cz",
+    "development:cloudwatch:tail": "bun scripts/developer-follow-cloudwatch.ts",
     "development:organize:tf": "bun scripts/developer-organize-tf.ts",
     "development:sandbox:release:infra": "cd terraform/notifications && terraform apply",
     "development:sandbox:release": "npm run build && npm run development:sandbox:release:infra",
@@ -25,6 +26,7 @@
     "tfsec": "tfsec ."
   },
   "devDependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.1025.0",
     "@aws-sdk/client-kms": "3.948.0",
     "@aws-sdk/client-s3": "3.948.0",
     "@aws-sdk/client-sqs": "^3.964.0",

@@ -12,7 +12,11 @@ export class Colors {
 }
 
 // Utility which adds specified prefix to process output while
-export async function pipeOutput(stream: ReadableStream<Uint8Array>, prefix: string) {
+export async function pipeOutput(
+  stream: ReadableStream<Uint8Array>,
+  prefix: string,
+  transformer: (log: string) => string = (l) => l
+) {
   const decoder = new TextDecoder();
   for await (const chunk of stream) {
     for (const log of decoder
@@ -20,20 +24,20 @@ export async function pipeOutput(stream: ReadableStream<Uint8Array>, prefix: str
       .split('\n')
       .map((e) => e.trimEnd())
       .filter((e) => e.length > 0)) {
-      console.log(`${prefix} ${log}`);
+      console.log(`${prefix} ${transformer(log)}`);
     }
   }
 }
 
 // Runs command as a promise, piping output through to the main process
-export function execute(prefix: string, command: string[]) {
+export function execute(prefix: string, command: string[], transformer: (log: string) => string = (l) => l) {
   const start = Date.now();
   const proc = Bun.spawn(command, {
     stdout: 'pipe',
     stderr: 'pipe',
   });
 
-  pipeOutput(proc.stdout, `[${prefix}]`);
-  pipeOutput(proc.stderr, `[${prefix}]`);
+  pipeOutput(proc.stdout, `[${prefix}]`, transformer);
+  pipeOutput(proc.stderr, `[${prefix}]`, transformer);
   return proc.exited.then((exitCode) => [prefix, exitCode, Date.now() - start] as [string, number, number]);
 }
