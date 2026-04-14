@@ -1,4 +1,4 @@
-import { NotificationDispatchedStateEnum, NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessageRecord, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessageRecord';
 import z from 'zod';
 
@@ -20,6 +20,11 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
 
 export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
 
+export const hasDispatchStatus = (item: IMessageRecord): boolean =>
+  (item.Events ?? []).some((e) =>
+    Object.values(NotificationDispatchedStateEnum).includes(e.Event as NotificationDispatchedStateEnum)
+  );
+
 export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNotification => {
   // Drop unnecessary properties
   return IFlexNotificationSchema.parse({
@@ -31,8 +36,11 @@ export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNo
     MessageBody: item.MessageBody,
     DispatchedDateTime: item.DispatchedDateTime,
     // Infer status from Events
-    Status:
-      [...(item.Events ?? [])].sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime)).pop()?.Event ??
-      NotificationStateEnum.UNKNOWN,
+    Status: [...(item.Events ?? [])]
+      .filter((e) =>
+        Object.values(NotificationDispatchedStateEnum).includes(e.Event as NotificationDispatchedStateEnum)
+      )
+      .sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime))
+      .pop()?.Event as NotificationDispatchedStateEnum,
   });
 };
