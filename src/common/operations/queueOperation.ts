@@ -3,8 +3,10 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
-import { ObservabilityService } from '@common/services';
+import { NotificationProcessingStateEnum } from '@common/models/NotificationStateEnum';
+import { AnalyticsService, ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
+import { extractIdentifiers } from '@project/lambdas/interfaces/IMessage';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
 export type QueueEvent<RecordBodyType> = Omit<SQSEvent, 'Records'> & {
@@ -32,6 +34,72 @@ export const deserializeRecordBodyFromJson = <OutputType>(
     }
   },
 });
+
+export const triggerErrorsOnDemand = <OutputType>(
+  operationId: string,
+  observability: ObservabilityService
+): MiddlewareObj<SQSEvent, QueueEvent<OutputType>, Error> => ({
+  before: (request): void => {
+    // Triggers error based on operation id and notification title - to be removed from prod release!
+    // TODO: Set a trigger for analytics that does not use NotificationTitle.
+    const eventToOperationMap: Record<string, string> = {
+      FAIL_AT_VALIDATION: 'validation',
+      FAIL_AT_PROCESSING: 'processing',
+      FAIL_AT_DISPATCH: 'dispatch',
+      FAIL_AT_ANALYTICS: 'analytics',
+      FAIL_AT_ANALYTICS_FROM_DISPATCH: 'dispatch-analytics-error',
+    };
+
+    for (const record of request.event.Records) {
+      const object =
+        typeof record.body === 'string'
+          ? (JSON.parse(record.body) as Record<string, string>)
+          : (record.body as Record<string, string>);
+      const notificationTitle = object?.NotificationTitle;
+
+      if (eventToOperationMap[notificationTitle] === operationId) {
+        observability.logger.warn(`Simulating an error for operation ${operationId}`);
+        throw new Error(`Simulating an error!`);
+      }
+    }
+  },
+});
+
+export const triggerExtraAnaliticsWithReasons = <OutputType>(
+  operationId: string,
+  analyticsService: AnalyticsService
+): MiddlewareObj<SQSEvent, QueueEvent<OutputType>, Error> => {
+  const middleware = {
+    before: (request): void => {
+      // Triggers error based on operation id and notification title - to be removed from prod release!
+      // Tasync ODO: Set a Promise<void>ger for analytics that does not use NotificationTitle.
+      const eventToOperationMap: Record<string, string> = {
+        FAIL_AT_VALIDATION: 'validation',
+        FAIL_AT_PROCESSING: 'processing',
+        FAIL_AT_DISPATCH: 'dispatch',
+        FAIL_AT_ANALYTICS: 'analytics',
+        FAIL_AT_ANALYTICS_FROM_DISPATCH: 'dispatch-analytics-error',
+      };
+
+      for (const record of request.event.Records) {
+        const object =
+          typeof record.body === 'string'
+            ? (JSON.parse(record.body) as Record<string, string>)
+            : (record.body as Record<string, string>);
+        const notificationTitle = object?.NotificationTitle;
+
+        if (eventToOperationMap[notificationTitle] === operationId) {
+          await analyticsService.createEvent(
+            extractIdentifiers(object),
+            NotificationProcessingStateEnum.DISPATCHING_FAILED,
+            `SETTING_REASON`
+          );
+        }
+      }
+    },
+  };
+  return middleware;
+};
 
 export abstract class QueueHandler<InputType, OutputType = void> {
   public operationId: string;
@@ -91,33 +159,11 @@ export abstract class QueueHandler<InputType, OutputType = void> {
           this.observability.metrics.addMetric(`QUEUE_MESSAGE_RETRY_ATTEMPT`, MetricUnit.Count, 1);
         }
       }
-
-      // Triggers error based on operation id and notification title - to be removed from prod release!
-      // TODO: Set a trigger for analytics that does not use NotificationTitle.
-      const eventToOperationMap: Record<string, string> = {
-        FAIL_AT_VALIDATION: 'validation',
-        FAIL_AT_PROCESSING: 'processing',
-        FAIL_AT_DISPATCH: 'dispatch',
-        FAIL_AT_ANALYTICS: 'analytics',
-      };
-
-      for (const record of event.Records as SQSRecord[]) {
-        const object =
-          typeof record.body === 'string'
-            ? (JSON.parse(record.body) as Record<string, string>)
-            : (record.body as Record<string, string>);
-        const notificationTitle = object?.NotificationTitle;
-
-        if (eventToOperationMap[notificationTitle] === this.operationId) {
-          this.observability.logger.warn(`Simulating an error for operation ${this.operationId}`);
-          throw new Error(`Simulating an error!`);
-        }
-      }
-
       // Trigger implementation
       this.observability.logger.info(`Request received`, { event });
       const result = await this.implementation(event, context);
       this.observability.logger.info(`Request completed`);
+
       return result;
     });
   }

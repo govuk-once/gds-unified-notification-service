@@ -10,7 +10,13 @@ import {
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent, QueueHandler } from '@common/operations';
+import {
+  IQueueMiddleware,
+  QueueEvent,
+  QueueHandler,
+  triggerErrorsOnDemand,
+  triggerExtraAnaliticsWithReasons,
+} from '@common/operations';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
@@ -73,6 +79,17 @@ export class Dispatch extends QueueHandler<unknown, void> {
   ) {
     super(observability);
     this.injectDependencies(dependencies);
+  }
+
+  // Note - dynamically injecting ability to trigger errors
+  public middlewares(middy: IQueueMiddleware<string, void>): IQueueMiddleware<unknown, void> {
+    return super
+      .middlewares(middy)
+      .use(triggerErrorsOnDemand(this.operationId, this.observability))
+      .use(triggerExtraAnaliticsWithReasons(this.operationId, this.analyticsService)) as IQueueMiddleware<
+      unknown,
+      void
+    >;
   }
 
   public async implementation(event: QueueEvent<IProcessedMessage>, context: Context) {
