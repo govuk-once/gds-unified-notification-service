@@ -42,7 +42,7 @@ resource "aws_vpc_endpoint" "vpc_endpoints_gateways" {
   for_each = toset([
     # service names follow: com.amazonaws.{region}.{name} pattern
     "dynamodb",
-    // "s3" // TODO: Investigate -  'To set PrivateDnsOnlyForInboundResolverEndpoint to true, the VPC vpc-** must have a Gateway endpoint for the service.'
+    "s3"
   ])
 
   region            = var.region
