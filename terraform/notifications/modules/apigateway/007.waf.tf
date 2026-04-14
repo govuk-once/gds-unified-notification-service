@@ -55,7 +55,7 @@ resource "aws_wafv2_web_acl" "waf_for_apig" {
   # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-anonymous
   rule {
     name     = "${var.prefix}-aws-anonymous-ip-list-rule-set"
-    priority = 10
+    priority = 100
     override_action {
       none {}
     }
