@@ -18,7 +18,7 @@ import z from 'zod';
 const requestBodySchema = z.object({
   Status: z.preprocess(
     (val) => (typeof val === 'string' ? val.toUpperCase() : val),
-    z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD])
+    z.enum([NotificationStateEnum.READ, NotificationStateEnum.MARKED_AS_UNREAD, NotificationStateEnum.RECEIVED])
   ),
 });
 const responseBodySchema = z.any();
