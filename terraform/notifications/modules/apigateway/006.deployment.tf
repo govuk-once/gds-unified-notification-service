@@ -19,13 +19,8 @@ resource "aws_api_gateway_deployment" "this" {
 
 # Define stage and logging into cloudwatch
 resource "aws_api_gateway_stage" "this" {
-  #checkov:skip=CKV2_AWS_51: "Ensure AWS API Gateway endpoints uses client certificate authentication" - TODO - Part of NOT-54 ticket / Project not live
-
-  #checkov:skip=CKV_AWS_120: "Ensure API Gateway caching is enabled" - Re-evaluate later - currently API should not need caching as we are not serving static content
-
-
-  #checkov:skip=CKV2_AWS_29: "Ensure public API gateway are protected by WAF" - TODO - Part of NOT-51 ticket / Project not live
-
+  #checkov:skip=CKV2_AWS_51: "Ensure AWS API Gateway endpoints uses client certificate authentication" - Not needed
+  #checkov:skip=CKV_AWS_120: "Ensure API Gateway caching is enabled" - Re-evaluate later - currently API should not need caching as we are not serving static content"
   deployment_id        = aws_api_gateway_deployment.this.id
   rest_api_id          = aws_api_gateway_rest_api.this.id
   stage_name           = "api"
@@ -51,8 +46,6 @@ resource "aws_api_gateway_stage" "this" {
 
 // Enabling api gateway logging
 resource "aws_api_gateway_method_settings" "method" {
-  #checkov:skip=CKV_AWS_308: "Ensure API Gateway method setting caching is set to encrypted" - Re-evaluate later - currently API should not need caching as we are not serving static content
-
   rest_api_id = aws_api_gateway_rest_api.this.id
   stage_name  = aws_api_gateway_stage.this.stage_name
   method_path = "*/*"

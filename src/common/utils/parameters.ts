@@ -93,10 +93,10 @@ export const NumericParameters = {
     },
   },
   CircuitBreaker: {
-    Threshold: 'config/dispatch/circuitBrekaer/threshold',
-    WindowDuration: 'config/dispatch/circuitBrekaer/windowDuration',
-    HalfOpenAfter: 'config/dispatch/circuitBrekaer/halfOpenAfter',
-    RateLimitWhenOpen: 'config/dispatch/circuitBrekaer/rateLimitWhenOpen',
+    Threshold: 'config/dispatch/circuitBreaker/threshold',
+    WindowDuration: 'config/dispatch/circuitBreaker/windowDuration',
+    HalfOpenAfter: 'config/dispatch/circuitBreaker/halfOpenAfter',
+    RateLimitWhenOpen: 'config/dispatch/circuitBreaker/rateLimitWhenOpen',
   },
 } as const;
 

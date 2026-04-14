@@ -1,12 +1,9 @@
 # Storage bucket used to storage signed code bundles
-
-# TODO - Create logging bucket for storing access logs
 #tfsec:ignore:aws-s3-enable-bucket-logging
 resource "aws_s3_bucket" "code_storage" {
-  #checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled" - TODO
+  #checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled" - Not needed
   #checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled" - Not needed
   #checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled" - Not needed, as this is only storing code bundles and not data
-  #checkov:skip=CKV2_AWS_61: "Ensure that an S3 bucket has a lifecycle configuration" - Appears to be a known issue - https://github.com/bridgecrewio/checkov/issues/4743 - "aws_s3_bucket_lifecycle_configuration" resource is not being detected
   bucket        = join("-", [local.prefix, "s3", "codestorage"])
   tags          = local.defaultTags
   force_destroy = true

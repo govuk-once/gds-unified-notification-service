@@ -27,24 +27,23 @@ module "parameter_store_external_configuration" {
 
     # Common
     "config/common/cache/notificationsProviderRateLimitPerMinute" = "5"
-    # Circuit breaker config
-    "config/dispatch/circuitBrekaer/threshold"         = "5"
-    "config/dispatch/circuitBrekaer/halfOpenAfter"     = "30"
-    "config/dispatch/circuitBrekaer/windowDuration"    = "60"
-    "config/dispatch/circuitBrekaer/rateLimitWhenOpen" = "5"
 
-    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
-    "api/flex/apiKey" = "mockApiKey"
+    # Circuit breaker config
+    "config/dispatch/circuitBreaker/threshold"         = "5"
+    "config/dispatch/circuitBreaker/halfOpenAfter"     = "30"
+    "config/dispatch/circuitBreaker/windowDuration"    = "60"
+    "config/dispatch/circuitBreaker/rateLimitWhenOpen" = "5"
 
     # Default values for url content control within the data
     "content/allowed/protocols"     = "govuk:,https:"
     "content/allowed/urlHostnames"  = "*.gov.uk"
     "notification/deeplinkTemplate" = "govuk://app.gov.uk/notificationcentre/detail?id={id}"
 
-    // Configurations for FLEX & UDP - these values are serialized JSON
+    // Configurations for FLEX - these values are serialized JSON
     "flex/account" = "null"
     "flex/vpce"    = "null"
 
+    // Configurations for UDP - these values are serialized JSON
     "udp/config/sm"   = "null"
     "udp/config/kms"  = "null"
     "udp/config/role" = "null"

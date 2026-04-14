@@ -12,6 +12,7 @@ data "aws_iam_policy_document" "assume_role" {
     actions = ["sts:AssumeRole"]
   }
 }
+
 resource "aws_iam_role" "apigw_role" {
   name               = join("-", [var.prefix, "iamr", "apigw", var.name])
   assume_role_policy = data.aws_iam_policy_document.assume_role.json

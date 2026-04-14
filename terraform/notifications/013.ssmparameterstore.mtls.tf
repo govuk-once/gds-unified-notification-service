@@ -21,8 +21,7 @@ locals {
 
 # Parse values with fallback - allowing for non existence of ssm params
 locals {
-  mtls_enabled = var.use_mtls ? (try(local.mtls_ssm_exports["/pso/truststore"], null) == null ? false : true) : false
-  #
+  mtls_enabled        = var.use_mtls ? (try(local.mtls_ssm_exports["/pso/truststore"], null) == null ? false : true) : false
   mtls_pso_truststore = try(local.mtls_ssm_exports["/pso/truststore"], null)
   mtls_root_domain    = try(local.mtls_ssm_exports["/domain"], null)
   mtls_kms            = try(local.mtls_ssm_exports["/kms"], null)
