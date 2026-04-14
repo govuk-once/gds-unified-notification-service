@@ -4,6 +4,7 @@ data "aws_ssm_parameters_by_path" "flex" {
   with_decryption = true
   recursive       = true
 }
+
 data "aws_ssm_parameters_by_path" "udp" {
   path            = "/${local.prefix}/udp"
   with_decryption = true

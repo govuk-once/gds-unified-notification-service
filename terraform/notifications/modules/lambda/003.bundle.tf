@@ -1,4 +1,3 @@
-# 
 locals {
   bundle_filename = replace(":", "", "${var.function_name}.${timestamp()}.zip")
 }

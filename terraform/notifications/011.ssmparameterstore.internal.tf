@@ -32,7 +32,7 @@ module "parameter_store_internal_configuration" {
     "table/inbound/expiration/durationInSeconds" = 60 * 60 * 24 * 30
 
     # MTLS Configuration, pulls config entries exported by mtls repo within same aws account/env
-    # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeploygment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
+    # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeployment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
     // MTLS Configuration - Manual step post initial deployment, based on mtls configuration
     "table/mtls/name"       = local.mtls_table_name
     "table/mtls/attributes" = local.mtls_table_attributes

@@ -1,11 +1,6 @@
 // Deploy lambda
 resource "aws_lambda_function" "this" {
-  #checkov:skip=CKV_AWS_272: "Ensure AWS Lambda function is configured to validate code-signing" - TODO - Part of NOT-74 ticket / Project not live
-
   #checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit" - TODO - Project not live
-
-  #checkov:skip=CKV_AWS_117: "Ensure that AWS Lambda function is configured inside a VPC" - TODO - Re-evaluate - VPCs are not used by design within this project
-
   // Metadata & IAM
   function_name = join("-", [var.prefix, "lmbd", var.service_name, var.function_name])
   tags          = var.tags
