@@ -1,8 +1,9 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
-  BatchWriteItemCommandInput,
+  ConsumedCapacity,
   DeleteItemCommandInput,
   DynamoDB,
-  PutItemCommandInput,
+  ReturnConsumedCapacity,
   ScanCommandInput,
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
@@ -39,16 +40,40 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     return this;
   }
 
+  public async observeCapacity<
+    ObservableDynamoDBPromise extends { ConsumedCapacity?: ConsumedCapacity | ConsumedCapacity[] },
+  >(label: string, promise: Promise<ObservableDynamoDBPromise>): Promise<ObservableDynamoDBPromise> {
+    const result = await promise;
+    if (result.ConsumedCapacity) {
+      for (const consumedCapacity of Array.isArray(result.ConsumedCapacity)
+        ? result.ConsumedCapacity
+        : [result.ConsumedCapacity]) {
+        const rcu = consumedCapacity.ReadCapacityUnits ?? 0;
+        const wcu = consumedCapacity.WriteCapacityUnits ?? 0;
+        const gsi = consumedCapacity.GlobalSecondaryIndexes ?? {};
+        const lsi = consumedCapacity.LocalSecondaryIndexes ?? {};
+        const table = consumedCapacity.TableName ?? {};
+
+        this.observability.metrics.addMetric(`DYNAMODB_CONSUMED_READ_CAPACITY_UNITS`, MetricUnit.Count, rcu);
+        this.observability.metrics.addMetric(`DYNAMODB_CONSUMED_WRITE_CAPACITY_UNITS`, MetricUnit.Count, wcu);
+        this.observability.logger.info(`Dynamodb Usage`, { label, table, rcu, wcu, gsi, lsi });
+      }
+    }
+    return result;
+  }
+
   public async createRecord(record: RecordType): Promise<void> {
     this.observability.logger.info(`Creating record in table: ${this.tableName}`);
 
     try {
-      const params: PutItemCommandInput = {
-        TableName: this.tableName,
-        Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
-      };
-
-      await this.client.putItem(params);
+      await this.observeCapacity(
+        `createRecord`,
+        this.client.putItem({
+          TableName: this.tableName,
+          Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
+          ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
+        })
+      );
       this.observability.logger.info(`Successfully created record in table: ${this.tableName}`);
     } catch (error) {
       this.observability.logger.error(`Failure in creating record table: ${this.tableName}. ${error}`);
@@ -67,17 +92,20 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         throw new Error('To create batch records, array length must be no greater than 25.');
       }
 
-      const params: BatchWriteItemCommandInput = {
-        RequestItems: {
-          [this.tableName]: batchRecords.map((record) => ({
-            PutRequest: {
-              Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
-            },
-          })),
-        },
-      };
+      await this.observeCapacity(
+        `createRecordBatch`,
+        this.client.batchWriteItem({
+          RequestItems: {
+            [this.tableName]: batchRecords.map((record) => ({
+              PutRequest: {
+                Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
+              },
+            })),
+          },
+          ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
+        })
+      );
 
-      await this.client.batchWriteItem(params);
       this.observability.logger.info(`Successfully created records in table: ${this.tableName}`);
     } catch (error) {
       this.observability.logger.error(`Failure in creating records table: ${this.tableName}. ${error}`);
@@ -119,10 +147,11 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
       UpdateExpression: updateExpression,
+      ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
     };
 
     try {
-      await this.client.updateItem(params);
+      await this.observeCapacity(`updateRecord`, this.client.updateItem(params));
       this.observability.logger.info(`Successfully updated record in table: ${this.tableName}`, {
         params,
         entries,
@@ -201,10 +230,11 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       Key: marshall({
         [this.tableKey]: keyValue,
       }),
+      ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
     };
 
     try {
-      await this.client.deleteItem(params);
+      await this.observeCapacity(`deleteRecord`, this.client.deleteItem(params));
       this.observability.logger.error(
         `Successfully deleted record in table: ${this.tableName} with key ${this.tableKey}`
       );
