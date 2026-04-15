@@ -11,6 +11,7 @@ import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
+  hasDispatchStatus,
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
 } from '@project/lambdas/interfaces/IFlexNotification';
@@ -85,6 +86,11 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
+      throw new httpErrors.NotFound();
+    }
+
+    // Return 404 if a notification does not have a valid dispatch status
+    if (!hasDispatchStatus(notification)) {
       throw new httpErrors.NotFound();
     }
 

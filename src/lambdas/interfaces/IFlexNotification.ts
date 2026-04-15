@@ -20,6 +20,11 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
 
 export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
 
+export const hasDispatchStatus = (item: IMessageRecord): boolean =>
+  (item.Events ?? []).some((e) =>
+    Object.values(NotificationDispatchedStateEnum).includes(e.Event as NotificationDispatchedStateEnum)
+  );
+
 export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNotification => {
   // Drop unnecessary properties
   return IFlexNotificationSchema.parse({
@@ -32,7 +37,11 @@ export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNo
     DispatchedDateTime: item.DispatchedDateTime,
     // Infer status from Events
     Status:
-      [...(item.Events ?? [])].sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime)).pop()?.Event ??
-      NotificationStateEnum.UNKNOWN,
+      ([...(item.Events ?? [])]
+        .filter((e) =>
+          Object.values(NotificationDispatchedStateEnum).includes(e.Event as NotificationDispatchedStateEnum)
+        )
+        .sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime))
+        .pop()?.Event as NotificationDispatchedStateEnum) ?? NotificationStateEnum.UNKNOWN,
   });
 };
