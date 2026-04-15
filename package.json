@@ -9,7 +9,7 @@
     "checkov": "checkov --directory . --quiet",
     "commit": "cz",
     "development:organize:tf": "bun scripts/developer-organize-tf.ts",
-    "development:sandbox:release:infra": "cd terraform/notifications && terraform apply",
+    "development:sandbox:release:infra": "cd infrastructure/terraform && terraform apply",
     "development:sandbox:release": "npm run build && npm run development:sandbox:release:infra",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
@@ -20,7 +20,7 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage",
     "test": "vitest",
-    "tflint": "terraform fmt -check -diff -recursive && tflint --init && tflint --chdir=terraform/notifications  --config .tflint.hcl",
+    "tflint": "terraform fmt -check -diff -recursive && tflint --init && tflint --chdir=infrastructure/terraform  --config .tflint.hcl",
     "tflint:fix": "terraform fmt -recursive",
     "tfsec": "tfsec ."
   },

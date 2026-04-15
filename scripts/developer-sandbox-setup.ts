@@ -170,7 +170,7 @@ export const importSSMNamespace = async (env: string, label: string, namespace: 
 
 const script = async function () {
   try {
-    const tfvars = `./terraform/notifications/terraform.tfvars`;
+    const tfvars = `./infrastructure/terraform/terraform.tfvars`;
 
     const { env, bucket, label } = await getConfig();
 
@@ -284,7 +284,7 @@ truststore_override = ${truststoreOverride == null ? truststoreOverride : `"s3:/
     // Prompt to perform tf init
     if (await confirm({ message: `Would you like to initialize terraform?`, default: true })) {
       (
-        await $.cwd('terraform/notifications')`terraform init -reconfigure \
+        await $.cwd('infrastructure/terraform')`terraform init -reconfigure \
       -backend-config "bucket=${bucket}" \
       -backend-config "key=state.tfstate" \
       -backend-config "region=eu-west-2"`

@@ -84,7 +84,7 @@ First one authenticates your shell session with the sandbox aws account, second 
 npm run development:sandbox:setup
 ```
 
-This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./terraform/notifications/terraform.tfvars` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
+This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/terraform/terraform.tfvars` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
 
 After the initial setup is completed, another 2 commands can be used to release to sandbox
 
@@ -127,7 +127,7 @@ A quick summary:
 - Husky - Automatically lint commit messages. [Husky](https://typicode.github.io/husky)
 - commitlint - Lint commit messages to adhere to a commit convention. [commitlint](https://github.com/conventional-changelog/commitlint)
 - TFLint - Framework for terraform to find possible errors for Major Cloud providers. [TFLint](https://github.com/terraform-linters/tflint)
-- TF Organizing step - in order to maintain naming convention defined in [README.md](./terraform/notifications/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
+- TF Organizing step - in order to maintain naming convention defined in [README.md](./infrastructure/terraform/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
 
 Read more in : [./.husky/README.md](./.husky/README.md)
 
