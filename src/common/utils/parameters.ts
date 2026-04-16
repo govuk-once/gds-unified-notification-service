@@ -61,9 +61,6 @@ export const StringParameters = {
     Inbound: {
       KeyAttributes: 'table/inbound/attributes',
       Name: 'table/inbound/name',
-      Expiration: {
-        Atttribute: 'table/inbound/expiration/attribute',
-      },
     },
     MTLSRevocation: {
       KeyAttributes: 'table/mtls/attributes',
