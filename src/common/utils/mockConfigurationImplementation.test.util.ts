@@ -14,7 +14,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.Table.Inbound.Name]: 'mocknotificationsDynamoRepositoryName',
-    [StringParameters.Table.Inbound.Expiration.Atttribute]: 'ExpirationDateTime',
+    [StringParameters.Table.Inbound.expirationAttribute]: 'ExpirationDateTime',
     [StringParameters.Table.MTLSRevocation.Name]: 'mockMtlsRevocationTableName',
     [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
     // Content filtering
