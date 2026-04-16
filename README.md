@@ -144,6 +144,16 @@ This repository is automatically updating the following API pages on release to 
 
 - Flex API - https://govuk-once.github.io/gds-unified-notification-service/flex/ -
 
+## Dependency management
+
+In order to keep dependencies up to date & ensure the platform maintains high level of security, a minor utility is available via:
+
+```sh
+npm run upgrade
+```
+
+It will iteratively perform dependency updates, after each update it will execute unit tests to ensure there's no regressions. Following that it will also trigger `npm audit` which performs a scan of dependecies against known list of vulnerabilities.
+
 ## Contact
 
 Solution Architect: Nathaniel Greenwood
