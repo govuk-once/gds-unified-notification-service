@@ -16,7 +16,7 @@ export class NotificationsDynamoRepository extends DynamodbRepository<IMessageRe
     await super.initialize(StringParameters.Table.Inbound.KeyAttributes, StringParameters.Table.Inbound.Name);
 
     // Expiration config
-    this.expirationAttribute = await this.config.getParameter(StringParameters.Table.Inbound.Expiration.Atttribute);
+    this.expirationAttribute = await this.config.getParameter(StringParameters.Table.Inbound.expirationAttribute);
     this.expirationDurationInSeconds = await this.config.getNumericParameter(
       NumericParameters.Table.Inbound.Expiration.DurationInSeconds
     );
