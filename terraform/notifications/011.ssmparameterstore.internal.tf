@@ -24,10 +24,10 @@ module "parameter_store_internal_configuration" {
     // Dynamo table config
     "table/inbound/name" = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
-      hashKey    = module.dynamodb_inbound_messages.table_hash_key
-      rangeKey   = module.dynamodb_inbound_messages.table_range_key
-      attributes = module.dynamodb_inbound_messages.table_attributes
-      expirationAttribute = module.dynamodb_inbound_messages.ttl_attribute
+      hashKey                     = module.dynamodb_inbound_messages.table_hash_key
+      rangeKey                    = module.dynamodb_inbound_messages.table_range_key
+      attributes                  = module.dynamodb_inbound_messages.table_attributes
+      expirationAttribute         = module.dynamodb_inbound_messages.ttl_attribute
       expirationDurationInSeconds = 60 * 60 * 24 * 30
     })
 
