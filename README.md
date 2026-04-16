@@ -1,7 +1,6 @@
 ## About The Project
 
 GDS Unified Notification Service
-
 This service is a notification system that will be used by multiple services within government.
 Notifications will be sent to the GOV.UK to either a user or a group of users.
 This service is ran with AWS using serverless architecture.
@@ -76,6 +75,7 @@ alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)
 alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
 alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
 alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
+alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
 ```
 
 First one authenticates your shell session with the sandbox aws account, second one opens the AWS console with a pre-authenticated session within the correct account.
@@ -84,7 +84,7 @@ First one authenticates your shell session with the sandbox aws account, second 
 npm run development:sandbox:setup
 ```
 
-This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./terraform/notifications/terraform.tfvars` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
+This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/terraform/terraform.tfvars` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
 
 After the initial setup is completed, another 2 commands can be used to release to sandbox
 
@@ -127,7 +127,7 @@ A quick summary:
 - Husky - Automatically lint commit messages. [Husky](https://typicode.github.io/husky)
 - commitlint - Lint commit messages to adhere to a commit convention. [commitlint](https://github.com/conventional-changelog/commitlint)
 - TFLint - Framework for terraform to find possible errors for Major Cloud providers. [TFLint](https://github.com/terraform-linters/tflint)
-- TF Organizing step - in order to maintain naming convention defined in [README.md](./terraform/notifications/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
+- TF Organizing step - in order to maintain naming convention defined in [README.md](./infrastructure/terraform/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
 
 Read more in : [./.husky/README.md](./.husky/README.md)
 
@@ -143,6 +143,16 @@ This repository is automatically updating the following API pages on release to 
 - Public Service Organization API - https://govuk-once.github.io/gds-unified-notification-service/pso/ -
 
 - Flex API - https://govuk-once.github.io/gds-unified-notification-service/flex/ -
+
+## Dependency management
+
+In order to keep dependencies up to date & ensure the platform maintains high level of security, a minor utility is available via:
+
+```sh
+npm run upgrade
+```
+
+It will iteratively perform dependency updates, after each update it will execute unit tests to ensure there's no regressions. Following that it will also trigger `npm audit` which performs a scan of dependecies against known list of vulnerabilities.
 
 ## Contact
 

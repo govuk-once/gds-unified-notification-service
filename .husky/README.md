@@ -9,7 +9,7 @@ Before committing changes, Husky runs a series of checks to ensure that our code
 - TS Check: A TypeScript compilation step that ensures our code is syntactically correct.
 - Linting: An ESLint check that enforces TS coding conventions.
 - TF Validate && TF Lint: A validation step that ensures our Terraform configurations are valid, followed by linting step to ensure coding styles
-- TF Conventions: We have a custom naming conventions defined here [./../terraform/notifications/README.md](./../terraform/notifications/README.md), outlining our naming approach
+- TF Conventions: We have a custom naming conventions defined here [./../infrastructure/terraform/README.md](./../infrastructure/terraform/README.md), outlining our naming approach
 - Unit testing (Vitest): Executing all of the unit testing before committing ensures no faulty code is commited
 
 These hooks run automatically before each commit, allowing us to catch and fix errors early on in the development process. By running these checks, we can ensure that our code is clean, efficient, and follows best practices.
