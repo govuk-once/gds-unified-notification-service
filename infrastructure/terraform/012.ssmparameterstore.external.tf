@@ -40,8 +40,10 @@ module "parameter_store_external_configuration" {
     "notification/deeplinkTemplate" = "govuk://app.gov.uk/notificationcentre/detail?id={id}"
 
     // Configurations for FLEX - these values are serialized JSON
-    "flex/account" = "null"
-    "flex/vpce"    = "null"
+    #checkov:skip=CKV_SECRET_6: "Base64 High Entropy String"
+    "api/flex/apiKey" = "mockApiKey"
+    "flex/account"    = "null"
+    "flex/vpce"       = "null"
 
     // Configurations for UDP - these values are serialized JSON
     "udp/config/sm"   = "null"

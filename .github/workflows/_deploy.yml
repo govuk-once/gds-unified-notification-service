@@ -59,7 +59,7 @@ jobs:
         run: npm run build
 
       - name: 🏗️ Terraform Deploy
-        working-directory: ./terraform/notifications
+        working-directory: ./infrastructure/terraform
         run: |
           terraform init \
             -backend-config "region=$TF_VAR_region" \

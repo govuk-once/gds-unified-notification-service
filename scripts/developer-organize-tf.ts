@@ -1,7 +1,7 @@
 /**
  * Utility helper to assist with arranging TF files in priority order
  * This allows TF files to be ordered easily, and improve readability
- * (read more in terraform/notifications/README.md)
+ * (read more in infrastructure/terraform/README.md)
  *
  * Usage:
  * - Insert a new TF file in relevant position
