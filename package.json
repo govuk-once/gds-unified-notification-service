@@ -12,7 +12,7 @@
     "development:sandbox:release:infra": "cd terraform/notifications && terraform apply",
     "development:sandbox:release": "npm run build && npm run development:sandbox:release:infra",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
-    "development:sandbox:testing": "bun scripts/developer-sandbox-testing.ts",
+    "development:sandbox:test": "bun scripts/developer-sandbox-test.ts",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
     "pre-commit": "VITEST_SILENT=true bun scripts/pre-commit.ts",
