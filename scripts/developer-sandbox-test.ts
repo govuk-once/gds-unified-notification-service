@@ -41,7 +41,7 @@ const script = async function () {
     }
 
     const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-client-certificates`;
-    const targetKey = `gdsunsmtls-dev/dev/dev-2026-Q1-Q2`;
+    const targetKey = `gdsunsmtls-${mtlsEnvToUse}/dev/dev-2026-Q1-Q2`;
 
     for (const fileExt of ['crt', 'pem']) {
       const response = await s3Client.send(
