@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 // This script is to be executed via npm run development:sandbox:setup
 // Generates environment ID based on email signing the commits (git config -- set user.email) by default (directly configurable options available below)
 // Saves generated config into teraform/notifications/terraform.tfvars
@@ -16,9 +17,11 @@
 //     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
+import { APIGatewayClient, GetDomainNamesCommand } from '@aws-sdk/client-api-gateway';
 import {
   CopyObjectCommand,
   CreateBucketCommand,
+  GetObjectCommand,
   ListBucketsCommand,
   PutBucketVersioningCommand,
   S3Client,
@@ -28,6 +31,7 @@ import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
+import { writeFile } from 'fs/promises';
 import { v7 as ulid } from 'uuid';
 
 // Helper FN to simplify promise handling, and avoid nested try catches
@@ -302,9 +306,45 @@ truststore_override = ${truststoreOverride == null ? truststoreOverride : `"s3:/
         ` - npm development:sandbox:release:plan    - to trigger terraform plan for your environment`,
       ].join('\n')
     );
+
+    // mTLS and Domain Name import
+    if (useMtls) {
+      const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-client-certificates`;
+      const targetKey = `gdsunsmtls-dev/dev/dev-2026-Q1-Q2`;
+
+      for (const fileExt of ['crt', 'pem']) {
+        const response = await s3Client.send(
+          new GetObjectCommand({
+            Bucket: targetBucket,
+            Key: `targetKey.${fileExt}`,
+          })
+        );
+
+        const fileOutput = await response.Body?.transformToByteArray();
+        if (!fileOutput) {
+          throw new Error();
+        }
+
+        // Now you can use writeFile
+        await writeFile(`./tests/e2e/config/cert-file.${fileExt}`, fileOutput);
+      }
+    }
+
+    const gatewayClient = new APIGatewayClient();
+    const domains = await gatewayClient.send(new GetDomainNamesCommand());
+
+    const psoCustomeDomainName = domains.items?.filter((x) => (x.domainName as string)?.includes(`gdsuns-${env}-pso`));
+    const flexCustomeDomainName = domains.items?.filter((x) =>
+      (x.domainName as string)?.includes(`gdsuns-${env}-flex`)
+    );
+
+    if (psoCustomeDomainName && flexCustomeDomainName) {
+      const fileOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName[0].domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName[0].domainName}`;
+      await writeFile(`./.env`, fileOutput);
+    }
   } catch (e) {
     // Gracefully handle command+c exits
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     if (e?.name == 'ExitPromptError') {
       console.log('\nCommand+c pressed, exiting...');
       return;

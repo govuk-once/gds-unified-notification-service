@@ -31,7 +31,9 @@
       "@common/*": ["./src/common/*"],
       "@common": ["./src/common"],
       "@project/*": ["./src/*"],
-      "@project": ["./src"]
+      "@project": ["./src"],
+      "@test/*": ["test/*"],
+      "@test": ["test"]
     }
   },
   "exclude": ["node_modules"]
