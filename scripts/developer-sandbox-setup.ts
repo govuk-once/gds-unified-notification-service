@@ -316,7 +316,7 @@ truststore_override = ${truststoreOverride == null ? truststoreOverride : `"s3:/
         const response = await s3Client.send(
           new GetObjectCommand({
             Bucket: targetBucket,
-            Key: `targetKey.${fileExt}`,
+            Key: `${targetKey}.${fileExt}`,
           })
         );
 
