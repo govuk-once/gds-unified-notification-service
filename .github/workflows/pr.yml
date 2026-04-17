@@ -77,6 +77,23 @@ jobs:
           message: '${{steps.unittests.outputs.report}}'
           recreate: true
 
+      # CDK Validation
+      - name: CDK Synth
+        if: success() || failure() # Until TF Migration is completed
+        run: |
+          npm run cdk:synth
+
+      - name: 🔐 Checkov GitHub Action (CheckoCDKv)
+        if: success() || failure()
+        uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
+        with:
+          output_format: cli
+          soft_fail: true
+          framework: cloudformation
+          directory: infrastructure/cdk/cdk.out/
+          config_file: .checkov.yaml
+          quiet: true
+
       # Security scans - Always executed even if the formatting or tests fail
       - name: 🔐 TF Sec
         if: success() || failure()
@@ -89,6 +106,7 @@ jobs:
           output_format: cli,sarif
           output_file_path: console,results.sarif
           soft_fail: true
+          quiet: true
 
       - name: ⚙️ Upload SARIF file
         uses: github/codeql-action/upload-sarif@cdefb33c0f6224e58673d9004f47f7cb3e328b89 # v4
