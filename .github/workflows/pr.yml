@@ -19,6 +19,16 @@ jobs:
       - name: ⚙️ Checkout Code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
+      - name: ⚙️ Configure AWS credentials (For package registry pulling)
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: ⚙️ Configure Codeartifact
+        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
+
       - name: ⚙️ Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
 
@@ -26,13 +36,6 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version-file: '.node-version'
-
-      - name: ⚙️ Configure AWS credentials (For package registry pulling)
-        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
-        with:
-          audience: sts.amazonaws.com
-          role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
-          aws-region: eu-west-2
 
       - name: ⚙️ Install Dependencies
         run: npm ci

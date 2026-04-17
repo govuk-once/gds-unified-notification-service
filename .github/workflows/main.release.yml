@@ -49,3 +49,12 @@ jobs:
       ENVIRONMENT: dev
       VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
     secrets: inherit
+
+  releaseToDevCDK:
+    needs: release
+    name: Deploy to dev
+    uses: ./.github/workflows/_deploy.cdk.yml
+    with:
+      ENVIRONMENT: dev
+      VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
+    secrets: inherit
