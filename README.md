@@ -85,6 +85,7 @@ npm run development:sandbox:setup
 ```
 
 This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/terraform/terraform.tfvars` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
+Also, if mTLS is enables, it pulls mTLS certificates and domain name into the repository for end to end testing locally.
 
 After the initial setup is completed, another 2 commands can be used to release to sandbox
 
@@ -105,6 +106,8 @@ Within this project there are multiple ways of triggering tests, there are also 
 npm run test
 # Unit tests reporting covereage
 npm run test:coverage
+# End to end tests reporting covereage
+npm run test:e2e
 
 # Additional env vars can also be supplied:
 ## Surpress console output

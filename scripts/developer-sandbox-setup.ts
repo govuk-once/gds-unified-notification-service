@@ -311,6 +311,7 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
         `Setup completed, now you can run: `,
         ` - npm run development:sandbox:release     - to trigger terraform apply for your environment`,
         ` - npm development:sandbox:release:plan    - to trigger terraform plan for your environment`,
+        ` - npm development:sandbox:test    - to setup authentication for end to end testing`,
       ].join('\n')
     );
   } catch (e) {
