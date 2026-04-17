@@ -326,7 +326,7 @@ truststore_override = ${truststoreOverride == null ? truststoreOverride : `"s3:/
         }
 
         // Now you can use writeFile
-        await writeFile(`./tests/e2e/config/cert-file.${fileExt}`, fileOutput);
+        await writeFile(`./test/e2e/config/cert-file.${fileExt}`, fileOutput);
       }
     }
 
