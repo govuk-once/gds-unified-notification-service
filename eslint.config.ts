@@ -42,9 +42,9 @@ export default defineConfig([
       },
     },
     rules: {
+      '@typescript-eslint/no-unused-vars': 'warn',
       'no-unused-vars': 'off',
       'vitest/no-standalone-expect': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/unbound-method': 'off',
     },
