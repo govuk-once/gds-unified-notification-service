@@ -1,3 +1,4 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
@@ -17,7 +18,10 @@ export class CircuitBreakerService {
     private config: ConfigurationService,
     private cacheService: CacheService,
     private platform: string
-  ) {}
+  ) {
+    this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 0); // Is this disabled on startup?
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0); // Is this enabled on startup?
+  }
 
   private stateKey(platform: string) {
     return `cb:${platform}:state`;
@@ -70,6 +74,7 @@ export class CircuitBreakerService {
     this.observability.logger.info('Circuit breaker check', { platform: this.platform, state });
 
     if (state == CircuitBreakerStateEnum.OPEN) {
+      this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 1);
       const openedAt = (await this.cacheService.get<number>(this.openedAtKey(this.platform))) ?? 0;
       const now = Math.floor(Date.now() / 1000);
 
@@ -89,6 +94,7 @@ export class CircuitBreakerService {
     }
 
     // CLOSED — check if accumulated failures should open the circuit
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0);
     const windowKey = this.currentWindowKey(windowDuration);
     const failureCount = (await this.cacheService.get<number>(this.failureKey(this.platform, windowKey))) ?? 0;
     if (failureCount >= threshold) {
@@ -107,6 +113,7 @@ export class CircuitBreakerService {
         this.stateKey(this.platform),
         CircuitBreakerStateEnum.CLOSED as CircuitBreakerStateEnum
       );
+      this.observability.metrics.addMetric('CIRCUIT_BREAKER_SUCCESS', MetricUnit.Count, 1);
       this.observability.logger.info('Circuit breaker closed after successful request in HALF_OPEN state', {
         platform: this.platform,
       });
@@ -127,6 +134,7 @@ export class CircuitBreakerService {
     const windowKey = this.currentWindowKey(windowDuration);
     const newCount = await this.cacheService.increment(this.failureKey(this.platform, windowKey), windowDuration);
 
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_FAILURE', MetricUnit.Count, 1);
     this.observability.logger.warn('Circuit breaker failure recorded', {
       platform: this.platform,
       failureCount: newCount,
@@ -177,6 +185,7 @@ export class CircuitBreakerService {
     const minuteKey = this.currentMinuteKey();
     const count = await this.cacheService.increment(this.rateLimitKey(this.platform, minuteKey), 60);
 
+    this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 1);
     this.observability.logger.info('Circuit breaker rate limit check (OPEN/HALF_OPEN)', {
       platform: this.platform,
       count,
