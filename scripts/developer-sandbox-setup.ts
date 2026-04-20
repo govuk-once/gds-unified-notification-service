@@ -30,7 +30,6 @@ import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
 import { v7 as ulid } from 'uuid';
 
 // Helper FN to simplify promise handling, and avoid nested try catches
@@ -318,28 +317,26 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
           })
         );
 
-        const fileOutput = await response.Body?.transformToByteArray();
-        if (!fileOutput) {
+        const certOutput = await response.Body?.transformToByteArray();
+        if (!certOutput) {
           throw new Error();
         }
 
         // Now you can use writeFile
-        await writeFile(`./test/e2e/config/cert-file.${fileExt}`, fileOutput);
+        await file(`./test/e2e/config/cert-file.${fileExt}`).write(certOutput);
       }
 
       const gatewayClient = new APIGatewayClient();
       const domains = await gatewayClient.send(new GetDomainNamesCommand());
 
-      const psoCustomeDomainName = domains.items?.filter((x) =>
-        (x.domainName as string)?.includes(`gdsuns-${env}-pso`)
-      );
-      const flexCustomeDomainName = domains.items?.filter((x) =>
+      const psoCustomeDomainName = domains.items?.find((x) => (x.domainName as string)?.includes(`gdsuns-${env}-pso`));
+      const flexCustomeDomainName = domains.items?.find((x) =>
         (x.domainName as string)?.includes(`gdsuns-${env}-flex`)
       );
 
       if (psoCustomeDomainName && flexCustomeDomainName) {
-        const fileOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName[0].domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName[0].domainName}`;
-        await writeFile(`./.env`, fileOutput);
+        const envOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName.domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName.domainName}`;
+        await file(`./.env`).write(envOutput);
       }
     }
 
