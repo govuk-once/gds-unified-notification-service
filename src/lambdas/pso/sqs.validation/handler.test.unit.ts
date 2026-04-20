@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
