@@ -16,9 +16,11 @@
 //     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
+import { APIGatewayClient, GetDomainNamesCommand } from '@aws-sdk/client-api-gateway';
 import {
   CopyObjectCommand,
   CreateBucketCommand,
+  GetObjectCommand,
   ListBucketsCommand,
   PutBucketVersioningCommand,
   S3Client,
@@ -28,6 +30,7 @@ import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
 import { v7 as ulid } from 'uuid';
 
 // Helper FN to simplify promise handling, and avoid nested try catches
@@ -302,6 +305,44 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
       ).text();
     }
 
+    // Import mTLS certificates and domain name for end to end testing
+    if (useMtls) {
+      const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-client-certificates`;
+      const targetKey = `gdsunsmtls-${mtlsEnvToUse}/dev/dev-2026-Q1-Q2`;
+
+      for (const fileExt of ['crt', 'pem']) {
+        const response = await s3Client.send(
+          new GetObjectCommand({
+            Bucket: targetBucket,
+            Key: `${targetKey}.${fileExt}`,
+          })
+        );
+
+        const fileOutput = await response.Body?.transformToByteArray();
+        if (!fileOutput) {
+          throw new Error();
+        }
+
+        // Now you can use writeFile
+        await writeFile(`./test/e2e/config/cert-file.${fileExt}`, fileOutput);
+      }
+
+      const gatewayClient = new APIGatewayClient();
+      const domains = await gatewayClient.send(new GetDomainNamesCommand());
+
+      const psoCustomeDomainName = domains.items?.filter((x) =>
+        (x.domainName as string)?.includes(`gdsuns-${env}-pso`)
+      );
+      const flexCustomeDomainName = domains.items?.filter((x) =>
+        (x.domainName as string)?.includes(`gdsuns-${env}-flex`)
+      );
+
+      if (psoCustomeDomainName && flexCustomeDomainName) {
+        const fileOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName[0].domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName[0].domainName}`;
+        await writeFile(`./.env`, fileOutput);
+      }
+    }
+
     // Post initialization - check if SSM params are set and update them with values from dev env
     await importSSMNamespace(env, 'Dispatch (OneSignal)', `config/dispatch`);
     await importSSMNamespace(env, 'Processing (UDP)', `config/processing`);
@@ -311,7 +352,6 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
         `Setup completed, now you can run: `,
         ` - npm run development:sandbox:release     - to trigger terraform apply for your environment`,
         ` - npm development:sandbox:release:plan    - to trigger terraform plan for your environment`,
-        ` - npm development:sandbox:test    - to setup authentication for end to end testing`,
       ].join('\n')
     );
   } catch (e) {

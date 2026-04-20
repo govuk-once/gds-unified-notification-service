@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import { QueueEvent } from '@common/operations';

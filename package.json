@@ -12,7 +12,6 @@
     "development:sandbox:release:infra": "cd infrastructure/terraform && terraform apply",
     "development:sandbox:release": "npm run build && npm run development:sandbox:release:infra",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
-    "development:sandbox:test": "bun scripts/developer-sandbox-test.ts",
     "cdk:diff": "cd infrastructure/cdk && cdk diff",
     "cdk:checkov": "cd infrastructure/cdk && cdk synth --quiet && checkov --config-file checkov.yaml -d cdk.out --framework cloudformation --compact --quiet",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
