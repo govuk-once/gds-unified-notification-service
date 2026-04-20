@@ -28,6 +28,7 @@ export default defineConfig([
       'no-undef': 'off',
       'no-unused-vars': 'off',
       'prefer-rest-params': 'off',
+      'vitest/no-standalone-expect': 'off',
     },
   },
   {

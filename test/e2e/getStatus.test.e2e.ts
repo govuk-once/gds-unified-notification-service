@@ -1,14 +1,14 @@
-import axios from 'axios';
-import { httpsAgent } from '@test/e2e/httpsAgent';
-import { expect, it } from 'vitest';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
-describe('GET /status', () => {
-  it('returns 200 when calling the status endpoint', async () => {
-    // Arrange
-    const url = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
+import { expect } from 'vitest';
+import { test } from '@test/e2e/setup.e2e.vitest';
 
+describe('Get /status', () => {
+  test('returns 200 when calling the status endpoint', async ({ psoServer }) => {
     // Act
-    const result = await axios.get(`https://${url}/status`, { httpsAgent });
+    const result = await psoServer.get('/status');
 
     // Assert
     expect(result.status).toBe(200);
