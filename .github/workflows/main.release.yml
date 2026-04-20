@@ -24,6 +24,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: ⚙️ Configure AWS credentials (For package registry pulling)
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: ⚙️ Configure Codeartifact
+        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
+
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
