@@ -319,7 +319,7 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
 
         const certOutput = await response.Body?.transformToByteArray();
         if (!certOutput) {
-          throw new Error();
+          throw new Error('Failed to parse certificates from s3 bucket.');
         }
 
         // Now you can use writeFile
