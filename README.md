@@ -104,9 +104,9 @@ Within this project there are multiple ways of triggering tests, there are also 
 ```sh
 # Standard unit tests
 npm run test
-# Unit tests reporting covereage
+# Unit tests reporting coverage
 npm run test:coverage
-# End to end tests reporting covereage
+# End to end tests
 npm run test:e2e
 
 # Additional env vars can also be supplied:
@@ -122,6 +122,9 @@ VITEST_DETAILED_COVERAGE=true VITEST_SILENT=true npm run test:coverage
 ```
 
 We also have some additional flags that can adjust the way
+
+End to end testing require mTLS authentication to be setup locally, to test both PSO and FLEX endpoints. To setup the correct authentication, run the developer setup script to setup this authentication.
+Make sure these credentials are not added to git.
 
 ## Pre-commit hooks
 
