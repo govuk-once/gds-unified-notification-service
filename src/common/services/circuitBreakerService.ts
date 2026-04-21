@@ -19,8 +19,8 @@ export class CircuitBreakerService {
     private cacheService: CacheService,
     private platform: string
   ) {
-    this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 0); // Is this disabled on startup?
-    this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0); // Is this enabled on startup?
+    this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 0);
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0);
   }
 
   private stateKey(platform: string) {
@@ -94,7 +94,10 @@ export class CircuitBreakerService {
     }
 
     // CLOSED — check if accumulated failures should open the circuit
+    const count = await this.getCurrentRate();
+    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.CountPerSecond, count);
     this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0);
+
     const windowKey = this.currentWindowKey(windowDuration);
     const failureCount = (await this.cacheService.get<number>(this.failureKey(this.platform, windowKey))) ?? 0;
     if (failureCount >= threshold) {
@@ -182,9 +185,9 @@ export class CircuitBreakerService {
   }
 
   private async enforceRateLimit(rateLimitWhenOpen: number): Promise<void> {
-    const minuteKey = this.currentMinuteKey();
-    const count = await this.cacheService.increment(this.rateLimitKey(this.platform, minuteKey), 60);
+    const count = await this.getCurrentRate();
 
+    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.CountPerSecond, count);
     this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 1);
     this.observability.logger.info('Circuit breaker rate limit check (OPEN/HALF_OPEN)', {
       platform: this.platform,
@@ -195,5 +198,12 @@ export class CircuitBreakerService {
     if (count > rateLimitWhenOpen) {
       throw new CircuitBreakerOpenError(this.platform);
     }
+  }
+
+  private async getCurrentRate(): Promise<number> {
+    const minuteKey = this.currentMinuteKey();
+    const count = await this.cacheService.increment(this.rateLimitKey(this.platform, minuteKey), 60);
+
+    return count;
   }
 }
