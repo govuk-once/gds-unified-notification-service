@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
+import { IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
@@ -16,16 +14,15 @@ export class NotificationsDynamoRepository extends DynamodbRepository<IMessageRe
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Inbound.KeyAttributes);
+    await super.initialize(StringParameters.Table.Inbound.Attributes);
     // Expiration config
-    this.expirationAttribute = JSON.parse(
-      await this.config.getParameter(StringParameters.Table.Inbound.KeyAttributes as string)
-    ).expirationAttribute;
 
-    this.expirationDurationInSeconds = parseInt(
-      JSON.parse(await this.config.getParameter(StringParameters.Table.Inbound.KeyAttributes as string))
-        .expirationDurationInSeconds
-    );
+    this.expirationAttribute = (
+      await this.config.getParameterAsType(StringParameters.Table.Inbound.Attributes, IDynamoAttributesSchema)
+    ).expirationAttribute;
+    this.expirationDurationInSeconds = (
+      await this.config.getParameterAsType(StringParameters.Table.Inbound.Attributes, IDynamoAttributesSchema)
+    ).expirationDurationInSeconds;
     return this;
   }
 

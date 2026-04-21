@@ -59,7 +59,7 @@ describe('NotificationsDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitalize).toHaveBeenCalledWith(StringParameters.Table.Inbound.KeyAttributes);
+      expect(superInitalize).toHaveBeenCalledWith(StringParameters.Table.Inbound.Attributes);
       expect(result).toBe(instance);
     });
   });
@@ -86,7 +86,7 @@ describe('NotificationsDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as PutItemCommand;
 
-      expect(command.input.TableName).toBe('mocknotificationsDynamoRepositoryName');
+      expect(command.input.TableName).toBe('mockNotificationsDynamoRepositoryName');
       expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expect.any(String) });
     });
 
@@ -101,7 +101,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating record table: ${'mocknotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
+        `Failure in creating record table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
       );
     });
   });
@@ -128,7 +128,7 @@ describe('NotificationsDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
       expect(command.input.RequestItems).toEqual({
-        mocknotificationsDynamoRepositoryName: [
+        mockNotificationsDynamoRepositoryName: [
           {
             PutRequest: {
               Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
@@ -161,7 +161,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${'mocknotificationsDynamoRepositoryName'}. Error: To create batch records, array length must be no greater than 25.`
+        `Failure in creating records table: ${'mockNotificationsDynamoRepositoryName'}. Error: To create batch records, array length must be no greater than 25.`
       );
     });
 
@@ -176,7 +176,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${'mocknotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
+        `Failure in creating records table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
       );
     });
   });
@@ -197,7 +197,7 @@ describe('NotificationsDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
       expect(command.input).toEqual({
-        TableName: 'mocknotificationsDynamoRepositoryName',
+        TableName: 'mockNotificationsDynamoRepositoryName',
         Key: marshall({
           ['NotificationID']: mockUpdatedRecord.NotificationID,
         }),
@@ -232,7 +232,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${'mocknotificationsDynamoRepositoryName'}. Error: ${errorMsg}`,
+        `Failure in updating record table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`,
         expect.any(Object)
       );
     });
@@ -291,7 +291,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in getting record for table: ${'mocknotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
+        `Failure in getting record for table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
       );
     });
   });

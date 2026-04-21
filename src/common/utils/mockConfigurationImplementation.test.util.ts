@@ -33,15 +33,15 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
     [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
     // Nested objects
-    [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({
+    [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],
       hashKey: 'NotificationID',
       rangeKey: null,
-      tableName: 'mocknotificationsDynamoRepositoryName',
+      tableName: 'mockNotificationsDynamoRepositoryName',
       expirationAttribute: 'ExpirationDateTime',
-      expirationDurationInSeconds: '2592000',
+      expirationDurationInSeconds: 2592000,
     }),
-    [StringParameters.Table.MTLSRevocation.KeyAttributes]: JSON.stringify({
+    [StringParameters.Table.MTLSRevocation.Attributes]: JSON.stringify({
       tableName: 'mockMtlsRevocationTableName',
       attributes: [],
       hashKey: 'Id',

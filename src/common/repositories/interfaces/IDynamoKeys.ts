@@ -1,12 +1,12 @@
 import z from 'zod';
 
-export const IDynamoKeyAttributesSchema = z.object({
+export const IDynamoAttributesSchema = z.object({
   tableName: z.string(),
   attributes: z.string().array(),
   hashKey: z.string(),
   rangeKey: z.string().nullish(),
   expirationAttribute: z.string().optional(),
-  expirationDurationInSeconds: z.string().optional(),
+  expirationDurationInSeconds: z.int().optional(),
 });
 
-export type IDynamoKeyAttributes = z.infer<typeof IDynamoKeyAttributesSchema>;
+export type IDynamoAttributes = z.infer<typeof IDynamoAttributesSchema>;

@@ -28,7 +28,7 @@ module "parameter_store_internal_configuration" {
       rangeKey                    = module.dynamodb_inbound_messages.table_range_key
       tableAttributes             = module.dynamodb_inbound_messages.table_attributes
       expirationAttribute         = module.dynamodb_inbound_messages.ttl_attribute
-      expirationDurationInSeconds = "2592000"
+      expirationDurationInSeconds = 2592000
     })
 
     # MTLS Configuration, pulls config entries exported by mtls repo within same aws account/env

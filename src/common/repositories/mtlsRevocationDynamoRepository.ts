@@ -12,7 +12,7 @@ export class MTLSRevocationDynamoRepository extends DynamodbRepository<MTLSRevoc
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.MTLSRevocation.KeyAttributes);
+    await super.initialize(StringParameters.Table.MTLSRevocation.Attributes);
     return this;
   }
 }

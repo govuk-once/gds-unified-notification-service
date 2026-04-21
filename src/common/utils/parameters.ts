@@ -59,10 +59,10 @@ export const StringParameters = {
   },
   Table: {
     Inbound: {
-      KeyAttributes: 'table/inbound/attributes',
+      Attributes: 'table/inbound/attributes',
     },
     MTLSRevocation: {
-      KeyAttributes: 'table/mtls/attributes',
+      Attributes: 'table/mtls/attributes',
     },
   },
   Dispatch: {
