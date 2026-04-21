@@ -1,4 +1,5 @@
 locals {
+  # Add any services that use circuit breakers to the array
   services_with_circuit_breaker = [module.lambda_pso_dispatch.lambda_service_name]
 
   dashboard_body = jsonencode({
