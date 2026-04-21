@@ -5,7 +5,7 @@ import { Colors, execute } from 'scripts/helpers';
 // Pre commit tasks with labels
 const tasks = {
   [Colors.yellow('TS Check')]: 'npm run build:validate',
-  [Colors.cyan('Unit Tests')]: 'npm run test',
+  [Colors.cyan('Unit Tests')]: 'npm run test:unit',
   [Colors.green('Linting')]: 'npm run lint',
   [Colors.blue('TFLint')]: 'npm run tflint',
   [Colors.magenta('TF Conventions')]: 'npm run development:organize:tf -- --dry-run',

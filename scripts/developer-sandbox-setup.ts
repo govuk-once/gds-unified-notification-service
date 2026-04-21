@@ -16,9 +16,11 @@
 //     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
+import { APIGatewayClient, GetDomainNamesCommand } from '@aws-sdk/client-api-gateway';
 import {
   CopyObjectCommand,
   CreateBucketCommand,
+  GetObjectCommand,
   ListBucketsCommand,
   PutBucketVersioningCommand,
   S3Client,
@@ -300,6 +302,42 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
       -backend-config "key=state.tfstate" \
       -backend-config "region=eu-west-2"`
       ).text();
+    }
+
+    // Import mTLS certificates and domain name for end to end testing
+    if (useMtls) {
+      const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-client-certificates`;
+      const targetKey = `gdsunsmtls-${mtlsEnvToUse}/dev/dev-2026-Q1-Q2`;
+
+      for (const fileExt of ['crt', 'pem']) {
+        const response = await s3Client.send(
+          new GetObjectCommand({
+            Bucket: targetBucket,
+            Key: `${targetKey}.${fileExt}`,
+          })
+        );
+
+        const certOutput = await response.Body?.transformToByteArray();
+        if (!certOutput) {
+          throw new Error('Failed to parse certificates from s3 bucket.');
+        }
+
+        // Now you can use writeFile
+        await file(`./test/e2e/config/cert-file.${fileExt}`).write(certOutput);
+      }
+
+      const gatewayClient = new APIGatewayClient();
+      const domains = await gatewayClient.send(new GetDomainNamesCommand());
+
+      const psoCustomeDomainName = domains.items?.find((x) => (x.domainName as string)?.includes(`gdsuns-${env}-pso`));
+      const flexCustomeDomainName = domains.items?.find((x) =>
+        (x.domainName as string)?.includes(`gdsuns-${env}-flex`)
+      );
+
+      if (psoCustomeDomainName && flexCustomeDomainName) {
+        const envOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName.domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName.domainName}`;
+        await file(`./.env`).write(envOutput);
+      }
     }
 
     // Post initialization - check if SSM params are set and update them with values from dev env

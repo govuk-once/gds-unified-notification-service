@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 // Unbound methods are allowed as that's how vi.mocked works
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';

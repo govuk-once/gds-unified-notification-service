@@ -12,10 +12,10 @@ export default defineConfig([
   vitest.configs.recommended,
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
+    ignores: ['**/*.{test,test.e2e,test.unit}.ts'],
     languageOptions: {
       globals: {
         ...globals.node,
-        ...vitest.environments.env.globals,
       },
       parserOptions: {
         projectService: true,
@@ -28,6 +28,25 @@ export default defineConfig([
       'no-undef': 'off',
       'no-unused-vars': 'off',
       'prefer-rest-params': 'off',
+    },
+  },
+  {
+    files: ['**/*.{test,test.e2e,test.unit}.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...vitest.environments.env.globals,
+      },
+      parserOptions: {
+        projectService: true,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'no-unused-vars': 'off',
+      'vitest/no-standalone-expect': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
   {

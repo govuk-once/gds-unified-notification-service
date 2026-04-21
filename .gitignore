@@ -120,3 +120,6 @@ dist
 coverage.md
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode,terraform
+
+# End to End Testing
+**/test/e2e/config/**

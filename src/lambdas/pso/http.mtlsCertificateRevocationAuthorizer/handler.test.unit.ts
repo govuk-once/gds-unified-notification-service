@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { IRequestEvent } from '@common/middlewares';
 import {
   mockDefaultConfig,
@@ -29,9 +28,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const expectedAllowPolicy = expect.objectContaining({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     policyDocument: expect.objectContaining({
       Statement: [
         expect.objectContaining({
@@ -40,9 +37,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       ],
     }),
   });
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const expectedDenyPolicy = expect.objectContaining({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     policyDocument: expect.objectContaining({
       Statement: [
         expect.objectContaining({
