@@ -25,9 +25,9 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     protected observability: ObservabilityService
   ) {}
 
-  public async initialize(tableAttributesParameter: string, tableNameParameter: string) {
-    this.tableName = await this.config.getParameter(tableNameParameter);
+  public async initialize(tableAttributesParameter: string) {
     this.keyAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoKeyAttributesSchema);
+    this.tableName = this.keyAttributes.tableName;
     this.tableKey = this.keyAttributes.hashKey;
 
     const client = new DynamoDB({

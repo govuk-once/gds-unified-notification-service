@@ -22,19 +22,21 @@ module "parameter_store_internal_configuration" {
     // TODO: Consider whether moving this struct into dynamodb module would be a nice solution
     // TODO: Similarly, might be worth refactoring this into a single struct to reduce SSM requests
     // Dynamo table config
-    "table/inbound/name" = module.dynamodb_inbound_messages.table_name
     "table/inbound/attributes" = jsonencode({
+      name                        = module.dynamodb_inbound_messages.table_name
       hashKey                     = module.dynamodb_inbound_messages.table_hash_key
       rangeKey                    = module.dynamodb_inbound_messages.table_range_key
-      attributes                  = module.dynamodb_inbound_messages.table_attributes
+      tableAttributes             = module.dynamodb_inbound_messages.table_attributes
       expirationAttribute         = module.dynamodb_inbound_messages.ttl_attribute
-      expirationDurationInSeconds = 60 * 60 * 24 * 30
+      expirationDurationInSeconds = "2592000"
     })
 
     # MTLS Configuration, pulls config entries exported by mtls repo within same aws account/env
     # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeployment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
     // MTLS Configuration - Manual step post initial deployment, based on mtls configuration
-    "table/mtls/name"       = local.mtls_table_name
-    "table/mtls/attributes" = local.mtls_table_attributes
+    "table/mtls/attributes" = jsonencode(({
+      name = local.mtls_table_name
+      tableAttributes = local.mtls_table_attributes
+    }))
   }
 }

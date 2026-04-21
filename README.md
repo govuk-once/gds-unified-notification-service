@@ -160,4 +160,4 @@ Solution Architect: Nathaniel Greenwood
 
 Technical Lead: Damian Pokorski
 
-Developers: Ryan Parker, Toby Fox
+Developers: Ryan Parker, Toby Fox, Juno Nicholson
