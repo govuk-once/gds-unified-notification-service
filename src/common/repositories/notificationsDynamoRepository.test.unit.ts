@@ -58,10 +58,7 @@ describe('NotificationsDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitalize).toHaveBeenCalledWith(
-        StringParameters.Table.Inbound.KeyAttributes,
-        StringParameters.Table.Inbound.Name
-      );
+      expect(superInitalize).toHaveBeenCalledWith(StringParameters.Table.Inbound.Attributes);
       expect(result).toBe(instance);
     });
   });
@@ -88,7 +85,7 @@ describe('NotificationsDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as PutItemCommand;
 
-      expect(command.input.TableName).toBe(mockParameterStore[StringParameters.Table.Inbound.Name]);
+      expect(command.input.TableName).toBe('mockNotificationsDynamoRepositoryName');
       expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expect.any(String) });
     });
 
@@ -103,7 +100,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating record table: ${mockParameterStore[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`
+        `Failure in creating record table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
       );
     });
   });
@@ -130,7 +127,7 @@ describe('NotificationsDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
       expect(command.input.RequestItems).toEqual({
-        [mockParameterStore[StringParameters.Table.Inbound.Name] as string]: [
+        mockNotificationsDynamoRepositoryName: [
           {
             PutRequest: {
               Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
@@ -163,7 +160,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${mockParameterStore[StringParameters.Table.Inbound.Name]}. Error: To create batch records, array length must be no greater than 25.`
+        `Failure in creating records table: ${'mockNotificationsDynamoRepositoryName'}. Error: To create batch records, array length must be no greater than 25.`
       );
     });
 
@@ -178,7 +175,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${mockParameterStore[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`
+        `Failure in creating records table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
       );
     });
   });
@@ -199,7 +196,7 @@ describe('NotificationsDynamoRepository', () => {
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
       expect(command.input).toEqual({
-        TableName: mockParameterStore[StringParameters.Table.Inbound.Name],
+        TableName: 'mockNotificationsDynamoRepositoryName',
         Key: marshall({
           ['NotificationID']: mockUpdatedRecord.NotificationID,
         }),
@@ -235,7 +232,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${mockParameterStore[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`,
+        `Failure in updating record table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`,
         expect.any(Object)
       );
     });
@@ -294,7 +291,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in getting record for table: ${mockParameterStore[StringParameters.Table.Inbound.Name]}. Error: ${errorMsg}`
+        `Failure in getting record for table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
       );
     });
   });
