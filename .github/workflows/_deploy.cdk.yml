@@ -51,9 +51,6 @@ jobs:
         with:
           node-version-file: '.node-version'
 
-      - name: ⚙️ Setup Terraform
-        uses: hashicorp/setup-terraform@a1502cd9e758c50496cc9ac5308c4843bcd56d36 # v3
-
       - name: ⚙️ Install Dependencies
         run: npm ci
 
@@ -61,23 +58,13 @@ jobs:
       - name: 🔨 Build bundles
         run: npm run build
 
-      - name: 🏗️ Terraform Deploy
+      - name: 🏗️ CDK Diff (until migration)
         working-directory: ./infrastructure/terraform
-        run: |
-          terraform init \
-            -backend-config "region=$TF_VAR_region" \
-            -backend-config "bucket=$TF_VAR_bucket" \
-            -backend-config "key=$TF_VAR_key"
-          terraform apply -auto-approve
+        run: npm run cdk:diff
         env:
-          TF_VAR_region: ${{ vars.AWS_REGION }}
-          TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
-          TF_VAR_env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
-          TF_VAR_key: state.json
-          TF_VAR_code_version: ${{ inputs.VERSION }}
-          TF_VAR_use_mtls: 'true'
-          TF_VAR_is_main_environment_in_account: 'true'
-
-      # End to end testing
-      # - name: 🧪 E2E Testing
-      #   run: npm run test:e2e
+          region: ${{ vars.AWS_REGION }}
+          env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
+          key: state.json
+          code_version: ${{ inputs.VERSION }}
+          use_mtls: 'true'
+          is_main_environment_in_account: 'true'

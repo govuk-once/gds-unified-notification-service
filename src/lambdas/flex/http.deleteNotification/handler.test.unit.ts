@@ -113,7 +113,7 @@ describe('DeleteNotification Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    // eslint-disable-next-line @typescript-eslint/unbound-method
+
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       mockDbRecord,
       NotificationStateEnum.HIDDEN

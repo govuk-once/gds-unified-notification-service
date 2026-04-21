@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import {
   mockDefaultConfig,

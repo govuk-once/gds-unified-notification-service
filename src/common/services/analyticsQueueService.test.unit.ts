@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import {
