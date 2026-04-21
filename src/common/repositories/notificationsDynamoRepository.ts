@@ -1,5 +1,4 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
@@ -15,14 +14,6 @@ export class NotificationsDynamoRepository extends DynamodbRepository<IMessageRe
 
   async initialize() {
     await super.initialize(StringParameters.Table.Inbound.Attributes);
-    // Expiration config
-
-    this.expirationAttribute = (
-      await this.config.getParameterAsType(StringParameters.Table.Inbound.Attributes, IDynamoAttributesSchema)
-    ).expirationAttribute;
-    this.expirationDurationInSeconds = (
-      await this.config.getParameterAsType(StringParameters.Table.Inbound.Attributes, IDynamoAttributesSchema)
-    ).expirationDurationInSeconds;
     return this;
   }
 

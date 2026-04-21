@@ -39,7 +39,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       rangeKey: null,
       tableName: 'mockNotificationsDynamoRepositoryName',
       expirationAttribute: 'ExpirationDateTime',
-      expirationDurationInSeconds: 2592000,
+      expirationDurationInSeconds: 60 * 60 * 24 * 30,
     }),
     [StringParameters.Table.MTLSRevocation.Attributes]: JSON.stringify({
       tableName: 'mockMtlsRevocationTableName',

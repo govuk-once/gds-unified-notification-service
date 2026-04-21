@@ -29,6 +29,8 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     this.attributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
     this.tableName = this.attributes.tableName;
     this.tableKey = this.attributes.hashKey;
+    this.expirationAttribute = this.attributes.expirationAttribute;
+    this.expirationDurationInSeconds = this.attributes.expirationDurationInSeconds;
 
     const client = new DynamoDB({
       region: 'eu-west-2',
