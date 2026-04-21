@@ -48,8 +48,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "code_storage" {
 }
 
 moved {
-  from = resource.aws_s3_bucket_lifecycle_configuration.example  
-  to = resource.aws_s3_bucket_lifecycle_configuration.code_storage
+  from = resource.aws_s3_bucket_lifecycle_configuration.example
+  to   = resource.aws_s3_bucket_lifecycle_configuration.code_storage
 }
 
 # Encryption at rest using KMS key
@@ -68,7 +68,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "code_storage" {
 
 moved {
   from = resource.aws_s3_bucket_server_side_encryption_configuration.example
-  to = resource.aws_s3_bucket_server_side_encryption_configuration.code_storage
+  to   = resource.aws_s3_bucket_server_side_encryption_configuration.code_storage
 }
 
 # Codesigning config
