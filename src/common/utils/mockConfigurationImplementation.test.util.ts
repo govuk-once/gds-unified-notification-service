@@ -13,9 +13,6 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
-    [StringParameters.Table.Inbound.Name]: 'mocknotificationsDynamoRepositoryName',
-    [StringParameters.Table.Inbound.Expiration.Atttribute]: 'ExpirationDateTime',
-    [StringParameters.Table.MTLSRevocation.Name]: 'mockMtlsRevocationTableName',
     [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
     // Content filtering
     [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
@@ -30,19 +27,22 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
     [EnumParameters.Config.Processing.Adapter]: 'UDP',
     // Numbers
-    [NumericParameters.Table.Inbound.Expiration.DurationInSeconds]: (60 * 60 * 24 * 30).toString(),
     [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
     [NumericParameters.CircuitBreaker.Threshold]: `5`,
     [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
     [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
     [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
     // Nested objects
-    [StringParameters.Table.Inbound.KeyAttributes]: JSON.stringify({
+    [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],
       hashKey: 'NotificationID',
       rangeKey: null,
+      tableName: 'mockNotificationsDynamoRepositoryName',
+      expirationAttribute: 'ExpirationDateTime',
+      expirationDurationInSeconds: 60 * 60 * 24 * 30,
     }),
-    [StringParameters.Table.MTLSRevocation.KeyAttributes]: JSON.stringify({
+    [StringParameters.Table.MTLSRevocation.Attributes]: JSON.stringify({
+      tableName: 'mockMtlsRevocationTableName',
       attributes: [],
       hashKey: 'Id',
       rangeKey: '',

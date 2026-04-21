@@ -8,27 +8,29 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
-import { IDynamoKeyAttributes, IDynamoKeyAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType extends object> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
-  protected keyAttributes: IDynamoKeyAttributes;
+  protected attributes: IDynamoAttributes;
   protected tableName: string;
   protected tableKey: string;
 
-  protected expirationDurationInSeconds: number = 0;
-  protected expirationAttribute: string | null = null;
+  protected expirationDurationInSeconds: number | undefined;
+  protected expirationAttribute: string | undefined;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService
   ) {}
 
-  public async initialize(tableAttributesParameter: string, tableNameParameter: string) {
-    this.tableName = await this.config.getParameter(tableNameParameter);
-    this.keyAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoKeyAttributesSchema);
-    this.tableKey = this.keyAttributes.hashKey;
+  public async initialize(tableAttributesParameter: string) {
+    this.attributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
+    this.tableName = this.attributes.tableName;
+    this.tableKey = this.attributes.hashKey;
+    this.expirationAttribute = this.attributes.expirationAttribute;
+    this.expirationDurationInSeconds = this.attributes.expirationDurationInSeconds;
 
     const client = new DynamoDB({
       region: 'eu-west-2',
@@ -95,14 +97,14 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
     }
 
-    const keyAttributes = Array.from(
-      new Set([this.keyAttributes.hashKey, this.keyAttributes.rangeKey, ...this.keyAttributes.attributes])
+    const attributes = Array.from(
+      new Set([this.attributes.hashKey, this.attributes.rangeKey, ...this.attributes.attributes])
     );
 
     // TODO: This needs a better solution
     // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
     const entries = Object.entries(this.beforeUpdate(recordFields)).filter(
-      ([key, value]) => keyAttributes.includes(key) == false && value != undefined
+      ([key, value]) => attributes.includes(key) == false && value != undefined
     );
 
     const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
@@ -244,7 +246,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   // Generates expiration field that can be injected as partial into create/update calls
   // When expirationAttribute is not set, or expirationDurationInSeconds is 0 - empty object is returned instead
   protected createExpirationDatePartial(): Partial<RecordType> {
-    return this.expirationAttribute !== null && this.expirationDurationInSeconds > 0
+    return this.expirationAttribute && this.expirationDurationInSeconds && this.expirationDurationInSeconds > 0
       ? ({
           [this.expirationAttribute]: new Date(
             new Date().getTime() + this.expirationDurationInSeconds * 1000

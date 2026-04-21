@@ -59,15 +59,10 @@ export const StringParameters = {
   },
   Table: {
     Inbound: {
-      KeyAttributes: 'table/inbound/attributes',
-      Name: 'table/inbound/name',
-      Expiration: {
-        Atttribute: 'table/inbound/expiration/attribute',
-      },
+      Attributes: 'table/inbound/attributes',
     },
     MTLSRevocation: {
-      KeyAttributes: 'table/mtls/attributes',
-      Name: 'table/mtls/name',
+      Attributes: 'table/mtls/attributes',
     },
   },
   Dispatch: {
@@ -83,13 +78,6 @@ export const NumericParameters = {
   Config: {
     Dispatch: {
       NotificationsProviderRateLimitPerMinute: 'config/common/cache/notificationsProviderRateLimitPerMinute',
-    },
-  },
-  Table: {
-    Inbound: {
-      Expiration: {
-        DurationInSeconds: 'table/inbound/expiration/durationInSeconds',
-      },
     },
   },
   CircuitBreaker: {
