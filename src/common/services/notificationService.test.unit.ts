@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/unbound-method */
 // Unbound methods are allowed as that's how vi.mocked works
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
 import { EnumParameters, StringParameters } from '@common/utils';

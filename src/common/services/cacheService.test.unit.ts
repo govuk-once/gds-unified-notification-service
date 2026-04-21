@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { CacheService } from '@common/services/cacheService';
 import {
   mockDefaultConfig,

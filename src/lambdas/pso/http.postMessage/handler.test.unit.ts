@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import {
   mockDefaultConfig,
