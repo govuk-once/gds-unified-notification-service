@@ -36,7 +36,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],
       hashKey: 'NotificationID',
-      rangeKey: '',
+      rangeKey: null,
       name: 'mockNotificationsDynamoRepositoryName',
       expirationAttribute: 'ExpirationDateTime',
       expirationDurationInSeconds: 60 * 60 * 24 * 30,
