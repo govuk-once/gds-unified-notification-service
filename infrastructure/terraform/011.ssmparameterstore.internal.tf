@@ -35,6 +35,11 @@ module "parameter_store_internal_configuration" {
     # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeployment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
     // MTLS Configuration - Manual step post initial deployment, based on mtls configuration
     "table/mtls/attributes" = jsonencode(
+      # Format after merge
+      # name = string
+      # hashKey = string
+      # rangeKey = string
+      # attributes = array(string)
       merge(
         {
           name = local.mtls_table_name
