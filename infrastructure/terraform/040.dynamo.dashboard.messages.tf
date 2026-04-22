@@ -1,11 +1,11 @@
-resource "aws_cloudwatch_dashboard" "messages_consumed_capacity" {
-  dashboard_name = join("-", [local.prefix, "messages-consumed-capacity"])
+resource "aws_cloudwatch_dashboard" "consumed_capacity" {
+  dashboard_name = join("-", [local.prefix, "consumed-capacity"])
   region         = var.region
   dashboard_body = jsonencode({
     "widgets" : [
       {
         "type" : "metric",
-        "x" : 6,
+        "x" : 0,
         "y" : 0,
         "width" : 6,
         "height" : 6,
@@ -37,7 +37,7 @@ resource "aws_cloudwatch_dashboard" "messages_consumed_capacity" {
           "region" : var.region,
           "stat" : "Sum",
           "period" : 1,
-          "title" : "Consumed Capacity",
+          "title" : "Consumed Capacity - Message Table",
           "liveData" : true
         }
       }
