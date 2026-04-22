@@ -8,15 +8,16 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
+import { IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType extends object> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
-  protected attributes: IDynamoAttributes;
   protected tableName: string;
-  protected tableKey: string;
+  protected hashKey: string;
+  protected attributes: string[];
 
+  protected rangeKey: string | null | undefined;
   protected expirationDurationInSeconds: number | undefined;
   protected expirationAttribute: string | undefined;
 
@@ -26,11 +27,14 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   ) {}
 
   public async initialize(tableAttributesParameter: string) {
-    this.attributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-    this.tableName = this.attributes.name;
-    this.tableKey = this.attributes.hashKey;
-    this.expirationAttribute = this.attributes.expirationAttribute;
-    this.expirationDurationInSeconds = this.attributes.expirationDurationInSeconds;
+    const tableParameters = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
+
+    this.tableName = tableParameters.name;
+    this.hashKey = tableParameters.hashKey;
+    this.rangeKey = tableParameters.rangeKey;
+    this.attributes = tableParameters.attributes;
+    this.expirationAttribute = tableParameters.expirationAttribute;
+    this.expirationDurationInSeconds = tableParameters.expirationDurationInSeconds;
 
     const client = new DynamoDB({
       region: 'eu-west-2',
@@ -90,16 +94,14 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     recordFields: Partial<RecordType>,
     options?: { resetExpirationDate: boolean }
   ): Promise<void> {
-    this.observability.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
+    this.observability.logger.info(`Update record in table: ${this.tableName}, with key ${this.hashKey}`);
 
-    const keyValue = recordFields[this.tableKey as keyof RecordType];
+    const keyValue = recordFields[this.hashKey as keyof RecordType];
     if (!keyValue) {
-      throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
+      throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.hashKey}`);
     }
 
-    const attributes = Array.from(
-      new Set([this.attributes.hashKey, this.attributes.rangeKey, ...this.attributes.attributes])
-    );
+    const attributes = Array.from(new Set([this.hashKey, this.rangeKey, ...this.attributes]));
 
     // TODO: This needs a better solution
     // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
@@ -116,7 +118,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     const params: UpdateItemCommandInput = {
       TableName: this.tableName,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.hashKey]: keyValue,
       }),
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
@@ -144,7 +146,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     const params: UpdateItemCommandInput = {
       TableName: this.tableName,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.hashKey]: keyValue,
       }),
       UpdateExpression: 'SET #attr = list_append(#attr, :value)',
       ExpressionAttributeNames: { '#attr': listKey },
@@ -169,12 +171,12 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   }
 
   public async getRecord(keyValue: string): Promise<RecordType | null> {
-    this.observability.logger.info(`Retrieving record in table: ${this.tableName} with key: ${this.tableKey}`);
+    this.observability.logger.info(`Retrieving record in table: ${this.tableName} with key: ${this.hashKey}`);
 
     const params = {
       TableName: this.tableName,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.hashKey]: keyValue,
       }),
     };
 
@@ -182,13 +184,13 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       const { Item } = await this.client.getItem(params);
 
       if (!Item) {
-        this.observability.logger.info(`No item in table: ${this.tableName} with key: ${this.tableKey}`);
+        this.observability.logger.info(`No item in table: ${this.tableName} with key: ${this.hashKey}`);
         return null;
       }
 
       const response = unmarshall(Item) as RecordType;
 
-      this.observability.logger.info(`Retrieved record in table: ${this.tableName} with key: ${this.tableKey}`);
+      this.observability.logger.info(`Retrieved record in table: ${this.tableName} with key: ${this.hashKey}`);
       return response;
     } catch (error) {
       this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
@@ -197,22 +199,22 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   }
 
   public async deleteRecord(keyValue: string): Promise<void> {
-    this.observability.logger.error(`Deleting record in table: ${this.tableName} with key ${this.tableKey}`);
+    this.observability.logger.error(`Deleting record in table: ${this.tableName} with key ${this.hashKey}`);
     const params: DeleteItemCommandInput = {
       TableName: this.tableName,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.hashKey]: keyValue,
       }),
     };
 
     try {
       await this.client.deleteItem(params);
       this.observability.logger.error(
-        `Successfully deleted record in table: ${this.tableName} with key ${this.tableKey}`
+        `Successfully deleted record in table: ${this.tableName} with key ${this.hashKey}`
       );
     } catch (error) {
       this.observability.logger.error(
-        `Failure in deleting record in table: ${this.tableName} with key ${this.tableKey}`
+        `Failure in deleting record in table: ${this.tableName} with key ${this.hashKey}`
       );
     }
   }
