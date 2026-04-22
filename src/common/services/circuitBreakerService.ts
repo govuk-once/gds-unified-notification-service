@@ -18,10 +18,7 @@ export class CircuitBreakerService {
     private config: ConfigurationService,
     private cacheService: CacheService,
     private platform: string
-  ) {
-    this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 0);
-    this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0);
-  }
+  ) {}
 
   private stateKey(platform: string) {
     return `cb:${platform}:state`;
@@ -95,7 +92,8 @@ export class CircuitBreakerService {
 
     // CLOSED — check if accumulated failures should open the circuit
     const count = await this.getCurrentRate();
-    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.CountPerSecond, count);
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_CURRENT_RATE', MetricUnit.Count, count);
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_CURRENT_RATE_LIMIT', MetricUnit.Count, rateLimitWhenOpen);
     this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0);
 
     const windowKey = this.currentWindowKey(windowDuration);
@@ -187,8 +185,8 @@ export class CircuitBreakerService {
   private async enforceRateLimit(rateLimitWhenOpen: number): Promise<void> {
     const count = await this.getCurrentRate();
 
-    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.CountPerSecond, count);
-    this.observability.metrics.addMetric('RATE_LIMITING_ENABLED', MetricUnit.NoUnit, 1);
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_CURRENT_RATE', MetricUnit.Count, count);
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_CURRENT_RATE_LIMIT', MetricUnit.Count, rateLimitWhenOpen);
     this.observability.logger.info('Circuit breaker rate limit check (OPEN/HALF_OPEN)', {
       platform: this.platform,
       count,
@@ -196,8 +194,10 @@ export class CircuitBreakerService {
     });
 
     if (count > rateLimitWhenOpen) {
+      this.observability.metrics.addMetric('CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED', MetricUnit.NoUnit, 1);
       throw new CircuitBreakerOpenError(this.platform);
     }
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED', MetricUnit.NoUnit, 0);
   }
 
   private async getCurrentRate(): Promise<number> {

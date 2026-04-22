@@ -6,7 +6,7 @@ locals {
     "widgets" : flatten([
       for index, service_name in local.services_with_circuit_breaker : [{
         "type" : "metric",
-        "x" : 12 * index,
+        "x" : 18 * index,
         "y" : 0,
         "width" : 6,
         "height" : 6,
@@ -36,7 +36,7 @@ locals {
         },
         {
           "type" : "metric",
-          "x" : 6 + 12 * index,
+          "x" : 6 + 18 * index,
           "y" : 0,
           "width" : 6,
           "height" : 6,
@@ -44,14 +44,14 @@ locals {
             "metrics" : [
               [
                 upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
-                "RATE_LIMITING_ENABLED",
+                "CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED",
                 "environment",
                 local.prefix,
                 "service",
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Rate Limiting Enabled"
+                  "label" : "Circuit Breaker Rate Limiting Enforced"
                 }
               ]
             ],
@@ -60,13 +60,13 @@ locals {
             "region" : var.region,
             "stat" : "Maximum",
             "period" : 1,
-            "title" : "${service_name} - Rate Limiting State",
+            "title" : "${service_name} - Circuit Breaker Rate Limiting State",
             "liveData" : true,
           }
         },
         {
           "type" : "metric",
-          "x" : 0 + 12 * index,
+          "x" : 0 + 18 * index,
           "y" : 7,
           "width" : 6,
           "height" : 6,
@@ -108,7 +108,49 @@ locals {
         },
         {
           "type" : "metric",
-          "x" : 6 + 12 * index,
+          "x" : 6 + 18 * index,
+          "y" : 7,
+          "width" : 6,
+          "height" : 6,
+          "properties" : {
+            "metrics" : [
+              [
+                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
+                "CIRCUIT_BREAKER_CURRENT_RATE",
+                "environment",
+                local.prefix,
+                "service",
+                service_name,
+                {
+                  "region" : var.region,
+                  "label" : "Current Rate"
+                }
+              ],
+              [
+                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
+                "CIRCUIT_BREAKER_CURRENT_RATE_LIMIT",
+                "environment",
+                local.prefix,
+                "service",
+                service_name,
+                {
+                  "region" : var.region,
+                  "label" : "Maximum Rate Limit"
+                }
+              ],
+            ],
+            "view" : "timeSeries",
+            "stacked" : false,
+            "region" : var.region,
+            "stat" : "Sum",
+            "period" : 1,
+            "title" : "${service_name} - Circuit Breaker Rate Usage",
+            "liveData" : true
+          }
+        },
+        {
+          "type" : "metric",
+          "x" : 12 + 18 * index,
           "y" : 7,
           "width" : 6,
           "height" : 6,
@@ -123,7 +165,19 @@ locals {
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Current rate"
+                  "label" : "Current Rate"
+                }
+              ],
+              [
+                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
+                "CURRENT_RATE_LIMIT",
+                "environment",
+                local.prefix,
+                "service",
+                service_name,
+                {
+                  "region" : var.region,
+                  "label" : "Maximum Rate Limit"
                 }
               ],
             ],
@@ -132,7 +186,37 @@ locals {
             "region" : var.region,
             "stat" : "Sum",
             "period" : 1,
-            "title" : "${service_name} - Current % Usage",
+            "title" : "${service_name} - Rate Usage",
+            "liveData" : true
+          }
+        },
+        {
+          "type" : "metric",
+          "x" : 12 + 18 * index,
+          "y" : 7,
+          "width" : 6,
+          "height" : 6,
+          "properties" : {
+            "metrics" : [
+              [
+                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
+                "RATE_LIMITING_ENFORCED",
+                "environment",
+                local.prefix,
+                "service",
+                service_name,
+                {
+                  "region" : var.region,
+                  "label" : "Rate Limiting Enforced"
+                }
+              ]
+            ],
+            "view" : "timeSeries",
+            "stacked" : false,
+            "region" : var.region,
+            "stat" : "Maximum",
+            "period" : 1,
+            "title" : "${service_name} - Rate Limiting Enforced",
             "liveData" : true
           }
       }]
@@ -141,7 +225,7 @@ locals {
 }
 
 resource "aws_cloudwatch_dashboard" "platform_state" {
-  dashboard_name = join("-", [local.prefix, "platform-statues"])
+  dashboard_name = join("-", [local.prefix, "platform-status"])
   region         = var.region
   dashboard_body = local.dashboard_body
 }

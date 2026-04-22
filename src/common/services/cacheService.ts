@@ -1,3 +1,4 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Hash } from '@aws-sdk/hash-node';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
@@ -120,14 +121,24 @@ export class CacheService {
       exceeded: counter >= maxPerMinute,
       capacityRemaining: Math.max(0, counter - maxPerMinute),
     };
+    const percentage = counter / maxPerMinute;
+
+    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.CountPerSecond, counter / 60);
+    this.observability.metrics.addMetric('CURRENT_RATE_LIMIT', MetricUnit.CountPerSecond, maxPerMinute / 60);
+
     this.observability.logger.info(`Rate limiting status`, {
       key,
       counter,
       maxPerMinute,
-      percent: counter / maxPerMinute,
+      percent: percentage,
     });
 
-    // Return whether the counter has rached the limit
+    // Return whether the counter has reached the limit
+    if (state.exceeded) {
+      this.observability.metrics.addMetric('RATE_LIMITING_ENFORCED', MetricUnit.NoUnit, 1);
+    } else {
+      this.observability.metrics.addMetric('RATE_LIMITING_ENFORCED', MetricUnit.NoUnit, 0);
+    }
     return state;
   }
 }
