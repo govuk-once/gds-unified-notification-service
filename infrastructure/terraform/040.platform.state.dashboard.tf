@@ -30,7 +30,7 @@ locals {
           "region" : var.region,
           "stat" : "Maximum",
           "period" : 1,
-          "title" : "${service_name} - Circuit Breaker State",
+          "title" : "Circuit Breaker State - ${service_name}",
           "liveData" : true,
         }
         },
@@ -51,7 +51,7 @@ locals {
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Circuit Breaker Rate Limiting Enforced"
+                  "label" : "Circuit Breaker Rate Limiting"
                 }
               ]
             ],
@@ -60,7 +60,7 @@ locals {
             "region" : var.region,
             "stat" : "Maximum",
             "period" : 1,
-            "title" : "${service_name} - Circuit Breaker Rate Limiting State",
+            "title" : "Circuit Breaker Rate Limiting Enforced - ${service_name}",
             "liveData" : true,
           }
         },
@@ -102,7 +102,7 @@ locals {
             "region" : var.region,
             "stat" : "Sum",
             "period" : 1,
-            "title" : "${service_name} - Circuit Breaker Failure/Success",
+            "title" : "Circuit Breaker Failure/Success - ${service_name}",
             "liveData" : true
           }
         },
@@ -123,7 +123,7 @@ locals {
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Current Rate"
+                  "label" : "Current Rate Per Minute"
                 }
               ],
               [
@@ -135,16 +135,46 @@ locals {
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Maximum Rate Limit"
+                  "label" : "Maximum Rate Per Minute"
                 }
               ],
             ],
             "view" : "timeSeries",
             "stacked" : false,
             "region" : var.region,
-            "stat" : "Sum",
+            "stat" : "Maximum",
             "period" : 1,
-            "title" : "${service_name} - Circuit Breaker Rate Usage",
+            "title" : "Circuit Breaker Rate Usage - ${service_name}",
+            "liveData" : true
+          }
+        },
+        {
+          "type" : "metric",
+          "x" : 12 + 18 * index,
+          "y" : 0,
+          "width" : 6,
+          "height" : 6,
+          "properties" : {
+            "metrics" : [
+              [
+                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
+                "RATE_LIMITING_ENFORCED",
+                "environment",
+                local.prefix,
+                "service",
+                service_name,
+                {
+                  "region" : var.region,
+                  "label" : "Rate Limiting Enforced"
+                }
+              ]
+            ],
+            "view" : "singleValue",
+            "stacked" : false,
+            "region" : var.region,
+            "stat" : "Maximum",
+            "period" : 1,
+            "title" : "${service_name} - Rate Limiting",
             "liveData" : true
           }
         },
@@ -165,7 +195,7 @@ locals {
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Current Rate"
+                  "label" : "Current Rate Per Minute"
                 }
               ],
               [
@@ -177,49 +207,20 @@ locals {
                 service_name,
                 {
                   "region" : var.region,
-                  "label" : "Maximum Rate Limit"
+                  "label" : "Maximum Rate Per Minute"
                 }
               ],
             ],
             "view" : "timeSeries",
             "stacked" : false,
             "region" : var.region,
-            "stat" : "Sum",
-            "period" : 1,
-            "title" : "${service_name} - Rate Usage",
-            "liveData" : true
-          }
-        },
-        {
-          "type" : "metric",
-          "x" : 12 + 18 * index,
-          "y" : 7,
-          "width" : 6,
-          "height" : 6,
-          "properties" : {
-            "metrics" : [
-              [
-                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
-                "RATE_LIMITING_ENFORCED",
-                "environment",
-                local.prefix,
-                "service",
-                service_name,
-                {
-                  "region" : var.region,
-                  "label" : "Rate Limiting Enforced"
-                }
-              ]
-            ],
-            "view" : "timeSeries",
-            "stacked" : false,
-            "region" : var.region,
             "stat" : "Maximum",
             "period" : 1,
-            "title" : "${service_name} - Rate Limiting Enforced",
+            "title" : "Rate Usage - ${service_name}",
             "liveData" : true
           }
-      }]
+        }
+      ]
     ])
   })
 }

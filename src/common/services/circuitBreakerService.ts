@@ -91,10 +91,8 @@ export class CircuitBreakerService {
     }
 
     // CLOSED — check if accumulated failures should open the circuit
-    const count = await this.getCurrentRate();
-    this.observability.metrics.addMetric('CIRCUIT_BREAKER_CURRENT_RATE', MetricUnit.Count, count);
-    this.observability.metrics.addMetric('CIRCUIT_BREAKER_CURRENT_RATE_LIMIT', MetricUnit.Count, rateLimitWhenOpen);
     this.observability.metrics.addMetric('CIRCUIT_BREAKER_STATE', MetricUnit.NoUnit, 0);
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED', MetricUnit.NoUnit, 0);
 
     const windowKey = this.currentWindowKey(windowDuration);
     const failureCount = (await this.cacheService.get<number>(this.failureKey(this.platform, windowKey))) ?? 0;
@@ -108,13 +106,14 @@ export class CircuitBreakerService {
    * Records a successful dispatch. Transitions HALF_OPEN → CLOSED.
    */
   async recordSuccess(): Promise<void> {
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_SUCCESS', MetricUnit.Count, 1);
+
     const state = await this.getState();
     if (state == CircuitBreakerStateEnum.HALF_OPEN) {
       await this.cacheService.store(
         this.stateKey(this.platform),
         CircuitBreakerStateEnum.CLOSED as CircuitBreakerStateEnum
       );
-      this.observability.metrics.addMetric('CIRCUIT_BREAKER_SUCCESS', MetricUnit.Count, 1);
       this.observability.logger.info('Circuit breaker closed after successful request in HALF_OPEN state', {
         platform: this.platform,
       });
@@ -127,6 +126,8 @@ export class CircuitBreakerService {
    * - HALF_OPEN: transitions back to OPEN immediately
    */
   async recordFailure(): Promise<void> {
+    this.observability.metrics.addMetric('CIRCUIT_BREAKER_FAILURE', MetricUnit.Count, 1);
+
     const [threshold, windowDuration] = await Promise.all([
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.Threshold),
       this.config.getNumericParameter(NumericParameters.CircuitBreaker.WindowDuration),
@@ -135,7 +136,6 @@ export class CircuitBreakerService {
     const windowKey = this.currentWindowKey(windowDuration);
     const newCount = await this.cacheService.increment(this.failureKey(this.platform, windowKey), windowDuration);
 
-    this.observability.metrics.addMetric('CIRCUIT_BREAKER_FAILURE', MetricUnit.Count, 1);
     this.observability.logger.warn('Circuit breaker failure recorded', {
       platform: this.platform,
       failureCount: newCount,
@@ -173,6 +173,7 @@ export class CircuitBreakerService {
     try {
       await this.checkCircuit();
       const result = await fn();
+      await this.recordSuccess();
       return { result: result, circuitBreakerState: await this.getState() };
     } catch (error) {
       if (!(error instanceof CircuitBreakerOpenError)) {

@@ -123,8 +123,8 @@ export class CacheService {
     };
     const percentage = counter / maxPerMinute;
 
-    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.CountPerSecond, counter / 60);
-    this.observability.metrics.addMetric('CURRENT_RATE_LIMIT', MetricUnit.CountPerSecond, maxPerMinute / 60);
+    this.observability.metrics.addMetric('CURRENT_RATE', MetricUnit.Count, counter);
+    this.observability.metrics.addMetric('CURRENT_RATE_LIMIT', MetricUnit.Count, maxPerMinute);
 
     this.observability.logger.info(`Rate limiting status`, {
       key,
