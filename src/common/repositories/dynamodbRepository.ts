@@ -27,7 +27,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
   public async initialize(tableAttributesParameter: string) {
     this.attributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-    this.tableName = this.attributes.tableName;
+    this.tableName = this.attributes.name;
     this.tableKey = this.attributes.hashKey;
     this.expirationAttribute = this.attributes.expirationAttribute;
     this.expirationDurationInSeconds = this.attributes.expirationDurationInSeconds;
