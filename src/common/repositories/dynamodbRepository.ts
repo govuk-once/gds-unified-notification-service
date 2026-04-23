@@ -67,7 +67,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
           ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
         })
       );
-      this.observability.logger.info(`Successfully created record in table: ${this.tableName}`);
+      this.observability.logger.info(`Successfully created record in table: ${this.tableAttributes.name}`);
     } catch (error) {
       this.observability.logger.error(`Failure in creating record table: ${this.tableAttributes.name}. ${error}`);
     }
@@ -149,7 +149,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     try {
       await this.observeCapacity(`updateRecord`, this.client.updateItem(params));
-      this.observability.logger.info(`Successfully updated record in table: ${this.tableName}`, {
+      this.observability.logger.info(`Successfully updated record in table: ${this.tableAttributes.name}`, {
         params,
         entries,
         recordFields,
