@@ -14,12 +14,7 @@ import { ConfigurationService, ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType extends object> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
-  protected attributes: IDynamoAttributes;
-  protected tableName: string;
-  protected tableKey: string;
-
-  protected expirationDurationInSeconds: number | undefined;
-  protected expirationAttribute: string | undefined;
+  protected tableAttributes: IDynamoAttributes;
 
   constructor(
     protected config: ConfigurationService,
@@ -27,11 +22,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   ) {}
 
   public async initialize(tableAttributesParameter: string) {
-    this.attributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-    this.tableName = this.attributes.tableName;
-    this.tableKey = this.attributes.hashKey;
-    this.expirationAttribute = this.attributes.expirationAttribute;
-    this.expirationDurationInSeconds = this.attributes.expirationDurationInSeconds;
+    this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
 
     const client = new DynamoDB({
       region: 'eu-west-2',
@@ -65,25 +56,25 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   }
 
   public async createRecord(record: RecordType): Promise<void> {
-    this.observability.logger.info(`Creating record in table: ${this.tableName}`);
+    this.observability.logger.info(`Creating record in table: ${this.tableAttributes.name}`);
 
     try {
       await this.observeCapacity(
         `createRecord`,
         this.client.putItem({
-          TableName: this.tableName,
+          TableName: this.tableAttributes.name,
           Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
           ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
         })
       );
       this.observability.logger.info(`Successfully created record in table: ${this.tableName}`);
     } catch (error) {
-      this.observability.logger.error(`Failure in creating record table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in creating record table: ${this.tableAttributes.name}. ${error}`);
     }
   }
 
   public async createRecordBatch(batchRecords: RecordType[]): Promise<void> {
-    this.observability.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableName}`);
+    this.observability.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableAttributes.name}`);
 
     try {
       if (batchRecords.length === 0) {
@@ -98,7 +89,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         `createRecordBatch`,
         this.client.batchWriteItem({
           RequestItems: {
-            [this.tableName]: batchRecords.map((record) => ({
+            [this.tableAttributes.name]: batchRecords.map((record) => ({
               PutRequest: {
                 Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
               },
@@ -108,9 +99,9 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         })
       );
 
-      this.observability.logger.info(`Successfully created records in table: ${this.tableName}`);
+      this.observability.logger.info(`Successfully created records in table: ${this.tableAttributes.name}`);
     } catch (error) {
-      this.observability.logger.error(`Failure in creating records table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in creating records table: ${this.tableAttributes.name}. ${error}`);
     }
   }
 
@@ -118,15 +109,19 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     recordFields: Partial<RecordType>,
     options?: { resetExpirationDate: boolean }
   ): Promise<void> {
-    this.observability.logger.info(`Update record in table: ${this.tableName}, with key ${this.tableKey}`);
+    this.observability.logger.info(
+      `Update record in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
+    );
 
-    const keyValue = recordFields[this.tableKey as keyof RecordType];
+    const keyValue = recordFields[this.tableAttributes.hashKey as keyof RecordType];
     if (!keyValue) {
-      throw new Error(`No key value was found in table: ${this.tableName}, with key ${this.tableKey}`);
+      throw new Error(
+        `No key value was found in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
+      );
     }
 
     const attributes = Array.from(
-      new Set([this.attributes.hashKey, this.attributes.rangeKey, ...this.attributes.attributes])
+      new Set([this.tableAttributes.hashKey, this.tableAttributes.rangeKey, ...this.tableAttributes.attributes])
     );
 
     // TODO: This needs a better solution
@@ -142,9 +137,9 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     });
 
     const params: UpdateItemCommandInput = {
-      TableName: this.tableName,
+      TableName: this.tableAttributes.name,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.tableAttributes.hashKey]: keyValue,
       }),
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
@@ -160,7 +155,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         recordFields,
       });
     } catch (error) {
-      this.observability.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`, {
+      this.observability.logger.error(`Failure in updating record table: ${this.tableAttributes.name}. ${error}`, {
         error,
         params,
         entries,
@@ -171,9 +166,9 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
   public async appendToList<T>(keyValue: string, listKey: string, item: T) {
     const params: UpdateItemCommandInput = {
-      TableName: this.tableName,
+      TableName: this.tableAttributes.name,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.tableAttributes.hashKey]: keyValue,
       }),
       UpdateExpression: 'SET #attr = list_append(#attr, :value)',
       ExpressionAttributeNames: { '#attr': listKey },
@@ -182,13 +177,13 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     try {
       await this.client.updateItem(params);
-      this.observability.logger.info(`Successfully updated record in table: ${this.tableName}`, {
+      this.observability.logger.info(`Successfully updated record in table: ${this.tableAttributes.name}`, {
         params,
         listKey,
         item,
       });
     } catch (error) {
-      this.observability.logger.error(`Failure in updating record table: ${this.tableName}. ${error}`, {
+      this.observability.logger.error(`Failure in updating record table: ${this.tableAttributes.name}. ${error}`, {
         error,
         params,
         listKey,
@@ -198,12 +193,14 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   }
 
   public async getRecord(keyValue: string): Promise<RecordType | null> {
-    this.observability.logger.info(`Retrieving record in table: ${this.tableName} with key: ${this.tableKey}`);
+    this.observability.logger.info(
+      `Retrieving record in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey}`
+    );
 
     const params = {
-      TableName: this.tableName,
+      TableName: this.tableAttributes.name,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.tableAttributes.hashKey]: keyValue,
       }),
     };
 
@@ -211,26 +208,32 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       const { Item } = await this.client.getItem(params);
 
       if (!Item) {
-        this.observability.logger.info(`No item in table: ${this.tableName} with key: ${this.tableKey}`);
+        this.observability.logger.info(
+          `No item in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey}`
+        );
         return null;
       }
 
       const response = unmarshall(Item) as RecordType;
 
-      this.observability.logger.info(`Retrieved record in table: ${this.tableName} with key: ${this.tableKey}`);
+      this.observability.logger.info(
+        `Retrieved record in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey}`
+      );
       return response;
     } catch (error) {
-      this.observability.logger.error(`Failure in getting record for table: ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in getting record for table: ${this.tableAttributes.name}. ${error}`);
       return null;
     }
   }
 
   public async deleteRecord(keyValue: string): Promise<void> {
-    this.observability.logger.error(`Deleting record in table: ${this.tableName} with key ${this.tableKey}`);
+    this.observability.logger.error(
+      `Deleting record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
+    );
     const params: DeleteItemCommandInput = {
-      TableName: this.tableName,
+      TableName: this.tableAttributes.name,
       Key: marshall({
-        [this.tableKey]: keyValue,
+        [this.tableAttributes.hashKey]: keyValue,
       }),
       ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
     };
@@ -238,11 +241,11 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     try {
       await this.observeCapacity(`deleteRecord`, this.client.deleteItem(params));
       this.observability.logger.error(
-        `Successfully deleted record in table: ${this.tableName} with key ${this.tableKey}`
+        `Successfully deleted record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
       );
     } catch (error) {
       this.observability.logger.error(
-        `Failure in deleting record in table: ${this.tableName} with key ${this.tableKey}`
+        `Failure in deleting record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
       );
     }
   }
@@ -252,7 +255,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     indexName?: string
   ): Promise<RecordType[]> {
     const params: ScanCommandInput = {
-      TableName: this.tableName,
+      TableName: this.tableAttributes.name,
       ...(filter && {
         FilterExpression: '#filterField = :filterValue',
         ExpressionAttributeNames: { '#filterField': filter.field },
@@ -268,7 +271,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       }
       return Items.map((item) => unmarshall(item) as RecordType);
     } catch (error) {
-      this.observability.logger.error(`Failure in getting records for table ${this.tableName}. ${error}`);
+      this.observability.logger.error(`Failure in getting records for table ${this.tableAttributes.name}. ${error}`);
       return [];
     }
   }
@@ -276,10 +279,12 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   // Generates expiration field that can be injected as partial into create/update calls
   // When expirationAttribute is not set, or expirationDurationInSeconds is 0 - empty object is returned instead
   protected createExpirationDatePartial(): Partial<RecordType> {
-    return this.expirationAttribute && this.expirationDurationInSeconds && this.expirationDurationInSeconds > 0
+    return this.tableAttributes.expirationAttribute &&
+      this.tableAttributes.expirationDurationInSeconds &&
+      this.tableAttributes.expirationDurationInSeconds > 0
       ? ({
-          [this.expirationAttribute]: new Date(
-            new Date().getTime() + this.expirationDurationInSeconds * 1000
+          [this.tableAttributes.expirationAttribute]: new Date(
+            new Date().getTime() + this.tableAttributes.expirationDurationInSeconds * 1000
           ).toISOString(),
         } as Partial<RecordType>)
       : {};
