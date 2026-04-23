@@ -19,6 +19,10 @@ export const config = {
     cidr: process.env.cidr ?? '10.0.0.0/16',
     zones: (process.env.availability_zones ?? `a,b,c`).split(`,`),
   },
+
+  utils: {
+    namingHelper: (...args: string[]) => [config.project, config.env, ...args].join('-').toLowerCase(),
+  },
 };
 
 export type EnvVars = typeof config;

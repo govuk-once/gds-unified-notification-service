@@ -88,11 +88,11 @@ jobs:
           message: '${{steps.unittests.outputs.report}}'
           recreate: true
 
-      # CDK Validation
+      # CDK Validation - Explicitly ovewriting AWS env vars so CDK:SYNTH ignores assumed role
       - name: CDK Synth
         if: success() || failure() # Until TF Migration is completed
         run: |
-          npm run cdk:synth
+          AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" npm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action (CheckoCDKv)
         if: success() || failure()
