@@ -1,7 +1,7 @@
 import z from 'zod';
 
 export const IDynamoAttributesSchema = z.object({
-  tableName: z.string(),
+  name: z.string(),
   attributes: z.string().array(),
   hashKey: z.string(),
   rangeKey: z.string().nullish(),
