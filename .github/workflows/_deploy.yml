@@ -18,6 +18,7 @@ on:
 
 jobs:
   release:
+    name: Release to env
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.ENVIRONMENT }}

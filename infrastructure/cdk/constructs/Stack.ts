@@ -1,12 +1,26 @@
 import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
-import * as cdk from 'aws-cdk-lib/core';
+import { Duration, Stack, StackProps } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { kmsKeyFactory } from 'infrastructure/cdk/factories/kmsKeyFactory';
+import { queueFactory } from 'infrastructure/cdk/factories/sqsFactory';
 import { vpcFactory } from 'infrastructure/cdk/factories/vpcFactory';
 
-export class Stack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props: cdk.StackProps, config: EnvVars) {
+export class UNS extends Stack {
+  constructor(scope: Construct, id: string, props: StackProps, config: EnvVars) {
     super(scope, id, props);
+
+    config.utils.tagsHelper(scope);
+
+    // KMS
+    const key = kmsKeyFactory(this, config, {
+      name: ['kms', 'main'],
+      policies: {
+        root: true,
+        lambdas: true,
+        cloudwatch: true,
+      },
+    });
 
     // VPC
     const vpc = vpcFactory(this, config, {
@@ -38,6 +52,52 @@ export class Stack extends cdk.Stack {
       gatewayEndpoints: {
         DynamoDB: GatewayVpcEndpointAwsService.DYNAMODB,
         S3: GatewayVpcEndpointAwsService.S3,
+      },
+    });
+
+    // SQS Queues
+    const sqsIncomingQueue = queueFactory(this, config, {
+      name: ['incoming'],
+      tags: {},
+      messageRetentionSeconds: Duration.days(7).toSeconds(),
+      resources: {
+        kmsKey: key,
+      },
+      deadLetterQueue: {
+        maxRetries: 3,
+      },
+    });
+    const sqsProcessingQueue = queueFactory(this, config, {
+      name: ['processing'],
+      tags: {},
+      messageRetentionSeconds: Duration.days(7).toSeconds(),
+      resources: {
+        kmsKey: key,
+      },
+      deadLetterQueue: {
+        maxRetries: 3,
+      },
+    });
+    const sqsDispatchQueue = queueFactory(this, config, {
+      name: ['dispatch'],
+      tags: {},
+      messageRetentionSeconds: Duration.days(7).toSeconds(),
+      resources: {
+        kmsKey: key,
+      },
+      deadLetterQueue: {
+        maxRetries: 3,
+      },
+    });
+    const sqsAnalyticsQueue = queueFactory(this, config, {
+      name: ['analytics'],
+      tags: {},
+      messageRetentionSeconds: Duration.days(7).toSeconds(),
+      resources: {
+        kmsKey: key,
+      },
+      deadLetterQueue: {
+        maxRetries: 3,
       },
     });
   }

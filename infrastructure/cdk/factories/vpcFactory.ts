@@ -51,6 +51,7 @@ export const vpcFactory = <
     enableDnsSupport: true,
     createInternetGateway: true,
   });
+  config.utils.tagsHelper(vpc);
 
   // Define security groups
   const privateEgress = new SecurityGroup(stack, namingHelper(props.name, 'sg', 'private'), {
@@ -58,14 +59,14 @@ export const vpcFactory = <
     description: 'SecurityGroup with allow outbound',
     allowAllOutbound: false,
   });
+  config.utils.tagsHelper(privateEgress);
 
   const privateIsolated = new SecurityGroup(stack, namingHelper(props.name, 'sg', 'isolated'), {
     vpc,
     description: 'SecurityGroup with deny outbound',
     allowAllOutbound: false,
   });
-
-  const securityGroups = [privateEgress, privateIsolated];
+  config.utils.tagsHelper(privateIsolated);
 
   // Attach private interface endpoints endpoints to vpc
   const interfaceEndpoints = {} as Record<string, InterfaceVpcEndpoint>;
@@ -81,6 +82,7 @@ export const vpcFactory = <
       open: true,
     });
     interfaceEndpoints[key] = endpoint;
+    config.utils.tagsHelper(endpoint);
   }
 
   // Attach private gateway endpoints endpoints to vpc
@@ -91,6 +93,7 @@ export const vpcFactory = <
       service,
     });
     gatewayEndpoints[key] = endpoint;
+    config.utils.tagsHelper(endpoint);
   }
 
   return {

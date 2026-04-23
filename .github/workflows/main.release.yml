@@ -62,7 +62,7 @@ jobs:
 
   releaseToDevCDK:
     needs: release
-    name: Deploy to dev
+    name: Deploy to dev (CDK)
     uses: ./.github/workflows/_deploy.cdk.yml
     with:
       ENVIRONMENT: dev

@@ -18,6 +18,7 @@ on:
 
 jobs:
   release:
+    name: CDK - Release to env (Preview)
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.ENVIRONMENT }}
