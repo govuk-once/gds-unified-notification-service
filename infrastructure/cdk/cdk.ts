@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
 import { config } from './config';
-import { Stack } from './constructs/Stack';
+import { UNS } from './constructs/Stack';
 
 // Initializes a new instance of the cdk app
 const app = new cdk.App();
-new Stack(
+new UNS(
   app,
   config.utils.namingHelper('stack'),
   {
