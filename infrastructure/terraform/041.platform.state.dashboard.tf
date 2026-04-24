@@ -36,36 +36,6 @@ locals {
         },
         {
           "type" : "metric",
-          "x" : 6 + 18 * index,
-          "y" : 0,
-          "width" : 6,
-          "height" : 6,
-          "properties" : {
-            "metrics" : [
-              [
-                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
-                "CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED",
-                "environment",
-                local.prefix,
-                "service",
-                service_name,
-                {
-                  "region" : var.region,
-                  "label" : "Circuit Breaker Rate Limiting"
-                }
-              ]
-            ],
-            "view" : "singleValue",
-            "stacked" : false,
-            "region" : var.region,
-            "stat" : "Maximum",
-            "period" : 1,
-            "title" : "Circuit Breaker Rate Limiting Enforced - ${service_name}",
-            "liveData" : true,
-          }
-        },
-        {
-          "type" : "metric",
           "x" : 0 + 18 * index,
           "y" : 7,
           "width" : 6,
@@ -109,6 +79,36 @@ locals {
         {
           "type" : "metric",
           "x" : 6 + 18 * index,
+          "y" : 0,
+          "width" : 6,
+          "height" : 6,
+          "properties" : {
+            "metrics" : [
+              [
+                upper(replace("NOTIFICATIONS_${local.prefix}", "-", "_")),
+                "CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED",
+                "environment",
+                local.prefix,
+                "service",
+                service_name,
+                {
+                  "region" : var.region,
+                  "label" : "Circuit Breaker Rate Limiting"
+                }
+              ]
+            ],
+            "view" : "singleValue",
+            "stacked" : false,
+            "region" : var.region,
+            "stat" : "Maximum",
+            "period" : 1,
+            "title" : "Circuit Breaker Rate Limiting Enforced - ${service_name}",
+            "liveData" : true,
+          }
+        },
+        {
+          "type" : "metric",
+          "x" : 6 + 18 * index,
           "y" : 7,
           "width" : 6,
           "height" : 6,
@@ -143,7 +143,7 @@ locals {
             "stacked" : false,
             "region" : var.region,
             "stat" : "Maximum",
-            "period" : 1,
+            "period" : 60,
             "title" : "Circuit Breaker Rate Usage - ${service_name}",
             "liveData" : true
           }
@@ -215,7 +215,7 @@ locals {
             "stacked" : false,
             "region" : var.region,
             "stat" : "Maximum",
-            "period" : 1,
+            "period" : 60,
             "title" : "Rate Usage - ${service_name}",
             "liveData" : true
           }

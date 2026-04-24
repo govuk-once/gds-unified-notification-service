@@ -1,7 +1,4 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
-import { ConfigurationService } from '@common/services';
+import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
@@ -34,9 +31,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
   protected appId: string;
   protected deeplinkTemplate: string;
   constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer,
+    protected observability: ObservabilityService,
     protected config: ConfigurationService
   ) {}
 
@@ -65,7 +60,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
       NotificationID: request.NotificationID,
     };
     try {
-      this.logger.info(`Sending notification using OneSignal adapter`, metadata);
+      this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);
       const result = await this.client.post<OneSignalPushNotificationResponse>(`/notifications?c=push`, {
         app_id: this.appId,
         headings: { en: request.NotificationTitle },
@@ -77,11 +72,11 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           deeplink: this.deeplinkTemplate.replace('{id}', request.NotificationID),
         },
       });
-      this.logger.info(`Successfully sent notification using OneSignal adapter`, metadata);
+      this.observability.logger.info(`Successfully sent notification using OneSignal adapter`, metadata);
 
       // Detect hidden failures
       if ((Array.isArray(result.data.errors) && result.data.errors.length > 0) || result.data.id == '') {
-        this.logger.error(`Failed to dispatch notification using OneSignal adapter - received 200 code`, {
+        this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter - received 200 code`, {
           ...metadata,
           status: result.status,
           response: result.data,
@@ -99,7 +94,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
       };
     } catch (error) {
       if (axios.isAxiosError<OnesignalPushNotificationErrorResponse>(error)) {
-        this.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
+        this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
           ...metadata,
           axiosError: JSON.parse(
             JSON.stringify({

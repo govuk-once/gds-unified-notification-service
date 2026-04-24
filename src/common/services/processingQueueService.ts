@@ -1,5 +1,6 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ConfigurationService } from '@common/services/configurationService';
-import { ObservabilityService } from '@common/services/observabilityService';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
@@ -21,5 +22,16 @@ export class ProcessingQueueService extends QueueService<IMessage> {
 
     this.observability.logger.info('Processing Queue Service Initialised.');
     return this;
+  }
+
+  public addPublishingResultMetric(success: boolean, count: number) {
+    if (success) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
+        MetricUnit.Count,
+        count
+      );
+    }
+    this.observability.metrics.addMetric(MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED, MetricUnit.Count, count);
   }
 }
