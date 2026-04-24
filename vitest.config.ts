@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
@@ -27,5 +27,6 @@ export default defineConfig({
       exclude: ['src/**/*.{test,test.unit,mocks,util}.ts'],
       reporter: [process.env.VITEST_DETAILED_COVERAGE == 'true' ? 'text' : 'text-summary', 'lcov'],
     },
+    silent: process.env.VITEST_SILENT == 'true',
   },
 });

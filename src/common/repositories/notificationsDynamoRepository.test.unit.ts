@@ -213,6 +213,7 @@ describe('NotificationsDynamoRepository', () => {
           },
         },
         UpdateExpression: `set #ProcessedDateTime = :ProcessedDateTime, #ExternalUserID = :ExternalUserID`,
+        ReturnConsumedCapacity: 'TOTAL',
       });
     });
 

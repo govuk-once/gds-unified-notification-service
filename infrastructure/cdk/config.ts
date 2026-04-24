@@ -1,3 +1,5 @@
+import { Tags } from 'aws-cdk-lib/core';
+import { Construct } from 'constructs';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,12 +11,17 @@ if (existsSync('./.env')) {
 }
 
 export const config = {
+  // Metadtaa
   project: 'uns',
   env: process.env.env ?? 'dev',
   region: process.env.region ?? 'eu-west-2',
+  version: process.env.version ?? 'manual',
+
+  // mTLS confing
   mtls: process.env.use_mtls == 'true',
   mtlsEnvToUse: process.env.mtls_env_to_use ?? (null as string | null),
-  // vpc config
+
+  // VPC
   vpc: {
     cidr: process.env.cidr ?? '10.0.0.0/16',
     zones: (process.env.availability_zones ?? `a,b,c`).split(`,`),
@@ -22,6 +29,17 @@ export const config = {
 
   utils: {
     namingHelper: (...args: string[]) => [config.project, config.env, ...args].join('-').toLowerCase(),
+    tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
+      for (const [key, value] of Object.entries({
+        project: config.project,
+        env: config.project,
+        version: config.version,
+        managedBy: 'CDK',
+        ...(additionalTags ?? {}),
+      })) {
+        Tags.of(construct).add(key, value);
+      }
+    },
   },
 };
 
