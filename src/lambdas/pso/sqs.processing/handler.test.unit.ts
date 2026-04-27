@@ -1,4 +1,5 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
 import {
@@ -38,7 +39,17 @@ describe('Processing QueueHandler', () => {
     awsRequestId: '12345',
   } as unknown as Context;
 
-  const mockMessageBody: IMessage = {
+  const mockMessageBody_1: IMessage = {
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+    DepartmentID: 'DVLA01',
+    UserID: 'UserID',
+    NotificationTitle: 'Hey',
+    NotificationBody: "You've got a message in the message centre",
+    MessageTitle: '',
+    MessageBody: '',
+  };
+
+  const mockMessageBody_2: IMessage = {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DVLA01',
     UserID: 'UserID',
@@ -51,7 +62,7 @@ describe('Processing QueueHandler', () => {
   const mockEvent: QueueEvent<IMessage> = {
     Records: [
       {
-        messageId: 'mockMessageId',
+        messageId: 'mockMessageId_1',
         receiptHandle: 'mockReceiptHandle',
         attributes: {
           ApproximateReceiveCount: '2',
@@ -65,7 +76,30 @@ describe('Processing QueueHandler', () => {
         eventSource: 'aws:sqs',
         eventSourceARN: 'mockEventSourceARN',
         awsRegion: 'eu-west2',
-        body: mockMessageBody,
+        body: mockMessageBody_1,
+      },
+    ],
+  };
+
+  const mockEvents: QueueEvent<IMessage> = {
+    Records: [
+      mockEvent.Records[0],
+      {
+        messageId: 'mockMessageId_2',
+        receiptHandle: 'mockReceiptHandle',
+        attributes: {
+          ApproximateReceiveCount: '2',
+          SentTimestamp: '202601021513',
+          SenderId: 'mockSenderId',
+          ApproximateFirstReceiveTimestamp: '202601021513',
+        },
+        messageAttributes: {},
+        md5OfBody: 'mockMd5OfBody',
+        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'mockEventSourceARN',
+        awsRegion: 'eu-west2',
+        body: mockMessageBody_2,
       },
     ],
   };
@@ -75,7 +109,7 @@ describe('Processing QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          NotificationID: 'invalid-id',
+          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           // Missed out on purpose NotificationTitle, NotificationBody
@@ -120,11 +154,9 @@ describe('Processing QueueHandler', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    // Mocking successful completion of service functions
-    serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+    // Mocking successful completion of service functions]
     serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Processing(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -167,30 +199,26 @@ describe('Processing QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
       1,
-      [
-        {
-          DepartmentID: mockMessageBody.DepartmentID,
-          NotificationID: mockMessageBody.NotificationID,
-          UserID: mockMessageBody.UserID,
-        },
-      ],
+      {
+        DepartmentID: mockMessageBody_1.DepartmentID,
+        NotificationID: mockMessageBody_1.NotificationID,
+        UserID: mockMessageBody_1.UserID,
+      },
       'PROCESSING'
     );
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
       2,
-      [
-        {
-          DepartmentID: mockMessageBody.DepartmentID,
-          MessageBody: mockMessageBody.MessageBody,
-          MessageTitle: mockMessageBody.MessageTitle,
-          NotificationBody: mockMessageBody.NotificationBody,
-          NotificationID: mockMessageBody.NotificationID,
-          NotificationTitle: mockMessageBody.NotificationTitle,
-          UserID: mockMessageBody.UserID,
-        },
-      ],
+      {
+        DepartmentID: mockMessageBody_1.DepartmentID,
+        MessageBody: mockMessageBody_1.MessageBody,
+        MessageTitle: mockMessageBody_1.MessageTitle,
+        NotificationBody: mockMessageBody_1.NotificationBody,
+        NotificationID: mockMessageBody_1.NotificationID,
+        NotificationTitle: mockMessageBody_1.NotificationTitle,
+        UserID: mockMessageBody_1.UserID,
+      },
       'PROCESSED'
     );
   });
@@ -207,21 +235,80 @@ describe('Processing QueueHandler', () => {
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-        ExternalUserID: mockMessageBody.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+        DepartmentID: mockMessageBody_1.DepartmentID,
+        NotificationID: mockMessageBody_1.NotificationID,
+        UserID: mockMessageBody_1.UserID,
+        ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
         ProcessedDateTime: date.toISOString(),
       })
     );
   });
 
-  it('should not trigger analytics for unindentifeable events', async () => {
+  it('should send processed message to the dispatch queue when message is successfully processed.', async () => {
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
+      DepartmentID: mockMessageBody_1.DepartmentID,
+      MessageBody: mockMessageBody_1.MessageBody,
+      MessageTitle: mockMessageBody_1.MessageTitle,
+      NotificationBody: mockMessageBody_1.NotificationBody,
+      NotificationID: mockMessageBody_1.NotificationID,
+      NotificationTitle: mockMessageBody_1.NotificationTitle,
+      UserID: mockMessageBody_1.UserID,
+      ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+    });
+  });
+
+  it('should processes multiple messages to the dispatch queue when messages are successfully processed.', async () => {
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
+      DepartmentID: mockMessageBody_1.DepartmentID,
+      MessageBody: mockMessageBody_1.MessageBody,
+      MessageTitle: mockMessageBody_1.MessageTitle,
+      NotificationBody: mockMessageBody_1.NotificationBody,
+      NotificationID: mockMessageBody_1.NotificationID,
+      NotificationTitle: mockMessageBody_1.NotificationTitle,
+      UserID: mockMessageBody_1.UserID,
+      ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+    });
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
+      DepartmentID: mockMessageBody_2.DepartmentID,
+      MessageBody: mockMessageBody_2.MessageBody,
+      MessageTitle: mockMessageBody_2.MessageTitle,
+      NotificationBody: mockMessageBody_2.NotificationBody,
+      NotificationID: mockMessageBody_2.NotificationID,
+      NotificationTitle: mockMessageBody_2.NotificationTitle,
+      UserID: mockMessageBody_2.UserID,
+      ExternalUserID: mockMessageBody_2.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+    });
+  });
+
+  it('should publish an event when message body is not valid.', async () => {
     // Act
     await handler(mockFailedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(1, [], 'PROCESSING');
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        NotificationID: mockFailedEvent.Records[0].body.NotificationID,
+        DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
+      },
+      NotificationStateEnum.PROCESSING_FAILED,
+      '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
+    );
+  });
+
+  it('should not trigger analytics for unidentifiable events', async () => {
+    // Act
+    await handler(mockUnidentifiableEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).not.toHaveBeenCalled();
   });
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
@@ -232,9 +319,39 @@ describe('Processing QueueHandler', () => {
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: '✖ Invalid input: expected string, received undefined\n  → at DepartmentID',
+        error: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
         raw: mockUnidentifiableEvent.Records[0].body,
       }
     );
+  });
+
+  it('should log when processing adapter call returns success = false.', async () => {
+    // Arrange
+    const errorMsg = 'Mock UDP failure message.';
+    serviceMocks.processingServiceMock.send.mockResolvedValueOnce({
+      request: {
+        userID: mockEvent.Records[0].body.UserID,
+      },
+      success: false,
+      errors: [errorMsg],
+    });
+
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`UDP Error:`, { errors: [errorMsg] });
+  });
+
+  it('should log when processing adapter throws an error.', async () => {
+    // Arrange
+    const errorMsg = 'Mock UDP error.';
+    serviceMocks.processingServiceMock.send.mockRejectedValueOnce(errorMsg);
+
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`UDP Error:`, { e: errorMsg });
   });
 });
