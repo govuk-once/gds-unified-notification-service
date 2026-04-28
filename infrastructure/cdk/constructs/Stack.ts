@@ -131,10 +131,11 @@ export class UNS extends Stack {
     codeSigning: ReturnType<UNS['codeSigning']>;
     kms: ReturnType<UNS['kms']>;
     queues: ReturnType<UNS['queues']>;
+    vpc: ReturnType<UNS['vpc']>;
   }) {
-    const psoGetHealthcheck = lambdaFactory(this, this.config, {
+    const getHealthcheck = lambdaFactory(this, this.config, {
       serviceName: 'pso',
-      name: [`getStatus`],
+      name: [`getHealthcheck`],
       bundlePath: './../../dist/pso/http.getHealthcheck',
       signingConfig: refs.codeSigning.config,
       environment: {},
@@ -146,7 +147,7 @@ export class UNS extends Stack {
       },
     });
 
-    const psoGetNotificationStatus = lambdaFactory(this, this.config, {
+    const getNotificationStatus = lambdaFactory(this, this.config, {
       serviceName: 'pso',
       name: [`getNotificationStatus`],
       bundlePath: './../../dist/pso/http.getNotificationStatus',
@@ -160,7 +161,7 @@ export class UNS extends Stack {
       },
     });
 
-    const psoPostMessage = lambdaFactory(this, this.config, {
+    const postMessage = lambdaFactory(this, this.config, {
       serviceName: 'pso',
       name: [`postMessage`],
       bundlePath: './../../dist/pso/http.postMessage',
@@ -175,10 +176,116 @@ export class UNS extends Stack {
       },
     });
 
+    const validation = lambdaFactory(this, this.config, {
+      serviceName: 'pso',
+      name: [`validation`],
+      bundlePath: './../../dist/pso/sqs.validation',
+      signingConfig: refs.codeSigning.config,
+      environment: {},
+      resources: {
+        kms: refs.kms,
+        dlq: refs.queues.incoming.dlq,
+      },
+      iam: {
+        ssmNamespaces: [this.config.env],
+        sqsSend: [
+          refs.queues.processing.queue.queueArn,
+          refs.queues.analytics.queue.queueArn,
+          refs.queues.incoming.dlq!.queueArn,
+        ],
+      },
+      triggers: {
+        queues: [refs.queues.incoming.queue],
+      },
+    });
+
+    const processing = lambdaFactory(this, this.config, {
+      serviceName: 'pso',
+      name: [`processing`],
+      bundlePath: './../../dist/pso/sqs.processing',
+      signingConfig: refs.codeSigning.config,
+      environment: {},
+      resources: {
+        kms: refs.kms,
+        dlq: refs.queues.processing.dlq,
+        vpc: {
+          ref: refs.vpc.vpc,
+          securityGroups: [refs.vpc.securityGroups.privateEgress],
+          subnets: refs.vpc.vpc.privateSubnets,
+        },
+      },
+      iam: {
+        ssmNamespaces: [this.config.env],
+        sqsSend: [
+          refs.queues.dispatch.queue.queueArn,
+          refs.queues.analytics.queue.queueArn,
+          refs.queues.processing.dlq!.queueArn,
+        ],
+      },
+      triggers: {
+        queues: [refs.queues.processing.queue],
+      },
+    });
+
+    const dispatch = lambdaFactory(this, this.config, {
+      serviceName: 'pso',
+      name: [`dispatch`],
+      bundlePath: './../../dist/pso/sqs.dispatch',
+      signingConfig: refs.codeSigning.config,
+      environment: {},
+      resources: {
+        kms: refs.kms,
+        vpc: {
+          ref: refs.vpc.vpc,
+          securityGroups: [refs.vpc.securityGroups.privateEgress],
+          subnets: refs.vpc.vpc.privateSubnets,
+        },
+        dlq: refs.queues.dispatch.dlq,
+      },
+      iam: {
+        ssmNamespaces: [this.config.env],
+        sqsSend: [refs.queues.analytics.queue.queueArn, refs.queues.dispatch.dlq!.queueArn],
+      },
+      triggers: {
+        queues: [refs.queues.dispatch.queue],
+      },
+    });
+
+    const analytics = lambdaFactory(this, this.config, {
+      serviceName: 'pso',
+      name: [`analytics`],
+      bundlePath: './../../dist/pso/sqs.analytics',
+      signingConfig: refs.codeSigning.config,
+      environment: {},
+      resources: {
+        kms: refs.kms,
+        vpc: {
+          ref: refs.vpc.vpc,
+          securityGroups: [refs.vpc.securityGroups.privateEgress],
+          subnets: refs.vpc.vpc.privateSubnets,
+        },
+      },
+      iam: {
+        ssmNamespaces: [this.config.env],
+        sqsSend: [refs.queues.analytics.dlq!.queueArn],
+      },
+      triggers: {
+        queues: [refs.queues.analytics.queue],
+      },
+    });
+
     return {
-      psoGetHealthcheck,
-      psoGetNotificationStatus,
-      psoPostMessage,
+      http: {
+        getHealthcheck,
+        getNotificationStatus,
+        postMessage,
+      },
+      sqs: {
+        validation,
+        processing,
+        dispatch,
+        analytics,
+      },
     };
   }
 
@@ -198,6 +305,6 @@ export class UNS extends Stack {
 
     // Lambdas - PSO
     const codeSigning = this.codeSigning();
-    const psoLambdas = this.psoLambdas({ codeSigning, kms, queues });
+    const psoLambdas = this.psoLambdas({ codeSigning, kms, queues, vpc });
   }
 }
