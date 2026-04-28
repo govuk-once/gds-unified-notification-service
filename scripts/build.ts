@@ -2,7 +2,7 @@ import { Glob } from 'bun';
 import esbuild from 'esbuild';
 import { existsSync, rmSync } from 'fs';
 import { basename, dirname, join, relative, resolve } from 'path';
-import { Colors } from 'scripts/helpers';
+import { Colors, execute } from 'scripts/helpers';
 
 const ROOT = dirname(import.meta.dir);
 const OUT_DIR = resolve(ROOT, 'dist');
@@ -32,6 +32,7 @@ const buildHandlers = async (dir: string) => {
     }
     const fns = entryPoints.map((entrypoint) => {
       const id = join(namespace, '.', basename(dirname(entrypoint)));
+      console.log(` ${Colors.blue(`Building...`)} ${id}`);
       return esbuild
         .build({
           entryPoints: [entrypoint],
@@ -50,7 +51,11 @@ const buildHandlers = async (dir: string) => {
             ].join('\n'),
           },
         })
-        .then(() => console.log(` ${Colors.green(`✔`)} ${id}`));
+        .then(() => {
+          console.log(` ${Colors.cyan(`Zipping....`)} ${id}`);
+          return execute(id, [`zip`, `-j`, `-r`, `${join(OUT_DIR, id)}.zip`, join(OUT_DIR, id), `-q`]);
+        })
+        .then(() => console.log(` ${Colors.green(`Finished...`)} ${id} ${Colors.green(`✔`)}`));
     });
     await Promise.allSettled(fns);
   } catch (error) {

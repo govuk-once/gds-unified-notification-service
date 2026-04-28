@@ -48,8 +48,8 @@ export const kmsKeyFactory = (
         // Allow cloudwatch logs
         props.policies.cloudwatch
           ? new PolicyStatement({
-              principals: [new iam.ServicePrincipal('lambda.amazonaws.com')],
-              actions: [`kms:GenerateDataKey`, `kms:Decrypt`],
+              principals: [new iam.ServicePrincipal(`logs.${stack.env.region}.amazonaws.com`)],
+              actions: ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'],
               resources: [`*`],
               conditions: {
                 StringLike: {

@@ -29,6 +29,11 @@ export const config = {
 
   utils: {
     namingHelper: (...args: string[]) => [config.project, config.env, ...args].join('-').toLowerCase(),
+    namingHelperSnakeCase: (...args: string[]) =>
+      config.utils
+        .namingHelper(...args)
+        .split('-')
+        .join('_'),
     tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
       for (const [key, value] of Object.entries({
         project: config.project,
