@@ -16,6 +16,7 @@
     "cdk:diff": "npm run cdk -- diff",
     "cdk:synth": "npm run cdk -- synth",
     "cdk:deploy": "npm run cdk -- deploy",
+    "cdk:import": "npm run cdk -- import",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
     "pre-commit": "VITEST_SILENT=true bun scripts/pre-commit.ts",

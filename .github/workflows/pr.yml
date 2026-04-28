@@ -43,6 +43,9 @@ jobs:
       - name: ⚙️ Validate Typescript
         run: npm run build:validate
 
+      - name: 🔨 Build bundles
+        run: npm run build
+
       # Formatting
       - name: 📝 Run Lint
         run: npm run lint
@@ -89,12 +92,12 @@ jobs:
           recreate: true
 
       # CDK Validation - Explicitly ovewriting AWS env vars so CDK:SYNTH ignores assumed role
-      - name: CDK Synth
+      - name: 🏗️ CDK Synth
         if: success() || failure() # Until TF Migration is completed
         run: |
           AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" npm run cdk:synth
 
-      - name: 🔐 Checkov GitHub Action (CheckoCDKv)
+      - name: 🔐 Checkov GitHub Action (CheckovCDK)
         if: success() || failure()
         uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
         with:
@@ -125,8 +128,28 @@ jobs:
         with:
           sarif_file: results.sarif
 
+      # SonarQube - Scan, Gate, Report
       - name: 🕵🏻 Run SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+      - name: 🕵🏻 SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+      - name: 🕵🏻 Create Comment with SonarQube's Quality Gate
+        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: 'govuk-once/gds-unified-notification-service'
+          number: ${{ github.event.number }}
+          id: qualitygatecomment
+          message: 'SonarQube Quality Gate Status: ${{steps.sonarqube-quality-gate-check.outputs.quality-gate-status}} [LINK](https://sonarcloud.io/summary/new_code?id=govuk-once_gds-unified-notification-service&pullRequest=${{github.event.number}})'
+          recreate: true
