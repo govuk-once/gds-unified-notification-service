@@ -21,7 +21,7 @@ import {
 import { BoolParameters, groupValidation } from '@common/utils';
 import {
   extractIdentifiers,
-  IIdentifieableMessageSchema,
+  IIdentifiableMessageSchema,
   IMessage,
   IMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
@@ -60,7 +60,7 @@ import { Context } from 'aws-lambda';
 Sample SQS Body (for pushing messages from portal)
 {"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
-export class Validation extends QueueHandler<IMessage> {
+export class Validation extends QueueHandler<IMessage, void> {
   public operationId: string = 'validation';
 
   public analyticsService: AnalyticsService;
@@ -87,7 +87,7 @@ export class Validation extends QueueHandler<IMessage> {
     const [, identifiableRecords] = await groupValidation(
       event.Records,
       SqsRecordSchema.extend({
-        body: IIdentifieableMessageSchema,
+        body: IIdentifiableMessageSchema,
       })
     );
     this.observability.logger.info(`Identifiable records`, { identifiableRecords });

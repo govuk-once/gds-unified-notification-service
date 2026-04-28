@@ -1,5 +1,3 @@
-import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
-import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
@@ -10,20 +8,18 @@ import {
   iocGetProcessingService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent, QueueHandler } from '@common/operations';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { BoolParameters } from '@common/utils';
-import {
-  extractIdentifiers,
-  IIdentifieableMessageSchema,
-  IMessage,
-  IMessageSchema,
-} from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IMessage, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import z from 'zod';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
+import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
+import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
+import { QueueEvent } from '@common/operations';
+import { BoolParameters } from '@common/utils';
 
 /**
  * 
@@ -55,7 +51,7 @@ import z from 'zod';
   ]
 }
  */
-export class Processing extends QueueHandler<IMessage, void> {
+export class Processing extends BatchQueueOperation<IMessage, PartialItemFailureResponse> {
   public operationId: string = 'processing';
 
   public analyticsService: AnalyticsService;
@@ -68,55 +64,31 @@ export class Processing extends QueueHandler<IMessage, void> {
     observability: ObservabilityService,
     dependencies?: () => HandlerDependencies<Processing>
   ) {
-    super(observability);
+    super(config, observability);
     this.injectDependencies(dependencies);
   }
 
-  private recordHandler = async (data: SQSRecord): Promise<void> => {
-    // Trigger received notification events
-    const parsedResult = await SqsRecordSchema.extend({
-      body: IIdentifieableMessageSchema,
-    }).safeParseAsync(data);
-
-    if (!parsedResult.success) {
-      const raw = data.body;
-      const error = parsedResult.error ? z.prettifyError(parsedResult.error) : {};
-      this.observability.logger.info(
-        `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-        {
-          raw,
-          error,
-        }
-      );
-      return;
-    }
-
-    const identifiableRecord = parsedResult.data;
-    this.observability.logger.info(`Identifiable record`, { identifiableRecord });
-    await this.analyticsService.publishEvent(identifiableRecord.body, NotificationStateEnum.PROCESSING);
-
+  public recordHandler = async (record: SQSRecord): Promise<void> => {
     // Validate Incoming messages
-    const validatedRecord = await SqsRecordSchema.extend({
-      body: IMessageSchema,
-    }).safeParseAsync(data);
-
-    if (!validatedRecord.success) {
-      this.observability.logger.info(`Message failed validated`, identifiableRecord.body.NotificationID);
-      const validationError = validatedRecord.error ? z.prettifyError(validatedRecord.error) : {};
-
-      await this.analyticsService.publishEvent(
-        {
-          NotificationID: identifiableRecord.body.NotificationID,
-          DepartmentID: identifiableRecord.body.DepartmentID,
-        },
-        NotificationStateEnum.PROCESSING_FAILED,
-        validationError
-      );
-      return;
-    }
-
-    const message = validatedRecord.data.body;
-    this.observability.logger.info(`Message was validated`, message.NotificationID);
+    const data = await this.validateRecord(IMessageRecordSchema, record, {
+      onIdentified: async (identifiableRecord) => {
+        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
+      },
+      onSuccess: (record) => {
+        this.observability.logger.info(`Message was validated`, record.body.NotificationID);
+      },
+      onError: async (identifiableRecord, validationError) => {
+        await this.analyticsService.publishEvent(
+          {
+            NotificationID: identifiableRecord.NotificationID,
+            DepartmentID: identifiableRecord.DepartmentID,
+          },
+          NotificationStateEnum.PROCESSING_FAILED,
+          validationError ? z.prettifyError(validationError) : {}
+        );
+      },
+    });
+    const message = data.body;
 
     // Process messages -
     try {
@@ -128,7 +100,7 @@ export class Processing extends QueueHandler<IMessage, void> {
 
       if (!result.success) {
         this.observability.logger.info(`UDP Error:`, { errors: result.errors });
-        return;
+        throw new Error('UDP Error');
       }
       const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
 
@@ -152,17 +124,18 @@ export class Processing extends QueueHandler<IMessage, void> {
       await this.dispatchQueue.publishMessage(processedMessages);
     } catch (e) {
       this.observability.logger.info(`UDP Error:`, { e });
+      throw e;
     }
   };
 
-  public async implementation(event: QueueEvent<IMessage>, context: Context) {
+  public async implementation(event: QueueEvent<IMessage>, context: Context): Promise<PartialItemFailureResponse> {
     await this.config.ensureServiceIsEnabled(
       BoolParameters.Config.Common.Enabled,
       BoolParameters.Config.Processing.Enabled
     );
 
     const processor = new BatchProcessor(EventType.SQS);
-    await processPartialResponse(event, this.recordHandler, processor, {
+    return await processPartialResponse(event, this.recordHandler, processor, {
       context,
     });
   }

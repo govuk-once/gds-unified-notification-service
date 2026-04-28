@@ -1,3 +1,4 @@
+import { BatchProcessingError, FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
@@ -43,18 +44,18 @@ describe('Processing QueueHandler', () => {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DVLA01',
     UserID: 'UserID',
-    NotificationTitle: 'Hey',
+    NotificationTitle: 'Test message - 001',
     NotificationBody: "You've got a message in the message centre",
     MessageTitle: '',
     MessageBody: '',
   };
 
   const mockMessageBody_2: IMessage = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
     DepartmentID: 'DVLA01',
-    UserID: 'UserID',
-    NotificationTitle: 'Hey',
-    NotificationBody: "You've got a message in the message centre",
+    UserID: 'UserID_2',
+    NotificationTitle: 'Test message - 002',
+    NotificationBody: "You've got a message in the message centre - 2",
     MessageTitle: '',
     MessageBody: '',
   };
@@ -103,6 +104,37 @@ describe('Processing QueueHandler', () => {
       },
     ],
   };
+
+  const mockPartialFailedEvent: QueueEvent<IMessage> = {
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        body: {
+          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+          UserID: 'invalid-id',
+          DepartmentID: 'invalid-id',
+          // Missed out on purpose NotificationTitle, NotificationBody
+        },
+      },
+      {
+        messageId: 'mockMessageId_2',
+        receiptHandle: 'mockReceiptHandle',
+        attributes: {
+          ApproximateReceiveCount: '2',
+          SentTimestamp: '202601021513',
+          SenderId: 'mockSenderId',
+          ApproximateFirstReceiveTimestamp: '202601021513',
+        },
+        messageAttributes: {},
+        md5OfBody: 'mockMd5OfBody',
+        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'mockEventSourceARN',
+        awsRegion: 'eu-west2',
+        body: mockMessageBody_2,
+      },
+    ],
+  } as unknown as QueueEvent<IMessage>;
 
   const mockFailedEvent: QueueEvent<IMessage> = {
     Records: [
@@ -263,7 +295,7 @@ describe('Processing QueueHandler', () => {
 
   it('should processes multiple messages to the dispatch queue when messages are successfully processed.', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(mockEvents, mockContext);
 
     // Assert
     expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
@@ -288,11 +320,26 @@ describe('Processing QueueHandler', () => {
     });
   });
 
-  it('should publish an event when message body is not valid.', async () => {
+  it('should return a list of all failed processes when it partial fails.', async () => {
     // Act
-    await handler(mockFailedEvent, mockContext);
+    const result = await handler(mockPartialFailedEvent, mockContext);
 
     // Assert
+    expect(result).toEqual({
+      batchItemFailures: [
+        {
+          itemIdentifier: 'mockMessageId_1',
+        },
+      ],
+    });
+  });
+
+  it('should return and error publish an event when message body is not valid.', async () => {
+    // Act
+    const result = handler(mockFailedEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
@@ -303,19 +350,21 @@ describe('Processing QueueHandler', () => {
     );
   });
 
-  it('should not trigger analytics for unidentifiable events', async () => {
+  it('should return and error and not trigger analytics for unidentifiable events', async () => {
     // Act
-    await handler(mockUnidentifiableEvent, mockContext);
+    const result = handler(mockUnidentifiableEvent, mockContext);
 
     // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).not.toHaveBeenCalled();
   });
 
   it('should log when a message has no NotificationID or DepartmentID', async () => {
     // Act
-    await handler(mockUnidentifiableEvent, mockContext);
+    const result = handler(mockUnidentifiableEvent, mockContext);
 
     // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
@@ -337,9 +386,10 @@ describe('Processing QueueHandler', () => {
     });
 
     // Act
-    await handler(mockEvent, mockContext);
+    const result = handler(mockEvent, mockContext);
 
     // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`UDP Error:`, { errors: [errorMsg] });
   });
 
@@ -349,9 +399,10 @@ describe('Processing QueueHandler', () => {
     serviceMocks.processingServiceMock.send.mockRejectedValueOnce(errorMsg);
 
     // Act
-    await handler(mockEvent, mockContext);
+    const result = handler(mockEvent, mockContext);
 
     // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`UDP Error:`, { e: errorMsg });
   });
 });

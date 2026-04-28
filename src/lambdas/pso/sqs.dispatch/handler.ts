@@ -21,7 +21,7 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
-import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { Context } from 'aws-lambda';
 
@@ -57,7 +57,7 @@ import { Context } from 'aws-lambda';
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends QueueHandler<unknown, void> {
+export class Dispatch extends QueueHandler<IProcessedMessage, void> {
   public operationId: string = 'dispatch';
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
@@ -85,7 +85,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
     const [, identifiableRecords] = await groupValidation(
       event.Records,
       SqsRecordSchema.extend({
-        body: IIdentifieableMessageSchema,
+        body: IIdentifiableMessageSchema,
       })
     );
 
