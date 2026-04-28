@@ -1,9 +1,9 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
-import { ObservabilityService } from '@common/services';
+import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
@@ -61,7 +61,7 @@ export abstract class QueueHandler<InputType, OutputType> {
       )
       .use(captureLambdaHandler(this.observability.tracer))
       .use(
-        logMetrics(this.observability.metrics, {
+        logMetrics(this.observability.metrics as Metrics, {
           captureColdStartMetric: true,
           throwOnEmptyMetrics: false,
         })
@@ -70,7 +70,7 @@ export abstract class QueueHandler<InputType, OutputType> {
   protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
     return this.observabilityMiddlewares(middy).use(
       deserializeRecordBodyFromJson(this.observability)
-    ) as IQueueMiddleware<InputType, OutputType>;
+    ) as unknown as IQueueMiddleware<InputType, OutputType>;
   }
 
   // Wrapper FN to consistently initialize operations
@@ -88,7 +88,7 @@ export abstract class QueueHandler<InputType, OutputType> {
             operationId: this.operationId,
             eventSourceARN: record.eventSourceARN,
           });
-          this.observability.metrics.addMetric(`QUEUE_MESSAGE_RETRY_ATTEMPT`, MetricUnit.Count, 1);
+          this.observability.metrics.addMetric(MetricsLabels.QUEUE_MESSAGE_RETRY_ATTEMPT, MetricUnit.Count, 1);
         }
       }
 

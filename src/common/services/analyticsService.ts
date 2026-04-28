@@ -1,6 +1,6 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import type { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { AnalyticsQueueService, ObservabilityService } from '@common/services';
+import { AnalyticsQueueService, MetricsLabels, ObservabilityService, prefixEvent } from '@common/services';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 
@@ -13,6 +13,29 @@ export class AnalyticsService {
     public observability: ObservabilityService,
     public queue: AnalyticsQueueService
   ) {}
+
+  public addPublishingResultMetric(success: boolean, count: number) {
+    if (success) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_SUCCESSFULLY,
+        MetricUnit.Count,
+        count
+      );
+    }
+    this.observability.metrics.addMetric(MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED, MetricUnit.Count, count);
+  }
+
+  private addAnalyticsEventMetricCount(status: NotificationStateEnum, value: number) {
+    // Adds a metric to count all analytics events triggered
+    const analyticsEventMetricLabel = MetricsLabels[prefixEvent(status) as keyof typeof MetricsLabels];
+
+    // Defensive if statement - should not be needed as MetricsLabels is linked to NotificationStateEnum
+    if (analyticsEventMetricLabel in MetricsLabels) {
+      this.observability.metrics.addMetric(analyticsEventMetricLabel, MetricUnit.Count, value);
+    } else {
+      this.observability.logger.warn('Analytics Event was not defined in Metrics Label');
+    }
+  }
 
   public createEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
     return {
@@ -41,11 +64,11 @@ export class AnalyticsService {
       events.map((event, index) => this.createEvent<T>(event, status, reasons ? reasons[index] : undefined))
     );
 
-    this.observability.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, events.length);
+    this.addAnalyticsEventMetricCount(status, events.length);
   }
 
   public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
     await this.queue.publishMessage(this.createEvent(message, status, reason));
-    this.observability.metrics.addMetric(`ANALYTIC_EVENTS_${status.toUpperCase()}`, MetricUnit.Count, 1);
+    this.addAnalyticsEventMetricCount(status, 1);
   }
 }

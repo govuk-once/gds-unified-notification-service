@@ -1,6 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   ConfigurationService,
+  MetricsLabels,
   NotificationAdapterOneSignal,
   NotificationAdapterVoid,
   ObservabilityService,
@@ -29,18 +30,8 @@ export class NotificationService {
 
     this.adapter =
       adapter == 'OneSignal'
-        ? new NotificationAdapterOneSignal(
-            this.observability.logger,
-            this.observability.metrics,
-            this.observability.tracer,
-            this.config
-          )
-        : new NotificationAdapterVoid(
-            this.observability.logger,
-            this.observability.metrics,
-            this.observability.tracer,
-            this.config
-          );
+        ? new NotificationAdapterOneSignal(this.observability, this.config)
+        : new NotificationAdapterVoid(this.observability, this.config);
 
     // Initialize the adapter
     await this.adapter.initialize();
@@ -54,15 +45,15 @@ export class NotificationService {
     };
     this.observability.logger.info(`Dispatching notification`, metadata);
     const start = performance.now();
-    this.observability.metrics.addMetric(`DISPATCHING_ATTEMPTS`, MetricUnit.Count, 1);
+    this.observability.metrics.addMetric(MetricsLabels.DISPATCHING_ATTEMPTS, MetricUnit.Count, 1);
     const result = await segment(this.observability.tracer, `Dispatching`, async (segment) => {
       segment.addMetadata(`NotificationID`, request.NotificationID);
       segment.addAnnotation(`Start`, true);
       return await this.adapter.send(request);
     });
     const end = performance.now() - start;
-    this.observability.metrics.addMetric(`DISPATCH_DURATION`, MetricUnit.Milliseconds, end);
-    this.observability.metrics.addMetric(`DISPATCHED`, MetricUnit.Count, 1);
+    this.observability.metrics.addMetric(MetricsLabels.DISPATCH_DURATION, MetricUnit.Milliseconds, end);
+    this.observability.metrics.addMetric(MetricsLabels.DISPATCHED, MetricUnit.Count, 1);
 
     return result;
   }

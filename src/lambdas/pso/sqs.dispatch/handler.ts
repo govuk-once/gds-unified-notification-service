@@ -141,10 +141,13 @@ export class Dispatch extends QueueHandler<IProcessedMessage, void> {
           NotificationBody: valid.NotificationBody,
         });
         if (result.success) {
-          await this.circuitBreakerService.recordSuccess();
           return result;
         }
-        throw new Error('Failed');
+
+        if (result.errors) {
+          throw new Error(JSON.stringify(result.errors));
+        }
+        throw new Error('Request to notification provider failed with no error message');
       });
 
       // Update stored record with timestamp - also reset expiration date
