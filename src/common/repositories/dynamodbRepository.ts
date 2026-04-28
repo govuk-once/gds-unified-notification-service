@@ -10,7 +10,7 @@ import {
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType extends object> implements IDynamodbRepository<RecordType> {
   private client: DynamoDB;
@@ -47,8 +47,16 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         const lsi = consumedCapacity.LocalSecondaryIndexes ?? {};
         const table = consumedCapacity.TableName ?? {};
 
-        this.observability.metrics.addMetric(`DYNAMODB_CONSUMED_READ_CAPACITY_UNITS`, MetricUnit.Count, rcu);
-        this.observability.metrics.addMetric(`DYNAMODB_CONSUMED_WRITE_CAPACITY_UNITS`, MetricUnit.Count, wcu);
+        this.observability.metrics.addMetric(
+          MetricsLabels.DYNAMODB_CONSUMED_READ_CAPACITY_UNITS,
+          MetricUnit.Count,
+          rcu
+        );
+        this.observability.metrics.addMetric(
+          MetricsLabels.DYNAMODB_CONSUMED_WRITE_CAPACITY_UNITS,
+          MetricUnit.Count,
+          wcu
+        );
         this.observability.logger.info(`Dynamodb Usage`, { label, table, rcu, wcu, gsi, lsi });
       }
     }

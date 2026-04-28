@@ -1,14 +1,10 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
+import { ObservabilityService } from '@common/services/observabilityService';
 
 export class ProcessingAdapterVoid implements ProcessingAdapter {
   constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer,
+    protected observability: ObservabilityService,
     protected config: ConfigurationService
   ) {}
 
@@ -20,7 +16,9 @@ export class ProcessingAdapterVoid implements ProcessingAdapter {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {
-    this.logger.info(`Processing using Void adapter - mapping userID to externalUserID`, { userID: request.userID });
+    this.observability.logger.info(`Processing using Void adapter - mapping userID to externalUserID`, {
+      userID: request.userID,
+    });
     return {
       request: request,
       success: true,

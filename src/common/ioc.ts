@@ -12,6 +12,7 @@ import {
   ConfigurationService,
   ContentValidationService,
   DispatchQueueService,
+  KnownMetrics,
   NotificationService,
   ObservabilityService,
   ProcessingQueueService,
@@ -88,7 +89,7 @@ export const iocGetMetrics = ioc(
 export const iocGetObservabilityService = ioc(
   `ObservabilityService`,
   Mode.SINGLETON,
-  () => new ObservabilityService(iocGetLogger(), iocGetMetrics(), iocGetTracer())
+  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer())
 );
 
 // Services - Config & Cache

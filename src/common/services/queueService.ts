@@ -1,4 +1,3 @@
-import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ObservabilityService } from '@common/services/observabilityService';
 
@@ -34,13 +33,7 @@ export abstract class QueueService<InputType> {
     return this.queueName;
   }
 
-  private addMetric(name: string, value: number) {
-    this.observability.metrics.addMetric(
-      `QUEUE_${this.getQueueName()?.toUpperCase()}_${name}`,
-      MetricUnit.Count,
-      value
-    );
-  }
+  public abstract addPublishingResultMetric(success: boolean, count: number): void;
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
     this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`, {
@@ -55,11 +48,11 @@ export abstract class QueueService<InputType> {
       const response = await this.client.send(command);
 
       this.observability.logger.info(`Successfully published message ID: ${response.MessageId}`);
-      this.addMetric(`PUBLISHED_SUCCESSFULLY`, 1);
+      this.addPublishingResultMetric(true, 1);
     } catch (error) {
       this.observability.logger.error(`Error publishing to SQS - ${error}`);
 
-      this.addMetric(`PUBLISHING_FAILED`, 1);
+      this.addPublishingResultMetric(false, 1);
     }
   }
 
@@ -84,11 +77,11 @@ export abstract class QueueService<InputType> {
 
       if (response.Successful) {
         this.observability.logger.info(`Successfully published ${response.Successful.length} messages.`);
-        this.addMetric(`PUBLISHED_SUCCESSFULLY`, response.Successful.length);
+        this.addPublishingResultMetric(false, response.Successful.length);
       }
       if (response.Failed) {
         this.observability.logger.error(`Failed to publish ${response.Failed.length} messages.`);
-        this.addMetric(`PUBLISHING_FAILED`, response.Failed.length);
+        this.addPublishingResultMetric(false, response.Failed.length);
       }
     } catch (error) {
       this.observability.logger.error(`Error publishing to SQS - ${error}`);

@@ -1,5 +1,6 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ConfigurationService } from '@common/services/configurationService';
-import { ObservabilityService } from '@common/services/observabilityService';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
@@ -19,5 +20,16 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
 
     this.observability.logger.info('Dispatch Queue Service Initialised.');
     return this;
+  }
+
+  public addPublishingResultMetric(success: boolean, count: number) {
+    if (success) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.QUEUE_DISPATCH_PUBLISHED_SUCCESSFULLY,
+        MetricUnit.Count,
+        count
+      );
+    }
+    this.observability.metrics.addMetric(MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED, MetricUnit.Count, count);
   }
 }

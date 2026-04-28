@@ -1,6 +1,3 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
@@ -9,6 +6,7 @@ import z from 'zod';
 
 import { StringParameters } from '@common/utils';
 import { aws4Interceptor } from 'aws4-axios';
+import { ObservabilityService } from '@common/services/observabilityService';
 
 const UDPConfigSchema = z.object({
   apiAccountId: z.string(),
@@ -22,9 +20,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
   public client: axios.Axios;
   public udpConfig: z.infer<typeof UDPConfigSchema>;
   constructor(
-    protected logger: Logger,
-    protected metrics: Metrics,
-    protected tracer: Tracer,
+    protected observability: ObservabilityService,
     protected config: ConfigurationService,
     protected smConfig: SMConfigurationService
   ) {}
@@ -69,7 +65,9 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
   }
 
   async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {
-    this.logger.info(`Processing using UDP adapter - mapping userID to externalUserID`, { userID: request.userID });
+    this.observability.logger.info(`Processing using UDP adapter - mapping userID to externalUserID`, {
+      userID: request.userID,
+    });
 
     // Note at the minute - this just fetches data and logs it, instead of returning it
     try {
@@ -100,9 +98,9 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       };
     } catch (e) {
       if (axios.isAxiosError(e)) {
-        this.logger.error(`Axios Error data`, { e, data: e.response?.data });
+        this.observability.logger.error(`Axios Error data`, { e, data: e.response?.data });
       } else {
-        this.logger.error(`Non-axios Error`, { e });
+        this.observability.logger.error(`Non-axios Error`, { e });
       }
     }
 

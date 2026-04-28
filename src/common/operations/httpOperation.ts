@@ -1,5 +1,5 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
@@ -13,7 +13,7 @@ import {
   responseValidatorMiddleware,
   serializeBodyToJson,
 } from '@common/middlewares';
-import { ObservabilityService } from '@common/services';
+import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
 import httpEventNormalizer from '@middy/http-event-normalizer';
@@ -85,7 +85,7 @@ export abstract class APIHandler<
       )
       .use(captureLambdaHandler(this.observability.tracer))
       .use(
-        logMetrics(this.observability.metrics, {
+        logMetrics(this.observability.metrics as Metrics, {
           captureColdStartMetric: true,
           throwOnEmptyMetrics: false,
         })
@@ -115,7 +115,7 @@ export abstract class APIHandler<
 
   // Wrapper FN to consistently initialize operations
   public handler(): MiddyfiedHandler<IRequestEvent, IRequestResponse> {
-    this.observability.metrics.addMetric('API_CALL_TRIGGERED', MetricUnit.Count, 1);
+    this.observability.metrics.addMetric(MetricsLabels.API_CALL_TRIGGERED, MetricUnit.Count, 1);
     return this.middlewares(middy()).handler(async (event, context) => {
       // Call DI before each request is handled
       await initializeDependencies(this, this.dependencies);
