@@ -230,7 +230,7 @@ export const lambdaFactory = (
     environment: {
       NODE_OPTIONS: '--enable-source-maps',
       SERVICE_NAME: `NOTIFICATIONS_${props.serviceName}`.toUpperCase().replace(`-`, `_`),
-      NAMESPACE_NAME: `NOTIFICATIONS_${config.env}`.toUpperCase().replace(`-`, `_`),
+      NAMESPACE_NAME: `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace(`-`, `_`),
       PREFIX: config.env,
 
       // Open Telemetry instrumentation vars
