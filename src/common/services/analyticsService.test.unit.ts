@@ -1,6 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
+import { MetricsLabels } from '@common/services/observabilityService';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { v4 as uuid } from 'uuid';
 
@@ -25,6 +26,7 @@ describe('analyticsService', () => {
     vi.useRealTimers();
 
     instance = new AnalyticsService(observabilityMock, serviceMocks.analyticsQueueServiceMock);
+    serviceMocks.analyticsQueueServiceMock.addPublishingResultMetric = vi.fn().mockResolvedValue(undefined);
   });
 
   describe('publishMultipleEvents', () => {
@@ -83,7 +85,7 @@ describe('analyticsService', () => {
 
       // Assert
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
-        `ANALYTIC_EVENTS_${NotificationStateEnum.VALIDATED.toUpperCase()}`,
+        MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
         mockAnalyticsEvents.length
       );
@@ -135,7 +137,7 @@ describe('analyticsService', () => {
 
       // Assert
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
-        `ANALYTIC_EVENTS_${NotificationStateEnum.VALIDATED.toUpperCase()}`,
+        MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
         1
       );

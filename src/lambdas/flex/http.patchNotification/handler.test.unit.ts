@@ -91,6 +91,7 @@ describe('PatchNotification Handler', () => {
     handler = instance.handler();
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.analyticsQueueServiceMock.addPublishingResultMetric = vi.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
