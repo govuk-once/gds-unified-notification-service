@@ -1,4 +1,6 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { IRequestEvent } from '@common/middlewares';
+import { MetricsLabels } from '@common/services';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
@@ -83,8 +85,16 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith('MTLS_AUTH_REQUESTS_COUNT', `Count`, 1);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith('MTLS_AUTH_REQUESTS_DENIED_COUNT', `Count`, 1);
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_COUNT,
+      MetricUnit.Count,
+      1
+    );
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_COUNT,
+      MetricUnit.Count,
+      1
+    );
   });
 
   it('should generate sha256 based on the sample cert', async () => {
@@ -110,10 +120,14 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith('MTLS_AUTH_REQUESTS_COUNT', `Count`, 1);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith(
-      'MTLS_AUTH_REQUESTS_DENIED_UNKNOWN_CERTIFICATE_COUNT',
-      `Count`,
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_COUNT,
+      MetricUnit.Count,
+      1
+    );
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_UNKNOWN_CERTIFICATE_COUNT,
+      MetricUnit.Count,
       1
     );
   });
@@ -127,10 +141,14 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith('MTLS_AUTH_REQUESTS_COUNT', `Count`, 1);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith(
-      'MTLS_AUTH_REQUESTS_DENIED_REVOKED_CERTIFICATE_COUNT',
-      `Count`,
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_COUNT,
+      MetricUnit.Count,
+      1
+    );
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_REVOKED_CERTIFICATE_COUNT,
+      MetricUnit.Count,
       1
     );
   });
@@ -144,6 +162,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
     // Assert
     expect(result).toEqual(expectedAllowPolicy);
-    expect(observabilityMocks.metrics.addMetric).toBeCalledWith('MTLS_AUTH_REQUESTS_ALLOWED_COUNT', `Count`, 1);
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_ALLOWED_COUNT,
+      MetricUnit.Count,
+      1
+    );
   });
 });

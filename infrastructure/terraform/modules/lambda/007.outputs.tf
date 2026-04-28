@@ -17,3 +17,8 @@ output "lambda_role" {
   description = "Role used by the lambda"
   value       = aws_iam_role.lambda.name
 }
+
+output "lambda_service_name" {
+  description = "Service name used by the lambda"
+  value       = aws_lambda_function.this.environment[0].variables.SERVICE_NAME
+}

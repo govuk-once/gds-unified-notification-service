@@ -14,6 +14,7 @@ export enum NotificationProcessingStateEnum {
   DISPATCHING_FAILED = 'DISPATCHING_FAILED',
   UNKNOWN = 'UNKNOWN',
 }
+
 // Subset of parent enum - for post dispatched statuses
 export enum NotificationDispatchedStateEnum {
   RECEIVED = 'RECEIVED',
