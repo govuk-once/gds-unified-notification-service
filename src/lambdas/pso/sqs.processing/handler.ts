@@ -9,9 +9,15 @@ import {
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
+import {
+  AnalyticsService,
+  ConfigurationService,
+  DispatchQueueService,
+  MetricsLabels,
+  ObservabilityService,
+} from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { extractIdentifiers, IMessage, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IMessage, ISQSMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import z from 'zod';
@@ -20,6 +26,7 @@ import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 
 /**
  * 
@@ -70,12 +77,12 @@ export class Processing extends BatchQueueOperation<IMessage, PartialItemFailure
 
   public recordHandler = async (record: SQSRecord): Promise<void> => {
     // Validate Incoming messages
-    const data = await this.validateRecord(IMessageRecordSchema, record, {
+    const data = await this.validateRecord(ISQSMessageSchema, record, {
       onIdentified: async (identifiableRecord) => {
         await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
       },
       onSuccess: (record) => {
-        this.observability.logger.info(`Message was validated`, record.body.NotificationID);
+        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
       },
       onError: async (identifiableRecord, validationError) => {
         await this.analyticsService.publishEvent(
@@ -135,9 +142,18 @@ export class Processing extends BatchQueueOperation<IMessage, PartialItemFailure
     );
 
     const processor = new BatchProcessor(EventType.SQS);
-    return await processPartialResponse(event, this.recordHandler, processor, {
+    const failures = await processPartialResponse(event, this.recordHandler, processor, {
       context,
     });
+
+    if (failures.batchItemFailures.length > 0) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
+        MetricUnit.Count,
+        failures.batchItemFailures.length
+      );
+    }
+    return failures;
   }
 }
 

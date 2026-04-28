@@ -1,6 +1,6 @@
 import { QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IIdentifiableMessage, IIdentifiableRecordsSchema } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage, ISQSIdentifiableSchema } from '@project/lambdas/interfaces/IMessage';
 import { SQSRecord } from 'aws-lambda';
 import z, { ZodError, ZodObject } from 'zod';
 
@@ -24,10 +24,10 @@ export abstract class BatchQueueOperation<InputType, OutputType> extends QueueHa
       ) => Promise<void> | void;
     }
   ): Promise<z.infer<SchemaType>> {
-    const parsedResult = await IIdentifiableRecordsSchema.safeParseAsync(record);
+    const parsedResult = await ISQSIdentifiableSchema.safeParseAsync(record);
     if (!parsedResult.success) {
       const errorMsg = `Supplied message does not contain NotificationID or DepartmentID, rejecting record`;
-      this.observability.logger.info(
+      this.observability.logger.error(
         `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
         {
           raw: record.body,

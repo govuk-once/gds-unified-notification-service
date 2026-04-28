@@ -365,7 +365,7 @@ describe('Processing QueueHandler', () => {
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
+    expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
         error: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
