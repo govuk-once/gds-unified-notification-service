@@ -102,7 +102,7 @@ export const lambdaFactory = (
       new Policy(stack, config.utils.namingHelper(`iamr`, props.serviceName, ...props.name, `to-queue`), {
         statements: [
           new PolicyStatement({
-            actions: ['sts:SendMessage'],
+            actions: ['sqs:SendMessage'],
             resources: props.iam.sqsSend,
           }),
         ],
@@ -231,7 +231,7 @@ export const lambdaFactory = (
       NODE_OPTIONS: '--enable-source-maps',
       SERVICE_NAME: `NOTIFICATIONS_${props.serviceName}`.toUpperCase().replace(`-`, `_`),
       NAMESPACE_NAME: `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace(`-`, `_`),
-      PREFIX: config.env,
+      PREFIX: `${config.project}-${config.env}`,
 
       // Open Telemetry instrumentation vars
       AWS_LAMBDA_EXEC_WRAPPER: '/opt/otel-handler',

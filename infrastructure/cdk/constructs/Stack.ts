@@ -143,7 +143,7 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
       },
     });
 
@@ -157,7 +157,7 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
       },
     });
 
@@ -171,7 +171,7 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
         sqsSend: [refs.queues.processing.queue.queueArn, refs.queues.analytics.queue.queueArn],
       },
     });
@@ -187,7 +187,7 @@ export class UNS extends Stack {
         dlq: refs.queues.incoming.dlq,
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
         sqsSend: [
           refs.queues.processing.queue.queueArn,
           refs.queues.analytics.queue.queueArn,
@@ -215,7 +215,7 @@ export class UNS extends Stack {
         },
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
         sqsSend: [
           refs.queues.dispatch.queue.queueArn,
           refs.queues.analytics.queue.queueArn,
@@ -243,7 +243,7 @@ export class UNS extends Stack {
         dlq: refs.queues.dispatch.dlq,
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
         sqsSend: [refs.queues.analytics.queue.queueArn, refs.queues.dispatch.dlq!.queueArn],
       },
       triggers: {
@@ -266,7 +266,7 @@ export class UNS extends Stack {
         },
       },
       iam: {
-        ssmNamespaces: [this.config.project, this.config.env],
+        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
         sqsSend: [refs.queues.analytics.dlq!.queueArn],
       },
       triggers: {
