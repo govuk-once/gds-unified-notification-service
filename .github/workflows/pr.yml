@@ -151,5 +151,5 @@ jobs:
           repository: 'govuk-once/gds-unified-notification-service'
           number: ${{ github.event.number }}
           id: qualitygatecomment
-          message: 'SonarQube Quality Gate Status: ${{steps.sonarqube-quality-gate-check.outputs.quality-gate-status}}'
+          message: 'SonarQube Quality Gate Status: ${{steps.sonarqube-quality-gate-check.outputs.quality-gate-status}} [LINK](https://sonarcloud.io/summary/new_code?id=govuk-once_gds-unified-notification-service&pullRequest=${{github.event.number}})'
           recreate: true
