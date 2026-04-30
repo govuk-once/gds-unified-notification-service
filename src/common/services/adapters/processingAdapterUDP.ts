@@ -4,9 +4,9 @@ import { SMConfigurationService } from '@common/services/smConfigurationService'
 import * as axios from 'axios';
 import z from 'zod';
 
+import { ObservabilityService } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
 import { aws4Interceptor } from 'aws4-axios';
-import { ObservabilityService } from '@common/services/observabilityService';
 
 const UDPConfigSchema = z.object({
   apiAccountId: z.string(),
@@ -75,7 +75,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       const result = await this.client.get(`/v1/notifications`, {
         headers: {
           // TODO: Figure out nicer way of passing that in to support multiple PSO's in the future
-          'requesting-service': 'DVLA',
+          'requesting-service': 'dvla',
           'requesting-service-user-id': request.userID,
         },
       });
