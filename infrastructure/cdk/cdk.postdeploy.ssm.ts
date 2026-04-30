@@ -106,7 +106,6 @@ await (async () => {
   let nextToken: string | undefined | -1 = -1;
   const existingKeysInNamespace: string[] = [];
   while (nextToken == -1 && nextToken !== undefined) {
-    console.log(`Fetching`);
     const [params, errors] = await unwrap(
       ssm.send(
         new GetParametersByPathCommand({
