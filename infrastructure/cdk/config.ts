@@ -34,6 +34,7 @@ export const config = {
         .namingHelper(...args)
         .split('-')
         .join('_'),
+    namespace: () => [config.project, config.env].join(`-`),
     tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
       for (const [key, value] of Object.entries({
         project: config.project,
