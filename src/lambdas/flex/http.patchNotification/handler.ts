@@ -34,7 +34,10 @@ const responseBodySchema = z.any();
   },
   "pathParemters": {
     "id": "12342"
-  } ,
+  },
+  "queryStringParameters": {
+    "externalUserID": "USER_ID"
+  } 
   "body": {
     "status": "READ"  
   }

@@ -32,7 +32,7 @@ const responseBodySchema = z.array(IFlexNotificationSchema);
     "requestTimeEpoch": 1428582896000
   },
   "queryStringParameters": {
-    "ExternalUserID": "user-ABC"
+    "externalUserID": "USER_ID"
   }  
 }
 */
