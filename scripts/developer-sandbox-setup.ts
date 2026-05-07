@@ -30,16 +30,8 @@ import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
+import { unwrap } from 'scripts/helpers';
 import { v7 as ulid } from 'uuid';
-
-// Helper FN to simplify promise handling, and avoid nested try catches
-const unwrap = async <Result>(promise: Promise<Result>): Promise<[Result, undefined] | [undefined, Error]> => {
-  try {
-    return [await promise, undefined];
-  } catch (error) {
-    return [undefined, error];
-  }
-};
 
 export const prefix = `gdsuns`;
 export const suffix = `s3-tfstate`;

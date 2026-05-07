@@ -37,3 +37,12 @@ export function execute(prefix: string, command: string[]) {
   pipeOutput(proc.stderr, `[${prefix}]`);
   return proc.exited.then((exitCode) => [prefix, exitCode, Date.now() - start] as [string, number, number]);
 }
+
+// Helper FN to simplify promise handling, and avoid nested try catches
+export const unwrap = async <Result>(promise: Promise<Result>): Promise<[Result, undefined] | [undefined, Error]> => {
+  try {
+    return [await promise, undefined];
+  } catch (error) {
+    return [undefined, error as Error];
+  }
+};
