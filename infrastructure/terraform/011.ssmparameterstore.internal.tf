@@ -51,7 +51,7 @@ module "parameter_store_internal_configuration" {
         {
           name = local.mtls_table_name
         },
-        try(jsondecode(local.mtls_table_attributes), {})
+        jsondecode(local.mtls_table_attributes)
       )
     )
   }
