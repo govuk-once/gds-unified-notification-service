@@ -31,7 +31,10 @@ const requestBodySchema = z.any();
   },
   "pathParameters": {
     "notificationID": "12342"
-  }  
+  },
+  "queryStringParameters": {
+    "externalUserID": "USER_ID"
+  } 
 }
 */
 

@@ -6,6 +6,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
@@ -31,7 +32,7 @@ const responseBodySchema = z.array(IFlexNotificationSchema);
     "requestTimeEpoch": 1428582896000
   },
   "queryStringParameters": {
-    "ExternalUserID": "user-ABC"
+    "externalUserID": "USER_ID"
   }  
 }
 */
@@ -85,6 +86,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
           return true;
         })
         .map((n) => IMessageRecordToIFlexNotification(n))
+        .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
         .sort((a, b) => {
           // Sort by dispatch time, most recent first
           if (a.DispatchedDateTime && b.DispatchedDateTime) {

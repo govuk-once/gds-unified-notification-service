@@ -209,4 +209,42 @@ describe('getNotifications Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(500);
   });
+
+  it('should exclude notifications with HIDDEN status', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([
+      {
+        ...mockDbRecord,
+        Events: [
+          {
+            EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+            NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+            DepartmentID: 'abc',
+            Event: NotificationDispatchedStateEnum.RECEIVED,
+            EventDateTime: new Date().toISOString(),
+            EventReason: '',
+            APIGWExtendedID: 'Test',
+          },
+          {
+            EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+            NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+            DepartmentID: 'abc',
+            Event: NotificationDispatchedStateEnum.HIDDEN,
+            EventDateTime: new Date().toISOString(),
+            EventReason: '',
+            APIGWExtendedID: 'Test',
+          },
+        ],
+      },
+    ]);
+
+    // Act
+    const { body, statusCode } = await handler(mockAuthorizedEvent, mockContext);
+    const result = JSON.parse(body) as [];
+
+    // Assert
+    expect(statusCode).toEqual(200);
+  });
 });
