@@ -1,12 +1,13 @@
 import {
   HandlerDependencies,
   iocGetCacheService,
+  iocGetCampaignsDynamoRepository,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { NotificationsDynamoRepository } from '@common/repositories';
+import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
@@ -41,6 +42,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
+  public campaigns: CampaignsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -92,4 +94,5 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   cache: iocGetCacheService().connect(),
   notifications: iocGetNotificationDynamoRepository(),
+  campaigns: iocGetCampaignsDynamoRepository(),
 })).handler();
