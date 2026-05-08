@@ -1,14 +1,24 @@
+import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
 import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
 import { CodeSigningConfig, UntrustedArtifactOnDeployment } from 'aws-cdk-lib/aws-lambda';
 import { Platform, SigningProfile } from 'aws-cdk-lib/aws-signer';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Duration, Stack, StackProps } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { dynamodbFactory } from 'infrastructure/cdk/factories/dynamoDBFactory';
 import { kmsKeyFactory } from 'infrastructure/cdk/factories/kmsKeyFactory';
 import { lambdaFactory } from 'infrastructure/cdk/factories/lambdaFactory';
 import { queueFactory } from 'infrastructure/cdk/factories/sqsFactory';
 import { vpcFactory } from 'infrastructure/cdk/factories/vpcFactory';
 
+/**
+ * Note on convention:
+ * UNS Stack offloads generation of resource sets (whether by resource type or group) into protected functions
+ * Constructor method of this class then ties all of the relevant resources together and passes references alongside - this makes it easy to see which resource sets are dependent on which
+ *
+ * Ideally all of the resource sets should be relying on simplified factory methods
+ */
 export class UNS extends Stack {
   protected kms() {
     // KMS
@@ -132,6 +142,7 @@ export class UNS extends Stack {
     kms: ReturnType<UNS['kms']>;
     queues: ReturnType<UNS['queues']>;
     vpc: ReturnType<UNS['vpc']>;
+    dynamoDB: ReturnType<UNS['dynamoDB']>;
   }) {
     const getHealthcheck = lambdaFactory(this, this.config, {
       serviceName: 'pso',
@@ -143,7 +154,7 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
       },
     });
 
@@ -157,7 +168,15 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
+        dynamodb: {
+          messages: {
+            arn: refs.dynamoDB.messages.tableArn,
+            read: true,
+            write: false,
+            scan: false,
+          },
+        },
       },
     });
 
@@ -171,8 +190,16 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
         sqsSend: [refs.queues.processing.queue.queueArn, refs.queues.analytics.queue.queueArn],
+        dynamodb: {
+          messages: {
+            arn: refs.dynamoDB.messages.tableArn,
+            read: true,
+            write: true,
+            scan: false,
+          },
+        },
       },
     });
 
@@ -187,12 +214,20 @@ export class UNS extends Stack {
         dlq: refs.queues.incoming.dlq,
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
         sqsSend: [
           refs.queues.processing.queue.queueArn,
           refs.queues.analytics.queue.queueArn,
           refs.queues.incoming.dlq!.queueArn,
         ],
+        dynamodb: {
+          messages: {
+            arn: refs.dynamoDB.messages.tableArn,
+            read: true,
+            write: true,
+            scan: false,
+          },
+        },
       },
       triggers: {
         queues: [refs.queues.incoming.queue],
@@ -215,12 +250,20 @@ export class UNS extends Stack {
         },
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
         sqsSend: [
           refs.queues.dispatch.queue.queueArn,
           refs.queues.analytics.queue.queueArn,
           refs.queues.processing.dlq!.queueArn,
         ],
+        dynamodb: {
+          messages: {
+            arn: refs.dynamoDB.messages.tableArn,
+            read: true,
+            write: true,
+            scan: false,
+          },
+        },
       },
       triggers: {
         queues: [refs.queues.processing.queue],
@@ -243,8 +286,16 @@ export class UNS extends Stack {
         dlq: refs.queues.dispatch.dlq,
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
         sqsSend: [refs.queues.analytics.queue.queueArn, refs.queues.dispatch.dlq!.queueArn],
+        dynamodb: {
+          messages: {
+            arn: refs.dynamoDB.messages.tableArn,
+            read: true,
+            write: true,
+            scan: false,
+          },
+        },
       },
       triggers: {
         queues: [refs.queues.dispatch.queue],
@@ -266,8 +317,16 @@ export class UNS extends Stack {
         },
       },
       iam: {
-        ssmNamespaces: [[this.config.project, this.config.env].join(`-`)],
+        ssmNamespaces: [this.config.utils.namespace()],
         sqsSend: [refs.queues.analytics.dlq!.queueArn],
+        dynamodb: {
+          messages: {
+            arn: refs.dynamoDB.messages.tableArn,
+            read: true,
+            write: true,
+            scan: false,
+          },
+        },
       },
       triggers: {
         queues: [refs.queues.analytics.queue],
@@ -289,6 +348,46 @@ export class UNS extends Stack {
     };
   }
 
+  protected SSM<T extends Record<string, string>>(values: T) {
+    const parameters = {} as Record<keyof T, StringParameter>;
+    for (const [key, value] of Object.entries(values)) {
+      // Create param
+      const param = new StringParameter(this, key, {
+        parameterName: `/${this.config.utils.namingHelper(`ssm-test`)}/${key}`,
+        stringValue: value,
+        simpleName: false,
+      });
+
+      // Save into dict
+      parameters[key as keyof T] = param;
+    }
+    return parameters;
+  }
+
+  public dynamoDB(refs: { kms: ReturnType<UNS['kms']> }) {
+    const messages = dynamodbFactory(this, this.config, {
+      name: ['messages'],
+      partitionKey: `NotificationID`,
+      partitionKeyType: AttributeType.STRING,
+
+      pointInTimeRecovery: true,
+      ttlAttribute: 'ExpirationDateTime',
+
+      resources: {
+        kms: refs.kms,
+      },
+      globalSecondaryIndexes: [
+        {
+          name: 'DepartmentIDIndex',
+          hashKey: 'NotificationID',
+          rangeKey: 'DepartmentID',
+          projectionType: ProjectionType.KEYS_ONLY,
+        },
+      ],
+    });
+    return { messages };
+  }
+
   constructor(
     scope: Construct,
     protected id: string,
@@ -303,8 +402,19 @@ export class UNS extends Stack {
     const vpc = this.vpc();
     const queues = this.queues({ kms });
 
+    // SSM Setup values
+    this.SSM({
+      // TODO: Imlement the following from elasticache
+      // TODO: Dynamodb (Messages / mTLS) refs
+      'queue/processing/url': queues.processing.queue.queueUrl,
+      'queue/dispatch/url': queues.dispatch.queue.queueUrl,
+      'queue/analytics/url': queues.analytics.queue.queueUrl,
+    });
+
+    const dynamoDB = this.dynamoDB({ kms });
+
     // Lambdas - PSO
     const codeSigning = this.codeSigning();
-    const psoLambdas = this.psoLambdas({ codeSigning, kms, queues, vpc });
+    this.psoLambdas({ codeSigning, kms, queues, vpc, dynamoDB });
   }
 }
