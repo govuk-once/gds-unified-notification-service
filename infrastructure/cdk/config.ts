@@ -10,12 +10,15 @@ if (existsSync('./.env')) {
   dotenv.config({ path: join('./.env') });
 }
 
+export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
+
 export const config = {
-  // Metadtaa
+  // Metadata
   project: 'uns',
   env: process.env.env ?? 'dev',
   region: process.env.region ?? 'eu-west-2',
   version: process.env.version ?? 'manual',
+  isMainEnv: () => unremoveableEnvironments.includes(config.env),
 
   // mTLS confing
   mtls: process.env.use_mtls == 'true',
@@ -29,6 +32,12 @@ export const config = {
 
   utils: {
     namingHelper: (...args: string[]) => [config.project, config.env, ...args].join('-').toLowerCase(),
+    namingHelperSnakeCase: (...args: string[]) =>
+      config.utils
+        .namingHelper(...args)
+        .split('-')
+        .join('_'),
+    namespace: () => [config.project, config.env].join(`-`),
     tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
       for (const [key, value] of Object.entries({
         project: config.project,
