@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid';
 
 export type AnalyticsEventFromIMessage = Pick<IMessage, 'DepartmentID' | 'NotificationID'> & {
   APIGWExtendedID?: string;
+  CampaignID?: string;
 };
 
 export class AnalyticsService {
@@ -46,6 +47,7 @@ export class AnalyticsService {
       EventDateTime: new Date().toISOString(),
       Event: status,
       EventReason: reason ? JSON.stringify(reason) : undefined,
+      CampaignID: message.CampaignID,
     };
   }
 

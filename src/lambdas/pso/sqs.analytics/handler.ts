@@ -79,6 +79,18 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
       await this.notifications.addEvent(entry);
     }
 
+    for (const entry of entries) {
+      if (entry.CampaignID) {
+        const compositeID = `${entry.DepartmentID}/${entry.CampaignID}`;
+        const existingCampaign = await this.campaigns.getRecord(compositeID);
+
+        if (!existingCampaign) {
+          await this.campaigns.createRecord({ CompositeID: compositeID });
+          this.observability.logger.info(`Created campaign record`, { CompositeID: compositeID });
+        }
+      }
+    }
+
     // For each updated row - also update the redis cache
     for (const notification of entries) {
       const cacheKey = `/${notification.DepartmentID}/${notification.NotificationID}/Status`;

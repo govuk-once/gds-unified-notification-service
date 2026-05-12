@@ -9,6 +9,7 @@ export const IAnalyticsSchema = z.object({
   EventDateTime: z.string(),
   Event: z.enum(NotificationStateEnum).optional().default(NotificationStateEnum.UNKNOWN),
   EventReason: z.string().optional(),
+  CampaignID: z.string().optional(),
 });
 
 export type IAnalytics = z.infer<typeof IAnalyticsSchema>;
