@@ -126,6 +126,9 @@ components:
         UserID:
           type: string
           description: ID of the recipient fetched from UDP
+        CampaignID:
+          type: string
+          description: (Optional) ID of the associated campaign
         NotificationTitle:
           type: string
           description: Title of the notification to be displayed on mobile device

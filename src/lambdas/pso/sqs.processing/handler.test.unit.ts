@@ -42,6 +42,7 @@ describe('Processing QueueHandler', () => {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DVLA01',
     UserID: 'UserID',
+    CampaignID: 'CAM_ID',
     NotificationTitle: 'Hey',
     NotificationBody: "You've got a message in the message centre",
     MessageTitle: '',
@@ -174,6 +175,7 @@ describe('Processing QueueHandler', () => {
           DepartmentID: mockMessageBody.DepartmentID,
           NotificationID: mockMessageBody.NotificationID,
           UserID: mockMessageBody.UserID,
+          CampaignID: mockMessageBody.CampaignID,
         },
       ],
       'PROCESSING'
@@ -189,6 +191,7 @@ describe('Processing QueueHandler', () => {
           NotificationID: mockMessageBody.NotificationID,
           NotificationTitle: mockMessageBody.NotificationTitle,
           UserID: mockMessageBody.UserID,
+          CampaignID: mockMessageBody.CampaignID,
         },
       ],
       'PROCESSED'
