@@ -119,22 +119,39 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItem
     }
 
     // Prepare request
-    const result = await this.circuitBreakerService.use(async () => {
-      const result = await this.notificationsService.send({
-        ExternalUserID: message.ExternalUserID,
-        NotificationID: message.NotificationID,
-        NotificationTitle: message.NotificationTitle,
-        NotificationBody: message.NotificationBody,
-      });
-      if (result.success) {
-        return result;
-      }
+    try {
+      const result = await this.circuitBreakerService.use(async () => {
+        const result = await this.notificationsService.send({
+          ExternalUserID: message.ExternalUserID,
+          NotificationID: message.NotificationID,
+          NotificationTitle: message.NotificationTitle,
+          NotificationBody: message.NotificationBody,
+        });
+        if (result.success) {
+          return result;
+        }
 
-      if (result.errors) {
-        throw new Error(JSON.stringify(result.errors));
-      }
-      throw new Error('Request to notification provider failed with no error message');
-    });
+        if (result.errors) {
+          throw new Error(JSON.stringify(result.errors));
+        }
+        throw new Error('Request to notification provider failed with no error message');
+      });
+
+      this.observability.logger.info(`Notification dispatched`, {
+        NotificationID: message.NotificationID,
+        DepartmentID: message.DepartmentID,
+        ProviderRequestID: result.result?.requestId,
+      });
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHED);
+    } catch (error) {
+      this.observability.logger.error(`Notification failed to dispatch`, {
+        NotificationID: message.NotificationID,
+        DepartmentID: message.DepartmentID,
+      });
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
+
+      throw error;
+    }
 
     // Update stored record with timestamp - also reset expiration date
     await this.notificationsDynamoRepository.updateRecord(
@@ -151,26 +168,6 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItem
       await this.config.getNumericParameter(NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute),
       1
     );
-
-    // Analytics event
-    try {
-      if (result.result?.success) {
-        this.observability.logger.info(`Notification dispatched`, {
-          NotificationID: message.NotificationID,
-          DepartmentID: message.DepartmentID,
-          ProviderRequestID: result.result.requestId,
-        });
-        await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHED);
-      } else {
-        throw new Error('Dispatch failed.');
-      }
-    } catch {
-      this.observability.logger.error(`Notification failed to dispatch`, {
-        NotificationID: message.NotificationID,
-        DepartmentID: message.DepartmentID,
-      });
-      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
-    }
   };
 
   public async implementation(

@@ -1,4 +1,5 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import { QueueEvent } from '@common/operations';
@@ -86,6 +87,10 @@ describe('Dispatch QueueHandler', () => {
       },
     ],
   } as unknown as QueueEvent<IProcessedMessage>;
+
+  const mockPartialFailedEvent: QueueEvent<IProcessedMessage> = {
+    Records: [mockEvent.Records[0], mockFailedEvent.Records[0]],
+  };
 
   const mockUnidentifiableEvent: QueueEvent<IProcessedMessage> = {
     Records: [
@@ -248,24 +253,15 @@ describe('Dispatch QueueHandler', () => {
     );
   });
 
-  it('should trigger analytics for failure events when NotificationService fails.', async () => {
-    // Arrange
-    serviceMocks.notificationServiceMock.send.mockResolvedValue({
-      success: false,
-      errors: ['Service unavailable'],
-    } as unknown as NotificationAdapterResult);
-
+  it('should add a metric for the number of failed processes for a partial failure.', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(mockPartialFailedEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
-      {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-      },
-      'DISPATCHING_FAILED'
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      'BATCH_ITEM_FAILURES_DISPATCH',
+      MetricUnit.Count,
+      1
     );
   });
 
@@ -286,6 +282,56 @@ describe('Dispatch QueueHandler', () => {
 ✖ Invalid input: expected string, received undefined
   → at body.NotificationBody`
     );
+  });
+
+  it('should return an error when rate limiting is enforced', async () => {
+    // Arrange
+    serviceMocks.cacheServiceMock.rateLimit.mockResolvedValueOnce({ capacityRemaining: 0, exceeded: true });
+
+    // Act
+    const result = handler(mockEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+  });
+
+  it('should return an error when the notification service fails to send.', async () => {
+    // Arrange
+    serviceMocks.notificationServiceMock.send.mockResolvedValueOnce({
+      notification: {
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        ExternalUserID: mockEvent.Records[0].body.ExternalUserID,
+        NotificationTitle: mockEvent.Records[0].body.NotificationTitle,
+        NotificationBody: mockEvent.Records[0].body.NotificationBody,
+      },
+      success: false,
+      errors: ['Notification failed to send.'],
+    });
+
+    // Act
+    const result = handler(mockEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+  });
+
+  it('should return an error when the notification service fails to send with no error message.', async () => {
+    // Arrange
+    serviceMocks.notificationServiceMock.send.mockResolvedValueOnce({
+      notification: {
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        ExternalUserID: mockEvent.Records[0].body.ExternalUserID,
+        NotificationTitle: mockEvent.Records[0].body.NotificationTitle,
+        NotificationBody: mockEvent.Records[0].body.NotificationBody,
+      },
+      success: false,
+    });
+
+    // Act
+    const result = handler(mockEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
   });
 
   it('should return an error and log when a message has no NotificationID or DepartmentID', async () => {
@@ -347,9 +393,10 @@ describe('Dispatch QueueHandler', () => {
       } as unknown as NotificationAdapterResult);
 
       // Act
-      await handler(mockEvent, mockContext);
+      const result = handler(mockEvent, mockContext);
 
       // Assert
+      await expect(result).rejects.toThrow(FullBatchFailureError);
       expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalled();
       expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).not.toHaveBeenCalled();
     });
@@ -360,9 +407,10 @@ describe('Dispatch QueueHandler', () => {
       serviceMocks.notificationServiceMock.send.mockRejectedValue(unexpectedError);
 
       // Act
-      await handler(mockEvent, mockContext);
+      const result = handler(mockEvent, mockContext);
 
       // Assert
+      await expect(result).rejects.toThrow(FullBatchFailureError);
       expect(serviceMocks.circuitBreakerServiceMock.recordFailure).toHaveBeenCalled();
     });
 

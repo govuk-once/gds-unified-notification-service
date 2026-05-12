@@ -179,7 +179,7 @@ export class CircuitBreakerService {
       if (!(error instanceof CircuitBreakerOpenError)) {
         await this.recordFailure();
       }
-      return { error: error, circuitBreakerState: await this.getState() };
+      throw error;
     }
   }
 

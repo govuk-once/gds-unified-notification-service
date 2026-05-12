@@ -144,6 +144,7 @@ export class Validation extends BatchQueueOperation<IMessage, PartialItemFailure
     return failures;
   }
 }
+
 export const handler = new Validation(
   iocGetConfigurationService(),
   iocGetObservabilityService(),

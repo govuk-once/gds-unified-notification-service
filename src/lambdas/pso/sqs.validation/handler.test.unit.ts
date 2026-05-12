@@ -1,4 +1,5 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
@@ -82,6 +83,10 @@ describe('Validation QueueHandler', () => {
       },
     ],
   } as unknown as QueueEvent<IMessage>;
+
+  const mockPartialFailedEvent: QueueEvent<IMessage> = {
+    Records: [mockEvent.Records[0], mockFailedEvent.Records[0]],
+  };
 
   const mockUnidentifiableEvent: QueueEvent<IMessage> = {
     Records: [
@@ -244,6 +249,18 @@ describe('Validation QueueHandler', () => {
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',
       })
+    );
+  });
+
+  it('should add a metric for the number of failed processes for a partial failure.', async () => {
+    // Act
+    await handler(mockPartialFailedEvent, mockContext);
+
+    // Assert
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      'BATCH_ITEM_FAILURES_VALIDATION',
+      MetricUnit.Count,
+      1
     );
   });
 
