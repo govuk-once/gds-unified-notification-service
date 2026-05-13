@@ -285,7 +285,6 @@ describe('Dispatch QueueHandler', () => {
       {
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
-        CampaignID: mockFailedEvent.Records[0].body.CampaignID,
       },
       'DISPATCHING_FAILED',
       `✖ Invalid UUID

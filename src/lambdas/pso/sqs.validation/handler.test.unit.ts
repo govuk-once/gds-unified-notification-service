@@ -301,7 +301,6 @@ describe('Validation QueueHandler', () => {
       {
         DepartmentID: 'TEST01',
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        CampaignID: 'CAM_ID',
       },
       'VALIDATION_FAILED',
       expect.stringContaining(`https://google.com is using google.com hostname which is not on the allow list.`)
