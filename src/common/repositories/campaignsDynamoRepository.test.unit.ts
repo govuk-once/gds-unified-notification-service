@@ -8,6 +8,7 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { iocGetCampaignsDynamoRepository } from '@common/ioc';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -15,7 +16,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { ICampaignRecord } from '@project/lambdas/interfaces/ICampaignRecord';
+import { ICampaignRecord, ICampaignRecordSchema } from '@project/lambdas/interfaces/ICampaignRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -46,6 +47,48 @@ describe('campaignDynamoRepository', () => {
     instance = new CampaignsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
 
     await instance.initialize();
+  });
+
+  describe('CampaignsDynamoRepository IoC', () => {
+    it('should resolve from IoC container', async () => {
+      // Arrange
+      vi.spyOn(Object.getPrototypeOf(CampaignsDynamoRepository.prototype), 'initialize').mockResolvedValue(undefined);
+
+      // Act
+      const result = await iocGetCampaignsDynamoRepository();
+
+      //Assert
+      expect(result).toBeDefined();
+    });
+
+    it('should include campaignsDynamoRepositoryMock in Spies', () => {
+      // Arrange, Act, Assert
+      expect(serviceMocks.campaignsDynamoRepositoryMock).toBeDefined();
+    });
+  });
+
+  describe('ICampaignRecordSchema', () => {
+    it('should validate a valid campaign record', () => {
+      // Arrange
+      const record = { CompositeID: 'DEPT01/CAMP01' };
+
+      // Act
+      const result = ICampaignRecordSchema.safeParse(record);
+
+      // Assert
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject an invlaid campaign record', () => {
+      // Arrange
+      const record = { CompositeID: undefined };
+
+      // Act
+      const result = ICampaignRecordSchema.safeParse(record);
+
+      // Assert
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('initialize', () => {
