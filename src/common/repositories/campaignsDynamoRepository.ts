@@ -15,4 +15,9 @@ export class CampaignsDynamoRepository extends DynamodbRepository<ICampaignRecor
     await super.initialize(StringParameters.Table.Campaigns.Attributes);
     return this;
   }
+
+  public async incrementCampaigns(campaignID: string, departmentID: string) {
+    const record: ICampaignRecord = { CompositeID: `${departmentID}/${campaignID}` };
+    return await this.incrementRecord(record);
+  }
 }

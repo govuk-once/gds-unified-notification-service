@@ -22,7 +22,7 @@ import { Context } from 'aws-lambda';
     {
       "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
       "receiptHandle": "MessageReceiptHandle",
-      "body": "{\"DepartmentID\":\"TEST01\",\"NotificationID\":\"not1\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"EventReason\":\"testing\"}",
+      "body": "{\"DepartmentID\":\"TEST01\",\"NotificationID\":\"not1\",\"EventID\":\"EVENT01\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"EventReason\":\"testing\"}",
       "attributes": {
         "ApproximateReceiveCount": "1",
         "SentTimestamp": "1523232000000",
@@ -77,6 +77,11 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     // Update notification object with status event
     for (const entry of entries) {
       await this.notifications.addEvent(entry);
+
+      // Increments campaign
+      if (entry.CampaignID) {
+        await this.campaigns.incrementCampaigns(entry.CampaignID, entry.DepartmentID);
+      }
     }
 
     // For each updated row - also update the redis cache

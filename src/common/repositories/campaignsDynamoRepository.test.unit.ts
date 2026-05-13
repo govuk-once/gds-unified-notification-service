@@ -74,7 +74,7 @@ describe('campaignsDynamoRepository', () => {
     });
   });
 
-  describe('GertCampaignRecord', () => {
+  describe('GetCampaignRecord', () => {
     it('should get record with correct table name', async () => {
       // Arrange
       const mockRecord: ICampaignRecord = { CompositeID: 'DEPT01/CAMP01' };
@@ -110,6 +110,29 @@ describe('campaignsDynamoRepository', () => {
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failure in getting record for table: ${'mockCampaignsDynamoRepositoryName'}. Error: ${errorMessage}`
       );
+    });
+  });
+
+  describe('IncrementCampaignRecord', () => {
+    it('should increment record with correct table name', async () => {
+      // Arrange
+      const campaignID = 'CAMP01';
+      const departmentID = 'DEPT01';
+
+      // Act
+      await instance.incrementCampaigns(campaignID, departmentID);
+
+      // Assert
+      expect(dynamoMock.calls()).toHaveLength(1);
+      const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
+      expect(command.input.TableName).toBe('mockCampaignsDynamoRepositoryName');
+      expect(command.input.Key).toEqual(marshall({ CompositeID: 'DEPT01/CAMP01' }));
+      expect(command.input.ExpressionAttributeNames).toEqual({ '#count': 'Count' });
+      expect(command.input.ExpressionAttributeValues).toEqual({
+        ':incr': { N: '1' },
+        ':start_value': { N: '0' },
+      });
+      expect(command.input.UpdateExpression).toEqual(`set #count = if_not_exists(#count, :start_value) + :incr`);
     });
   });
 });

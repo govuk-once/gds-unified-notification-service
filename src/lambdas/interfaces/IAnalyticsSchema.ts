@@ -6,6 +6,7 @@ export const IAnalyticsSchema = z.object({
   NotificationID: z.string(),
   DepartmentID: z.string(),
   APIGWExtendedID: z.string().optional(),
+  CampaignID: z.string().optional(),
   EventDateTime: z.string(),
   Event: z.enum(NotificationStateEnum).optional().default(NotificationStateEnum.UNKNOWN),
   EventReason: z.string().optional(),

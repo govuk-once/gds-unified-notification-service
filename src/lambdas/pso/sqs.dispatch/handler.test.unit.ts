@@ -106,6 +106,7 @@ describe('Dispatch QueueHandler', () => {
     // Reset all mocks
     vi.clearAllMocks();
     vi.useRealTimers();
+
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
