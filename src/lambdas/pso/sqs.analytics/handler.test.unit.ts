@@ -49,7 +49,6 @@ describe('Analytics QueueHandler', () => {
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
       notifications: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
-      campaigns: Promise.resolve(serviceMocks.campaignsDynamoRepositoryMock),
     }));
     handler = instance.handler();
 

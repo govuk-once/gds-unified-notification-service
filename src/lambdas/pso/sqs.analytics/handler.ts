@@ -1,13 +1,12 @@
 import {
   HandlerDependencies,
   iocGetCacheService,
-  iocGetCampaignsDynamoRepository,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
@@ -42,7 +41,6 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
-  public campaigns: CampaignsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -79,18 +77,6 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
       await this.notifications.addEvent(entry);
     }
 
-    for (const entry of entries) {
-      if (entry.CampaignID) {
-        const compositeID = `${entry.DepartmentID}/${entry.CampaignID}`;
-        const existingCampaign = await this.campaigns.getRecord(compositeID);
-
-        if (!existingCampaign) {
-          await this.campaigns.createRecord({ CompositeID: compositeID });
-          this.observability.logger.info(`Created campaign record`, { CompositeID: compositeID });
-        }
-      }
-    }
-
     // For each updated row - also update the redis cache
     for (const notification of entries) {
       const cacheKey = `/${notification.DepartmentID}/${notification.NotificationID}/Status`;
@@ -106,5 +92,4 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   cache: iocGetCacheService().connect(),
   notifications: iocGetNotificationDynamoRepository(),
-  campaigns: iocGetCampaignsDynamoRepository(),
 })).handler();

@@ -142,32 +142,5 @@ describe('analyticsService', () => {
         1
       );
     });
-
-    it('should include CampaignID when used', async () => {
-      // Arrange
-      vi.useFakeTimers();
-      const date = new Date();
-      vi.setSystemTime(date);
-
-      const eventWithCampaign: AnalyticsEventFromIMessage = {
-        ...mockAnalyticsEvent,
-        CampaignID: 'CAMP01',
-      };
-
-      vi.mocked(uuid as () => string).mockReturnValueOnce(mockEventID);
-
-      // Act
-      await instance.publishEvent(eventWithCampaign, NotificationStateEnum.DISPATCHED);
-
-      // Assert
-      expect(serviceMocks.analyticsQueueServiceMock.publishMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          CampaignID: 'CAMP01',
-          NotificationID: mockAnalyticsEvent.NotificationID,
-          DepartmentID: mockAnalyticsEvent.DepartmentID,
-          Event: 'DISPATCHED',
-        })
-      );
-    });
   });
 });
