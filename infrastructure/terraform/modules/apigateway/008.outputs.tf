@@ -11,3 +11,8 @@ output "aws_cloudwatch_log_group_arn" {
   description = "The ARN of the cloudwatch log group associated with this api gateway"
   value       = aws_cloudwatch_log_group.this.arn
 }
+
+output "rest_api_execution_arn" {
+  description = "The execution ARN of the API Gateway API"
+  value       = aws_api_gateway_rest_api.this.execution_arn
+}
