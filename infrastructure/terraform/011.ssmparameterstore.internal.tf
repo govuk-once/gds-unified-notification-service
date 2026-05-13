@@ -31,6 +31,13 @@ module "parameter_store_internal_configuration" {
       expirationDurationInSeconds = 60 * 60 * 24 * 30
     })
 
+    "table/campaigns/attributes" = jsonencode({
+      name       = module.dynamodb_campaigns.table_name
+      hashKey    = module.dynamodb_campaigns.table_hash_key
+      rangeKey   = module.dynamodb_campaigns.table_range_key
+      attributes = module.dynamodb_campaigns.table_attributes
+    })
+
     # MTLS Configuration, pulls config entries exported by mtls repo within same aws account/env
     # Note: This will require mtls repo to be deployed before service & if changes are made, would require redeployment, however it also allows decoupling of repositories and configs to be passed dynamically through shared channels (SSM)
     // MTLS Configuration - Manual step post initial deployment, based on mtls configuration
