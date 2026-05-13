@@ -1,3 +1,6 @@
+import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
+import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
   iocGetCacheService,
@@ -7,11 +10,12 @@ import {
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
 import { NotificationsDynamoRepository } from '@common/repositories';
-import { CacheService, ObservabilityService } from '@common/services';
+import { CacheService, MetricsLabels, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
-import { groupValidation } from '@common/utils';
+import { BoolParameters, groupValidation } from '@common/utils';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
-import { Context } from 'aws-lambda';
+import { Context, SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 /**
  * Lambda handling storing analytics events into the dedicated events DynamoDB Table, it also updates cache keys within elasticache
@@ -37,7 +41,7 @@ import { Context } from 'aws-lambda';
   ]
 }
  */
-export class Analytics extends QueueHandler<IAnalytics, void> {
+export class Analytics extends QueueHandler<IAnalytics, PartialItemFailureResponse> {
   public operationId: string = 'analytics';
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
@@ -51,41 +55,43 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     this.injectDependencies(dependencies);
   }
 
-  public async implementation(event: QueueEvent<IAnalytics>, context: Context) {
-    // Validate individual records
-    const [records, validRecords, invalidRecords] = await groupValidation(
-      event.Records.map((record) => record.body),
-      IAnalyticsSchema
-    );
-
-    // A single invalid entry rejects entire batch - these are messages from within the system this should not happen
-    if (invalidRecords.length > 0) {
-      this.observability.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
-        invalidRecords: invalidRecords.map((record) => record.raw),
-        errors: invalidRecords.map((record) => record.errors),
-        totalRecords: records,
-      });
+  public recordHandler = async (record: SQSRecord) => {
+    // Validate Incoming Analytics events
+    const parsing = await IAnalyticsSchema.safeParseAsync(record.body);
+    if (!parsing.success) {
+      this.observability.logger.error(`Failed to parse Analytics event`, z.prettifyError(parsing.error));
+      throw new Error(`Failed to parse Analytics Event`);
     }
 
     // Map SQS Records to analytics entries
-    const entries = validRecords
-      .map(({ valid }) => valid)
-      .filter((record) => record !== undefined) satisfies IAnalytics[];
+    const entry = parsing.data;
 
     // Update notification object with status event
-    for (const entry of entries) {
-      await this.notifications.addEvent(entry);
-    }
+    await this.notifications.addEvent(entry);
 
     // For each updated row - also update the redis cache
-    for (const notification of entries) {
-      const cacheKey = `/${notification.DepartmentID}/${notification.NotificationID}/Status`;
-      await this.cache.store(cacheKey, notification.Event);
-      this.observability.logger.info(`Updating Elasticache with notification status`, {
-        NotificationID: notification.NotificationID,
-        Status: notification.Event,
-      });
+    const cacheKey = `/${entry.DepartmentID}/${entry.NotificationID}/Status`;
+    await this.cache.store(cacheKey, entry.Event);
+    this.observability.logger.info(`Updating Elasticache with notification status`, {
+      NotificationID: entry.NotificationID,
+      Status: entry.Event,
+    });
+  };
+
+  public async implementation(event: QueueEvent<IAnalytics>, context: Context): Promise<PartialItemFailureResponse> {
+    const processor = new BatchProcessor(EventType.SQS);
+    const failures = await processPartialResponse(event, this.recordHandler, processor, {
+      context,
+    });
+
+    if (failures.batchItemFailures.length > 0) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS,
+        MetricUnit.Count,
+        failures.batchItemFailures.length
+      );
     }
+    return failures;
   }
 }
 

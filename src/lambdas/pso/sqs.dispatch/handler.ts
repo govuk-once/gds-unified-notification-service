@@ -92,13 +92,15 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItem
         this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
       },
       onError: async (identifiableRecord, validationError) => {
+        const errorMsg = validationError ? z.prettifyError(validationError) : {};
+        this.observability.logger.error(`Failed to parse message`, errorMsg);
         await this.analyticsService.publishEvent(
           {
             NotificationID: identifiableRecord.NotificationID,
             DepartmentID: identifiableRecord.DepartmentID,
           },
           NotificationStateEnum.DISPATCHING_FAILED,
-          validationError ? z.prettifyError(validationError) : {}
+          errorMsg
         );
       },
     });

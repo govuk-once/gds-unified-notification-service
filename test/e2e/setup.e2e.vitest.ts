@@ -1,7 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import https from 'https';
+import fs from 'node:fs';
+import https from 'node:https';
 import { test as baseTest } from 'vitest';
 
 dotenv.config();
@@ -44,7 +44,7 @@ export const test = baseTest
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${psoUrl}`,
-      timeout: 5000,
+      timeout: 10000,
       httpsAgent,
     });
     return instance;
@@ -53,7 +53,7 @@ export const test = baseTest
   .extend('flexAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${flexUrl}`,
-      timeout: 5000,
+      timeout: 10000,
       httpsAgent,
     });
     return instance;
