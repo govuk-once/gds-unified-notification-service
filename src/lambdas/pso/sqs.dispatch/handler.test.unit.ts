@@ -45,6 +45,7 @@ describe('Dispatch QueueHandler', () => {
     UserID: 'test_id_01',
     ExternalUserID: 'test',
     DepartmentID: 'Dev',
+    CampaignID: 'CAM_ID',
     NotificationTitle: 'Boom',
     NotificationBody: 'psst',
   };
@@ -80,6 +81,7 @@ describe('Dispatch QueueHandler', () => {
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           ExternalUserID: 'test',
+          CampaignID: 'invalid-id',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -192,6 +194,7 @@ describe('Dispatch QueueHandler', () => {
           DepartmentID: mockMessageBody.DepartmentID,
           NotificationID: mockMessageBody.NotificationID,
           UserID: mockMessageBody.UserID,
+          CampaignID: mockMessageBody.CampaignID,
         },
       ],
       'DISPATCHING'
@@ -201,6 +204,7 @@ describe('Dispatch QueueHandler', () => {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
       },
       'DISPATCHED'
     );
@@ -244,6 +248,7 @@ describe('Dispatch QueueHandler', () => {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
         DispatchedDateTime: date.toISOString(),
       },
       { resetExpirationDate: true }
@@ -266,6 +271,7 @@ describe('Dispatch QueueHandler', () => {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
       },
       'DISPATCHING_FAILED'
     );

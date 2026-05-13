@@ -4,6 +4,7 @@ import z from 'zod';
 export const IAnalyticsSchema = z.object({
   EventID: z.string(),
   NotificationID: z.string(),
+  CampaignID: z.string().optional(),
   DepartmentID: z.string(),
   APIGWExtendedID: z.string().optional(),
   CampaignID: z.string().optional(),

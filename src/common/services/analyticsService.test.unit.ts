@@ -66,6 +66,7 @@ describe('analyticsService', () => {
           DepartmentID: mockAnalyticsEvents[0].DepartmentID,
           APIGWExtendedID: mockAnalyticsEvents[0].APIGWExtendedID,
           EventDateTime: date.toISOString(),
+          CampaignID: mockAnalyticsEvents[0].CampaignID,
           Event: 'VALIDATED',
         },
         {
@@ -73,6 +74,7 @@ describe('analyticsService', () => {
           NotificationID: mockAnalyticsEvents[1].NotificationID,
           DepartmentID: mockAnalyticsEvents[1].DepartmentID,
           APIGWExtendedID: mockAnalyticsEvents[1].APIGWExtendedID,
+          CampaignID: mockAnalyticsEvents[1].CampaignID,
           EventDateTime: date.toISOString(),
           Event: 'VALIDATED',
         },
@@ -125,6 +127,7 @@ describe('analyticsService', () => {
         EventID: mockEventID,
         NotificationID: mockAnalyticsEvent.NotificationID,
         DepartmentID: mockAnalyticsEvent.DepartmentID,
+        CampaignID: mockAnalyticsEvent.CampaignID,
         APIGWExtendedID: mockAnalyticsEvent.APIGWExtendedID,
         EventDateTime: date.toISOString(),
         Event: 'VALIDATED',
