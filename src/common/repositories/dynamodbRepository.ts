@@ -286,7 +286,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     }
   }
 
-  public async incrementRecord(record: RecordType): Promise<void> {
+  public async incrementRecord(record: RecordType, counter: string): Promise<void> {
     this.observability.logger.info(`Incrementing record in table: ${this.tableAttributes.name}`);
 
     try {
@@ -298,9 +298,9 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       }
 
       // Will increment the item if the key exists, or create an item with value 1 if not
-      const updateExpression = `set #count = if_not_exists(#count, :start_value) + :incr`;
+      const updateExpression = `set #counter = if_not_exists(#counter, :start_value) + :incr`;
 
-      const expressionAttributeNames = { '#count': 'Count' };
+      const expressionAttributeNames = { '#counter': counter };
       const expressionAttributeValues = {
         ':incr': { N: '1' },
         ':start_value': { N: '0' },

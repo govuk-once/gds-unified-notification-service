@@ -9,6 +9,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { iocGetCampaignsDynamoRepository } from '@common/ioc';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -338,21 +339,22 @@ describe('campaignDynamoRepository', () => {
       // Arrange
       const campaignID = 'CAMP01';
       const departmentID = 'DEPT01';
+      const event = NotificationStateEnum.VALIDATED;
 
       // Act
-      await instance.incrementCampaigns(campaignID, departmentID);
+      await instance.incrementCampaigns(campaignID, departmentID, event);
 
       // Assert
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
       expect(command.input.TableName).toBe('mockCampaignsDynamoRepositoryName');
       expect(command.input.Key).toEqual(marshall({ CompositeID: 'DEPT01/CAMP01' }));
-      expect(command.input.ExpressionAttributeNames).toEqual({ '#count': 'Count' });
+      expect(command.input.ExpressionAttributeNames).toEqual({ '#counter': event });
       expect(command.input.ExpressionAttributeValues).toEqual({
         ':incr': { N: '1' },
         ':start_value': { N: '0' },
       });
-      expect(command.input.UpdateExpression).toEqual(`set #count = if_not_exists(#count, :start_value) + :incr`);
+      expect(command.input.UpdateExpression).toEqual(`set #counter = if_not_exists(#counter, :start_value) + :incr`);
     });
   });
 });

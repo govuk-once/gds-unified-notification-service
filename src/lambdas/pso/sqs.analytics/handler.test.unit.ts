@@ -145,7 +145,8 @@ describe('Analytics QueueHandler', () => {
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledTimes(1);
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledWith(
       event.Records[0].body.CampaignID,
-      validData.DepartmentID
+      validData.DepartmentID,
+      validData.Event
     );
   });
 
