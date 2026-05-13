@@ -25,6 +25,7 @@ describe('Analytics QueueHandler', () => {
     EventID: '123',
     DepartmentID: 'DEP1',
     NotificationID: 'not1',
+    CampaignID: 'CAM_ID',
     Event: NotificationStateEnum.RECEIVED,
     EventDateTime: '2026-01-22T00:00:01Z',
     APIGWExtendedID: 'testExample',
