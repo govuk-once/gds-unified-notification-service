@@ -1,4 +1,6 @@
-import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
+import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
+import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
@@ -10,20 +12,23 @@ import {
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent, QueueHandler } from '@common/operations';
+import { QueueEvent } from '@common/operations';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   CacheService,
   CircuitBreakerService,
   ConfigurationService,
+  MetricsLabels,
   NotificationService,
   ObservabilityService,
 } from '@common/services';
-import { BoolParameters, groupValidation, NumericParameters } from '@common/utils';
-import { extractIdentifiers, IIdentifieableMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage, IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
-import { Context } from 'aws-lambda';
+import { BoolParameters, NumericParameters } from '@common/utils';
+import { extractIdentifiers, IMessage } from '@project/lambdas/interfaces/IMessage';
+import { IProcessedMessage, ISQSProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
+import { Context, SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 /**
  * 
@@ -57,7 +62,7 @@ import { Context } from 'aws-lambda';
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends QueueHandler<unknown, void> {
+export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItemFailureResponse> {
   public operationId: string = 'dispatch';
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
@@ -71,74 +76,58 @@ export class Dispatch extends QueueHandler<unknown, void> {
     observability: ObservabilityService,
     dependencies?: () => HandlerDependencies<Dispatch>
   ) {
-    super(observability);
+    super(config, observability);
     this.injectDependencies(dependencies);
   }
 
-  public async implementation(event: QueueEvent<IProcessedMessage>, context: Context) {
-    await this.config.ensureServiceIsEnabled(
-      BoolParameters.Config.Common.Enabled,
-      BoolParameters.Config.Dispatch.Enabled
-    );
-
-    // Trigger received notification events
-    const [, identifiableRecords] = await groupValidation(
-      event.Records,
-      SqsRecordSchema.extend({
-        body: IIdentifieableMessageSchema,
-      })
-    );
-
+  public recordHandler = async (record: SQSRecord) => {
     await this.circuitBreakerService.checkCircuit();
 
-    this.observability.logger.info(`Identifiable records`, { identifiableRecords });
-    await this.analyticsService.publishMultipleEvents(
-      identifiableRecords.map(({ valid }) => valid.body),
-      NotificationStateEnum.DISPATCHING
-    );
+    // Validate Incoming messages
+    const data = await this.validateRecord(ISQSProcessedMessageSchema, record, {
+      onIdentified: async (identifiableRecord) => {
+        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.DISPATCHING);
+      },
+      onSuccess: (record) => {
+        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
+      },
+      onError: async (identifiableRecord, validationError) => {
+        const errorMsg = validationError ? z.prettifyError(validationError) : {};
+        this.observability.logger.error(`Failed to parse message`, errorMsg);
+        await this.analyticsService.publishEvent(
+          {
+            NotificationID: identifiableRecord.NotificationID,
+            DepartmentID: identifiableRecord.DepartmentID,
+          },
+          NotificationStateEnum.DISPATCHING_FAILED,
+          errorMsg
+        );
+      },
+    });
+    const message = data.body;
 
-    // Segregate inputs - parse all, group by result, for invalid records - parse using partial approach to extract valid fields
-    const [records, validRecords, invalidRecords] = await groupValidation(
-      event.Records.map((record) => record.body),
-      IProcessedMessageSchema
-    );
-
-    // Invalid messages should not appear - however it's good to filter these out & remove from
-    if (invalidRecords.length > 0) {
-      this.observability.logger.error(`Invalid elements detected within the SQS Message, omitting those`, {
-        invalidRecords: invalidRecords.map((record) => ({ raw: record.raw, errors: record.errors })),
-        totalRecords: records,
-      });
+    // Rate limits request if rate limiting is enforced
+    if (
+      (
+        await this.cacheService.rateLimit(
+          `NOTIFICATION_PROVIDER_RATE_LIMIT`,
+          await this.config.getNumericParameter(
+            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
+          )
+        )
+      ).exceeded
+    ) {
+      throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
     }
 
-    // Process the notification requests
-    for (const { valid } of validRecords) {
-      // Confirm whether sending notifications will not exceed the rate limit
-      if (
-        (
-          await this.cacheService.rateLimit(
-            `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-            await this.config.getNumericParameter(
-              NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
-            )
-          )
-        ).exceeded
-      ) {
-        throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
-      }
-
-      // Prepare request
-      const metadata = {
-        NotificationID: valid.NotificationID,
-        DepartmentID: valid.DepartmentID,
-      };
-
+    // Prepare request
+    try {
       const result = await this.circuitBreakerService.use(async () => {
         const result = await this.notificationsService.send({
-          ExternalUserID: valid.ExternalUserID,
-          NotificationID: valid.NotificationID,
-          NotificationTitle: valid.NotificationTitle,
-          NotificationBody: valid.NotificationBody,
+          ExternalUserID: message.ExternalUserID,
+          NotificationID: message.NotificationID,
+          NotificationTitle: message.NotificationTitle,
+          NotificationBody: message.NotificationBody,
         });
         if (result.success) {
           return result;
@@ -150,65 +139,61 @@ export class Dispatch extends QueueHandler<unknown, void> {
         throw new Error('Request to notification provider failed with no error message');
       });
 
-      // Update stored record with timestamp - also reset expiration date
-      await this.notificationsDynamoRepository.updateRecord(
-        {
-          ...extractIdentifiers(valid),
-          DispatchedDateTime: new Date().toISOString(),
-        },
-        { resetExpirationDate: true }
-      );
+      this.observability.logger.info(`Notification dispatched`, {
+        NotificationID: message.NotificationID,
+        DepartmentID: message.DepartmentID,
+        ProviderRequestID: result.result?.requestId,
+      });
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHED);
+    } catch (error) {
+      this.observability.logger.error(`Notification failed to dispatch`, {
+        NotificationID: message.NotificationID,
+        DepartmentID: message.DepartmentID,
+      });
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
 
-      // Increment rate limiter post request
-      await this.cacheService.rateLimit(
-        `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-        await this.config.getNumericParameter(
-          NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
-        ),
-        1
-      );
-
-      // Analytics event + circuit breaker state management
-      try {
-        if (result.result?.success) {
-          this.observability.logger.info(`Notification dispatched`, {
-            ...metadata,
-            ProviderRequestID: result.result.requestId,
-          });
-          await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHED);
-        } else {
-          this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
-          await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
-        }
-      } catch {
-        this.observability.logger.error(`Notification failed to dispatch`, { ...metadata });
-        await this.analyticsService.publishEvent(extractIdentifiers(valid), NotificationStateEnum.DISPATCHING_FAILED);
-      }
+      throw error;
     }
 
-    // Store Analytics for failed parses - if they have notificationID
-    for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID } = extractIdentifiers(raw);
-      // Log invalid entries
-      if (NotificationID == undefined || DepartmentID == undefined) {
-        this.observability.logger.info(
-          `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-          {
-            raw,
-            errors,
-          }
-        );
-        continue;
-      }
-      await this.analyticsService.publishEvent(
-        {
-          NotificationID: NotificationID,
-          DepartmentID: DepartmentID,
-        },
-        NotificationStateEnum.DISPATCHING_FAILED,
-        errors
+    // Update stored record with timestamp - also reset expiration date
+    await this.notificationsDynamoRepository.updateRecord(
+      {
+        ...extractIdentifiers(message),
+        DispatchedDateTime: new Date().toISOString(),
+      },
+      { resetExpirationDate: true }
+    );
+
+    // Increment rate limiter post request
+    await this.cacheService.rateLimit(
+      `NOTIFICATION_PROVIDER_RATE_LIMIT`,
+      await this.config.getNumericParameter(NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute),
+      1
+    );
+  };
+
+  public async implementation(
+    event: QueueEvent<IProcessedMessage>,
+    context: Context
+  ): Promise<PartialItemFailureResponse> {
+    await this.config.ensureServiceIsEnabled(
+      BoolParameters.Config.Common.Enabled,
+      BoolParameters.Config.Dispatch.Enabled
+    );
+
+    const processor = new BatchProcessor(EventType.SQS);
+    const failures = await processPartialResponse(event, this.recordHandler, processor, {
+      context,
+    });
+
+    if (failures.batchItemFailures.length > 0) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
+        MetricUnit.Count,
+        failures.batchItemFailures.length
       );
     }
+    return failures;
   }
 }
 

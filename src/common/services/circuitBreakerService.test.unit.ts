@@ -290,12 +290,11 @@ describe('CircuitBreakerService', () => {
         return Promise.resolve(undefined);
       });
 
-      const { result, error, circuitBreakerState } = await service.use(async () => Promise.resolve('should not run'));
+      // Act
+      const result = service.use(async () => Promise.resolve('should not run'));
 
-      expect(result).toBeUndefined();
-      expect(error).toBeInstanceOf(CircuitBreakerOpenError);
-      expect(circuitBreakerState).toBe(CircuitBreakerStateEnum.OPEN);
-      // recordFailure should NOT have been called — the error was a CircuitBreakerOpenError
+      // Assert
+      await expect(result).rejects.toThrow(CircuitBreakerOpenError);
       expect(serviceMocks.cacheServiceMock.increment).not.toHaveBeenCalledWith(
         expect.stringContaining(':failures:'),
         expect.any(Number)

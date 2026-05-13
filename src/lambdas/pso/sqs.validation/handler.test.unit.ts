@@ -1,3 +1,5 @@
+import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { QueueEvent } from '@common/operations';
 import { BoolParameters } from '@common/utils';
@@ -73,7 +75,7 @@ describe('Validation QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          NotificationID: 'invalid-id',
+          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           // Missed out on purpose NotificationTitle, NotificationBody
@@ -81,6 +83,10 @@ describe('Validation QueueHandler', () => {
       },
     ],
   } as unknown as QueueEvent<IMessage>;
+
+  const mockPartialFailedEvent: QueueEvent<IMessage> = {
+    Records: [mockEvent.Records[0], mockFailedEvent.Records[0]],
+  };
 
   const mockUnidentifiableEvent: QueueEvent<IMessage> = {
     Records: [
@@ -100,6 +106,7 @@ describe('Validation QueueHandler', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
+
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
@@ -107,10 +114,8 @@ describe('Validation QueueHandler', () => {
     );
 
     // Mocking successful completion of service functions
-    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
@@ -197,33 +202,31 @@ describe('Validation QueueHandler', () => {
     );
   });
 
-  it('should publish analytics events', async () => {
+  it('should publish analytics events when lambda beings validating record.', async () => {
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      [
-        {
-          DepartmentID: mockMessageBody.DepartmentID,
-          NotificationID: mockMessageBody.NotificationID,
-          UserID: mockMessageBody.UserID,
-        },
-      ],
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+      },
+
       'VALIDATING'
     );
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      [
-        {
-          DepartmentID: mockMessageBody.DepartmentID,
-          MessageBody: mockMessageBody.MessageBody,
-          MessageTitle: mockMessageBody.MessageTitle,
-          NotificationBody: mockMessageBody.NotificationBody,
-          NotificationID: mockMessageBody.NotificationID,
-          NotificationTitle: mockMessageBody.NotificationTitle,
-          UserID: mockMessageBody.UserID,
-        },
-      ],
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        MessageBody: mockMessageBody.MessageBody,
+        MessageTitle: mockMessageBody.MessageTitle,
+        NotificationBody: mockMessageBody.NotificationBody,
+        NotificationID: mockMessageBody.NotificationID,
+        NotificationTitle: mockMessageBody.NotificationTitle,
+        UserID: mockMessageBody.UserID,
+      },
+
       'VALIDATED'
     );
   });
@@ -233,7 +236,7 @@ describe('Validation QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
+    expect(serviceMocks.processingQueueServiceMock.publishMessage).toHaveBeenCalledWith(mockMessageBody);
   });
 
   it('should store data in the notifications message table', async () => {
@@ -241,48 +244,68 @@ describe('Validation QueueHandler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',
-      }),
-    ]);
-  });
-
-  it('should not trigger analytics for unidentifieable events', async () => {
-    // Act
-    await handler(mockFailedEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenNthCalledWith(1, [], 'VALIDATING');
-    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
-      1,
-      {
-        NotificationID: 'invalid-id',
-        DepartmentID: 'invalid-id',
-      },
-      'VALIDATION_FAILED',
-      expect.stringContaining('')
+      })
     );
   });
 
-  it('should log when a message has no DepartmentID', async () => {
+  it('should add a metric for the number of failed processes for a partial failure.', async () => {
     // Act
-    await instance.handler()(mockUnidentifiableEvent, mockContext);
+    await handler(mockPartialFailedEvent, mockContext);
 
     // Assert
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      'BATCH_ITEM_FAILURES_VALIDATION',
+      MetricUnit.Count,
+      1
+    );
+  });
+
+  it('should return and error and trigger analytics for failed events', async () => {
+    // Act
+    const result = handler(mockFailedEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+        UserID: 'invalid-id',
+        DepartmentID: 'invalid-id',
+      },
+      'VALIDATING'
+    );
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+        DepartmentID: 'invalid-id',
+      },
+      'VALIDATION_FAILED',
+      '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
+    );
+  });
+
+  it('should return and error and log when a message has no DepartmentID', async () => {
+    // Act
+    const result = instance.handler()(mockUnidentifiableEvent, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
       {
-        errors: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
-        raw: mockUnidentifiableEvent.Records[0],
+        error: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
+        raw: mockUnidentifiableEvent.Records[0].body,
       }
     );
   });
 
-  it('should reject message with unknown deeplinks', async () => {
+  it('should return an error and reject message with unknown deeplinks', async () => {
     // Act
-    await handler(
+    const result = handler(
       {
         ...mockEvent,
         Records: [
@@ -293,8 +316,8 @@ describe('Validation QueueHandler', () => {
     );
 
     // Assert
-    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
-      1,
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: 'TEST01',
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',

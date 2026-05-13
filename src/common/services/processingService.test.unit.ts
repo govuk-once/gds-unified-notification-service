@@ -125,6 +125,7 @@ describe('ProcessingService', () => {
         }
       );
     });
+
     it('Sends a request to the UDP when using UDP Adapter', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'UDP';
@@ -134,14 +135,15 @@ describe('ProcessingService', () => {
       const result = await instance.send(mockRequest);
 
       // Assert
-
       expect(observabilityMock.logger.info).toHaveBeenCalledWith(
         `Processing using UDP adapter - mapping userID to externalUserID`,
         {
           userID: mockRequest.userID,
         }
       );
-      expect(result.externalUserID).toEqual('bob:app:push:id');
+      expect(result.success).toBe(true);
+      const successfulResult = result as Extract<typeof result, { success: true }>;
+      expect(successfulResult.externalUserID).toEqual('bob:app:push:id');
     });
   });
 });
