@@ -64,6 +64,9 @@ export const StringParameters = {
     MTLSRevocation: {
       Attributes: 'table/mtls/attributes',
     },
+    Campaigns: {
+      Attributes: 'table/campaigns/attributes',
+    },
   },
   Dispatch: {
     OneSignal: {

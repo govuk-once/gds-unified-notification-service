@@ -47,6 +47,12 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       hashKey: 'Id',
       rangeKey: '',
     }),
+    [StringParameters.Table.Campaigns.Attributes]: JSON.stringify({
+      name: 'mockCampaignsDynamoRepositoryName',
+      attributes: ['CompositeID'],
+      hashKey: 'CompositeID',
+      rangeKey: null,
+    }),
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockGetParameterImplementation = (records: Record<string, string | Error>) => {
