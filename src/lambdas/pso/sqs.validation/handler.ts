@@ -138,7 +138,7 @@ export class Validation extends QueueHandler<IMessage> {
 
     // Store Analytics for failed parses - if they have notificationID
     for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
+      const { NotificationID, DepartmentID, CampaignID } = extractIdentifiers(raw.body);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
         this.observability.logger.error(
@@ -154,6 +154,7 @@ export class Validation extends QueueHandler<IMessage> {
         {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
+          CampaignID: CampaignID,
         },
         NotificationStateEnum.VALIDATION_FAILED,
         errors

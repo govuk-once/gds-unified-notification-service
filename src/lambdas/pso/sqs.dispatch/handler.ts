@@ -188,7 +188,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
 
     // Store Analytics for failed parses - if they have notificationID
     for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID } = extractIdentifiers(raw);
+      const { NotificationID, DepartmentID, CampaignID } = extractIdentifiers(raw);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
         this.observability.logger.info(
@@ -204,6 +204,7 @@ export class Dispatch extends QueueHandler<unknown, void> {
         {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
+          CampaignID: CampaignID,
         },
         NotificationStateEnum.DISPATCHING_FAILED,
         errors
