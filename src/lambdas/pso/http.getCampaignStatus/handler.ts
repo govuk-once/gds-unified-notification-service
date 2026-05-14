@@ -57,14 +57,8 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
     const departmentID = event.queryStringParameters?.departmentID ?? '';
-
-    // Handle missing path param
-    if (!campaignID) {
-      this.observability.logger.info('campaignID has not been provided.');
-      throw new httpErrors.BadRequest();
-    }
-
     const compositeID = `${departmentID}/${campaignID}`;
+
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
 
     // If it doesn't exist - 404

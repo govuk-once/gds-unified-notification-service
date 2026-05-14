@@ -1,11 +1,7 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { SSMClient } from '@aws-sdk/client-ssm';
-import { STSClient } from '@aws-sdk/client-sts';
 import axios from 'axios';
-import { S3Client } from 'bun';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import https from 'https';
+import fs from 'node:fs';
+import https from 'node:https';
 import { test as baseTest } from 'vitest';
 
 dotenv.config();
@@ -15,6 +11,13 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
+
+const prefix = process.env.AWS_ENVIRONMENT_PREFIX;
+if (prefix == undefined) {
+  throw new Error(
+    'Environment prefix is not setup for end to end testing, please run development:sandbox:setup to configure.'
+  );
+}
 
 const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
 const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
@@ -57,6 +60,7 @@ if (
 
 // Add clients to test implementation for e2d
 export const test = baseTest
+  .extend('prefix', prefix)
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
