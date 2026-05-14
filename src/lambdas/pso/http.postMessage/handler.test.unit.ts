@@ -31,6 +31,7 @@ describe('PostMessage Handler', () => {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DEP01',
     UserID: 'UserID',
+    CampaignID: 'CAM_ID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',

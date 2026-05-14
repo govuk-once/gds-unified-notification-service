@@ -6,6 +6,7 @@ export const IIdentifieableMessageSchema = z.object({
   NotificationID: z.uuid({ version: 'v4' }).default(() => uuid()),
   UserID: z.string(),
   DepartmentID: z.string(),
+  CampaignID: z.string().optional(),
 });
 export type IIdentifieableMessage = z.infer<typeof IIdentifieableMessageSchema>;
 
@@ -16,6 +17,7 @@ export const extractIdentifiers = (partial: IIdentifieableMessage) => ({
   NotificationID: partial.NotificationID,
   UserID: partial.UserID,
   DepartmentID: partial.DepartmentID,
+  CampaignID: partial.CampaignID,
 });
 
 export const IMessageSchema = IIdentifieableMessageSchema.extend({

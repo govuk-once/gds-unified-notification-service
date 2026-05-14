@@ -41,7 +41,7 @@ import { Context } from 'aws-lambda';
     {
       "messageId": "mockMessageId",
       "receiptHandle": "mockReceiptHandle",
-      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be1b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
+      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be1b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
       "attributes": {
         "ApproximateReceiveCount": "2",
         "SentTimestamp": "202601021513",
@@ -58,7 +58,7 @@ import { Context } from 'aws-lambda';
 }
 
 Sample SQS Body (for pushing messages from portal)
-{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
+{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
 export class Validation extends QueueHandler<IMessage> {
   public operationId: string = 'validation';
@@ -138,7 +138,7 @@ export class Validation extends QueueHandler<IMessage> {
 
     // Store Analytics for failed parses - if they have notificationID
     for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID } = extractIdentifiers(raw.body);
+      const { NotificationID, DepartmentID, CampaignID } = extractIdentifiers(raw.body);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
         this.observability.logger.error(
@@ -154,6 +154,7 @@ export class Validation extends QueueHandler<IMessage> {
         {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
+          CampaignID: CampaignID,
         },
         NotificationStateEnum.VALIDATION_FAILED,
         errors

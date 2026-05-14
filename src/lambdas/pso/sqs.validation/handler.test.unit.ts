@@ -40,6 +40,7 @@ describe('Validation QueueHandler', () => {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'TEST01',
     UserID: 'UserID',
+    CampaignID: 'CAM_ID',
     NotificationTitle: 'Hi there',
     NotificationBody: 'You have a new message in the message center',
     MessageTitle: 'Hi there',
@@ -208,6 +209,7 @@ describe('Validation QueueHandler', () => {
           DepartmentID: mockMessageBody.DepartmentID,
           NotificationID: mockMessageBody.NotificationID,
           UserID: mockMessageBody.UserID,
+          CampaignID: mockMessageBody.CampaignID,
         },
       ],
       'VALIDATING'
@@ -222,6 +224,7 @@ describe('Validation QueueHandler', () => {
           NotificationID: mockMessageBody.NotificationID,
           NotificationTitle: mockMessageBody.NotificationTitle,
           UserID: mockMessageBody.UserID,
+          CampaignID: mockMessageBody.CampaignID,
         },
       ],
       'VALIDATED'
@@ -298,6 +301,7 @@ describe('Validation QueueHandler', () => {
       {
         DepartmentID: 'TEST01',
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+        CampaignID: 'CAM_ID',
       },
       'VALIDATION_FAILED',
       expect.stringContaining(`https://google.com is using google.com hostname which is not on the allow list.`)
