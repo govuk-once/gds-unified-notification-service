@@ -1,7 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import https from 'https';
+import fs from 'node:fs';
+import https from 'node:https';
 import { test as baseTest } from 'vitest';
 
 dotenv.config();
@@ -11,6 +11,13 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
+
+const prefix = process.env.AWS_ENVIRONMENT_PREFIX;
+if (prefix == undefined) {
+  throw new Error(
+    'Environment prefix is not setup for end to end testing, please run development:sandbox:setup to configure.'
+  );
+}
 
 const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
 const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
@@ -39,12 +46,26 @@ if (!httpsAgent) {
   );
 }
 
+// Ensure AWS env vars are available
+if (
+  process.env.AWS_ACCESS_KEY_ID == undefined ||
+  process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+  process.env.AWS_REGION == undefined
+) {
+  console.log(
+    `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+  );
+  process.exit(1);
+}
+
+// Add clients to test implementation for e2d
 export const test = baseTest
+  .extend('prefix', prefix)
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${psoUrl}`,
-      timeout: 5000,
+      timeout: 20000,
       httpsAgent,
     });
     return instance;
@@ -53,7 +74,7 @@ export const test = baseTest
   .extend('flexAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${flexUrl}`,
-      timeout: 5000,
+      timeout: 20000,
       httpsAgent,
     });
     return instance;

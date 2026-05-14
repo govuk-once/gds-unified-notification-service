@@ -204,7 +204,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
   public async getRecord(keyValue: string): Promise<RecordType | null> {
     this.observability.logger.info(
-      `Retrieving record in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey}`
+      `Retrieving record in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey} and value: ${keyValue}`
     );
 
     const params = {

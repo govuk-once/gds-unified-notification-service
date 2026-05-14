@@ -95,10 +95,39 @@ paths:
                 maxItems: 10
                 items:
                   $ref: '#/components/schemas/MessageStatus'
+        '404':
+          description: Not Found
         '500':
           description: Internal server error
         default:
           description: Unexpected error
+
+  /status/campaign/{CampaignID}:
+    get:
+      summary: Gets status of a campaign
+      operationId: getCampaignStatus
+      tags:
+        - MVP
+      parameters:
+        - name: compositeID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignStatus'
+        '404':
+          description: Not Found
+        '500':
+          description: Internal server error
+        default:
+          description: Unexpected error
+
 components:
   schemas:
     Status:
@@ -180,6 +209,52 @@ components:
         Reason:
           type: string
           description: Provides addition context to the state
+    CampaignStatus:
+      type: object
+      required:
+        - CampaignID
+        - DepartmentID
+        - ProcessingSummary
+        - UsageSummary
+      properties:
+        CampaignID:
+          type: string
+          description: ID of campaign
+        DepartmentID:
+          type: string
+          description: ID of department who sent the campaign
+        ProcessingSummary:
+          type: object
+          properties:
+            VALIDATING:
+              type: integer
+            VALIDATED:
+              type: integer
+            VALIDATED_API_CALL:
+              type: integer
+            PROCESSING:
+              type: integer
+            PROCESSED:
+              type: integer
+            PROCESSING_FAILED:
+              type: integer
+            DISPATCHING:
+              type: integer
+            DISPATCHED:
+              type: integer
+            DISPATCHING_FAILED:
+              type: integer
+        UsageSummary:
+          type: object
+          properties:
+            RECEIVED:
+              type: integer
+            READ:
+              type: integer
+            MARKED_AS_UNREAD:
+              type: integer
+            HIDDEN:
+              type: integer
 
     BadRequestResponse:
       type: object

@@ -327,7 +327,7 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
       );
 
       if (psoCustomeDomainName && flexCustomeDomainName) {
-        const envOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName.domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName.domainName}`;
+        const envOutput = `AWS_ENVIRONMENT_PREFIX=gdsuns-${env}\nAWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName.domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName.domainName}`;
         await file(`./.env`).write(envOutput);
       }
     }
