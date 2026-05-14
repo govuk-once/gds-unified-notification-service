@@ -1,4 +1,8 @@
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { SSMClient } from '@aws-sdk/client-ssm';
+import { STSClient } from '@aws-sdk/client-sts';
 import axios from 'axios';
+import { S3Client } from 'bun';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import https from 'https';
@@ -39,12 +43,25 @@ if (!httpsAgent) {
   );
 }
 
+// Ensure AWS env vars are available
+if (
+  process.env.AWS_ACCESS_KEY_ID == undefined ||
+  process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+  process.env.AWS_REGION == undefined
+) {
+  console.log(
+    `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+  );
+  process.exit(1);
+}
+
+// Add clients to test implementation for e2d
 export const test = baseTest
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${psoUrl}`,
-      timeout: 5000,
+      timeout: 20000,
       httpsAgent,
     });
     return instance;
@@ -53,7 +70,7 @@ export const test = baseTest
   .extend('flexAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${flexUrl}`,
-      timeout: 5000,
+      timeout: 20000,
       httpsAgent,
     });
     return instance;
