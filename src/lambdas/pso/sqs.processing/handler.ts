@@ -140,7 +140,7 @@ export class Processing extends QueueHandler<IMessage, void> {
 
     // Store Analytics for failed parses - if they have notificationID
     for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID } = extractIdentifiers(raw);
+      const { NotificationID, DepartmentID, CampaignID } = extractIdentifiers(raw);
       // Log invalid entries
       if (NotificationID == undefined || DepartmentID == undefined) {
         this.observability.logger.info(
@@ -156,6 +156,7 @@ export class Processing extends QueueHandler<IMessage, void> {
         {
           NotificationID: NotificationID,
           DepartmentID: DepartmentID,
+          CampaignID: CampaignID,
         },
         NotificationStateEnum.PROCESSING_FAILED,
         errors

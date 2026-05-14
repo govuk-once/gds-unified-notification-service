@@ -1,12 +1,13 @@
 import {
   HandlerDependencies,
   iocGetCacheService,
+  iocGetCampaignsDynamoRepository,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { QueueEvent, QueueHandler } from '@common/operations';
-import { NotificationsDynamoRepository } from '@common/repositories';
+import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { groupValidation } from '@common/utils';
@@ -21,7 +22,7 @@ import { Context } from 'aws-lambda';
     {
       "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
       "receiptHandle": "MessageReceiptHandle",
-      "body": "{\"DepartmentID\":\"TEST01\",\"NotificationID\":\"not1\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"EventReason\":\"testing\"}",
+      "body": "{\"DepartmentID\":\"TEST01\",\"NotificationID\":\"not1\",\"EventID\":\"EVENT01\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"CampaignID\":\"CAMP01\",\"EventReason\":\"testing\"}",
       "attributes": {
         "ApproximateReceiveCount": "1",
         "SentTimestamp": "1523232000000",
@@ -41,6 +42,7 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
   public operationId: string = 'analytics';
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
+  public campaigns: CampaignsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -75,6 +77,13 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
     // Update notification object with status event
     for (const entry of entries) {
       await this.notifications.addEvent(entry);
+
+      // Increments campaign
+      this.observability.logger.info(`CampaignID: ${entry.CampaignID}`);
+      if (entry.CampaignID) {
+        this.observability.logger.info(`Increment CampaignID: ${entry.CampaignID}`);
+        await this.campaigns.incrementCampaigns(entry.CampaignID, entry.DepartmentID, entry.Event);
+      }
     }
 
     // For each updated row - also update the redis cache
@@ -92,4 +101,5 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   cache: iocGetCacheService().connect(),
   notifications: iocGetNotificationDynamoRepository(),
+  campaigns: iocGetCampaignsDynamoRepository(),
 })).handler();

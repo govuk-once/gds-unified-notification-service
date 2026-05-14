@@ -1,5 +1,9 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/pso/sqs.analytics/handler';
@@ -20,6 +24,9 @@ describe('Analytics QueueHandler', () => {
   let handler: ReturnType<typeof Analytics.prototype.handler>;
   let mockContext: Context;
 
+  // Mocking implementation of the configuration service
+  let mockParameterStore = mockDefaultConfig();
+
   // Re-useable test data
   const validData: IAnalytics = {
     EventID: '123',
@@ -31,6 +38,7 @@ describe('Analytics QueueHandler', () => {
     APIGWExtendedID: 'testExample',
     EventReason: 'testing',
   };
+
   const invalidData = {
     DepartmentID: undefined,
     NotificationID: undefined,
@@ -44,12 +52,20 @@ describe('Analytics QueueHandler', () => {
     // Reset all mocks
     vi.clearAllMocks();
 
+    // Mock SSM Values
+    mockParameterStore = mockDefaultConfig();
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
+
     // Mocking successful completion of service functions
     serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
+    serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns.mockResolvedValue(undefined);
 
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
       notifications: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      campaigns: Promise.resolve(serviceMocks.campaignsDynamoRepositoryMock),
     }));
     handler = instance.handler();
 
@@ -114,6 +130,24 @@ describe('Analytics QueueHandler', () => {
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
       '/DEP1/not1/Status',
       NotificationStateEnum.UNKNOWN
+    );
+  });
+
+  it('should increment campaign if a campaignID is provided in the analytics', async () => {
+    // Arrange
+    const event = {
+      Records: [{ body: { ...validData, CampaignID: 'CAMP01' } as unknown as string, messageId: 'msg1' } as SQSRecord],
+    } as unknown as QueueEvent<IAnalytics>;
+
+    // Act
+    await handler(event, mockContext);
+
+    // Assert
+    expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledWith(
+      event.Records[0].body.CampaignID,
+      validData.DepartmentID,
+      validData.Event
     );
   });
 

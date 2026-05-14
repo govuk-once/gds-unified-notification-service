@@ -43,6 +43,21 @@ describe('analyticsService', () => {
       },
     ];
 
+    const mockAnalyticsWithCampaignEvents: AnalyticsEventFromIMessage[] = [
+      {
+        NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80h',
+        DepartmentID: 'Dev',
+        CampaignID: 'CAMP01',
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      },
+      {
+        NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80i',
+        DepartmentID: 'Dev',
+        CampaignID: 'CAMP01',
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+      },
+    ];
+
     const mockEventID_1 = 'b7e239f7-b354-4fe6-8aaf-04eba8331f6a';
     const mockEventID_2 = 'b7e239f7-b354-4fe6-8aaf-04eba8331f6a';
 
@@ -66,7 +81,6 @@ describe('analyticsService', () => {
           DepartmentID: mockAnalyticsEvents[0].DepartmentID,
           APIGWExtendedID: mockAnalyticsEvents[0].APIGWExtendedID,
           EventDateTime: date.toISOString(),
-          CampaignID: mockAnalyticsEvents[0].CampaignID,
           Event: 'VALIDATED',
         },
         {
@@ -74,7 +88,41 @@ describe('analyticsService', () => {
           NotificationID: mockAnalyticsEvents[1].NotificationID,
           DepartmentID: mockAnalyticsEvents[1].DepartmentID,
           APIGWExtendedID: mockAnalyticsEvents[1].APIGWExtendedID,
-          CampaignID: mockAnalyticsEvents[1].CampaignID,
+          EventDateTime: date.toISOString(),
+          Event: 'VALIDATED',
+        },
+      ]);
+    });
+
+    it('should publish multiple analytics events to analytics queue with campaignID when provided.', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+
+      vi.mocked(uuid as () => string).mockReturnValueOnce(mockEventID_1);
+      vi.mocked(uuid as () => string).mockReturnValue(mockEventID_2);
+
+      // Act
+      await instance.publishMultipleEvents(mockAnalyticsWithCampaignEvents, NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
+        {
+          EventID: mockEventID_1,
+          NotificationID: mockAnalyticsWithCampaignEvents[0].NotificationID,
+          DepartmentID: mockAnalyticsWithCampaignEvents[0].DepartmentID,
+          CampaignID: mockAnalyticsWithCampaignEvents[0].CampaignID,
+          APIGWExtendedID: mockAnalyticsWithCampaignEvents[0].APIGWExtendedID,
+          EventDateTime: date.toISOString(),
+          Event: 'VALIDATED',
+        },
+        {
+          EventID: mockEventID_2,
+          NotificationID: mockAnalyticsWithCampaignEvents[1].NotificationID,
+          DepartmentID: mockAnalyticsWithCampaignEvents[1].DepartmentID,
+          APIGWExtendedID: mockAnalyticsWithCampaignEvents[1].APIGWExtendedID,
+          CampaignID: mockAnalyticsWithCampaignEvents[1].CampaignID,
           EventDateTime: date.toISOString(),
           Event: 'VALIDATED',
         },
@@ -109,6 +157,13 @@ describe('analyticsService', () => {
       APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
     };
 
+    const mockAnalyticsWithCampaignIDEvent: AnalyticsEventFromIMessage = {
+      NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
+      DepartmentID: 'Dev',
+      CampaignID: 'CAMP01',
+      APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+    };
+
     const mockEventID = 'b7e239f7-b354-4fe6-8aaf-04eba8331f6a';
 
     it('should publish an event to the event dynamo table', async () => {
@@ -127,8 +182,30 @@ describe('analyticsService', () => {
         EventID: mockEventID,
         NotificationID: mockAnalyticsEvent.NotificationID,
         DepartmentID: mockAnalyticsEvent.DepartmentID,
-        CampaignID: mockAnalyticsEvent.CampaignID,
         APIGWExtendedID: mockAnalyticsEvent.APIGWExtendedID,
+        EventDateTime: date.toISOString(),
+        Event: 'VALIDATED',
+      });
+    });
+
+    it('should publish an event to the analytics queue with campaignID when provided', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+
+      vi.mocked(uuid as () => string).mockReturnValueOnce(mockEventID);
+
+      // Act
+      await instance.publishEvent(mockAnalyticsWithCampaignIDEvent, NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(serviceMocks.analyticsQueueServiceMock.publishMessage).toHaveBeenCalledWith({
+        EventID: mockEventID,
+        NotificationID: mockAnalyticsWithCampaignIDEvent.NotificationID,
+        DepartmentID: mockAnalyticsWithCampaignIDEvent.DepartmentID,
+        CampaignID: mockAnalyticsWithCampaignIDEvent.CampaignID,
+        APIGWExtendedID: mockAnalyticsWithCampaignIDEvent.APIGWExtendedID,
         EventDateTime: date.toISOString(),
         Event: 'VALIDATED',
       });
@@ -144,6 +221,40 @@ describe('analyticsService', () => {
         MetricUnit.Count,
         1
       );
+    });
+  });
+
+  describe('createEvent', () => {
+    const mockMessage = {
+      NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80g',
+      DepartmentID: 'Dev',
+      CampaignID: 'CAMP01',
+      APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+    };
+
+    const mockEventID = 'b7e239f7-b354-4fe6-8aaf-04eba8331f6a';
+
+    it('should return an event object when given a message and notification state.', () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+
+      vi.mocked(uuid as () => string).mockReturnValueOnce(mockEventID);
+
+      // Act
+      const result = instance.createEvent(mockMessage, NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(result).toEqual({
+        EventID: mockEventID,
+        NotificationID: mockMessage.NotificationID,
+        DepartmentID: mockMessage.DepartmentID,
+        CampaignID: mockMessage.CampaignID,
+        APIGWExtendedID: mockMessage.APIGWExtendedID,
+        EventDateTime: date.toISOString(),
+        Event: 'VALIDATED',
+      });
     });
   });
 });
