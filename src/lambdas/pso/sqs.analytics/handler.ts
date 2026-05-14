@@ -79,7 +79,9 @@ export class Analytics extends QueueHandler<IAnalytics, void> {
       await this.notifications.addEvent(entry);
 
       // Increments campaign
+      this.observability.logger.info(`CampaignID: ${entry.CampaignID}`);
       if (entry.CampaignID) {
+        this.observability.logger.info(`Increment CampaignID: ${entry.CampaignID}`);
         await this.campaigns.incrementCampaigns(entry.CampaignID, entry.DepartmentID, entry.Event);
       }
     }
