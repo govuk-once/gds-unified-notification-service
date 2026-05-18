@@ -62,14 +62,14 @@ describe('GetCampaignStatus Handler', () => {
         'x-api-key': 'mockApiKey',
       },
       requestContext: {
+        authorizer: {
+          Organization: mockDepartmentID,
+        },
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       pathParameters: {
         campaignID: mockCampaignID,
-      },
-      queryParameters: {
-        departmentID: mockDepartmentID,
       },
     } as unknown as EventType;
 
@@ -172,6 +172,21 @@ describe('GetCampaignStatus Handler', () => {
     expect(result).toEqual(
       expect.objectContaining({
         statusCode: 404,
+      })
+    );
+  });
+
+  it('should return 400 if department ID is missing', async () => {
+    // Arrange
+    mockEvent.requestContext.authorizer = undefined;
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        statusCode: 400,
       })
     );
   });

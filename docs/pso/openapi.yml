@@ -102,14 +102,14 @@ paths:
         default:
           description: Unexpected error
 
-  /status/campaign/{CampaignID}:
+  /status/campaign/{campaignID}:
     get:
       summary: Gets status of a campaign
       operationId: getCampaignStatus
       tags:
         - MVP
       parameters:
-        - name: compositeID
+        - name: campaignID
           in: path
           required: true
           schema:

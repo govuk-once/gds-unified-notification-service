@@ -5,20 +5,18 @@ import { test } from '@test/e2e/setup.e2e.vitest';
 import { AxiosError } from 'axios';
 import { expect } from 'vitest';
 
-describe('Get /status/campaign/{campaignID}?departmentID={departmentID}', () => {
+describe('Get /status/campaign/{campaignID}', () => {
   // Creates dynamoClient for testing
   const dynamoClient = new DynamoDB({
     region: 'eu-west-2',
   });
+  const campaignsTableName = `${process.env.AWS_ENVIRONMENT_PREFIX}-campaigns`;
 
   const campaignID = 'testCampaignID';
-  const departmentID = 'testDepartmentID';
+  const departmentID = 'UNS';
   const compositeID = `${departmentID}/${campaignID}`;
 
-  test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({
-    prefix,
-    psoAPI,
-  }) => {
+  test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({ psoAPI }) => {
     // Arrange
     const testRecord: ICampaignRecord = {
       CompositeID: compositeID,
@@ -27,7 +25,7 @@ describe('Get /status/campaign/{campaignID}?departmentID={departmentID}', () => 
     };
 
     const params: PutItemCommandInput = {
-      TableName: `${prefix}-campaigns`,
+      TableName: campaignsTableName,
       Item: marshall(testRecord),
     };
 
@@ -35,7 +33,7 @@ describe('Get /status/campaign/{campaignID}?departmentID={departmentID}', () => 
 
     onTestFinished(async () => {
       const params: DeleteItemCommandInput = {
-        TableName: `${prefix}-campaigns`,
+        TableName: campaignsTableName,
         Key: marshall({
           ['CompositeID']: compositeID,
         }),
@@ -45,7 +43,7 @@ describe('Get /status/campaign/{campaignID}?departmentID={departmentID}', () => 
     });
 
     // Act
-    const result = await psoAPI.get(`/status/campaign/${campaignID}?departmentID=${departmentID}`);
+    const result = await psoAPI.get(`/status/campaign/${campaignID}`);
 
     // Assert
     expect(result.status).toBe(200);
@@ -72,13 +70,13 @@ describe('Get /status/campaign/{campaignID}?departmentID={departmentID}', () => 
     });
   });
 
-  test('returns 404 when given compositeID does not exist.', async ({ psoAPI }) => {
+  test('returns 404 when given campaignID does not exist.', async ({ psoAPI }) => {
     // Arrange
     const invalidCampaignID = 'invalidCampaignID';
 
     // Act
     try {
-      await psoAPI.get(`/status/campaign/${invalidCampaignID}?departmentID=${departmentID}`);
+      await psoAPI.get(`/status/campaign/${invalidCampaignID}`);
       throw new Error('Request should have failed with 404 but succeeded instead.');
     } catch (error) {
       // Assert

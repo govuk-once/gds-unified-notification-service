@@ -60,7 +60,6 @@ if (
 
 // Add clients to test implementation for e2d
 export const test = baseTest
-  .extend('prefix', prefix)
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
     const instance = axios.create({

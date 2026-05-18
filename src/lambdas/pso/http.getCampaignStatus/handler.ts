@@ -10,7 +10,7 @@ import { CampaignsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
-import z from 'zod';
+import z, { string } from 'zod';
 
 const requestBodySchema = z.any();
 const responseBodySchema = z.object({
@@ -56,11 +56,13 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
-    const departmentID = event.queryStringParameters?.departmentID ?? '';
+    const departmentID = event.requestContext.authorizer?.Organization as string;
+    if (!departmentID) {
+      throw new httpErrors.BadRequest();
+    }
+
     const compositeID = `${departmentID}/${campaignID}`;
-
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
-
     // If it doesn't exist - 404
     if (campaign == null) {
       throw new httpErrors.NotFound();
