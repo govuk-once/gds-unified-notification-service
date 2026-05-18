@@ -25,8 +25,9 @@ locals {
 
 # Parse values with fallbacks - allowing for non existence of ssm params
 locals {
-  flex_vpce    = ((jsondecode(try(local.flex_config["/vpce"], "null"))))
-  flex_account = ((jsondecode(try(local.flex_config["/account"], "null"))))
+  flex_vpce        = ((jsondecode(try(local.flex_config["/vpce"], "null"))))
+  flex_account     = ((jsondecode(try(local.flex_config["/account"], "null"))))
+  flex_account_ids = local.flex_account == null ? [] : try(tolist(local.flex_account), [tostring(local.flex_account)])
 
   udp_smconfig    = ((jsondecode(try(local.udp_config["/config/sm"], "null"))))
   udp_smconfigkms = ((jsondecode(try(local.udp_config["/config/kms"], "null"))))

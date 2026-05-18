@@ -1,5 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
+  AttributeValue,
+  ConditionalCheckFailedException,
   ConsumedCapacity,
   DeleteItemCommandInput,
   DynamoDB,
@@ -68,7 +70,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     try {
       await this.observeCapacity(
-        `createRecord`,
+        this.createRecord.name,
         this.client.putItem({
           TableName: this.tableAttributes.name,
           Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
@@ -94,7 +96,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       }
 
       await this.observeCapacity(
-        `createRecordBatch`,
+        this.createRecordBatch.name,
         this.client.batchWriteItem({
           RequestItems: {
             [this.tableAttributes.name]: batchRecords.map((record) => ({
@@ -156,7 +158,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     };
 
     try {
-      await this.observeCapacity(`updateRecord`, this.client.updateItem(params));
+      await this.observeCapacity(this.updateRecord.name, this.client.updateItem(params));
       this.observability.logger.info(`Successfully updated record in table: ${this.tableAttributes.name}`, {
         params,
         entries,
@@ -184,7 +186,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     };
 
     try {
-      await this.client.updateItem(params);
+      await this.observeCapacity(this.appendToList.name, this.client.updateItem(params));
       this.observability.logger.info(`Successfully updated record in table: ${this.tableAttributes.name}`, {
         params,
         listKey,
@@ -247,11 +249,11 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     };
 
     try {
-      await this.observeCapacity(`deleteRecord`, this.client.deleteItem(params));
+      await this.observeCapacity(this.deleteRecord.name, this.client.deleteItem(params));
       this.observability.logger.error(
         `Successfully deleted record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
       );
-    } catch (error) {
+    } catch {
       this.observability.logger.error(
         `Failure in deleting record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
       );
@@ -281,6 +283,46 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error(`Failure in getting records for table ${this.tableAttributes.name}. ${error}`);
       return [];
+    }
+  }
+
+  public async incrementRecord(record: RecordType, counter: string): Promise<void> {
+    this.observability.logger.info(`Incrementing record in table: ${this.tableAttributes.name}`);
+
+    try {
+      const keyValue = record[this.tableAttributes.hashKey as keyof RecordType];
+      if (!keyValue) {
+        throw new Error(
+          `No key value was found in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
+        );
+      }
+
+      // Will increment the item if the key exists, or create an item with value 1 if not
+      const updateExpression = `set #counter = if_not_exists(#counter, :start_value) + :incr`;
+
+      const expressionAttributeNames = { '#counter': counter };
+      const expressionAttributeValues = {
+        ':incr': { N: '1' },
+        ':start_value': { N: '0' },
+      };
+
+      const params: UpdateItemCommandInput = {
+        TableName: this.tableAttributes.name,
+        Key: marshall({
+          [this.tableAttributes.hashKey]: keyValue,
+        }),
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+        UpdateExpression: updateExpression,
+        ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
+      };
+
+      await this.observeCapacity(this.incrementRecord.name, this.client.updateItem(params));
+    } catch (error) {
+      this.observability.logger.error(
+        `Failure in adding record or incrementing in table: ${this.tableAttributes.name}`,
+        { error }
+      );
     }
   }
 

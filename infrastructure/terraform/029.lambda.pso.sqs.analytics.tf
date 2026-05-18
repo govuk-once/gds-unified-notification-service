@@ -27,7 +27,13 @@ module "lambda_pso_analytics" {
       read  = true
       write = true
     }
+    campaigns = {
+      arn   = module.dynamodb_campaigns.table_arn
+      read  = false
+      write = true
+    }
   }
+
   additional_policies = {
     # Allow elasticache connection
     elasticache = aws_iam_policy.lambda_elch_policy.arn

@@ -23,7 +23,7 @@ import {
   ProcessingQueueService,
 } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import { IMessage, ISQSStrictMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IMessage, ISQSStrictMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
@@ -40,7 +40,7 @@ import z from 'zod';
     {
       "messageId": "mockMessageId",
       "receiptHandle": "mockReceiptHandle",
-      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be1b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
+      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be1b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
       "attributes": {
         "ApproximateReceiveCount": "2",
         "SentTimestamp": "202601021513",
@@ -57,7 +57,7 @@ import z from 'zod';
 }
 
 Sample SQS Body (for pushing messages from portal)
-{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
+{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
 export class Validation extends BatchQueueOperation<IMessage, PartialItemFailureResponse> {
   public operationId: string = 'validation';

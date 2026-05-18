@@ -117,6 +117,7 @@ export class Processing extends BatchQueueOperation<IMessage, PartialItemFailure
       this.observability.logger.info(`Updating entry with timestamp`, {
         NotificationID: processedMessages.NotificationID,
         DepartmentID: processedMessages.DepartmentID,
+        CampaignID: processedMessages.CampaignID,
       });
 
       // Store External User ID and mark record as processed

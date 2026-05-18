@@ -1,4 +1,4 @@
-import { BatchProcessingError, FullBatchFailureError } from '@aws-lambda-powertools/batch';
+import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
@@ -44,7 +44,8 @@ describe('Processing QueueHandler', () => {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     DepartmentID: 'DVLA01',
     UserID: 'UserID',
-    NotificationTitle: 'Test message - 001',
+    CampaignID: 'CAM_ID',
+    NotificationTitle: 'Hey',
     NotificationBody: "You've got a message in the message centre",
     MessageTitle: '',
     MessageBody: '',
@@ -113,6 +114,7 @@ describe('Processing QueueHandler', () => {
           NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
+          CampaignID: 'invalid-id',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -237,6 +239,7 @@ describe('Processing QueueHandler', () => {
         DepartmentID: mockMessageBody_1.DepartmentID,
         NotificationID: mockMessageBody_1.NotificationID,
         UserID: mockMessageBody_1.UserID,
+        CampaignID: mockMessageBody_1.CampaignID,
       },
       'PROCESSING'
     );
@@ -250,6 +253,7 @@ describe('Processing QueueHandler', () => {
         NotificationID: mockMessageBody_1.NotificationID,
         NotificationTitle: mockMessageBody_1.NotificationTitle,
         UserID: mockMessageBody_1.UserID,
+        CampaignID: mockMessageBody_1.CampaignID,
       },
       'PROCESSED'
     );
@@ -290,6 +294,7 @@ describe('Processing QueueHandler', () => {
       NotificationTitle: mockMessageBody_1.NotificationTitle,
       UserID: mockMessageBody_1.UserID,
       ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+      CampaignID: mockMessageBody_1.CampaignID,
     });
   });
 
@@ -307,6 +312,7 @@ describe('Processing QueueHandler', () => {
       NotificationTitle: mockMessageBody_1.NotificationTitle,
       UserID: mockMessageBody_1.UserID,
       ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+      CampaignID: mockMessageBody_1.CampaignID,
     });
     expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
       DepartmentID: mockMessageBody_2.DepartmentID,
@@ -317,6 +323,7 @@ describe('Processing QueueHandler', () => {
       NotificationTitle: mockMessageBody_2.NotificationTitle,
       UserID: mockMessageBody_2.UserID,
       ExternalUserID: mockMessageBody_2.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
+      CampaignID: mockMessageBody_2.CampaignID,
     });
   });
 

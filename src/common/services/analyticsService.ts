@@ -4,7 +4,7 @@ import { AnalyticsQueueService, MetricsLabels, ObservabilityService, prefixEvent
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 
-export type AnalyticsEventFromIMessage = Pick<IMessage, 'DepartmentID' | 'NotificationID'> & {
+export type AnalyticsEventFromIMessage = Pick<IMessage, 'DepartmentID' | 'NotificationID' | 'CampaignID'> & {
   APIGWExtendedID?: string;
 };
 
@@ -42,6 +42,7 @@ export class AnalyticsService {
       EventID: uuid(),
       NotificationID: message.NotificationID,
       DepartmentID: message.DepartmentID,
+      CampaignID: message.CampaignID,
       APIGWExtendedID: message.APIGWExtendedID,
       EventDateTime: new Date().toISOString(),
       Event: status,
@@ -60,6 +61,7 @@ export class AnalyticsService {
     }
 
     // Map events & reasons together based on index (expecting two arrays of same length)
+    this.observability.logger.info(`Events`, JSON.stringify(events));
     await this.queue.publishMessageBatch(
       events.map((event, index) => this.createEvent<T>(event, status, reasons ? reasons[index] : undefined))
     );

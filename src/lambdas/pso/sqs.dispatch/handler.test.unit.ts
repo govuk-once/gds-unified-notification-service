@@ -47,6 +47,7 @@ describe('Dispatch QueueHandler', () => {
     UserID: 'test_id_01',
     ExternalUserID: 'test',
     DepartmentID: 'Dev',
+    CampaignID: 'CAM_ID',
     NotificationTitle: 'Boom',
     NotificationBody: 'psst',
   };
@@ -82,6 +83,7 @@ describe('Dispatch QueueHandler', () => {
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           ExternalUserID: 'test',
+          CampaignID: 'invalid-id',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -112,6 +114,7 @@ describe('Dispatch QueueHandler', () => {
     // Reset all mocks
     vi.clearAllMocks();
     vi.useRealTimers();
+
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
@@ -196,16 +199,9 @@ describe('Dispatch QueueHandler', () => {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
       },
       'DISPATCHING'
-    );
-    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
-      {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-      },
-      'DISPATCHED'
     );
   });
 
@@ -247,9 +243,35 @@ describe('Dispatch QueueHandler', () => {
         DepartmentID: mockMessageBody.DepartmentID,
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
         DispatchedDateTime: date.toISOString(),
       },
       { resetExpirationDate: true }
+    );
+  });
+
+   it('should send a analytics event when a notification is dispatched', async () => {
+    // Arrange
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
+      requestId: '123',
+      success: true,
+    } as unknown as NotificationAdapterResult);
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockEvent.Records[0].body.DepartmentID,
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        CampaignID: mockEvent.Records[0].body.CampaignID,
+        UserID: mockEvent.Records[0].body.UserID,
+      },
+      'DISPATCHED'
     );
   });
 
