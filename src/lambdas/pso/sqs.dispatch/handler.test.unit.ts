@@ -250,7 +250,7 @@ describe('Dispatch QueueHandler', () => {
     );
   });
 
-   it('should send a analytics event when a notification is dispatched', async () => {
+  it('should send a analytics event when a notification is dispatched', async () => {
     // Arrange
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',

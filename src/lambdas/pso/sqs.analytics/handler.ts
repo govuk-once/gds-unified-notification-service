@@ -69,7 +69,7 @@ export class Analytics extends QueueHandler<IAnalytics, PartialItemFailureRespon
 
     // Update notification object with status event
     await this.notifications.addEvent(entry);
-    
+
     // Increments campaign
     if (entry.CampaignID) {
       this.observability.logger.info(`Increment CampaignID: ${entry.CampaignID}`);
