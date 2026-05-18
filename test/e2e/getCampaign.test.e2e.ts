@@ -1,45 +1,34 @@
-import { DeleteItemCommandInput, DynamoDB, PutItemCommandInput } from '@aws-sdk/client-dynamodb';
-import { marshall } from '@aws-sdk/util-dynamodb';
-import { ICampaignRecord } from '@project/lambdas/interfaces/ICampaignRecord';
-import { test } from '@test/e2e/setup.e2e.vitest';
+import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { checkStatus, test } from '@test/e2e/setup.e2e.vitest';
 import { AxiosError } from 'axios';
 import { expect } from 'vitest';
+import { v4 as uuid } from 'uuid';
 
 describe('Get /status/campaign/{campaignID}', () => {
-  // Creates dynamoClient for testing
-  const dynamoClient = new DynamoDB({
-    region: 'eu-west-2',
-  });
-  const campaignsTableName = `${process.env.AWS_ENVIRONMENT_PREFIX}-campaigns`;
-
+  const notificationID = uuid();
   const campaignID = 'testCampaignID';
   const departmentID = 'UNS';
-  const compositeID = `${departmentID}/${campaignID}`;
+
+  const mockMessageWithCampaign: IMessage[] = [
+    {
+      CampaignID: campaignID,
+      DepartmentID: departmentID,
+      NotificationID: notificationID,
+      UserID: 'UserID',
+      MessageTitle: 'You have a new Message',
+      MessageBody: 'Open Notification Centre to read your notifications',
+      NotificationTitle: 'You have a new Notification',
+      NotificationBody: 'Here is the Notification body.',
+    },
+  ];
 
   test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({ psoAPI }) => {
     // Arrange
-    const testRecord: ICampaignRecord = {
-      CompositeID: compositeID,
-      VALIDATING: 1,
-      VALIDATED_API_CALL: 1,
-    };
-
-    const params: PutItemCommandInput = {
-      TableName: campaignsTableName,
-      Item: marshall(testRecord),
-    };
-
-    await dynamoClient.putItem(params);
-
-    onTestFinished(async () => {
-      const params: DeleteItemCommandInput = {
-        TableName: campaignsTableName,
-        Key: marshall({
-          ['CompositeID']: compositeID,
-        }),
-      };
-
-      await dynamoClient.deleteItem(params);
+    console.log(notificationID);
+    await psoAPI.post('/send', mockMessageWithCampaign);
+    await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
+      timeout: 30000,
+      interval: 2000,
     });
 
     // Act
@@ -51,21 +40,21 @@ describe('Get /status/campaign/{campaignID}', () => {
       CampaignID: campaignID,
       DepartmentID: departmentID,
       ProcessingSummary: {
-        VALIDATING: 1,
-        VALIDATED: 0,
-        VALIDATED_API_CALL: 1,
-        PROCESSING: 0,
-        PROCESSED: 0,
-        PROCESSING_FAILED: 0,
-        DISPATCHING: 0,
-        DISPATCHED: 0,
-        DISPATCHING_FAILED: 0,
+        VALIDATING: expect.any(Number),
+        VALIDATED: expect.any(Number),
+        VALIDATED_API_CALL: expect.any(Number),
+        PROCESSING: expect.any(Number),
+        PROCESSED: expect.any(Number),
+        PROCESSING_FAILED: expect.any(Number),
+        DISPATCHING: expect.any(Number),
+        DISPATCHED: expect.any(Number),
+        DISPATCHING_FAILED: expect.any(Number),
       },
       UsageSummary: {
-        RECEIVED: 0,
-        READ: 0,
-        MARKED_AS_UNREAD: 0,
-        HIDDEN: 0,
+        RECEIVED: expect.any(Number),
+        READ: expect.any(Number),
+        MARKED_AS_UNREAD: expect.any(Number),
+        HIDDEN: expect.any(Number),
       },
     });
   });

@@ -1,4 +1,5 @@
-import axios from 'axios';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import axios, { AxiosInstance } from 'axios';
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import https from 'node:https';
@@ -11,13 +12,6 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
-
-const prefix = process.env.AWS_ENVIRONMENT_PREFIX;
-if (prefix == undefined) {
-  throw new Error(
-    'Environment prefix is not setup for end to end testing, please run development:sandbox:setup to configure.'
-  );
-}
 
 const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
 const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
@@ -78,3 +72,23 @@ export const test = baseTest
     });
     return instance;
   });
+
+export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
+  const status = await psoAPI.get(`/status/${notificationID}`);
+  expect(status.data).toEqual(
+    expect.toBeOneOf([
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.VALIDATION_FAILED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.PROCESSING_FAILED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHING_FAILED, NotificationID: notificationID }),
+      ]),
+    ])
+  );
+};
