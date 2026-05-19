@@ -1,4 +1,6 @@
-import axios from 'axios';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
+import axios, { AxiosInstance } from 'axios';
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import https from 'node:https';
@@ -11,13 +13,6 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
-
-const prefix = process.env.AWS_ENVIRONMENT_PREFIX;
-if (prefix == undefined) {
-  throw new Error(
-    'Environment prefix is not setup for end to end testing, please run development:sandbox:setup to configure.'
-  );
-}
 
 const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
 const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
@@ -52,9 +47,10 @@ if (
   process.env.AWS_SECRET_ACCESS_KEY == undefined ||
   process.env.AWS_REGION == undefined
 ) {
-  throw new Error(
+  console.log(
     `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
   );
+  process.exit(1);
 }
 
 // Add clients to test implementation for e2d
@@ -63,7 +59,7 @@ export const test = baseTest
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${psoUrl}`,
-      timeout: 20000,
+      timeout: 10000,
       httpsAgent,
     });
     return instance;
@@ -72,8 +68,32 @@ export const test = baseTest
   .extend('flexAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${flexUrl}`,
-      timeout: 20000,
+      timeout: 10000,
       httpsAgent,
     });
     return instance;
   });
+
+export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
+  const result = await psoAPI.get(`/status/${notificationID}`);
+  console.log(`Status for notification ${notificationID}:`, result.data);
+  expect(result.data).toEqual(
+    expect.toBeOneOf([
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.VALIDATION_FAILED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.PROCESSING_FAILED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHING_FAILED, NotificationID: notificationID }),
+      ]),
+    ])
+  );
+  const status = result.data as INotificationStatus;
+  expect(status).toBeDefined();
+  return status;
+};

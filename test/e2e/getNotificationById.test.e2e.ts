@@ -1,88 +1,68 @@
-import { DynamoDB, PutItemCommandInput, DeleteItemCommandInput } from '@aws-sdk/client-dynamodb';
-import { marshall } from '@aws-sdk/util-dynamodb';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { test } from '@test/e2e/setup.e2e.vitest';
+import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { checkStatus, test } from '@test/e2e/setup.e2e.vitest';
 import { AxiosError } from 'axios';
 import { v4 as uuid } from 'uuid';
 
 describe('Get /status/{notificationID}', () => {
-  // Creates dynamoClient for testing
-  const dynamoClient = new DynamoDB({
-    region: 'eu-west-2',
+  let notificationID: string;
+  let messageRequest: IMessage[];
+
+  beforeEach(() => {
+    notificationID = uuid();
+    messageRequest = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'TestCampaignID',
+        DepartmentID: 'TestDepartmentID',
+        UserID: 'TestUserID',
+        MessageTitle: 'You have a new Test Message',
+        MessageBody: 'Open Notification Centre to read your notifications',
+        NotificationTitle: 'This message is an end to end test.',
+        NotificationBody: 'Here is the Notification body.',
+      },
+    ];
   });
-  const messagesTableName = `${process.env.AWS_ENVIRONMENT_PREFIX}-messages`;
-  const messageTableKey = 'NotificationID';
 
-  const mockNotificationID = uuid();
-  const mockEventID = uuid();
-  const mockDepartmentID = 'testDepartmentID';
-
-  const mockMessageRecord: IMessageRecord = {
-    NotificationID: mockNotificationID,
-    DepartmentID: mockDepartmentID,
-    UserID: 'testExternalUserID',
-    NotificationTitle: 'End 2 End Test',
-    NotificationBody: 'This is an end 2 end test!',
-    MessageTitle: 'End 2 End Test Message Title',
-    MessageBody: 'End 2 End Test Message Body',
-    Events: [
-      {
-        Event: NotificationStateEnum.VALIDATING,
-        EventDateTime: new Date().toISOString(),
-        EventID: mockEventID,
-        NotificationID: mockNotificationID,
-        DepartmentID: mockDepartmentID,
-        EventReason: 'Test event reason',
-      },
-      {
-        Event: NotificationStateEnum.VALIDATED,
-        EventDateTime: new Date().toISOString(),
-        EventID: mockEventID,
-        NotificationID: mockNotificationID,
-        DepartmentID: mockDepartmentID,
-        EventReason: 'Test event reason',
-      },
-    ],
-  };
-
-  test('returns 200 and a list of notifications statues.', async ({ psoAPI }) => {
+  test('returns 200 and a list of notifications statuses.', async ({ psoAPI }) => {
     // Arrange
-    const createMockRecordParams: PutItemCommandInput = {
-      TableName: messagesTableName,
-      Item: marshall(mockMessageRecord, { removeUndefinedValues: true }),
-    };
-    await dynamoClient.putItem(createMockRecordParams);
-
-    // Does the notification need to be deleted after test is complete?
-    onTestFinished(async () => {
-      const params: DeleteItemCommandInput = {
-        TableName: messagesTableName,
-        Key: marshall({
-          [messageTableKey]: mockNotificationID,
-        }),
-      };
-
-      await dynamoClient.deleteItem(params);
+    await psoAPI.post('/send', messageRequest);
+    await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
+      timeout: 30000,
+      interval: 2000,
     });
 
     // Act
-    const result = await psoAPI.get(`/status/${mockNotificationID}`);
+    const result = await psoAPI.get(`/status/${notificationID}`);
 
     // Assert
     expect(result.status).toBe(200);
-    expect(result.data).toEqual([
-      {
-        Status: mockMessageRecord.Events[0].Event,
-        EventTimestamp: mockMessageRecord.Events[0].EventDateTime,
-        NotificationID: mockMessageRecord.NotificationID,
-      },
-      {
-        Status: mockMessageRecord.Events[1].Event,
-        EventTimestamp: mockMessageRecord.Events[1].EventDateTime,
-        NotificationID: mockMessageRecord.NotificationID,
-      },
-    ]);
+    expect(result.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Status: NotificationStateEnum.VALIDATED_API_CALL,
+          NotificationID: notificationID,
+        }),
+        expect.objectContaining({
+          Status: NotificationStateEnum.PROCESSING,
+          NotificationID: notificationID,
+        }),
+        expect.objectContaining({
+          Status: NotificationStateEnum.PROCESSED,
+          NotificationID: notificationID,
+        }),
+        expect.objectContaining({
+          Status: NotificationStateEnum.DISPATCHING,
+          NotificationID: notificationID,
+        }),
+        // Need a way to void test notification while adapter is not VOID.
+
+        // expect.objectContaining({
+        //   Status: NotificationStateEnum.DISPATCHED,
+        //   EventTimestamp: expect.any(DateTimeFormat),
+        // }),
+      ])
+    );
   });
 
   test('returns 404 and when notificationID is invalid.', async ({ psoAPI }) => {

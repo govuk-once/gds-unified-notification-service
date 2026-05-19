@@ -26,10 +26,10 @@ module "parameter_store_external_configuration" {
     "config/dispatch/onesignal/appId" = "placeholder"
 
     # Common
-    "config/common/cache/notificationsProviderRateLimitPerMinute" = "5"
+    "config/common/cache/notificationsProviderRateLimitPerMinute" = "30"
 
     # Circuit breaker config
-    "config/dispatch/circuitBreaker/threshold"         = "5"
+    "config/dispatch/circuitBreaker/threshold"         = "30"
     "config/dispatch/circuitBreaker/halfOpenAfter"     = "30"
     "config/dispatch/circuitBreaker/windowDuration"    = "60"
     "config/dispatch/circuitBreaker/rateLimitWhenOpen" = "5"
