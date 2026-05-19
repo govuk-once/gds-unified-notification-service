@@ -80,5 +80,5 @@ jobs:
           TF_VAR_is_main_environment_in_account: 'true'
 
       # End to end testing
-      # - name: 🧪 E2E Testing
-      #   run: npm run test:e2e
+      - name: 🧪 E2E Testing
+        run: npm run test:e2e

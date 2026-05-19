@@ -1,7 +1,7 @@
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import axios, { AxiosInstance } from 'axios';
 import dotenv from 'dotenv';
-import fs from 'node:fs';
 import https from 'node:https';
 import { test as baseTest } from 'vitest';
 
@@ -21,25 +21,6 @@ if (psoUrl == undefined || flexUrl == undefined) {
   );
 }
 
-let httpsAgent: https.Agent;
-try {
-  // Creates a https agent for mTLS using imported credentials
-  httpsAgent = new https.Agent({
-    cert: fs.readFileSync('./test/e2e/config/cert-file.crt'),
-    key: fs.readFileSync('./test/e2e/config/cert-file.pem'),
-  });
-} catch {
-  throw new Error(
-    'mTLS certificates are not setup for end to end testing, please run development:sandbox:setup to configure.'
-  );
-}
-
-if (!httpsAgent) {
-  throw new Error(
-    'mTLS agent has not been configure for end to end testing, please run development:sandbox:setup to configure.'
-  );
-}
-
 // Ensure AWS env vars are available
 if (
   process.env.AWS_ACCESS_KEY_ID == undefined ||
@@ -50,6 +31,33 @@ if (
     `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
   );
   process.exit(1);
+}
+
+let httpsAgent: https.Agent;
+try {
+  const client = new SSMClient({ region: 'eu-west-2' });
+
+  const inputCert = { Name: '/e2e/pso/mtls/cert', WithDecryption: true };
+  const inputKey = { Name: '/e2e/pso/mtls/key', WithDecryption: true };
+  const cert = await client.send(new GetParameterCommand(inputCert));
+  const key = await client.send(new GetParameterCommand(inputKey));
+
+  if (!cert.Parameter || !key.Parameter) {
+    throw new Error('mTLS certificates were not returned from parameter store.');
+  }
+  // Creates a https agent for mTLS using imported credentials
+  httpsAgent = new https.Agent({
+    cert: `${cert.Parameter?.Value}`,
+    key: `${key.Parameter?.Value}`,
+  });
+} catch {
+  throw new Error('mTLS certificates were not returned from parameter store.');
+}
+
+if (!httpsAgent) {
+  throw new Error(
+    'mTLS agent has not been configure for end to end testing, please run development:sandbox:setup to configure.'
+  );
 }
 
 // Add clients to test implementation for e2d
