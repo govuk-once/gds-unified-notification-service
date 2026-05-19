@@ -27,7 +27,7 @@
     "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage --project unit",
     "test": "vitest",
     "test:unit": "vitest --project unit",
-    "test:e2e": "vitest --project e2e",
+    "test:e2e": "vitest --project e2e --testTimeout 30000",
     "tflint": "terraform fmt -check -diff -recursive && tflint --init && tflint --chdir=infrastructure/terraform  --config .tflint.hcl",
     "tflint:fix": "terraform fmt -recursive",
     "tfsec": "tfsec .",

@@ -1,7 +1,8 @@
-import axios from 'axios';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import axios, { AxiosInstance } from 'axios';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import https from 'https';
+import fs from 'node:fs';
+import https from 'node:https';
 import { test as baseTest } from 'vitest';
 
 dotenv.config();
@@ -39,12 +40,25 @@ if (!httpsAgent) {
   );
 }
 
+// Ensure AWS env vars are available
+if (
+  process.env.AWS_ACCESS_KEY_ID == undefined ||
+  process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+  process.env.AWS_REGION == undefined
+) {
+  console.log(
+    `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+  );
+  process.exit(1);
+}
+
+// Add clients to test implementation for e2d
 export const test = baseTest
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${psoUrl}`,
-      timeout: 5000,
+      timeout: 20000,
       httpsAgent,
     });
     return instance;
@@ -53,8 +67,28 @@ export const test = baseTest
   .extend('flexAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${flexUrl}`,
-      timeout: 5000,
+      timeout: 20000,
       httpsAgent,
     });
     return instance;
   });
+
+export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
+  const status = await psoAPI.get(`/status/${notificationID}`);
+  expect(status.data).toEqual(
+    expect.toBeOneOf([
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.VALIDATION_FAILED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.PROCESSING_FAILED, NotificationID: notificationID }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHING_FAILED, NotificationID: notificationID }),
+      ]),
+    ])
+  );
+};

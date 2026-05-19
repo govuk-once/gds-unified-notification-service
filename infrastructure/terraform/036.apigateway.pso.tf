@@ -28,6 +28,14 @@ module "api_gateway_pso" {
 
   // Lambdas
   integrations = {
+    "getCampaignStatus" = {
+      path                 = "/status/campaign/{campaignID}"
+      method               = "GET"
+      lambda_function_name = module.lambda_pso_getCampaignStatus.lambda_function_name
+      lambda_invoke_arn    = module.lambda_pso_getCampaignStatus.lambda_invoke_arn
+      authorizer           = local.mtls_enabled ? "mtlsCertificateRevocation" : null
+    }
+
     "getHealthcheck" = {
       path                 = "status"
       method               = "GET"
