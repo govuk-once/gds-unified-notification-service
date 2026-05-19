@@ -1,7 +1,5 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
-  AttributeValue,
-  ConditionalCheckFailedException,
   ConsumedCapacity,
   DeleteItemCommandInput,
   DynamoDB,

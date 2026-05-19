@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { checkStatus, test } from '@test/e2e/setup.e2e.vitest';
-import { AxiosError } from 'axios';
+import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
+import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 
 describe('Get /status/{notificationID}', () => {
@@ -65,8 +65,6 @@ describe('Get /status/{notificationID}', () => {
     const result = psoAPI.get(`/status/${mockInvalidNotificationID}`);
 
     // Assert
-    await expect(result).rejects.toThrow(AxiosError);
-    const error = result as unknown as AxiosError;
-    expect(error.response?.status).toBe(404);
+    await expect(result).rejects.toMatchObject(NotFoundAxiosError);
   });
 });

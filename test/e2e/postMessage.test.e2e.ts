@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { checkStatus, test } from '@test/e2e/setup.e2e.vitest';
-import { AxiosError } from 'axios';
+import { BadRequestAxiosError } from '@test/e2e/utils/AxiosErrors';
+import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
@@ -71,16 +71,11 @@ describe('Post /send', () => {
   });
 
   test('it returns 400 when the request has no body.', async ({ psoAPI }) => {
-    try {
-      // Act
-      await psoAPI.post('/send');
-      throw new Error('Request should have failed with 400 but succeeded instead.');
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(400);
-    }
+    // Act
+    const result = psoAPI.post('/send');
+
+    // Assert
+    await expect(result).rejects.toMatchObject(BadRequestAxiosError());
   });
 
   test('it returns 400 when the message has no departmentID.', async ({ psoAPI }) => {
@@ -97,19 +92,15 @@ describe('Post /send', () => {
       },
     ];
 
-    try {
-      // Act
-      await psoAPI.post('/send', messagesWithNoDepartmentID);
-      throw new Error('Request should have failed with 400 but succeeded instead.');
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(400);
-      expect(axiosError.response?.data).toBe(
+    // Act
+    const result = psoAPI.post('/send', messagesWithNoDepartmentID);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
         'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].DepartmentID'
-      );
-    }
+      )
+    );
   });
 
   test('it returns 400 when the message has no userID.', async ({ psoAPI }) => {
@@ -126,19 +117,13 @@ describe('Post /send', () => {
       },
     ];
 
-    try {
-      // Act
-      await psoAPI.post('/send', messagesWithNoUserID);
-      throw new Error('Request should have failed with 400 but succeeded instead.');
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(400);
-      expect(axiosError.response?.data).toBe(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].UserID'
-      );
-    }
+    // Act
+    const result = psoAPI.post('/send', messagesWithNoUserID);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError('Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].UserID')
+    );
   });
 
   test('it returns 400 when the message has no notificationTitle.', async ({ psoAPI }) => {
@@ -159,11 +144,10 @@ describe('Post /send', () => {
     const result = psoAPI.post('/send', messagesWithNoNotificationTitle);
 
     // Assert
-    await expect(result).rejects.toThrow(AxiosError);
-    const error = result as unknown as AxiosError;
-    expect(error.response?.status).toBe(400);
-    expect(error.response?.data).toBe(
-      'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationTitle'
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
+        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationTitle'
+      )
     );
   });
 
@@ -181,18 +165,14 @@ describe('Post /send', () => {
       },
     ];
 
-    try {
-      // Act
-      await psoAPI.post('/send', messagesWithNoNotificationBody);
-      throw new Error('Request should have failed with 400 but succeeded instead.');
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(400);
-      expect(axiosError.response?.data).toBe(
+    // Act
+    const result = psoAPI.post('/send', messagesWithNoNotificationBody);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
         'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationBody'
-      );
-    }
+      )
+    );
   });
 });

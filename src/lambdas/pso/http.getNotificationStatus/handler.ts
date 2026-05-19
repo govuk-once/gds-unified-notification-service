@@ -6,7 +6,6 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
 import { INotificationStatusSchema } from '@project/lambdas/interfaces/INotificationStatus';

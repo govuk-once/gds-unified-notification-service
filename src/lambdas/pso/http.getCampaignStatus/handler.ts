@@ -10,7 +10,7 @@ import { CampaignsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
-import z, { string } from 'zod';
+import z from 'zod';
 
 const requestBodySchema = z.any();
 const responseBodySchema = z.object({
