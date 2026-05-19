@@ -24,7 +24,6 @@ describe('Get /status/campaign/{campaignID}', () => {
 
   test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({ psoAPI }) => {
     // Arrange
-    console.log(notificationID);
     await psoAPI.post('/send', mockMessageWithCampaign);
     await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
       timeout: 30000,
