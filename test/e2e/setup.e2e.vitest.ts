@@ -79,18 +79,22 @@ export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string)
   console.log(`Status for notification ${notificationID}:`, result.data);
   expect(result.data).toEqual(
     expect.toBeOneOf([
-      expect.arrayContaining([
-        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHED, NotificationID: notificationID }),
-      ]),
-      expect.arrayContaining([
-        expect.objectContaining({ Status: NotificationStateEnum.VALIDATION_FAILED, NotificationID: notificationID }),
-      ]),
-      expect.arrayContaining([
-        expect.objectContaining({ Status: NotificationStateEnum.PROCESSING_FAILED, NotificationID: notificationID }),
-      ]),
-      expect.arrayContaining([
-        expect.objectContaining({ Status: NotificationStateEnum.DISPATCHING_FAILED, NotificationID: notificationID }),
-      ]),
+      expect.arrayContaining(
+        [
+          NotificationStateEnum.VALIDATED_API_CALL,
+          NotificationStateEnum.PROCESSING,
+          NotificationStateEnum.PROCESSED,
+          NotificationStateEnum.DISPATCHING,
+          // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.DISPATCHED,
+        ].map((Status) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          expect.objectContaining({
+            Status,
+            NotificationID: notificationID,
+          })
+        )
+      ),
     ])
   );
   const status = result.data as INotificationStatus;

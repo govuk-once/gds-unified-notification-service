@@ -51,41 +51,23 @@ describe('Post /send', () => {
       interval: 2000,
     });
     expect(status).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Status: NotificationStateEnum.VALIDATED_API_CALL,
-          NotificationID: notificationID,
-        }),
-      ])
+      expect.arrayContaining(
+        [
+          NotificationStateEnum.VALIDATED_API_CALL,
+          NotificationStateEnum.PROCESSING,
+          NotificationStateEnum.PROCESSED,
+          NotificationStateEnum.DISPATCHING,
+          // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.DISPATCHED,
+        ].map((Status) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          expect.objectContaining({
+            Status,
+            NotificationID: notificationID,
+          })
+        )
+      )
     );
-    expect(status).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Status: NotificationStateEnum.PROCESSING,
-          NotificationID: notificationID,
-        }),
-      ])
-    );
-    expect(status).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Status: NotificationStateEnum.PROCESSED,
-          NotificationID: notificationID,
-        }),
-      ])
-    );
-    expect(status).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Status: NotificationStateEnum.DISPATCHING,
-          NotificationID: notificationID,
-        }),
-      ])
-    );
-    // Need a way to void test notification while adapter is not VOID.
-    // expect(status).toEqual(
-    //   expect.arrayContaining([expect.objectContaining({ Status: NotificationStateEnum.DISPATCHED, NotificationID: notificationID})])
-    // );
   });
 
   test('it returns 400 when the request has no body.', async ({ psoAPI }) => {
@@ -173,19 +155,16 @@ describe('Post /send', () => {
       },
     ];
 
-    try {
-      // Act
-      await psoAPI.post('/send', messagesWithNoNotificationTitle);
-      throw new Error('Request should have failed with 400 but succeeded instead.');
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(400);
-      expect(axiosError.response?.data).toBe(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationTitle'
-      );
-    }
+    // Act
+    const result = psoAPI.post('/send', messagesWithNoNotificationTitle);
+
+    // Assert
+    await expect(result).rejects.toThrow(AxiosError);
+    const error = result as unknown as AxiosError;
+    expect(error.response?.status).toBe(400);
+    expect(error.response?.data).toBe(
+      'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationTitle'
+    );
   });
 
   test('it returns 400 when the message has no notificationBody.', async ({ psoAPI }) => {

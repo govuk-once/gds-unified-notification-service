@@ -38,30 +38,22 @@ describe('Get /status/{notificationID}', () => {
     // Assert
     expect(result.status).toBe(200);
     expect(result.data).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Status: NotificationStateEnum.VALIDATED_API_CALL,
-          NotificationID: notificationID,
-        }),
-        expect.objectContaining({
-          Status: NotificationStateEnum.PROCESSING,
-          NotificationID: notificationID,
-        }),
-        expect.objectContaining({
-          Status: NotificationStateEnum.PROCESSED,
-          NotificationID: notificationID,
-        }),
-        expect.objectContaining({
-          Status: NotificationStateEnum.DISPATCHING,
-          NotificationID: notificationID,
-        }),
-        // Need a way to void test notification while adapter is not VOID.
-
-        // expect.objectContaining({
-        //   Status: NotificationStateEnum.DISPATCHED,
-        //   EventTimestamp: expect.any(DateTimeFormat),
-        // }),
-      ])
+      expect.arrayContaining(
+        [
+          NotificationStateEnum.VALIDATED_API_CALL,
+          NotificationStateEnum.PROCESSING,
+          NotificationStateEnum.PROCESSED,
+          NotificationStateEnum.DISPATCHING,
+          // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.DISPATCHED,
+        ].map((Status) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          expect.objectContaining({
+            Status,
+            NotificationID: notificationID,
+          })
+        )
+      )
     );
   });
 
@@ -69,15 +61,12 @@ describe('Get /status/{notificationID}', () => {
     // Arrange
     const mockInvalidNotificationID = 'invalid-notification-id';
 
-    try {
-      // Act
-      const result = await psoAPI.get(`/status/${mockInvalidNotificationID}`);
-      throw new Error('Request should have failed with 404, but succeeded with status ' + result.status);
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(404);
-    }
+    // Act
+    const result = psoAPI.get(`/status/${mockInvalidNotificationID}`);
+
+    // Assert
+    await expect(result).rejects.toThrow(AxiosError);
+    const error = result as unknown as AxiosError;
+    expect(error.response?.status).toBe(404);
   });
 });
