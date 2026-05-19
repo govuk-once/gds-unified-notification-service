@@ -14,7 +14,7 @@ import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = INotificationStatusSchema;
+const responseBodySchema = z.array(INotificationStatusSchema);
 
 export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotificationStatus';

@@ -97,7 +97,7 @@ export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string)
       ),
     ])
   );
-  const status = result.data as INotificationStatus;
+  const status = result.data as INotificationStatus[];
   expect(status).toBeDefined();
   return status;
 };
