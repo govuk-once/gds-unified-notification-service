@@ -1,3 +1,4 @@
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { Tags } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import dotenv from 'dotenv';
@@ -12,6 +13,21 @@ if (existsSync('./.env')) {
 
 export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
 
+export const fromSSM = async (key: string) => {
+  const value = (
+    await new SSMClient().send(
+      new GetParameterCommand({
+        Name: key,
+        WithDecryption: true,
+      })
+    )
+  ).Parameter?.Value;
+  if (value == undefined) {
+    throw new Error(`Failed to retrieve ${key} - aborting`);
+  }
+  return value;
+};
+
 export const config = {
   // Metadata
   project: 'uns',
@@ -25,6 +41,12 @@ export const config = {
     version: config.version,
     managedBy: 'CDK',
   }),
+
+  ssm: {
+    // These values are created by the Infra team and are always present in each AWS acc
+    hostedZoneName: await fromSSM('/infra/dns/hostedzonename'),
+    certificateArnRegional: await fromSSM('/infra/acm/certificatearnregional'),
+  },
 
   // mTLS confing
   mtls: process.env.use_mtls == 'true',

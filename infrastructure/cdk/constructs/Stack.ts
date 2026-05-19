@@ -523,6 +523,7 @@ export class UNS extends Stack {
 
     const psoGateway = apiGatewayFactory(this, config, {
       name: [`pso`],
+      domain: `pso-cdk`,
       resources: {
         authorizers: [],
       },

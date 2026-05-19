@@ -1,13 +1,17 @@
 import {
   AccessLogField,
   AccessLogFormat,
+  EndpointType,
   IAuthorizer,
   Integration,
   LogGroupLogDestination,
   RestApi,
 } from 'aws-cdk-lib/aws-apigateway';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { Stack } from 'aws-cdk-lib/core';
 import { EnvVars } from 'infrastructure/cdk/config';
 export const apiGatewayFactory = (
@@ -16,6 +20,7 @@ export const apiGatewayFactory = (
   props: {
     name: string[];
     type: 'MTLS' | 'PRIVATE' | 'PUBLIC';
+    domain?: string;
     resources: {
       mtlsTruststoreUrl?: string;
       vpce?: string[];
@@ -33,6 +38,20 @@ export const apiGatewayFactory = (
   }
 ) => {
   const { namingHelper } = config.utils;
+
+  // Setup custom domain - parameters are exposed via SSM values - these are generated on AWS account setup by infra team
+  const rootDomain = config.ssm.hostedZoneName;
+  const certificateArn = config.ssm.certificateArnRegional;
+  const subdomain = props.domain ? (config.isMainEnv() ? props.domain : namingHelper(props.domain)) : null;
+  const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
+
+  console.log({ rootDomain, certificateArn, subdomain, fullDomain });
+
+  const hostedZone = route53.HostedZone.fromLookup(stack, 'HostedZone', {
+    domainName: rootDomain,
+    privateZone: false,
+  });
+  const certificate = acm.Certificate.fromCertificateArn(stack, 'certificate', certificateArn);
 
   // API Gateway
   const restApi = new RestApi(stack, namingHelper(...props.name), {
@@ -71,13 +90,33 @@ export const apiGatewayFactory = (
         })
       ),
     },
+
+    // Custom domain name
+    ...(props.domain && fullDomain
+      ? {
+          domainName: {
+            domainName: fullDomain,
+            certificate: certificate,
+            endpointType: EndpointType.REGIONAL, // Recommended for lower latencies/ACM management
+          },
+        }
+      : {}),
   });
 
+  // Register endpoints
   for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
     const resource = restApi.root.resourceForPath(path);
     resource.addMethod(method, integration, {
       operationName: operationId,
       authorizer,
+    });
+  }
+
+  if (fullDomain) {
+    new route53.ARecord(stack, namingHelper(...props.name, 'certificatearnregional'), {
+      zone: hostedZone,
+      recordName: fullDomain,
+      target: route53.RecordTarget.fromAlias(new targets.ApiGateway(restApi)),
     });
   }
 
