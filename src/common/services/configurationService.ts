@@ -35,7 +35,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
   }
 
   public async getParameter(namespace: string): Promise<string> {
-    this.observability.logger.trace(`Retrieving parameter /${this.prefix}/${namespace}`);
+    this.observability.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
       Name: `/${this.prefix}/${namespace}`,
@@ -50,7 +50,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
 
       // Confirm value in cache
       if (this.inMemoryCache.has(param.Name)) {
-        this.observability.logger.trace(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
+        this.observability.logger.info(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
         return this.inMemoryCache.get(param.Name)!;
       }
       throw new Error('Returned parameter has no value');

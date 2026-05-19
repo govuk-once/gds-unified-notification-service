@@ -4,6 +4,8 @@ import {
   InterfaceVpcEndpoint,
   InterfaceVpcEndpointAwsService,
   IpAddresses,
+  Peer,
+  Port,
   SecurityGroup,
   SubnetType,
   Vpc,
@@ -57,8 +59,10 @@ export const vpcFactory = <
   const privateEgress = new SecurityGroup(stack, namingHelper(props.name, 'sg', 'private'), {
     vpc,
     description: 'SecurityGroup with allow outbound',
-    allowAllOutbound: false,
+    allowAllOutbound: true,
   });
+  privateEgress.addIngressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
+  privateEgress.addEgressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
   config.utils.tagsHelper(privateEgress);
 
   const privateIsolated = new SecurityGroup(stack, namingHelper(props.name, 'sg', 'isolated'), {
@@ -66,6 +70,8 @@ export const vpcFactory = <
     description: 'SecurityGroup with deny outbound',
     allowAllOutbound: false,
   });
+  privateIsolated.addIngressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
+  privateIsolated.addEgressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
   config.utils.tagsHelper(privateIsolated);
 
   // Attach private interface endpoints endpoints to vpc

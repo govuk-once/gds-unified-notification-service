@@ -19,6 +19,12 @@ export const config = {
   region: process.env.region ?? 'eu-west-2',
   version: process.env.version ?? 'manual',
   isMainEnv: () => unremoveableEnvironments.includes(config.env),
+  defaultTags: () => ({
+    project: config.project,
+    env: config.project,
+    version: config.version,
+    managedBy: 'CDK',
+  }),
 
   // mTLS confing
   mtls: process.env.use_mtls == 'true',
@@ -40,10 +46,7 @@ export const config = {
     namespace: () => [config.project, config.env].join(`-`),
     tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
       for (const [key, value] of Object.entries({
-        project: config.project,
-        env: config.project,
-        version: config.version,
-        managedBy: 'CDK',
+        ...config.defaultTags(),
         ...(additionalTags ?? {}),
       })) {
         Tags.of(construct).add(key, value);

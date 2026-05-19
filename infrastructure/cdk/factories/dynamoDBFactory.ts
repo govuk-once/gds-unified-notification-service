@@ -15,6 +15,7 @@ export const dynamodbFactory = (
     sortKeyType?: AttributeType;
     pointInTimeRecovery?: boolean;
     ttlAttribute?: string;
+    ttlDurationInSeconds?: number;
     resources: {
       kms: kms.Key;
     };
@@ -77,5 +78,15 @@ export const dynamodbFactory = (
     });
   }
 
-  return table;
+  return {
+    table,
+    attributes: {
+      name: config.utils.namingHelper(...props.name),
+      hashKey: props.partitionKey,
+      rangeKey: null,
+      attributes: [],
+      expirationAttribute: props.ttlAttribute,
+      expirationDurationInSeconds: props.ttlDurationInSeconds,
+    },
+  };
 };
