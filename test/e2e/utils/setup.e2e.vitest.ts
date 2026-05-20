@@ -1,4 +1,6 @@
-import axios from 'axios';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
+import axios, { AxiosInstance } from 'axios';
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import https from 'node:https';
@@ -39,6 +41,19 @@ if (!httpsAgent) {
   );
 }
 
+// Ensure AWS env vars are available
+if (
+  process.env.AWS_ACCESS_KEY_ID == undefined ||
+  process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+  process.env.AWS_REGION == undefined
+) {
+  console.log(
+    `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+  );
+  process.exit(1);
+}
+
+// Add clients to test implementation for e2d
 export const test = baseTest
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
@@ -58,3 +73,31 @@ export const test = baseTest
     });
     return instance;
   });
+
+export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
+  const result = await psoAPI.get(`/status/${notificationID}`);
+  console.log(`Status for notification ${notificationID}:`, result.data);
+  expect(result.data).toEqual(
+    expect.toBeOneOf([
+      expect.arrayContaining(
+        [
+          NotificationStateEnum.VALIDATED_API_CALL,
+          NotificationStateEnum.PROCESSING,
+          NotificationStateEnum.PROCESSED,
+          NotificationStateEnum.DISPATCHING,
+          // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.DISPATCHED,
+        ].map((Status) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          expect.objectContaining({
+            Status,
+            NotificationID: notificationID,
+          })
+        )
+      ),
+    ])
+  );
+  const status = result.data as INotificationStatus[];
+  expect(status).toBeDefined();
+  return status;
+};

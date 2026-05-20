@@ -44,7 +44,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
     return middy;
   }
 
-  protected createPolicyResponse(resource: string, effect: 'Allow' | 'Deny') {
+  protected createPolicyResponse(resource: string, effect: 'Allow' | 'Deny', context?: Record<string, string>) {
     const authorizerResult: APIGatewayAuthorizerResult = {
       principalId: 'MtlsCertificateRevocationAuthorizer',
       policyDocument: {
@@ -57,9 +57,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
           },
         ],
       },
-      context: {
-        exampleKey: 'exampleValue',
-      },
+      context: context ?? {},
     };
 
     // TODO: Create a dedicate authorizer handler, and organize existing handlers a bit more
@@ -109,9 +107,19 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
       return this.createPolicyResponse(_event.methodArn, 'Deny');
     }
 
+    // Certificate has no organization
+    if (!certificateRecord.Organization) {
+      this.observability.metrics.addMetric(
+        MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_NO_ORGANIZATION_COUNT,
+        MetricUnit.Count,
+        1
+      );
+      return this.createPolicyResponse(_event.methodArn, 'Deny');
+    }
+
     // Allow only if the certificate record states that certificate has not been revoked
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_ALLOWED_COUNT, MetricUnit.Count, 1);
-    return this.createPolicyResponse(_event.methodArn, 'Allow');
+    return this.createPolicyResponse(_event.methodArn, 'Allow', { Organization: certificateRecord.Organization });
   }
 }
 

@@ -110,10 +110,7 @@ export class CircuitBreakerService {
 
     const state = await this.getState();
     if (state == CircuitBreakerStateEnum.HALF_OPEN) {
-      await this.cacheService.store(
-        this.stateKey(this.platform),
-        CircuitBreakerStateEnum.CLOSED as CircuitBreakerStateEnum
-      );
+      await this.cacheService.store(this.stateKey(this.platform), CircuitBreakerStateEnum.CLOSED);
       this.observability.logger.info('Circuit breaker closed after successful request in HALF_OPEN state', {
         platform: this.platform,
       });

@@ -6,37 +6,15 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
+import { INotificationStatusSchema } from '@project/lambdas/interfaces/INotificationStatus';
 import type { Context } from 'aws-lambda';
 import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(
-  z.object({
-    NotificationID: z.string(),
-    EventTimestamp: z.string(),
-    Status: z.enum([
-      NotificationStateEnum.UNKNOWN,
-      NotificationStateEnum.RECEIVED,
-      NotificationStateEnum.VALIDATING,
-      NotificationStateEnum.VALIDATED,
-      NotificationStateEnum.VALIDATED_API_CALL,
-      NotificationStateEnum.VALIDATION_FAILED,
-      NotificationStateEnum.PROCESSING,
-      NotificationStateEnum.PROCESSED,
-      NotificationStateEnum.PROCESSING_FAILED,
-      NotificationStateEnum.DISPATCHING,
-      NotificationStateEnum.DISPATCHED,
-      NotificationStateEnum.DISPATCHING_FAILED,
-      NotificationStateEnum.READ,
-      NotificationStateEnum.MARKED_AS_UNREAD,
-      NotificationStateEnum.HIDDEN,
-    ]),
-  })
-);
+const responseBodySchema = z.array(INotificationStatusSchema);
 
 export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotificationStatus';
