@@ -70,6 +70,23 @@ export const test = baseTest
       timeout: 10000,
       httpsAgent,
     });
+
+    instance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (axios.isAxiosError(error)) {
+          delete error.config;
+          delete error.request;
+          if (error.response) {
+            delete error.response.config;
+            delete error.response.request;
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+        return Promise.reject(error);
+      }
+    );
+
     return instance;
   })
   // Creates an axios client for FLEX requests
@@ -79,7 +96,22 @@ export const test = baseTest
       timeout: 10000,
       httpsAgent,
     });
-    return instance;
+
+    instance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (axios.isAxiosError(error)) {
+          delete error.config;
+          delete error.request;
+          if (error.response) {
+            delete error.response.config;
+            delete error.response.request;
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+        return Promise.reject(error);
+      }
+    );
   });
 
 export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
