@@ -81,7 +81,7 @@ jobs:
 
       # End to end testing
       - name: 🧪 E2E Testing
-        run: npm run test:e2e
+        run: run: VITEST_SILENT=true npm run test:e2e
         env:
           AWS_PSO_CUSTOM_DOMAIN_NAME: ${{ vars.AWS_PSO_CUSTOM_DOMAIN_NAME }}
           AWS_FLEX_CUSTOM_DOMAIN_NAME: ${{ vars.AWS_FLEX_CUSTOM_DOMAIN_NAME }}
