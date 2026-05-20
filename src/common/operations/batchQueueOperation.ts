@@ -1,10 +1,15 @@
-import { QueueHandler } from '@common/operations/queueOperation';
+import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
+import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
+import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import { BoolParameters } from '@common/utils';
 import { IIdentifiableMessage, ISQSIdentifiableSchema } from '@project/lambdas/interfaces/IMessage';
-import { SQSRecord } from 'aws-lambda';
+import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodError, ZodObject } from 'zod';
 
-export abstract class BatchQueueOperation<InputType, OutputType> extends QueueHandler<InputType, OutputType> {
+export abstract class BatchQueueOperation<InputType> extends QueueHandler<InputType, PartialItemFailureResponse> {
+  protected enableConfig: string;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService
@@ -58,4 +63,22 @@ export abstract class BatchQueueOperation<InputType, OutputType> extends QueueHa
   }
 
   public abstract recordHandler: (record: SQSRecord) => Promise<void>;
+
+  protected abstract batchItemFailureMetric: (batchItemFailuresCount: number) => void;
+
+  public async implementation(event: QueueEvent<InputType>, context: Context): Promise<PartialItemFailureResponse> {
+    if (this.enableConfig) {
+      await this.config.ensureServiceIsEnabled(BoolParameters.Config.Common.Enabled, this.enableConfig);
+    }
+
+    const processor = new BatchProcessor(EventType.SQS);
+    const failures = await processPartialResponse(event, this.recordHandler, processor, {
+      context,
+    });
+
+    if (failures.batchItemFailures.length > 0) {
+      this.batchItemFailureMetric(failures.batchItemFailures.length);
+    }
+    return failures;
+  }
 }

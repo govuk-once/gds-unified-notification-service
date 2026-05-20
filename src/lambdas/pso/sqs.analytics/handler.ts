@@ -1,4 +1,3 @@
-import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
@@ -9,12 +8,12 @@ import {
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
-import { QueueEvent, QueueHandler } from '@common/operations';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, MetricsLabels, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
-import { Context, SQSRecord } from 'aws-lambda';
+import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
 /**
@@ -41,7 +40,7 @@ import z from 'zod';
   ]
 }
  */
-export class Analytics extends QueueHandler<IAnalytics, PartialItemFailureResponse> {
+export class Analytics extends BatchQueueOperation<IAnalytics> {
   public operationId: string = 'analytics';
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
@@ -52,7 +51,7 @@ export class Analytics extends QueueHandler<IAnalytics, PartialItemFailureRespon
     protected observability: ObservabilityService,
     dependencies?: () => HandlerDependencies<Analytics>
   ) {
-    super(observability);
+    super(config, observability);
     this.injectDependencies(dependencies);
   }
 
@@ -85,21 +84,13 @@ export class Analytics extends QueueHandler<IAnalytics, PartialItemFailureRespon
     });
   };
 
-  public async implementation(event: QueueEvent<IAnalytics>, context: Context): Promise<PartialItemFailureResponse> {
-    const processor = new BatchProcessor(EventType.SQS);
-    const failures = await processPartialResponse(event, this.recordHandler, processor, {
-      context,
-    });
-
-    if (failures.batchItemFailures.length > 0) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS,
-        MetricUnit.Count,
-        failures.batchItemFailures.length
-      );
-    }
-    return failures;
-  }
+  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+    this.observability.metrics.addMetric(
+      MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS,
+      MetricUnit.Count,
+      batchItemFailuresCount
+    );
+  };
 }
 
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({

@@ -1,4 +1,3 @@
-import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
@@ -11,7 +10,6 @@ import {
   iocGetProcessingQueueService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent } from '@common/operations';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
@@ -23,8 +21,8 @@ import {
   ProcessingQueueService,
 } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import { extractIdentifiers, IMessage, ISQSStrictMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { Context, SQSRecord } from 'aws-lambda';
+import { IMessage, ISQSStrictMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
 /**
@@ -59,8 +57,9 @@ import z from 'zod';
 Sample SQS Body (for pushing messages from portal)
 {"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
-export class Validation extends BatchQueueOperation<IMessage, PartialItemFailureResponse> {
+export class Validation extends BatchQueueOperation<IMessage> {
   public operationId: string = 'validation';
+  protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
 
   public analyticsService: AnalyticsService;
   public notificationsRepository: NotificationsDynamoRepository;
@@ -125,26 +124,13 @@ export class Validation extends BatchQueueOperation<IMessage, PartialItemFailure
     await this.processingQueue.publishMessage(message);
   };
 
-  public async implementation(event: QueueEvent<IMessage>, context: Context): Promise<PartialItemFailureResponse> {
-    await this.config.ensureServiceIsEnabled(
-      BoolParameters.Config.Common.Enabled,
-      BoolParameters.Config.Validation.Enabled
+  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+    this.observability.metrics.addMetric(
+      MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
+      MetricUnit.Count,
+      batchItemFailuresCount
     );
-
-    const processor = new BatchProcessor(EventType.SQS);
-    const failures = await processPartialResponse(event, this.recordHandler, processor, {
-      context,
-    });
-
-    if (failures.batchItemFailures.length > 0) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
-        MetricUnit.Count,
-        failures.batchItemFailures.length
-      );
-    }
-    return failures;
-  }
+  };
 }
 
 export const handler = new Validation(

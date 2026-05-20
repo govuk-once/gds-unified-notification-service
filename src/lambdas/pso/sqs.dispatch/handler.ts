@@ -1,4 +1,3 @@
-import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
@@ -12,7 +11,6 @@ import {
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent } from '@common/operations';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
@@ -25,9 +23,9 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import { extractIdentifiers, IMessage } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage, ISQSProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
-import { Context, SQSRecord } from 'aws-lambda';
+import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
 /**
@@ -62,8 +60,9 @@ import z from 'zod';
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItemFailureResponse> {
+export class Dispatch extends BatchQueueOperation<IProcessedMessage> {
   public operationId: string = 'dispatch';
+  protected enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analyticsService: AnalyticsService;
@@ -82,6 +81,19 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItem
 
   public recordHandler = async (record: SQSRecord) => {
     await this.circuitBreakerService.checkCircuit();
+    // Rate limits request if rate limiting is enforced
+    if (
+      (
+        await this.cacheService.rateLimit(
+          `NOTIFICATION_PROVIDER_RATE_LIMIT`,
+          await this.config.getNumericParameter(
+            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
+          )
+        )
+      ).exceeded
+    ) {
+      throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
+    }
 
     // Validate Incoming messages
     const data = await this.validateRecord(ISQSProcessedMessageSchema, record, {
@@ -105,20 +117,6 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItem
       },
     });
     const message = data.body;
-
-    // Rate limits request if rate limiting is enforced
-    if (
-      (
-        await this.cacheService.rateLimit(
-          `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-          await this.config.getNumericParameter(
-            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
-          )
-        )
-      ).exceeded
-    ) {
-      throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
-    }
 
     // Prepare request
     try {
@@ -172,29 +170,13 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage, PartialItem
     );
   };
 
-  public async implementation(
-    event: QueueEvent<IProcessedMessage>,
-    context: Context
-  ): Promise<PartialItemFailureResponse> {
-    await this.config.ensureServiceIsEnabled(
-      BoolParameters.Config.Common.Enabled,
-      BoolParameters.Config.Dispatch.Enabled
+  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+    this.observability.metrics.addMetric(
+      MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
+      MetricUnit.Count,
+      batchItemFailuresCount
     );
-
-    const processor = new BatchProcessor(EventType.SQS);
-    const failures = await processPartialResponse(event, this.recordHandler, processor, {
-      context,
-    });
-
-    if (failures.batchItemFailures.length > 0) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
-        MetricUnit.Count,
-        failures.batchItemFailures.length
-      );
-    }
-    return failures;
-  }
+  };
 }
 
 export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({

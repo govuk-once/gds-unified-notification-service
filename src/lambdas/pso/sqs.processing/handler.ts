@@ -18,15 +18,13 @@ import {
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
 import { extractIdentifiers, IMessage, ISQSMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { Context, SQSRecord } from 'aws-lambda';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import z from 'zod';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
-import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
-import { QueueEvent } from '@common/operations';
-import { BoolParameters } from '@common/utils';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { BoolParameters } from '@common/utils';
+import { SQSRecord } from 'aws-lambda';
 
 /**
  * 
@@ -58,8 +56,9 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
   ]
 }
  */
-export class Processing extends BatchQueueOperation<IMessage, PartialItemFailureResponse> {
+export class Processing extends BatchQueueOperation<IMessage> {
   public operationId: string = 'processing';
+  protected enableConfig: string = BoolParameters.Config.Processing.Enabled;
 
   public analyticsService: AnalyticsService;
   public notificationsRepository: NotificationsDynamoRepository;
@@ -138,26 +137,13 @@ export class Processing extends BatchQueueOperation<IMessage, PartialItemFailure
     }
   };
 
-  public async implementation(event: QueueEvent<IMessage>, context: Context): Promise<PartialItemFailureResponse> {
-    await this.config.ensureServiceIsEnabled(
-      BoolParameters.Config.Common.Enabled,
-      BoolParameters.Config.Processing.Enabled
+  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+    this.observability.metrics.addMetric(
+      MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
+      MetricUnit.Count,
+      batchItemFailuresCount
     );
-
-    const processor = new BatchProcessor(EventType.SQS);
-    const failures = await processPartialResponse(event, this.recordHandler, processor, {
-      context,
-    });
-
-    if (failures.batchItemFailures.length > 0) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
-        MetricUnit.Count,
-        failures.batchItemFailures.length
-      );
-    }
-    return failures;
-  }
+  };
 }
 
 // IoC
