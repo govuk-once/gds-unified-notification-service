@@ -1,7 +1,7 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import dotenv from 'dotenv';
 import https from 'node:https';
 import { test as baseTest } from 'vitest';
@@ -78,8 +78,8 @@ export const test = baseTest
           delete error.config;
           delete error.request;
           if (error.response) {
-            delete error.response.config;
-            delete error.response.request;
+            delete (error.response as Partial<AxiosError>).config;
+            delete (error.response as Partial<AxiosError>).request;
           }
         }
         // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
@@ -104,8 +104,8 @@ export const test = baseTest
           delete error.config;
           delete error.request;
           if (error.response) {
-            delete error.response.config;
-            delete error.response.request;
+            delete (error.response as Partial<AxiosError>).config;
+            delete (error.response as Partial<AxiosError>).request;
           }
         }
         // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
