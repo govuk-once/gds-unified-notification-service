@@ -1,8 +1,8 @@
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { checkStatus, test } from '@test/e2e/setup.e2e.vitest';
-import { AxiosError } from 'axios';
-import { expect } from 'vitest';
+import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
+import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
+import { expect } from 'vitest';
 
 describe('Get /status/campaign/{campaignID}', () => {
   const notificationID = uuid();
@@ -63,15 +63,9 @@ describe('Get /status/campaign/{campaignID}', () => {
     const invalidCampaignID = 'invalidCampaignID';
 
     // Act
-    try {
-      await psoAPI.get(`/status/campaign/${invalidCampaignID}`);
-      throw new Error('Request should have failed with 404 but succeeded instead.');
-    } catch (error) {
-      // Assert
-      expect(error).instanceOf(AxiosError);
-      const axiosError = error as AxiosError;
-      expect(axiosError.response?.status).toBe(404);
-      expect(axiosError.response?.data).toBe('Not Found');
-    }
+    const result = psoAPI.get(`/status/campaign/${invalidCampaignID}`);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(NotFoundAxiosError);
   });
 });

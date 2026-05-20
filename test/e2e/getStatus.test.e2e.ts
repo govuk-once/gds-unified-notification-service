@@ -1,4 +1,4 @@
-import { test } from '@test/e2e/setup.e2e.vitest';
+import { test } from '@test/e2e/utils/setup.e2e.vitest';
 import { expect } from 'vitest';
 
 describe('Get /status', () => {

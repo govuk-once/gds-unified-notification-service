@@ -19,8 +19,6 @@ module "parameter_store_internal_configuration" {
     "queue/dispatch/url"   = module.sqs_dispatch.queue_url
     "queue/analytics/url"  = module.sqs_analytics.queue_url
 
-    // TODO: Consider whether moving this struct into dynamodb module would be a nice solution
-    // TODO: Similarly, might be worth refactoring this into a single struct to reduce SSM requests
     // Dynamo table config
     "table/inbound/attributes" = jsonencode({
       name                        = module.dynamodb_inbound_messages.table_name
