@@ -48,7 +48,7 @@ export const dynamodbFactory = (
     },
 
     // Deletion protection
-    deletionProtection: config.isMainEnv(),
+    deletionProtection: config.isMainEnv,
     removalPolicy: cdk.RemovalPolicy.RETAIN,
 
     // Conditionally define TTL Attribute if required
@@ -78,6 +78,13 @@ export const dynamodbFactory = (
     });
   }
 
+  const permission = (read: boolean, scan: boolean, write: boolean) => ({
+    arn: table.tableArn,
+    read,
+    write,
+    scan,
+  });
+
   return {
     table,
     attributes: {
@@ -87,6 +94,11 @@ export const dynamodbFactory = (
       attributes: [],
       expirationAttribute: props.ttlAttribute,
       expirationDurationInSeconds: props.ttlDurationInSeconds,
+    },
+    permissions: {
+      readOnlyById: permission(true, false, false),
+      readOnly: permission(true, true, false),
+      readAndWrite: permission(true, true, true),
     },
   };
 };

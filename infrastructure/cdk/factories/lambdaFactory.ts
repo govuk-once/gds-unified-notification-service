@@ -275,7 +275,7 @@ export const lambdaFactory = (
 
   return {
     fn,
-    fnIntegration: new LambdaIntegration(fn),
+    integration: new LambdaIntegration(fn),
     role,
     logGroup,
   };

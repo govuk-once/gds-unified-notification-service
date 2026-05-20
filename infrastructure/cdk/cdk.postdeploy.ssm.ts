@@ -52,7 +52,7 @@ const ssm = new SSMClient();
 const kms = new KMSClient();
 
 await (async () => {
-  const namespace = config.utils.namespace();
+  const namespace = config.namespace;
   const aliases = await kms.send(new ListAliasesCommand({}));
   const alias = aliases.Aliases?.find((alias) =>
     alias.AliasArn?.endsWith(config.utils.namingHelper('kms', 'key', 'alias'))

@@ -33,8 +33,8 @@ export function execute(prefix: string, command: string[]) {
     stderr: 'pipe',
   });
 
-  pipeOutput(proc.stdout, `[${prefix}]`);
-  pipeOutput(proc.stderr, `[${prefix}]`);
+  pipeOutput(proc.stdout, `[${prefix}]`.split(process.cwd()).join(`./`));
+  pipeOutput(proc.stderr, `[${prefix}]`.split(process.cwd()).join(`./`));
   return proc.exited.then((exitCode) => [prefix, exitCode, Date.now() - start] as [string, number, number]);
 }
 

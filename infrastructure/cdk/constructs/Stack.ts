@@ -1,4 +1,4 @@
-import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+import { IdentitySource, LambdaIntegration, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
 import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
 import * as elasticache from 'aws-cdk-lib/aws-elasticache';
@@ -139,7 +139,7 @@ export class UNS extends Stack {
     };
   }
 
-  protected SSM<T extends Record<string, string | object>>(values: T) {
+  protected SSM<T extends Record<string, string | undefined | object>>(values: T) {
     const parameters = {} as Record<keyof T, StringParameter>;
     for (const [key, value] of Object.entries(values)) {
       // Create param
@@ -265,9 +265,21 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
-        dynamodb: {},
-        kms: [],
+        ssmNamespaces: [this.config.namespace],
+        dynamodb: {
+          // If mtls table reference is present in config - give this authorizer a permission to read it
+          ...(this.config.ssm.mtls.table?.arn
+            ? {
+                mtlsRevocationTable: {
+                  arn: this.config.ssm.mtls.table?.arn,
+                  read: true,
+                  write: false,
+                  scan: false,
+                },
+              }
+            : {}),
+        },
+        kms: this.config.ssm.mtls.kms ? [this.config.ssm.mtls.kms] : [],
       },
     });
 
@@ -281,7 +293,7 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
       },
     });
 
@@ -295,14 +307,9 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
         dynamodb: {
-          messages: {
-            arn: refs.dynamoDB.messages.table.tableArn,
-            read: true,
-            write: false,
-            scan: false,
-          },
+          messages: refs.dynamoDB.messages.permissions.readOnlyById,
         },
       },
     });
@@ -317,15 +324,10 @@ export class UNS extends Stack {
         kms: refs.kms,
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
         sqsSend: [refs.queues.processing.queue.queueArn, refs.queues.analytics.queue.queueArn],
         dynamodb: {
-          messages: {
-            arn: refs.dynamoDB.messages.table.tableArn,
-            read: true,
-            write: true,
-            scan: false,
-          },
+          messages: refs.dynamoDB.messages.permissions.readAndWrite,
         },
       },
     });
@@ -341,15 +343,10 @@ export class UNS extends Stack {
         dlq: refs.queues.incoming.dlq,
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
         sqsSend: [refs.queues.processing.queue.queueArn, refs.queues.analytics.queue.queueArn],
         dynamodb: {
-          messages: {
-            arn: refs.dynamoDB.messages.table.tableArn,
-            read: true,
-            write: true,
-            scan: false,
-          },
+          messages: refs.dynamoDB.messages.permissions.readAndWrite,
         },
       },
       triggers: {
@@ -373,15 +370,10 @@ export class UNS extends Stack {
         },
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
         sqsSend: [refs.queues.dispatch.queue.queueArn, refs.queues.analytics.queue.queueArn],
         dynamodb: {
-          messages: {
-            arn: refs.dynamoDB.messages.table.tableArn,
-            read: true,
-            write: true,
-            scan: false,
-          },
+          messages: refs.dynamoDB.messages.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
       },
@@ -406,15 +398,10 @@ export class UNS extends Stack {
         dlq: refs.queues.dispatch.dlq,
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
         sqsSend: [refs.queues.analytics.queue.queueArn],
         dynamodb: {
-          messages: {
-            arn: refs.dynamoDB.messages.table.tableArn,
-            read: true,
-            write: true,
-            scan: false,
-          },
+          messages: refs.dynamoDB.messages.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
       },
@@ -439,20 +426,10 @@ export class UNS extends Stack {
         },
       },
       iam: {
-        ssmNamespaces: [this.config.utils.namespace()],
+        ssmNamespaces: [this.config.namespace],
         dynamodb: {
-          messages: {
-            arn: refs.dynamoDB.messages.table.tableArn,
-            read: true,
-            write: true,
-            scan: false,
-          },
-          campaigns: {
-            arn: refs.dynamoDB.campaigns.table.tableArn,
-            read: true,
-            write: true,
-            scan: false,
-          },
+          messages: refs.dynamoDB.messages.permissions.readAndWrite,
+          campaigns: refs.dynamoDB.campaigns.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
       },
@@ -477,6 +454,226 @@ export class UNS extends Stack {
     };
   }
 
+  protected psoAPIGateway(refs: { psoLambdas: ReturnType<UNS['psoLambdas']> }) {
+    const { http } = refs.psoLambdas;
+
+    // Define authorizer
+    const authorizer = new RequestAuthorizer(this, this.config.utils.namingHelper(`mtlsRequestAuthorizer`), {
+      identitySources: [IdentitySource.context(`identity.clientCert.clientCertPem`)],
+      handler: refs.psoLambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
+      resultsCacheTtl: Duration.seconds(0),
+    });
+
+    const operation = <OperationID extends string>(
+      operationID: OperationID,
+      method: HttpMethod,
+      path: string,
+      integration: LambdaIntegration
+    ) => {
+      return {
+        [operationID]: {
+          path,
+          method,
+          integration,
+        },
+      } as Record<OperationID, { path: typeof path; method: HttpMethod; integration: LambdaIntegration }>;
+    };
+
+    // Define API Gateway
+    const gateway = apiGatewayFactory(this, this.config, {
+      name: [`pso`],
+      domain: `pso-cdk`,
+      mtls:
+        this.config.mtls && this.config.ssm.mtls.truststore
+          ? {
+              truststore: this.config.ssm.mtls.truststore,
+            }
+          : undefined,
+      resources: {
+        authorizers: [],
+      },
+      authorizer: authorizer,
+      type: 'PUBLIC',
+      integrations: {
+        ...operation('getHealthcheck', HttpMethod.GET, '/status', http.getHealthcheck.integration),
+        ...operation(
+          'getNotificationStatus',
+          HttpMethod.GET,
+          '/status/{notificationID}',
+          http.getNotificationStatus.integration
+        ),
+        ...operation('postMessage', HttpMethod.POST, '/send', http.postMessage.integration),
+      },
+    });
+
+    return gateway;
+  }
+
+  protected flexLambdas(refs: {
+    codeSigning: ReturnType<UNS['codeSigning']>;
+    kms: ReturnType<UNS['kms']>;
+    queues: ReturnType<UNS['queues']>;
+    vpc: ReturnType<UNS['vpc']>;
+    dynamoDB: ReturnType<UNS['dynamoDB']>;
+    elasticache: ReturnType<UNS['elasticache']>;
+  }) {
+    // Helper definitions
+    const serviceName = 'flex';
+    const bundlePath = (operationId: string) => `./../../dist/flex/http.${operationId}`;
+    const base = (operationId: string) => ({
+      serviceName,
+      name: [operationId],
+      bundlePath: bundlePath(operationId),
+      signingConfig: refs.codeSigning.config,
+    });
+
+    // /notifications
+    const getNotifications = lambdaFactory(this, this.config, {
+      ...base(`getNotifications`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [this.config.namespace],
+        dynamodb: {
+          messages: refs.dynamoDB.messages.permissions.readOnly,
+        },
+      },
+    });
+
+    // GET /notifications/{notificationID}
+    const getNotificationById = lambdaFactory(this, this.config, {
+      ...base(`getNotificationById`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [this.config.namespace],
+        dynamodb: {
+          messages: refs.dynamoDB.messages.permissions.readOnlyById,
+        },
+      },
+    });
+
+    // PATCH /notifications/{notificationID}/status
+    const patchNotification = lambdaFactory(this, this.config, {
+      ...base(`patchNotification`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [this.config.namespace],
+        dynamodb: {
+          messages: refs.dynamoDB.messages.permissions.readOnlyById,
+        },
+      },
+    });
+
+    // DELETE /notifications/{notificationID}
+    const deleteNotification = lambdaFactory(this, this.config, {
+      ...base(`deleteNotification`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [this.config.namespace],
+        sqsSend: [refs.queues.analytics.queue.queueArn],
+        dynamodb: {
+          messages: refs.dynamoDB.messages.permissions.readOnlyById,
+        },
+      },
+    });
+
+    return {
+      http: {
+        getNotifications,
+        getNotificationById,
+        patchNotification,
+        deleteNotification,
+      },
+    };
+  }
+
+  protected flexAPIGateway(refs: { flexLambdas: ReturnType<UNS['flexLambdas']> }) {
+    const { http } = refs.flexLambdas;
+
+    const operation = <OperationID extends string>(
+      operationID: OperationID,
+      method: HttpMethod,
+      path: string,
+      integration: LambdaIntegration
+    ) => {
+      return {
+        [operationID]: {
+          path,
+          method,
+          integration,
+        },
+      } as Record<OperationID, { path: typeof path; method: HttpMethod; integration: LambdaIntegration }>;
+    };
+
+    // Define API Gateway
+    const integrations = {
+      ...operation('getNotifications', HttpMethod.GET, '/notifications', http.getNotifications.integration),
+      ...operation(
+        'getNotificationById',
+        HttpMethod.GET,
+        '/notifications/{notificationID}',
+        http.getNotificationById.integration
+      ),
+      ...operation(
+        'patchNotification',
+        HttpMethod.PATCH,
+        '/notifications/{notificationID}/status',
+        http.patchNotification.integration
+      ),
+      ...operation(
+        'deleteNotification',
+        HttpMethod.DELETE,
+        '/notifications/{notificationID}',
+        http.deleteNotification.integration
+      ),
+    };
+
+    // TODO - currently migrating to vpce connection - afterwards public API shall be depracated on shared environments & will only be used on developer sandboxes
+    const publicRestAPI = apiGatewayFactory(this, this.config, {
+      name: [`flex`],
+      domain: `flex-cdk`,
+      resources: {
+        authorizers: [],
+      },
+      type: 'PUBLIC',
+      integrations,
+    });
+
+    const privateRestAPI = apiGatewayFactory(this, this.config, {
+      name: [`flex-private`],
+      resources: {
+        authorizers: [],
+      },
+      type: `PRIVATE`,
+      integrations,
+      iam:
+        this.config.ssm.flex.account !== null && this.config.ssm.flex.vpce.length > 0
+          ? {
+              allowOnlyFromKnownSources: {
+                awsAccountID: this.config.ssm.flex.account,
+                vpceIDs: this.config.ssm.flex.vpce,
+              },
+            }
+          : {},
+    });
+
+    return {
+      publicRestAPI,
+      privateRestAPI,
+    };
+  }
+
   constructor(
     scope: Construct,
     protected id: string,
@@ -492,6 +689,7 @@ export class UNS extends Stack {
     const queues = this.queues({ kms });
     const dynamoDB = this.dynamoDB({ kms });
     const elasticache = this.elasticache({ kms, vpc });
+    const codeSigning = this.codeSigning();
 
     // SSM Setup values
     this.SSM({
@@ -504,7 +702,14 @@ export class UNS extends Stack {
       'table/inbound/attributes': dynamoDB.messages.attributes,
       'table/campaigns/attributes': dynamoDB.campaigns.attributes,
 
-      // TODO: Dynamodb (Messages / mTLS) refs
+      // mTLS refs
+      'table/mtls/attributes': config.ssm.mtls
+        ? {
+            name: config.ssm.mtls.table?.name,
+            ...(JSON.parse(config.ssm.mtls.table?.attributes ?? '{}') as Record<string, string>),
+          }
+        : undefined,
+
       // SQS Qeueue refs
       'queue/processing/url': queues.processing.queue.queueUrl,
       'queue/dispatch/url': queues.dispatch.queue.queueUrl,
@@ -512,45 +717,11 @@ export class UNS extends Stack {
     });
 
     // Lambdas - PSO
-    const codeSigning = this.codeSigning();
     const psoLambdas = this.psoLambdas({ codeSigning, kms, queues, vpc, dynamoDB, elasticache });
+    const psoGateway = this.psoAPIGateway({ psoLambdas });
 
-    const authorizer = new RequestAuthorizer(this, config.utils.namingHelper(`mtlsRequestAuthorizer`), {
-      identitySources: [IdentitySource.context(`identity.clientCert.clientCertPem`)],
-      handler: psoLambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
-      resultsCacheTtl: Duration.seconds(0),
-    });
-
-    const psoGateway = apiGatewayFactory(this, config, {
-      name: [`pso`],
-      domain: `pso-cdk`,
-      resources: {
-        authorizers: [],
-      },
-      type: 'PUBLIC',
-      integrations: {
-        getHealthcheck: {
-          path: `status`,
-          method: HttpMethod.GET,
-          integration: psoLambdas.http.getHealthcheck.fnIntegration,
-        },
-        getHealthcheckAuth: {
-          path: `statusauth`,
-          method: HttpMethod.GET,
-          integration: psoLambdas.http.getHealthcheck.fnIntegration,
-          authorizer: authorizer,
-        },
-        getNotificationStatus: {
-          path: `status/{notificationID}`,
-          method: HttpMethod.GET,
-          integration: psoLambdas.http.getNotificationStatus.fnIntegration,
-        },
-        postMessage: {
-          path: `send`,
-          method: HttpMethod.POST,
-          integration: psoLambdas.http.postMessage.fnIntegration,
-        },
-      },
-    });
+    // Lambdas - FLEX
+    const flexLambdas = this.flexLambdas({ codeSigning, kms, queues, vpc, dynamoDB, elasticache });
+    const flexGateway = this.flexAPIGateway({ flexLambdas });
   }
 }

@@ -6,12 +6,15 @@ import {
   Integration,
   LogGroupLogDestination,
   RestApi,
+  SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Stack } from 'aws-cdk-lib/core';
 import { EnvVars } from 'infrastructure/cdk/config';
 export const apiGatewayFactory = (
@@ -21,6 +24,10 @@ export const apiGatewayFactory = (
     name: string[];
     type: 'MTLS' | 'PRIVATE' | 'PUBLIC';
     domain?: string;
+    authorizer?: IAuthorizer;
+    mtls?: {
+      truststore: string;
+    };
     resources: {
       mtlsTruststoreUrl?: string;
       vpce?: string[];
@@ -35,6 +42,12 @@ export const apiGatewayFactory = (
         authorizer?: IAuthorizer;
       }
     >;
+    iam?: {
+      allowOnlyFromKnownSources?: {
+        awsAccountID: string;
+        vpceIDs: string[];
+      };
+    };
   }
 ) => {
   const { namingHelper } = config.utils;
@@ -42,21 +55,31 @@ export const apiGatewayFactory = (
   // Setup custom domain - parameters are exposed via SSM values - these are generated on AWS account setup by infra team
   const rootDomain = config.ssm.hostedZoneName;
   const certificateArn = config.ssm.certificateArnRegional;
-  const subdomain = props.domain ? (config.isMainEnv() ? props.domain : namingHelper(props.domain)) : null;
+  const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
   const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
 
-  console.log({ rootDomain, certificateArn, subdomain, fullDomain });
-
-  const hostedZone = route53.HostedZone.fromLookup(stack, 'HostedZone', {
+  const hostedZone = route53.HostedZone.fromLookup(stack, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
     domainName: rootDomain,
     privateZone: false,
   });
-  const certificate = acm.Certificate.fromCertificateArn(stack, 'certificate', certificateArn);
+  const certificate = acm.Certificate.fromCertificateArn(
+    stack,
+    namingHelper(`restapi`, ...props.name, 'certificate'),
+    certificateArn
+  );
+
+  const mtlsTruststoreBucket = props.mtls
+    ? s3.Bucket.fromBucketName(
+        stack,
+        namingHelper(`restapi`, ...props.name, 'truststoreBucket'),
+        props.mtls.truststore.split(`s3://`).join(``).split(`/`).shift()!
+      )
+    : null;
 
   // API Gateway
-  const restApi = new RestApi(stack, namingHelper(...props.name), {
-    restApiName: namingHelper(...props.name),
-    description: namingHelper(...props.name),
+  const restApi = new RestApi(stack, namingHelper(`restapi`, ...props.name, `restapi`), {
+    restApiName: namingHelper(`restapi`, ...props.name),
+    description: namingHelper(`restapi`, ...props.name),
 
     disableExecuteApiEndpoint: false,
 
@@ -68,7 +91,7 @@ export const apiGatewayFactory = (
       dataTraceEnabled: false,
       stageName: 'api',
       accessLogDestination: new LogGroupLogDestination(
-        new LogGroup(stack, 'ApiAccessLogs', {
+        new LogGroup(stack, namingHelper(`restapi`, ...props.name, `loggroup`), {
           logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
           retention: RetentionDays.ONE_YEAR,
         })
@@ -97,26 +120,81 @@ export const apiGatewayFactory = (
           domainName: {
             domainName: fullDomain,
             certificate: certificate,
-            endpointType: EndpointType.REGIONAL, // Recommended for lower latencies/ACM management
+            securityPolicy: SecurityPolicy.TLS_1_2,
+            endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
+            ...(props.mtls && mtlsTruststoreBucket
+              ? {
+                  mtls: {
+                    bucket: mtlsTruststoreBucket,
+                    key: props.mtls.truststore.split(`s3://`).join(``).split(`/`).slice(1).join(`/`),
+                  },
+                }
+              : {}),
           },
+          disableExecuteApiEndpoint: true,
         }
       : {}),
   });
 
-  // Register endpoints
+  // When used as a private API Gateway - we add a policy to allow traffic only from a known VPCes
+  if (props.iam?.allowOnlyFromKnownSources) {
+    // Allow traffic from the single AWS account
+    restApi.addToResourcePolicy(
+      new PolicyStatement({
+        principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
+        actions: ['execute-api:Invoke'],
+        resources: [restApi.arnForExecuteApi()],
+        effect: Effect.ALLOW,
+      })
+    );
+
+    // Reject any traffic from unknown vpces
+    restApi.addToResourcePolicy(
+      new PolicyStatement({
+        effect: Effect.DENY,
+        principals: [new AnyPrincipal()],
+        actions: ['execute-api:Invoke'],
+        resources: [restApi.arnForExecuteApi()],
+        conditions: {
+          StringNotEquals: {
+            'aws:SourceVpce': props.iam.allowOnlyFromKnownSources.vpceIDs,
+          },
+        },
+      })
+    );
+
+    // Create an IAM role that allows invoking this API gateway from external account
+    const role = new Role(stack, config.utils.namingHelper(`iamr-api-gateway`, ...props.name), {
+      assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources),
+    });
+
+    role.attachInlinePolicy(
+      new Policy(stack, config.utils.namingHelper(`iamr`, ...props.name, `gateway-invoker`), {
+        statements: [
+          new PolicyStatement({
+            actions: ['execute-api:Invoke'],
+            resources: [restApi.arnForExecuteApi()],
+          }),
+        ],
+      })
+    );
+  }
+
+  // Register integrations
   for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
     const resource = restApi.root.resourceForPath(path);
     resource.addMethod(method, integration, {
       operationName: operationId,
-      authorizer,
+      // If endpoint has a specific authorizer - use that, otherwise use one defined by API gateway
+      authorizer: authorizer ?? props.authorizer,
     });
   }
 
   if (fullDomain) {
-    new route53.ARecord(stack, namingHelper(...props.name, 'certificatearnregional'), {
+    new route53.ARecord(stack, namingHelper(...props.name, 'domain'), {
       zone: hostedZone,
       recordName: fullDomain,
-      target: route53.RecordTarget.fromAlias(new targets.ApiGateway(restApi)),
+      target: route53.RecordTarget.fromAlias(new route53targets.ApiGateway(restApi)),
     });
   }
 

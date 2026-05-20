@@ -96,7 +96,12 @@ export const importSSMNamespace = async (env: string, label: string, namespace: 
 
     for (const param of params) {
       // Build param paths
-      const sandboxParamName = param.replace(`/gdsuns-dev/`, `/gdsuns-${env}/`);
+
+      // Note: CDK Migration is dropping gds prefix in SSM
+      const sandboxParamName = param.replace(
+        `/gdsuns-dev/`,
+        process.env.CDK_IMPORT === 'true' ? `/uns-${env}/` : `/gdsuns-${env}/`
+      );
 
       // Fetch current param values from SSM
       const [getParameterResult, getParameterError] = await unwrap(
@@ -345,8 +350,8 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
     );
   } catch (e) {
     // Gracefully handle command+c exits
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (e?.name == 'ExitPromptError') {
+
+    if ((e as Error)?.name == 'ExitPromptError') {
       console.log('\nCommand+c pressed, exiting...');
       return;
     }
