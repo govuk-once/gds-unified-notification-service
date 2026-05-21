@@ -30,6 +30,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
+  const mockDepartmentID = 'DEPO1';
   const expectedAllowPolicy = expect.objectContaining({
     policyDocument: expect.objectContaining({
       Statement: [
@@ -39,7 +40,6 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       ],
     }),
   });
-
   const expectedDenyPolicy = expect.objectContaining({
     policyDocument: expect.objectContaining({
       Statement: [
@@ -49,6 +49,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       ],
     }),
   });
+
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
@@ -153,9 +154,36 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     );
   });
 
+  it('should deny request if organization is missing from certificate', async () => {
+    // Arrange
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({
+      Organization: undefined,
+      Revoked: false,
+    } as unknown as MTLSRevocation);
+
+    // Act
+    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+
+    // Assert
+    expect(result).toEqual(expectedDenyPolicy);
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_COUNT,
+      MetricUnit.Count,
+      1
+    );
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_NO_ORGANIZATION_COUNT,
+      MetricUnit.Count,
+      1
+    );
+  });
+
   it('should allow request with existing certificate that has not been revoked', async () => {
     // Arrange
-    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: false } as unknown as MTLSRevocation);
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({
+      Organization: mockDepartmentID,
+      Revoked: false,
+    } as unknown as MTLSRevocation);
 
     // Act
     const result = await instance.handler()(mockEventWithCertificate, mockContext);
