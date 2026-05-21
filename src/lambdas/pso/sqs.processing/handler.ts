@@ -17,14 +17,15 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { extractIdentifiers, IMessage, ISQSMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import z from 'zod';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
-import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { BoolParameters } from '@common/utils';
 import { SQSRecord } from 'aws-lambda';
+
+const requestBodySchema = IMessageSchema;
 
 /**
  * 
@@ -56,8 +57,9 @@ import { SQSRecord } from 'aws-lambda';
   ]
 }
  */
-export class Processing extends BatchQueueOperation<IMessage> {
+export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'processing';
+  public requestBodySchema = requestBodySchema;
   protected enableConfig: string = BoolParameters.Config.Processing.Enabled;
 
   public analyticsService: AnalyticsService;
@@ -76,7 +78,7 @@ export class Processing extends BatchQueueOperation<IMessage> {
 
   public recordHandler = async (record: SQSRecord): Promise<void> => {
     // Validate Incoming messages
-    const data = await this.validateRecord(ISQSMessageSchema, record, {
+    const data = await this.validateRecord(record, {
       onIdentified: async (identifiableRecord) => {
         await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
       },

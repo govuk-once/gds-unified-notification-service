@@ -1,4 +1,3 @@
-import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
@@ -12,9 +11,11 @@ import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, MetricsLabels, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
-import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
+
+const requestBodySchema = IAnalyticsSchema;
 
 /**
  * Lambda handling storing analytics events into the dedicated events DynamoDB Table, it also updates cache keys within elasticache
@@ -40,8 +41,11 @@ import z from 'zod';
   ]
 }
  */
-export class Analytics extends BatchQueueOperation<IAnalytics> {
+
+export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'analytics';
+  public requestBodySchema = requestBodySchema;
+
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
   public campaigns: CampaignsDynamoRepository;

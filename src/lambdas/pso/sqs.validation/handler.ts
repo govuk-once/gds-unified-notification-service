@@ -1,4 +1,3 @@
-import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
@@ -21,9 +20,11 @@ import {
   ProcessingQueueService,
 } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import { IMessage, ISQSStrictMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
+
+const requestBodySchema = IMessageSchema;
 
 /**
  * Lambda handling incoming messages from a dedicated SQS Queue
@@ -57,9 +58,10 @@ import z from 'zod';
 Sample SQS Body (for pushing messages from portal)
 {"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
-export class Validation extends BatchQueueOperation<IMessage> {
+export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'validation';
   protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
+  public requestBodySchema = requestBodySchema;
 
   public analyticsService: AnalyticsService;
   public notificationsRepository: NotificationsDynamoRepository;
@@ -71,43 +73,32 @@ export class Validation extends BatchQueueOperation<IMessage> {
     protected contentValidationService: ContentValidationService,
     asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
-    super(config, observability);
+    super(config, observability, contentValidationService);
     this.injectDependencies(asyncDependencies);
   }
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
-    const data = await this.validateRecord(
-      ISQSStrictMessageSchema.superRefine(async (data, ctx) => {
-        // Deeplink validation injected into schema here
-        try {
-          await this.contentValidationService.validate(data.body.MessageBody);
-        } catch (e) {
-          ctx.addIssue(`${e}`);
-        }
-      }),
-      record,
-      {
-        onIdentified: async (identifiableRecord) => {
-          await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
-        },
-        onSuccess: (record) => {
-          this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
-        },
-        onError: async (identifiableRecord, validationError) => {
-          const errorMsg = validationError ? z.prettifyError(validationError) : {};
-          this.observability.logger.error(`Failed to parse message`, errorMsg);
-          await this.analyticsService.publishEvent(
-            {
-              NotificationID: identifiableRecord.NotificationID,
-              DepartmentID: identifiableRecord.DepartmentID,
-            },
-            NotificationStateEnum.VALIDATION_FAILED,
-            validationError ? z.prettifyError(validationError) : {}
-          );
-        },
-      }
-    );
+    const data = await this.validateRecord(record, {
+      onIdentified: async (identifiableRecord) => {
+        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
+      },
+      onSuccess: (record) => {
+        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
+      },
+      onError: async (identifiableRecord, validationError) => {
+        const errorMsg = validationError ? z.prettifyError(validationError) : {};
+        this.observability.logger.error(`Failed to parse message`, errorMsg);
+        await this.analyticsService.publishEvent(
+          {
+            NotificationID: identifiableRecord.NotificationID,
+            DepartmentID: identifiableRecord.DepartmentID,
+          },
+          NotificationStateEnum.VALIDATION_FAILED,
+          validationError ? z.prettifyError(validationError) : {}
+        );
+      },
+    });
     const message = data.body;
 
     await this.notificationsRepository.createRecord({

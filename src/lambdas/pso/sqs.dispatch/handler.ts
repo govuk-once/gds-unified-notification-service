@@ -1,4 +1,3 @@
-import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
@@ -24,9 +23,11 @@ import {
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
 import { extractIdentifiers } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage, ISQSProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
+
+const requestBodySchema = IProcessedMessageSchema;
 
 /**
  * 
@@ -60,9 +61,10 @@ import z from 'zod';
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends BatchQueueOperation<IProcessedMessage> {
+export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'dispatch';
   protected enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
+  public requestBodySchema = requestBodySchema;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
   public analyticsService: AnalyticsService;
@@ -96,7 +98,7 @@ export class Dispatch extends BatchQueueOperation<IProcessedMessage> {
     }
 
     // Validate Incoming messages
-    const data = await this.validateRecord(ISQSProcessedMessageSchema, record, {
+    const data = await this.validateRecord(record, {
       onIdentified: async (identifiableRecord) => {
         await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.DISPATCHING);
       },

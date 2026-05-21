@@ -34,10 +34,3 @@ export const IMessageSchema = IIdentifiableMessageSchema.extend({
   MessageBody: z.string().optional(),
 });
 export type IMessage = z.infer<typeof IMessageSchema>;
-
-export const ISQSMessageSchema = SqsRecordSchema.extend({
-  body: IMessageSchema,
-});
-
-// Message fields schema with strict validation and contents validation
-export const ISQSStrictMessageSchema = SqsRecordSchema.extend({ body: IMessageSchema.strict() });
