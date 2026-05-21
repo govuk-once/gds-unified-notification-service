@@ -18,6 +18,7 @@ import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib/core';
 
 import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export const lambdaFactory = (
   stack: Stack,
@@ -245,6 +246,7 @@ export const lambdaFactory = (
       : {}),
 
     // Config
+    environmentEncryption: props.resources.kms,
     environment: {
       NODE_OPTIONS: '--enable-source-maps',
       SERVICE_NAME: `NOTIFICATIONS_${props.serviceName}`.toUpperCase().replace(`-`, `_`),
@@ -272,10 +274,18 @@ export const lambdaFactory = (
     // Triggers
     events: [...(props?.triggers?.queues ?? []).map((q) => new SqsEventSource(q))],
   });
+  const integration = new LambdaIntegration(fn);
+
+  // Checkov exclusions
+  applyCheckovSkips(fn, [
+    ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+    ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+    ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+  ]);
 
   return {
     fn,
-    integration: new LambdaIntegration(fn),
+    integration,
     role,
     logGroup,
   };

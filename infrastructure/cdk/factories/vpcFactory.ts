@@ -10,8 +10,9 @@ import {
   SubnetType,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
-import { Stack } from 'aws-cdk-lib/core';
+import { CfnResource, Stack } from 'aws-cdk-lib/core';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 export const vpcFactory = <
   InterfaceEndpoints extends object | Record<string, InterfaceVpcEndpointAwsService>,
   InterfaceKeys extends keyof InterfaceEndpoints,
@@ -100,6 +101,20 @@ export const vpcFactory = <
     });
     gatewayEndpoints[key] = endpoint;
     config.utils.tagsHelper(endpoint);
+  }
+
+  // Cloudformation generates a helper lambda during deployments - we need to apply relevant checkov ignores
+  const cloudFormationVpcStruct = stack.node.findChild(`Custom::VpcRestrictDefaultSGCustomResourceProvider`) as {
+    handler?: CfnResource;
+  };
+  console.log({ cloudFormationVpcStruct });
+  if (cloudFormationVpcStruct.handler) {
+    console.log(cloudFormationVpcStruct.handler);
+    applyCheckovSkips(cloudFormationVpcStruct.handler, [
+      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+    ]);
   }
 
   return {

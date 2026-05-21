@@ -7,6 +7,7 @@
     "build": "bun scripts/build.ts",
     "build:validate": "tsc",
     "checkov": "checkov --directory . --quiet",
+    "checkov:cdk": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact",
     "commit": "cz",
     "development:organize:tf": "bun scripts/developer-organize-tf.ts",
     "development:sandbox:release:infra": "cd infrastructure/terraform && terraform apply",

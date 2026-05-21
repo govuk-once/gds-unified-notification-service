@@ -10,13 +10,15 @@ import {
 } from 'aws-cdk-lib/aws-apigateway';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
+import { IKey } from 'aws-cdk-lib/aws-kms';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import { Stack } from 'aws-cdk-lib/core';
+import { RemovalPolicy, Stack } from 'aws-cdk-lib/core';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 export const apiGatewayFactory = (
   stack: Stack,
   config: EnvVars,
@@ -32,6 +34,7 @@ export const apiGatewayFactory = (
       mtlsTruststoreUrl?: string;
       vpce?: string[];
       authorizers?: string[];
+      kms: IKey;
     };
     integrations?: Record<
       string,
@@ -94,6 +97,8 @@ export const apiGatewayFactory = (
         new LogGroup(stack, namingHelper(`restapi`, ...props.name, `loggroup`), {
           logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
           retention: RetentionDays.ONE_YEAR,
+          encryptionKey: props.resources.kms,
+          removalPolicy: RemovalPolicy.DESTROY,
         })
       ),
 
@@ -183,11 +188,15 @@ export const apiGatewayFactory = (
   // Register integrations
   for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
     const resource = restApi.root.resourceForPath(path);
-    resource.addMethod(method, integration, {
+    const methodStruct = resource.addMethod(method, integration, {
       operationName: operationId,
       // If endpoint has a specific authorizer - use that, otherwise use one defined by API gateway
       authorizer: authorizer ?? props.authorizer,
     });
+
+    applyCheckovSkips(methodStruct, [
+      ['CKV_AWS_59', '"Ensure there is no open access to back-end resources through API"'],
+    ]);
   }
 
   if (fullDomain) {
@@ -197,6 +206,8 @@ export const apiGatewayFactory = (
       target: route53.RecordTarget.fromAlias(new route53targets.ApiGateway(restApi)),
     });
   }
+
+  applyCheckovSkips(restApi, [['CKV_AWS_59', 'Other authorizations are in place']]);
 
   return { restApi };
 };
