@@ -135,6 +135,7 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
       await this.dispatchQueue.publishMessage(processedMessages);
     } catch (e) {
       this.observability.logger.info(`UDP Error:`, { e });
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.PROCESSING_FAILED);
       throw e;
     }
   };
