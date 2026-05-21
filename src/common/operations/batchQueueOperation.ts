@@ -5,7 +5,7 @@ import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
 import { BoolParameters } from '@common/utils';
 import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
-import { IIdentifiableMessage, ISQSIdentifiableSchema } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodError, ZodType } from 'zod';
 
@@ -37,16 +37,16 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
   ): Promise<Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }> {
     type OutputRecord = Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> & { MessageBody?: string } };
 
-    const parsedResult = await ISQSIdentifiableSchema.safeParseAsync(record);
+    const parsedResult = await SqsRecordSchema.extend({
+      body: IIdentifiableMessageSchema,
+    }).safeParseAsync(record);
+
     if (!parsedResult.success) {
       const errorMsg = `Supplied message does not contain NotificationID or DepartmentID, rejecting record`;
-      this.observability.logger.error(
-        `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-        {
-          raw: record.body,
-          error: parsedResult.error ? z.prettifyError(parsedResult.error) : {},
-        }
-      );
+      this.observability.logger.error(errorMsg, {
+        raw: record.body,
+        error: parsedResult.error ? z.prettifyError(parsedResult.error) : {},
+      });
 
       throw new Error(errorMsg);
     }
@@ -97,10 +97,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
       throw new Error(`Failed to parse Analytics Event`);
     }
 
-    // Map SQS Records to analytics entries
-    const entry = parsing.data;
-
-    return entry;
+    return parsing.data;
   }
 
   public abstract recordHandler: (record: SQSRecord) => Promise<void>;

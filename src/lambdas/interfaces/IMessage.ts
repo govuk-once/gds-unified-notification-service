@@ -12,10 +12,6 @@ export const IIdentifiableMessageSchema = z.object({
 });
 export type IIdentifiableMessage = z.infer<typeof IIdentifiableMessageSchema>;
 
-export const ISQSIdentifiableSchema = SqsRecordSchema.extend({
-  body: IIdentifiableMessageSchema,
-});
-
 /**
  * Extracts ID fields from schema, useful when triggering atomic updates
  */
