@@ -3,6 +3,7 @@ import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { BoolParameters } from '@common/utils';
+import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IIdentifiableMessage, ISQSIdentifiableSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodError, ZodObject } from 'zod';
@@ -52,7 +53,7 @@ export abstract class BatchQueueOperation<InputType> extends QueueHandler<InputT
       if (props.onError) {
         await props.onError(identifiableRecord, validationError);
       }
-      throw new Error(`Record failed validation, NotificationID: ${parsedResult.data.body.NotificationID}`);
+      throw new Error(`Record failed parsing, NotificationID: ${parsedResult.data.body.NotificationID}`);
     }
 
     if (props.onSuccess) {
@@ -60,6 +61,20 @@ export abstract class BatchQueueOperation<InputType> extends QueueHandler<InputT
     }
 
     return validatedRecord.data;
+  }
+
+  public async validateAnalyticsRecord(record: SQSRecord): Promise<IAnalytics> {
+    // Validate Incoming Analytics events
+    const parsing = await IAnalyticsSchema.safeParseAsync(record.body);
+    if (!parsing.success) {
+      this.observability.logger.error(`Failed to parse Analytics event`, z.prettifyError(parsing.error));
+      throw new Error(`Failed to parse Analytics Event`);
+    }
+
+    // Map SQS Records to analytics entries
+    const entry = parsing.data;
+
+    return entry;
   }
 
   public abstract recordHandler: (record: SQSRecord) => Promise<void>;

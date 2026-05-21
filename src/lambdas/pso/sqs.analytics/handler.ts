@@ -56,15 +56,8 @@ export class Analytics extends BatchQueueOperation<IAnalytics> {
   }
 
   public recordHandler = async (record: SQSRecord) => {
-    // Validate Incoming Analytics events
-    const parsing = await IAnalyticsSchema.safeParseAsync(record.body);
-    if (!parsing.success) {
-      this.observability.logger.error(`Failed to parse Analytics event`, z.prettifyError(parsing.error));
-      throw new Error(`Failed to parse Analytics Event`);
-    }
-
-    // Map SQS Records to analytics entries
-    const entry = parsing.data;
+    // Validate record and extract analytics event entry
+    const entry = await this.validateAnalyticsRecord(record);
 
     // Update notification object with status event
     await this.notifications.addEvent(entry);
