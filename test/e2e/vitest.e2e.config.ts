@@ -7,7 +7,7 @@ export default mergeConfig(
     test: {
       name: 'e2e',
       include: ['**/*.{test,test.e2e}.ts'],
-      setupFiles: ['setup.e2e.vitest.ts'],
+      setupFiles: ['utils/setup.e2e.vitest.ts'],
     },
   })
 );
