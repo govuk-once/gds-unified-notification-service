@@ -107,9 +107,7 @@ export const vpcFactory = <
   const cloudFormationVpcStruct = stack.node.findChild(`Custom::VpcRestrictDefaultSGCustomResourceProvider`) as {
     handler?: CfnResource;
   };
-  console.log({ cloudFormationVpcStruct });
   if (cloudFormationVpcStruct.handler) {
-    console.log(cloudFormationVpcStruct.handler);
     applyCheckovSkips(cloudFormationVpcStruct.handler, [
       ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
       ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
