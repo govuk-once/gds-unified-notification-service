@@ -61,15 +61,19 @@ export const apiGatewayFactory = (
   const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
   const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
 
-  const hostedZone = route53.HostedZone.fromLookup(stack, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
-    domainName: rootDomain,
-    privateZone: false,
-  });
-  const certificate = acm.Certificate.fromCertificateArn(
-    stack,
-    namingHelper(`restapi`, ...props.name, 'certificate'),
-    certificateArn
-  );
+  let hostedZone: route53.IHostedZone | null = null;
+  let certificate: acm.ICertificate | null = null;
+  if (rootDomain == null || certificateArn == null) {
+    hostedZone = route53.HostedZone.fromLookup(stack, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
+      domainName: rootDomain,
+      privateZone: false,
+    });
+    certificate = acm.Certificate.fromCertificateArn(
+      stack,
+      namingHelper(`restapi`, ...props.name, 'certificate'),
+      certificateArn
+    );
+  }
 
   const mtlsTruststoreBucket = props.mtls
     ? s3.Bucket.fromBucketName(
@@ -120,7 +124,7 @@ export const apiGatewayFactory = (
     },
 
     // Custom domain name
-    ...(props.domain && fullDomain
+    ...(props.domain && fullDomain && certificate && rootDomain
       ? {
           domainName: {
             domainName: fullDomain,
@@ -199,7 +203,7 @@ export const apiGatewayFactory = (
     ]);
   }
 
-  if (fullDomain) {
+  if (fullDomain && hostedZone) {
     new route53.ARecord(stack, namingHelper(...props.name, 'domain'), {
       zone: hostedZone,
       recordName: fullDomain,
