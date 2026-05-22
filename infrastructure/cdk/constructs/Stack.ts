@@ -482,7 +482,7 @@ export class UNS extends Stack {
     // Define API Gateway
     const gateway = apiGatewayFactory(this, this.config, {
       name: [`pso`],
-      domain: `pso-cdk`,
+      domain: 'pso-cdk',
       mtls:
         this.config.mtls && this.config.ssm.mtls.truststore
           ? {
@@ -643,7 +643,7 @@ export class UNS extends Stack {
     // TODO - currently migrating to vpce connection - afterwards public API shall be depracated on shared environments & will only be used on developer sandboxes
     const publicRestAPI = apiGatewayFactory(this, this.config, {
       name: [`flex`],
-      domain: `flex-cdk`,
+      domain: 'flex-cdk',
       resources: {
         authorizers: [],
         kms: refs.kms,

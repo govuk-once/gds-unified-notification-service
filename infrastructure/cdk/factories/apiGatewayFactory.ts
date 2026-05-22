@@ -16,6 +16,7 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { RemovalPolicy, Stack } from 'aws-cdk-lib/core';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
@@ -63,7 +64,7 @@ export const apiGatewayFactory = (
 
   let hostedZone: route53.IHostedZone | null = null;
   let certificate: acm.ICertificate | null = null;
-  if (rootDomain == null || certificateArn == null) {
+  if (rootDomain !== null && certificateArn !== null) {
     hostedZone = route53.HostedZone.fromLookup(stack, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
       domainName: rootDomain,
       privateZone: false,
@@ -203,6 +204,7 @@ export const apiGatewayFactory = (
     ]);
   }
 
+  // Link up the api to the domain
   if (fullDomain && hostedZone) {
     new route53.ARecord(stack, namingHelper(...props.name, 'domain'), {
       zone: hostedZone,
@@ -211,6 +213,80 @@ export const apiGatewayFactory = (
     });
   }
 
+  // Add WAF
+  const managedRule = (ruleProps: { priority: number; name: string; managedRuleName: string; metricName: string }) => ({
+    name: ruleProps.name,
+    priority: ruleProps.priority,
+    statement: {
+      managedRuleGroupStatement: {
+        vendorName: 'AWS',
+        name: ruleProps.managedRuleName,
+      },
+    },
+    overrideAction: { none: {} }, // Use the rule's native action (Block/Allow)
+    visibilityConfig: {
+      cloudWatchMetricsEnabled: true,
+      metricName: ruleProps.metricName,
+      sampledRequestsEnabled: true,
+    },
+  });
+
+  const webAcl = new wafv2.CfnWebACL(restApi, namingHelper(...props.name, 'waf'), {
+    name: namingHelper(...props.name, 'waf'),
+    scope: 'REGIONAL', // Required for API Gateway, ALB, and AppSync
+    defaultAction: { allow: {} }, // Default to allowing requests unless blocked by a rule
+    visibilityConfig: {
+      metricName: namingHelper(...props.name, 'main-metric'),
+      cloudWatchMetricsEnabled: true,
+      sampledRequestsEnabled: true,
+    },
+    rules: [
+      // # Common Rule Set
+      // # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs
+      managedRule({
+        priority: 1,
+        managedRuleName: 'AWSManagedRulesCommonRuleSet',
+        metricName: `${config.prefix}-aws-common-rule-set`,
+        name: namingHelper(...props.name, 'aws-common-rule-set'),
+      }),
+
+      // # Bad Input Rule Set
+      // # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs
+      managedRule({
+        priority: 10,
+        managedRuleName: 'AWSManagedRulesKnownBadInputsRuleSet',
+        metricName: `${config.prefix}-aws-bad-input-rule-metric`,
+        name: namingHelper(...props.name, 'aws-bad-input-rule-metric'),
+      }),
+      // # Anonymous IP list rule Set
+      // # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-anonymous
+      managedRule({
+        priority: 100,
+        managedRuleName: 'AWSManagedRulesAnonymousIpList',
+        metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
+        name: namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
+      }),
+    ],
+  });
+
+  new wafv2.CfnWebACLAssociation(restApi, namingHelper(...props.name, 'waf-association'), {
+    resourceArn: restApi.deploymentStage.stageArn,
+    webAclArn: webAcl.attrArn,
+  });
+
+  const wafLogGroup = new LogGroup(stack, namingHelper(...props.name, 'waf-log-group'), {
+    logGroupName: `aws-waf-logs-api-gateway-${namingHelper(...props.name)}`,
+    retention: RetentionDays.ONE_YEAR,
+    removalPolicy: RemovalPolicy.DESTROY,
+    encryptionKey: props.resources.kms,
+  });
+
+  new wafv2.CfnLoggingConfiguration(stack, namingHelper(...props.name, 'waf-logging-configuration'), {
+    resourceArn: webAcl.attrArn,
+    logDestinationConfigs: [wafLogGroup.logGroupArn],
+  });
+
+  // Apply checkovs skips
   applyCheckovSkips(restApi, [['CKV_AWS_59', 'Other authorizations are in place']]);
 
   return { restApi };
