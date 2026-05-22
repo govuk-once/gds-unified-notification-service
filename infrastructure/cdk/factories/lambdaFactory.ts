@@ -1,3 +1,4 @@
+import { LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { ISecurityGroup, ISubnet, IVpc } from 'aws-cdk-lib/aws-ec2';
 import { ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
@@ -14,9 +15,10 @@ import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
-import { RemovalPolicy, Stack } from 'aws-cdk-lib/core';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib/core';
 
 import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export const lambdaFactory = (
   stack: Stack,
@@ -53,6 +55,7 @@ export const lambdaFactory = (
       sm?: string[];
       kms?: string[];
       dynamodb?: Record<string, { arn: string; scan: boolean; read: boolean; write: boolean }>;
+      elasticache?: string[];
     };
   }
 ) => {
@@ -97,13 +100,14 @@ export const lambdaFactory = (
   }
 
   // Allow this lambda to push messages to specific queues
-  if (props.iam?.sqsSend && props.iam.sqsSend.length > 0) {
+  // Also always give lambda permission to write to it's own DLQ
+  if ((props.iam?.sqsSend && props.iam.sqsSend.length > 0) || props.resources.dlq) {
     role.attachInlinePolicy(
       new Policy(stack, config.utils.namingHelper(`iamr`, props.serviceName, ...props.name, `to-queue`), {
         statements: [
           new PolicyStatement({
             actions: ['sqs:SendMessage'],
-            resources: props.iam.sqsSend,
+            resources: [...(props.iam?.sqsSend ?? []), ...(props.resources.dlq ? [props.resources.dlq.queueArn] : [])],
           }),
         ],
       })
@@ -174,6 +178,20 @@ export const lambdaFactory = (
     );
   }
 
+  // Allow it connect to elasticache
+  if (props.iam?.elasticache && props.iam.elasticache.length > 0) {
+    role.attachInlinePolicy(
+      new Policy(stack, config.utils.namingHelper(`iamr`, props.serviceName, ...props.name, `to-elasticache`), {
+        statements: [
+          new PolicyStatement({
+            actions: ['elasticache:Connect'],
+            resources: props.iam.elasticache,
+          }),
+        ],
+      })
+    );
+  }
+
   // Allow the role to use other policies
   for (const managedPolicy of [
     // Always - Cloudwatch and XRay log writing
@@ -198,6 +216,7 @@ export const lambdaFactory = (
     // Instance config
     runtime: props.runtime ?? Runtime.NODEJS_22_X,
     memorySize: props.memory ?? 512,
+    timeout: Duration.seconds(30),
 
     // Code signing
     handler: 'index.handler',
@@ -227,6 +246,7 @@ export const lambdaFactory = (
       : {}),
 
     // Config
+    environmentEncryption: props.resources.kms,
     environment: {
       NODE_OPTIONS: '--enable-source-maps',
       SERVICE_NAME: `NOTIFICATIONS_${props.serviceName}`.toUpperCase().replace(`-`, `_`),
@@ -236,6 +256,7 @@ export const lambdaFactory = (
       // Open Telemetry instrumentation vars
       AWS_LAMBDA_EXEC_WRAPPER: '/opt/otel-handler',
       OTEL_AWS_APPLICATION_SIGNALS_ENABLED: 'false',
+      OTEL_SERVICE_VERSION: config.version,
 
       // Flags
       AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING: `true`,
@@ -253,9 +274,18 @@ export const lambdaFactory = (
     // Triggers
     events: [...(props?.triggers?.queues ?? []).map((q) => new SqsEventSource(q))],
   });
+  const integration = new LambdaIntegration(fn);
+
+  // Checkov exclusions
+  applyCheckovSkips(fn, [
+    ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+    ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+    ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+  ]);
 
   return {
     fn,
+    integration,
     role,
     logGroup,
   };
