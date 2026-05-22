@@ -51,6 +51,7 @@ resource "aws_wafv2_web_acl" "waf_for_apig" {
     }
   }
 
+  # Removed rule as it blocks request from GitHub actions runner IPs, discuss whether to add back in and how to manage false positives
   # Anonymous IP list rule Set
   # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-anonymous
   # rule {
