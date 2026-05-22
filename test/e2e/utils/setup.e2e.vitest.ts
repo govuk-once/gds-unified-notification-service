@@ -52,9 +52,6 @@ beforeAll(async () => {
       throw new Error('mTLS certificates were not returned from parameter store.');
     }
 
-    console.log(cert);
-    console.log(key);
-
     // Creates a https agent for mTLS using imported credentials
     httpsAgent = new https.Agent({
       cert: `${cert.Parameter?.Value}`,
