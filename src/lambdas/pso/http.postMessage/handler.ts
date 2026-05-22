@@ -92,7 +92,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     }
 
     // Publish analytics & push items to the processing queue
-    this.observability.logger.trace('Publishing analytics events for validated messages.');
+    this.observability.logger.info('Publishing analytics events for validated messages.');
     await this.analyticsService.publishMultipleEvents(
       messages.map(
         (body): AnalyticsEventFromIMessage => ({
@@ -104,11 +104,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     );
 
     // Requeue messages which passed validation to next stage
-    this.observability.logger.trace('Requeuing validated message to process queue.');
+    this.observability.logger.info('Requeuing validated message to process queue.');
     await this.processingQueue.publishMessageBatch(messages);
 
     // Create a record of message in Dynamodb
-    this.observability.logger.trace('Creating record of validated messages that have been passed to queue.');
+    this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
       messages.map(
         (body): IMessageRecord => ({

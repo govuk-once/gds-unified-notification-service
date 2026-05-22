@@ -33,7 +33,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
   },
 });
 
-export abstract class QueueHandler<InputType, OutputType = void> {
+export abstract class QueueHandler<InputType, OutputType> {
   public operationId: string;
 
   constructor(protected observability: ObservabilityService) {}

@@ -26,7 +26,7 @@
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage  --project unit",
     "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage --project unit",
-    "test": "npm run test:unit && npm run test:e2e",
+    "test": "vitest --testTimeout 60000",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e --testTimeout 60000",
     "tflint": "terraform fmt -check -diff -recursive && tflint --init && tflint --chdir=infrastructure/terraform  --config .tflint.hcl",
@@ -78,6 +78,7 @@
     "vitest": "^4.1.4"
   },
   "dependencies": {
+    "@aws-lambda-powertools/batch": "^2.32.0",
     "@aws-lambda-powertools/jmespath": "^2.29.0",
     "@aws-lambda-powertools/logger": "^2.29.0",
     "@aws-lambda-powertools/metrics": "^2.29.0",

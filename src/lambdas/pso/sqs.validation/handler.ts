@@ -1,4 +1,4 @@
-import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
@@ -9,24 +9,22 @@ import {
   iocGetProcessingQueueService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent, QueueHandler } from '@common/operations';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   ConfigurationService,
   ContentValidationService,
+  MetricsLabels,
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
-import { BoolParameters, groupValidation } from '@common/utils';
-import {
-  extractIdentifiers,
-  IIdentifieableMessageSchema,
-  IMessage,
-  IMessageSchema,
-} from '@project/lambdas/interfaces/IMessage';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { Context } from 'aws-lambda';
+import { BoolParameters } from '@common/utils';
+import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
+
+const requestBodySchema = IMessageSchema;
 
 /**
  * Lambda handling incoming messages from a dedicated SQS Queue
@@ -60,8 +58,10 @@ import { Context } from 'aws-lambda';
 Sample SQS Body (for pushing messages from portal)
 {"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
-export class Validation extends QueueHandler<IMessage> {
+export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'validation';
+  protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
+  public requestBodySchema = requestBodySchema;
 
   public analyticsService: AnalyticsService;
   public notificationsRepository: NotificationsDynamoRepository;
@@ -73,95 +73,57 @@ export class Validation extends QueueHandler<IMessage> {
     protected contentValidationService: ContentValidationService,
     asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
-    super(observability);
+    super(config, observability, contentValidationService);
     this.injectDependencies(asyncDependencies);
   }
 
-  public async implementation(event: QueueEvent<IMessage>, context: Context) {
-    await this.config.ensureServiceIsEnabled(
-      BoolParameters.Config.Common.Enabled,
-      BoolParameters.Config.Validation.Enabled
-    );
+  public recordHandler = async (record: SQSRecord) => {
+    // Validate Incoming messages
+    const data = await this.validateRecord(record, {
+      onIdentified: async (identifiableRecord) => {
+        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
+      },
+      onSuccess: (record) => {
+        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
+      },
+      onError: async (identifiableRecord, validationError) => {
+        const errorMsg = validationError ? z.prettifyError(validationError) : {};
+        this.observability.logger.error(`Failed to parse message`, errorMsg);
+        await this.analyticsService.publishEvent(
+          {
+            NotificationID: identifiableRecord.NotificationID,
+            DepartmentID: identifiableRecord.DepartmentID,
+          },
+          NotificationStateEnum.VALIDATION_FAILED,
+          validationError ? z.prettifyError(validationError) : {}
+        );
+      },
+    });
+    const message = data.body;
 
-    // Trigger received notifications events
-    const [, identifiableRecords] = await groupValidation(
-      event.Records,
-      SqsRecordSchema.extend({
-        body: IIdentifieableMessageSchema,
-      })
-    );
-    this.observability.logger.info(`Identifiable records`, { identifiableRecords });
-    await this.analyticsService.publishMultipleEvents(
-      identifiableRecords.map(({ valid }) => valid.body),
-      NotificationStateEnum.VALIDATING
-    );
-
-    // Segregate inputs - parse all, group by result, for invalid record - parse using partial approach to extract valid fields
-    const [, validRecords, invalidRecords] = await groupValidation(
-      event.Records,
-      SqsRecordSchema.extend({ body: IMessageSchema.strict() }).superRefine(async (data, ctx) => {
-        // Deeplink validation injected into schema here
-        try {
-          await this.contentValidationService.validate(data.body.MessageBody);
-        } catch (e) {
-          ctx.addIssue(`${e}`);
-        }
-      })
-    );
-    this.observability.logger.info(`Validation results`, {
-      valid: validRecords.length,
-      invalid: invalidRecords.length,
+    await this.notificationsRepository.createRecord({
+      ...message,
+      ReceivedDateTime: data.attributes.ApproximateFirstReceiveTimestamp,
+      ValidatedDateTime: new Date().toISOString(),
+      Events: [],
     });
 
-    if (validRecords.length > 0) {
-      // Store valid entries in notifications repository
-      await this.notificationsRepository.createRecordBatch(
-        validRecords.map(
-          ({ valid: { body, attributes } }): IMessageRecord => ({
-            ...body,
-            ReceivedDateTime: attributes.ApproximateFirstReceiveTimestamp,
-            ValidatedDateTime: new Date().toISOString(),
-            Events: [],
-          })
-        )
-      );
+    // Publish analytics
+    await this.analyticsService.publishEvent(message, NotificationStateEnum.VALIDATED);
 
-      // Publish analytics & push items to the processing queue
-      await this.analyticsService.publishMultipleEvents(
-        validRecords.map(({ valid }) => valid.body),
-        NotificationStateEnum.VALIDATED
-      );
+    // Publish messages to the next stage
+    await this.processingQueue.publishMessage(message);
+  };
 
-      // Publish messages to the next stage
-      await this.processingQueue.publishMessageBatch(validRecords.map(({ valid }) => valid.body));
-    }
-
-    // Store Analytics for failed parses - if they have notificationID
-    for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID, CampaignID } = extractIdentifiers(raw.body);
-      // Log invalid entries
-      if (NotificationID == undefined || DepartmentID == undefined) {
-        this.observability.logger.error(
-          `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-          {
-            raw,
-            errors,
-          }
-        );
-        continue;
-      }
-      await this.analyticsService.publishEvent(
-        {
-          NotificationID: NotificationID,
-          DepartmentID: DepartmentID,
-          CampaignID: CampaignID,
-        },
-        NotificationStateEnum.VALIDATION_FAILED,
-        errors
-      );
-    }
-  }
+  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+    this.observability.metrics.addMetric(
+      MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
+      MetricUnit.Count,
+      batchItemFailuresCount
+    );
+  };
 }
+
 export const handler = new Validation(
   iocGetConfigurationService(),
   iocGetObservabilityService(),

@@ -1,4 +1,3 @@
-import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
@@ -9,19 +8,24 @@ import {
   iocGetProcessingService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent, QueueHandler } from '@common/operations';
 import { NotificationsDynamoRepository } from '@common/repositories';
-import { AnalyticsService, ConfigurationService, DispatchQueueService, ObservabilityService } from '@common/services';
-import { ProcessingService } from '@common/services/processingService';
-import { BoolParameters, groupValidation } from '@common/utils';
 import {
-  extractIdentifiers,
-  IIdentifieableMessageSchema,
-  IMessage,
-  IMessageSchema,
-} from '@project/lambdas/interfaces/IMessage';
+  AnalyticsService,
+  ConfigurationService,
+  DispatchQueueService,
+  MetricsLabels,
+  ObservabilityService,
+} from '@common/services';
+import { ProcessingService } from '@common/services/processingService';
+import { extractIdentifiers, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
-import { Context } from 'aws-lambda';
+import z from 'zod';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { BoolParameters } from '@common/utils';
+import { SQSRecord } from 'aws-lambda';
+
+const requestBodySchema = IMessageSchema;
 
 /**
  * 
@@ -53,8 +57,10 @@ import { Context } from 'aws-lambda';
   ]
 }
  */
-export class Processing extends QueueHandler<IMessage, void> {
+export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'processing';
+  public requestBodySchema = requestBodySchema;
+  protected enableConfig: string = BoolParameters.Config.Processing.Enabled;
 
   public analyticsService: AnalyticsService;
   public notificationsRepository: NotificationsDynamoRepository;
@@ -66,103 +72,78 @@ export class Processing extends QueueHandler<IMessage, void> {
     observability: ObservabilityService,
     dependencies?: () => HandlerDependencies<Processing>
   ) {
-    super(observability);
+    super(config, observability);
     this.injectDependencies(dependencies);
   }
 
-  public async implementation(event: QueueEvent<IMessage>, context: Context) {
-    await this.config.ensureServiceIsEnabled(
-      BoolParameters.Config.Common.Enabled,
-      BoolParameters.Config.Processing.Enabled
-    );
-
-    // Trigger received notification events
-    const [, identifiableRecords] = await groupValidation(
-      event.Records,
-      SqsRecordSchema.extend({
-        body: IIdentifieableMessageSchema,
-      })
-    );
-    this.observability.logger.info(`Identifiable records`, { identifiableRecords });
-    await this.analyticsService.publishMultipleEvents(
-      identifiableRecords.map(({ valid }) => valid.body),
-      NotificationStateEnum.PROCESSING
-    );
-
+  public recordHandler = async (record: SQSRecord): Promise<void> => {
     // Validate Incoming messages
-    const [, validRecords, invalidRecords] = await groupValidation(
-      event.Records.map((record) => record.body),
-      IMessageSchema
-    );
-    this.observability.logger.info(`Validation results`, {
-      valid: validRecords.length,
-      invalid: invalidRecords.length,
+    const data = await this.validateRecord(record, {
+      onIdentified: async (identifiableRecord) => {
+        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
+      },
+      onSuccess: (record) => {
+        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
+      },
+      onError: async (identifiableRecord, validationError) => {
+        const errorMsg = validationError ? z.prettifyError(validationError) : {};
+        this.observability.logger.error(`Failed to parse message`, errorMsg);
+        await this.analyticsService.publishEvent(
+          {
+            NotificationID: identifiableRecord.NotificationID,
+            DepartmentID: identifiableRecord.DepartmentID,
+          },
+          NotificationStateEnum.PROCESSING_FAILED,
+          validationError ? z.prettifyError(validationError) : {}
+        );
+      },
     });
+    const message = data.body;
+    let result;
 
     // Process messages -
-    const processedMessages: IProcessedMessage[] = [];
-    for (const message of validRecords) {
-      try {
-        this.observability.logger.info(`UDP Call:`);
-        const result = await this.processingService.send({
-          userID: message.valid.UserID,
-        });
-        this.observability.logger.info(`UDP Result:`, { result });
-        processedMessages.push({ ...message.valid, ExternalUserID: result.externalUserID! });
-      } catch (e) {
-        this.observability.logger.info(`UDP Error:`, { e });
+    try {
+      this.observability.logger.info(`UDP Call:`);
+      result = await this.processingService.send({
+        userID: message.UserID,
+      });
+      this.observability.logger.info(`UDP Result:`, { result });
+
+      if (!result.success) {
+        this.observability.logger.info(`UDP Error:`, { errors: result.errors });
+        throw new Error('UDP Error'); // TODO: Improve error message
       }
+    } catch (e) {
+      this.observability.logger.info(`UDP Error:`, { e });
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.PROCESSING_FAILED);
+      throw e;
     }
+    const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
 
     // Update stored rows in notifications message
-    for (const processed of processedMessages) {
-      this.observability.logger.info(`Updating entry with timestamp`, {
-        NotificationID: processed.NotificationID,
-        DepartmentID: processed.DepartmentID,
-      });
+    this.observability.logger.info(`Updating entry with timestamp`, extractIdentifiers(processedMessages));
 
-      // Store External User ID and mark record as processed
-      await this.notificationsRepository.updateRecord({
-        ...extractIdentifiers(processed),
-        ExternalUserID: processed.ExternalUserID,
-        ProcessedDateTime: new Date().toISOString(),
-      });
-    }
+    // Store External User ID and mark record as processed
+    await this.notificationsRepository.updateRecord({
+      ...extractIdentifiers(processedMessages),
+      ExternalUserID: processedMessages.ExternalUserID,
+      ProcessedDateTime: new Date().toISOString(),
+    });
 
     // Mark messages as processed
-    await this.analyticsService.publishMultipleEvents(
-      validRecords.map(({ valid }) => valid),
-      NotificationStateEnum.PROCESSED
-    );
+    await this.analyticsService.publishEvent(message, NotificationStateEnum.PROCESSED);
 
     // Push processed messages to Dispatch queue
-    await this.dispatchQueue.publishMessageBatch(processedMessages);
+    await this.dispatchQueue.publishMessage(processedMessages);
+  };
 
-    // Store Analytics for failed parses - if they have notificationID
-    for (const { raw, errors } of invalidRecords) {
-      const { NotificationID, DepartmentID, CampaignID } = extractIdentifiers(raw);
-      // Log invalid entries
-      if (NotificationID == undefined || DepartmentID == undefined) {
-        this.observability.logger.info(
-          `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-          {
-            raw,
-            errors,
-          }
-        );
-        continue;
-      }
-      await this.analyticsService.publishEvent(
-        {
-          NotificationID: NotificationID,
-          DepartmentID: DepartmentID,
-          CampaignID: CampaignID,
-        },
-        NotificationStateEnum.PROCESSING_FAILED,
-        errors
-      );
-    }
-  }
+  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+    this.observability.metrics.addMetric(
+      MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
+      MetricUnit.Count,
+      batchItemFailuresCount
+    );
+  };
 }
 
 // IoC
