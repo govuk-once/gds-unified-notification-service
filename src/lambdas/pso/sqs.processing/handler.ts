@@ -99,45 +99,42 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
       },
     });
     const message = data.body;
+    let result;
 
     // Process messages -
     try {
       this.observability.logger.info(`UDP Call:`);
-      const result = await this.processingService.send({
+      result = await this.processingService.send({
         userID: message.UserID,
       });
       this.observability.logger.info(`UDP Result:`, { result });
 
       if (!result.success) {
         this.observability.logger.info(`UDP Error:`, { errors: result.errors });
-        throw new Error('UDP Error');
+        throw new Error('UDP Error'); // TODO: Improve error message
       }
-      const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
-
-      // Update stored rows in notifications message
-      this.observability.logger.info(`Updating entry with timestamp`, {
-        NotificationID: processedMessages.NotificationID,
-        DepartmentID: processedMessages.DepartmentID,
-        CampaignID: processedMessages.CampaignID,
-      });
-
-      // Store External User ID and mark record as processed
-      await this.notificationsRepository.updateRecord({
-        ...extractIdentifiers(processedMessages),
-        ExternalUserID: processedMessages.ExternalUserID,
-        ProcessedDateTime: new Date().toISOString(),
-      });
-
-      // Mark messages as processed
-      await this.analyticsService.publishEvent(message, NotificationStateEnum.PROCESSED);
-
-      // Push processed messages to Dispatch queue
-      await this.dispatchQueue.publishMessage(processedMessages);
     } catch (e) {
       this.observability.logger.info(`UDP Error:`, { e });
       await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.PROCESSING_FAILED);
       throw e;
     }
+    const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
+
+    // Update stored rows in notifications message
+    this.observability.logger.info(`Updating entry with timestamp`, extractIdentifiers(processedMessages));
+
+    // Store External User ID and mark record as processed
+    await this.notificationsRepository.updateRecord({
+      ...extractIdentifiers(processedMessages),
+      ExternalUserID: processedMessages.ExternalUserID,
+      ProcessedDateTime: new Date().toISOString(),
+    });
+
+    // Mark messages as processed
+    await this.analyticsService.publishEvent(message, NotificationStateEnum.PROCESSED);
+
+    // Push processed messages to Dispatch queue
+    await this.dispatchQueue.publishMessage(processedMessages);
   };
 
   protected batchItemFailureMetric = (batchItemFailuresCount: number) => {

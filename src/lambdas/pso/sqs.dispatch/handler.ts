@@ -82,21 +82,6 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
   }
 
   public recordHandler = async (record: SQSRecord) => {
-    await this.circuitBreakerService.checkCircuit();
-    // Rate limits request if rate limiting is enforced
-    if (
-      (
-        await this.cacheService.rateLimit(
-          `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-          await this.config.getNumericParameter(
-            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
-          )
-        )
-      ).exceeded
-    ) {
-      throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
-    }
-
     // Validate Incoming messages
     const data = await this.validateRecord(record, {
       onIdentified: async (identifiableRecord) => {
@@ -120,6 +105,26 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
     });
     const message = data.body;
 
+    // Check circuit breaker status before dispatch and fail if circuit breaker rate limiting enforced
+    await this.circuitBreakerService.checkCircuit();
+
+    // Rate limits request if rate limiting is enforced
+    if (
+      (
+        await this.cacheService.rateLimit(
+          `NOTIFICATION_PROVIDER_RATE_LIMIT`,
+          await this.config.getNumericParameter(
+            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
+          )
+        )
+      ).exceeded
+    ) {
+      this.observability.logger.error(`Notification failed to dispatch`, extractIdentifiers(message));
+      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
+
+      throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
+    }
+
     // Prepare request
     try {
       const result = await this.circuitBreakerService.use(async () => {
@@ -140,16 +145,12 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
       });
 
       this.observability.logger.info(`Notification dispatched`, {
-        NotificationID: message.NotificationID,
-        DepartmentID: message.DepartmentID,
+        ...extractIdentifiers(message),
         ProviderRequestID: result.result?.requestId,
       });
       await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHED);
     } catch (error) {
-      this.observability.logger.error(`Notification failed to dispatch`, {
-        NotificationID: message.NotificationID,
-        DepartmentID: message.DepartmentID,
-      });
+      this.observability.logger.error(`Notification failed to dispatch`, extractIdentifiers(message), { error });
       await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
 
       throw error;
