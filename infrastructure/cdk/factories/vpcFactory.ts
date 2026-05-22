@@ -4,12 +4,15 @@ import {
   InterfaceVpcEndpoint,
   InterfaceVpcEndpointAwsService,
   IpAddresses,
+  Peer,
+  Port,
   SecurityGroup,
   SubnetType,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
-import { Stack } from 'aws-cdk-lib/core';
+import { CfnResource, Stack } from 'aws-cdk-lib/core';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 export const vpcFactory = <
   InterfaceEndpoints extends object | Record<string, InterfaceVpcEndpointAwsService>,
   InterfaceKeys extends keyof InterfaceEndpoints,
@@ -57,8 +60,10 @@ export const vpcFactory = <
   const privateEgress = new SecurityGroup(stack, namingHelper(props.name, 'sg', 'private'), {
     vpc,
     description: 'SecurityGroup with allow outbound',
-    allowAllOutbound: false,
+    allowAllOutbound: true,
   });
+  privateEgress.addIngressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
+  privateEgress.addEgressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
   config.utils.tagsHelper(privateEgress);
 
   const privateIsolated = new SecurityGroup(stack, namingHelper(props.name, 'sg', 'isolated'), {
@@ -66,6 +71,8 @@ export const vpcFactory = <
     description: 'SecurityGroup with deny outbound',
     allowAllOutbound: false,
   });
+  privateIsolated.addIngressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
+  privateIsolated.addEgressRule(Peer.ipv4(vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
   config.utils.tagsHelper(privateIsolated);
 
   // Attach private interface endpoints endpoints to vpc
@@ -94,6 +101,18 @@ export const vpcFactory = <
     });
     gatewayEndpoints[key] = endpoint;
     config.utils.tagsHelper(endpoint);
+  }
+
+  // Cloudformation generates a helper lambda during deployments - we need to apply relevant checkov ignores
+  const cloudFormationVpcStruct = stack.node.findChild(`Custom::VpcRestrictDefaultSGCustomResourceProvider`) as {
+    handler?: CfnResource;
+  };
+  if (cloudFormationVpcStruct.handler) {
+    applyCheckovSkips(cloudFormationVpcStruct.handler, [
+      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+    ]);
   }
 
   return {

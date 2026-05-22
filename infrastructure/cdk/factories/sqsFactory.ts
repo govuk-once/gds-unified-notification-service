@@ -5,13 +5,13 @@ import { EnvVars } from 'infrastructure/cdk/config';
 
 type QueueProps = {
   name: string[];
-  tags: Record<string, string>;
   delaySeconds?: number;
+  tags: Record<string, string>;
   maxMessageSizeBytes?: number;
   messageRetentionSeconds?: number;
   receiveTimeWaitSeconds?: number;
   visibilityTimeoutSeconds?: number;
-  resources?: { kmsKey: IKey; kmsKeyReuse?: number };
+  resources: { kmsKey: IKey; kmsKeyReuse?: number };
 };
 
 type DlqQueueProps = Partial<QueueProps> & {
@@ -23,7 +23,7 @@ export const queueFactory = (
   config: EnvVars,
   props: QueueProps & { deadLetterQueue?: DlqQueueProps }
 ): { queue: Queue; dlq?: Queue } => {
-  // DLQ inherits parent queue properties be defined using the exact same properties as queue
+  // DLQ inherits parent queue properties which are defined using the exact same properties as queue
   let dlq: Queue | undefined = undefined;
   if (props.deadLetterQueue !== undefined) {
     const { queue } = queueFactory(stack, config, {
@@ -45,13 +45,9 @@ export const queueFactory = (
     receiveMessageWaitTime: Duration.seconds(props.receiveTimeWaitSeconds ?? 10),
     visibilityTimeout: Duration.seconds(props.visibilityTimeoutSeconds ?? 30),
 
-    // KMS config
-    ...(props.resources?.kmsKey
-      ? {
-          encryptionMasterKey: props.resources.kmsKey,
-          dataKeyReuse: Duration.seconds(props.resources.kmsKeyReuse ?? 3600),
-        }
-      : {}),
+    // Encryption at rest
+    encryptionMasterKey: props.resources.kmsKey,
+    dataKeyReuse: Duration.seconds(props.resources.kmsKeyReuse ?? 3600),
 
     // DLQ setup
     ...(props.deadLetterQueue && dlq

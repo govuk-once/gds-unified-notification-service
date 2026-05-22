@@ -8,7 +8,7 @@ import { GetParameterCommand, GetParametersByPathCommand, PutParameterCommand, S
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
 
-const configurableParameters = {
+export const configurableParameters = {
   // On/off
   'config/common/enabled': 'true',
   'config/validation/enabled': 'true',
@@ -52,7 +52,7 @@ const ssm = new SSMClient();
 const kms = new KMSClient();
 
 await (async () => {
-  const namespace = config.utils.namespace();
+  const namespace = config.namespace;
   const aliases = await kms.send(new ListAliasesCommand({}));
   const alias = aliases.Aliases?.find((alias) =>
     alias.AliasArn?.endsWith(config.utils.namingHelper('kms', 'key', 'alias'))
@@ -68,7 +68,7 @@ await (async () => {
   console.log(`Checking SSM Parameter existence`);
 
   for (const [key, defaultValue] of Object.entries(configurableParameters)) {
-    const fullKey = `/${namespace}/external/${key}`;
+    const fullKey = `/${namespace}/${key}`;
 
     // Attempt to fetch param
     console.log(`Fetching ${fullKey}`);
@@ -91,6 +91,8 @@ await (async () => {
             Type: 'SecureString',
             Overwrite: false,
             KeyId: alias.AliasName,
+            Description: `Note: This parameter has been created post CDK deployment`,
+            Tags: Object.entries(config.defaultTags()).map(([Key, Value]) => ({ Key, Value })),
           })
         )
       );
