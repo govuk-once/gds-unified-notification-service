@@ -20,25 +20,25 @@ const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
 let httpsAgent: https.Agent;
 
 beforeAll(async () => {
-  if (!psoUrl || !flexUrl) {
-    throw new Error(
-      'Domain names are not setup for end to end testing, please run development:sandbox:setup to configure.'
-    );
-  }
-
-  // Ensure AWS env vars are available
-  if (
-    process.env.AWS_ACCESS_KEY_ID == undefined ||
-    process.env.AWS_SECRET_ACCESS_KEY == undefined ||
-    process.env.AWS_REGION == undefined
-  ) {
-    throw new Error(
-      `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
-    );
-  }
-
-  // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
   try {
+    if (!psoUrl || !flexUrl) {
+      throw new Error(
+        'Domain names are not setup for end to end testing, please run development:sandbox:setup to configure.'
+      );
+    }
+
+    // Ensure AWS env vars are available
+    if (
+      process.env.AWS_ACCESS_KEY_ID == undefined ||
+      process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+      process.env.AWS_REGION == undefined
+    ) {
+      throw new Error(
+        `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+      );
+    }
+
+    // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
     const client = new SSMClient({ region: 'eu-west-2' });
 
     const inputCert = { Name: '/e2e/pso/mtls/cert', WithDecryption: true };
@@ -51,6 +51,9 @@ beforeAll(async () => {
     if (!cert.Parameter || !key.Parameter) {
       throw new Error('mTLS certificates were not returned from parameter store.');
     }
+
+    console.log(cert);
+    console.log(key);
 
     // Creates a https agent for mTLS using imported credentials
     httpsAgent = new https.Agent({
