@@ -59,13 +59,12 @@ jobs:
       - name: 🔨 Build bundles
         run: npm run build
 
-      - name: 🏗️ CDK Diff (until migration)
+      - name: 🏗️ CDK Deploy
         working-directory: ./infrastructure/terraform
-        run: npm run cdk:diff
+        run: npm run cdk:deploy
         env:
           region: ${{ vars.AWS_REGION }}
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
-          key: state.json
           code_version: ${{ inputs.VERSION }}
           use_mtls: 'true'
           is_main_environment_in_account: 'true'
