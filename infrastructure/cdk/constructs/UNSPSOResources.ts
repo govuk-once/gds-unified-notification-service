@@ -167,6 +167,9 @@ export class UNSPSOResource extends Construct {
       },
       iam: {
         ssmNamespaces: [config.namespace],
+        sm: config.ssm.udp.sm ? [config.ssm.udp.sm] : [],
+        kms: config.ssm.udp.kms ? [config.ssm.udp.kms] : [],
+        assumeableRolesArns: config.ssm.udp.role ? [config.ssm.udp.role] : [],
         sqsSend: [this.queues.dispatch.queue.queueArn, this.queues.analytics.queue.queueArn],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readAndWrite,

@@ -124,7 +124,7 @@ export class UNSLambdaConstruct extends Construct {
     );
 
     // Allow use of Secrets Manager
-    this.addPermissionsToRole(`sm`, ['ssm:GetSecretValue'], props.iam?.sm);
+    this.addPermissionsToRole(`sm`, ['secretsmanager:GetSecretValue'], props.iam?.sm);
 
     // Allow use of KMS Encryption Keys
     this.addPermissionsToRole(

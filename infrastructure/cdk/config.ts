@@ -106,9 +106,9 @@ export const config = {
       vpce: await fromSSMJSON<string[]>(`/${namespace}/flex/vpce`, []),
     },
     udp: {
-      sm: await fromSSMJSON<string | null>(`/${namespace}/udp/sm`, null),
-      kms: await fromSSMJSON<string | null>(`/${namespace}/udp/kms`, null),
-      role: await fromSSMJSON<string | null>(`/${namespace}/udp/role`, null),
+      sm: await fromSSMJSON<string | null>(`/${namespace}/udp/config/sm`, null),
+      kms: await fromSSMJSON<string | null>(`/${namespace}/udp/config/kms`, null),
+      role: await fromSSMJSON<string | null>(`/${namespace}/udp/config/role`, null),
     },
   },
 
