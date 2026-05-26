@@ -278,7 +278,7 @@ export class UNSAPIGatewayGateway extends Construct {
         new PolicyStatement({
           principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
           actions: ['execute-api:Invoke'],
-          resources: [this.restApi.arnForExecuteApi()],
+          resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
           effect: Effect.ALLOW,
         })
       );
@@ -288,7 +288,7 @@ export class UNSAPIGatewayGateway extends Construct {
           effect: Effect.DENY,
           principals: [new AnyPrincipal()],
           actions: ['execute-api:Invoke'],
-          resources: [this.restApi.arnForExecuteApi()],
+          resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
           conditions: {
             StringNotEquals: {
               'aws:SourceVpce': props.iam.allowOnlyFromKnownSources.vpceIDs,
@@ -301,6 +301,7 @@ export class UNSAPIGatewayGateway extends Construct {
       const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name), {
         assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
       });
+      role.node.addDependency(this.restApi);
 
       role.attachInlinePolicy(
         new Policy(this, config.utils.namingHelper(`iamr`, ...props.name, `gateway-invoker`), {
