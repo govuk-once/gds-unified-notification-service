@@ -68,7 +68,11 @@ export class UNSPSOResource extends Construct {
 
     const baseHTTP = UNSLambdaConstruct.baseHTTPFactory(this.serviceName, refs.codeSigning);
     const baseSQS = UNSLambdaConstruct.baseSQSFactory(this.serviceName, refs.codeSigning);
-
+    const basePrivateVPC = {
+      ref: refs.vpc.vpc,
+      securityGroups: [refs.vpc.securityGroups.privateEgress],
+      subnets: refs.vpc.vpc.privateSubnets,
+    };
     const mtlsCertificateRevocationAuthorizer = new UNSLambdaConstruct(this, config, {
       ...baseHTTP(`mtlsCertificateRevocationAuthorizer`),
       environment: {},
@@ -159,11 +163,7 @@ export class UNSPSOResource extends Construct {
       resources: {
         kms: refs.kms,
         dlq: this.queues.processing.dlq,
-        vpc: {
-          ref: refs.vpc.vpc,
-          securityGroups: [refs.vpc.securityGroups.privateEgress],
-          subnets: refs.vpc.vpc.privateSubnets,
-        },
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -186,11 +186,7 @@ export class UNSPSOResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
-        vpc: {
-          ref: refs.vpc.vpc,
-          securityGroups: [refs.vpc.securityGroups.privateEgress],
-          subnets: refs.vpc.vpc.privateSubnets,
-        },
+        vpc: basePrivateVPC,
         dlq: this.queues.dispatch.dlq,
       },
       iam: {
@@ -212,11 +208,7 @@ export class UNSPSOResource extends Construct {
       resources: {
         kms: refs.kms,
         dlq: this.queues.analytics.dlq,
-        vpc: {
-          ref: refs.vpc.vpc,
-          securityGroups: [refs.vpc.securityGroups.privateEgress],
-          subnets: refs.vpc.vpc.privateSubnets,
-        },
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],

@@ -105,7 +105,7 @@ export class UNSLambdaConstruct extends Construct {
     this.addPermissionsToRole(`cwlogs`, ['logs:CreateLogStream', 'logs:PutLogEvents'], [this.logGroup.logGroupArn]);
 
     // Allow use of STS Assume Role
-    this.addPermissionsToRole(`role-assumption`, ['sts:AssumeRole'], props.iam?.assumeableRolesArns);
+    this.addPermissionsToRole(`roleAssumption`, ['sts:AssumeRole'], props.iam?.assumeableRolesArns);
 
     // Allow use of SQS Target Queues & DLQ
     this.addPermissionsToRole(
