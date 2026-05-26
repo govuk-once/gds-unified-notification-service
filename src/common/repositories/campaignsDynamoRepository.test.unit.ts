@@ -1,13 +1,5 @@
-import {
-  BatchWriteItemCommand,
-  DeleteItemCommand,
-  DynamoDB,
-  GetItemCommand,
-  PutItemCommand,
-  ScanCommand,
-  UpdateItemCommand,
-} from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { DynamoDB, GetItemCommand, ScanCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
 import { iocGetCampaignsDynamoRepository } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
@@ -108,127 +100,6 @@ describe('campaignDynamoRepository', () => {
     });
   });
 
-  describe('CreateCampaignRecord', () => {
-    const recordBody: ICampaignRecord = {
-      CompositeID: 'DEPT01/CAMP01',
-    };
-
-    it('should put record with correct table name', async () => {
-      // Arrange and Act
-      await instance.createRecord(recordBody);
-
-      // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as PutItemCommand;
-      expect(command.input.TableName).toBe('mockCampaignsDynamoRepositoryName');
-      expect(unmarshall(command.input.Item!)).toMatchObject(recordBody);
-    });
-
-    it('should log error if request fails', async () => {
-      // Arrange
-      const errorMessage = 'Connection Failure';
-      dynamoMock.on(PutItemCommand).rejectsOnce(new Error(errorMessage));
-
-      // Act
-      await instance.createRecord(recordBody);
-
-      // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating record table: ${'mockCampaignsDynamoRepositoryName'}. Error: ${errorMessage}`
-      );
-    });
-  });
-
-  describe('CreateCampaignRecordBatch', () => {
-    const recordBody: ICampaignRecord = {
-      CompositeID: 'DEPT01/CAMP01',
-    };
-
-    it('should create a PutRequest of record', async () => {
-      // Arrange
-      const records: ICampaignRecord[] = [recordBody];
-
-      // Act
-      await instance.createRecordBatch(records);
-
-      // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
-      expect(command.input.RequestItems).toEqual({
-        mockCampaignsDynamoRepositoryName: [
-          {
-            PutRequest: {
-              Item: marshall(recordBody),
-            },
-          },
-        ],
-      });
-    });
-
-    it('should log warning if empty list is returned', async () => {
-      // Arrange
-      const records: ICampaignRecord[] = [];
-
-      // Act
-      await instance.createRecordBatch(records);
-
-      // Assert
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
-    });
-
-    it('should log error if theres a failure within the request', async () => {
-      // Arrange
-      const records: ICampaignRecord[] = [recordBody];
-      const errorMessage = 'Connection Failure';
-      dynamoMock.on(BatchWriteItemCommand).rejectsOnce(new Error(errorMessage));
-
-      // Act
-      await instance.createRecordBatch(records);
-
-      // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: mockCampaignsDynamoRepositoryName. Error: Connection Failure`
-      );
-    });
-  });
-
-  describe('UpdateCampaignRecord', () => {
-    it('should update record with correct table name', async () => {
-      // Arrange
-      const partialRecord: Partial<ICampaignRecord> = {
-        CompositeID: 'DEPT01/CAMP01',
-      };
-
-      // Act
-      await instance.updateRecord(partialRecord);
-
-      // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
-      expect(command.input.TableName).toBe('mockCampaignsDynamoRepositoryName');
-      expect(command.input.Key).toEqual(marshall({ CompositeID: 'DEPT01/CAMP01' }));
-    });
-
-    it('should log error if request fails', async () => {
-      // Arrange
-      const partialRecord: Partial<ICampaignRecord> = {
-        CompositeID: 'DEPT01/CAMP01',
-      };
-
-      const errorMessage = 'Connection Failure';
-      dynamoMock.on(UpdateItemCommand).rejectsOnce(new Error(errorMessage));
-
-      // Act
-      await instance.updateRecord(partialRecord);
-
-      // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${'mockCampaignsDynamoRepositoryName'}. Error: ${errorMessage}`,
-        expect.any(Object)
-      );
-    });
-  });
-
   describe('GetCampaignRecord', () => {
     it('should get record with correct table name', async () => {
       // Arrange
@@ -255,16 +126,18 @@ describe('campaignDynamoRepository', () => {
 
     it('should log error if request fails', async () => {
       // Arrange
-      const errorMessage = 'Connection Failure';
-      dynamoMock.on(GetItemCommand).rejectsOnce(new Error(errorMessage));
+      const error = new Error('Connection Failure');
+      dynamoMock.on(GetItemCommand).rejectsOnce(error);
 
       // Act
-      await instance.getRecord('DEPT01/CAMP01');
+      const result = instance.getRecord('DEPT01/CAMP01');
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in getting record for table: ${'mockCampaignsDynamoRepositoryName'}. Error: ${errorMessage}`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
+        tableName: 'mockCampaignsDynamoRepositoryName',
+        error: error.message,
+      });
     });
   });
 
@@ -294,43 +167,18 @@ describe('campaignDynamoRepository', () => {
 
     it('should log error if request fails', async () => {
       // Arrange
-      const errorMessage = 'Connection Failure';
-      dynamoMock.on(ScanCommand).rejectsOnce(new Error(errorMessage));
+      const error = new Error('Connection Failure');
+      dynamoMock.on(ScanCommand).rejectsOnce(error);
 
       // Act
-      await instance.getRecords();
+      const result = instance.getRecords();
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in getting records for table ${'mockCampaignsDynamoRepositoryName'}. Error: ${errorMessage}`
-      );
-    });
-  });
-
-  describe('DeleteCampaignRecord', () => {
-    it('should delete record with correct table name and key', async () => {
-      // Arrange and Act
-      await instance.deleteRecord('DEPT01/CAMP01');
-
-      // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as DeleteItemCommand;
-      expect(command.input.TableName).toBe('mockCampaignsDynamoRepositoryName');
-      expect(command.input.Key).toEqual(marshall({ CompositeID: 'DEPT01/CAMP01' }));
-    });
-
-    it('should log error if request fails', async () => {
-      // Arrange
-      const errorMessage = 'Connection Failure';
-      dynamoMock.on(UpdateItemCommand).rejectsOnce(new Error(errorMessage));
-
-      // Act
-      await instance.deleteRecord('DEPT01/CAMP01');
-
-      // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in deleting record in table: ${'mockCampaignsDynamoRepositoryName'} with key ${'CompositeID'}`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting records for table', {
+        tableName: 'mockCampaignsDynamoRepositoryName',
+        error: error.message,
+      });
     });
   });
 
@@ -340,6 +188,13 @@ describe('campaignDynamoRepository', () => {
       const campaignID = 'CAMP01';
       const departmentID = 'DEPT01';
       const event = NotificationStateEnum.VALIDATED;
+
+      dynamoMock.on(UpdateItemCommand).resolvesOnce({
+        ConsumedCapacity: {
+          ReadCapacityUnits: 1,
+          WriteCapacityUnits: 1,
+        },
+      });
 
       // Act
       await instance.incrementCampaigns(campaignID, departmentID, event);

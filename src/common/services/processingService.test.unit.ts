@@ -141,9 +141,7 @@ describe('ProcessingService', () => {
           userID: mockRequest.userID,
         }
       );
-      expect(result.success).toBe(true);
-      const successfulResult = result as Extract<typeof result, { success: true }>;
-      expect(successfulResult.externalUserID).toEqual('bob:app:push:id');
+      expect(result.externalUserID).toEqual('bob:app:push:id');
     });
   });
 });

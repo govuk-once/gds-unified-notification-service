@@ -13,7 +13,6 @@ import { CacheService, MetricsLabels, ObservabilityService } from '@common/servi
 import { ConfigurationService } from '@common/services/configurationService';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { SQSRecord } from 'aws-lambda';
-import z from 'zod';
 
 const requestBodySchema = IAnalyticsSchema;
 
@@ -80,6 +79,12 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
       Status: entry.Event,
     });
   };
+
+  protected async onStart(): Promise<void> {}
+
+  protected async onError(): Promise<void> {}
+
+  protected async onSuccess(): Promise<void> {}
 
   protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
     this.observability.metrics.addMetric(

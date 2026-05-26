@@ -76,12 +76,12 @@ describe('PatchNotification Handler', () => {
         'x-api-key': 'mockBadApiKey',
         'content-type': 'application/json',
       },
-    } as unknown as EventType;
+    };
 
     mockMissingIdEvent = {
       ...mockEvent,
       pathParameters: {},
-    } as unknown as EventType;
+    };
 
     instance = new PatchNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
@@ -91,6 +91,7 @@ describe('PatchNotification Handler', () => {
     handler = instance.handler();
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.analyticsQueueServiceMock.addPublishingResultMetric = vi.fn().mockResolvedValue(undefined);
   });
 

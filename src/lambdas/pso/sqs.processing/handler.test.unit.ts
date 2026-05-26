@@ -2,6 +2,7 @@ import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
+import { ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -191,6 +192,14 @@ describe('Processing QueueHandler', () => {
     // Mocking successful completion of service functions]
     serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+    serviceMocks.processingServiceMock.send.mockImplementation(
+      async (request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> => {
+        return await Promise.resolve({
+          request: request,
+          externalUserID: request.userID,
+        });
+      }
+    );
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Processing(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -199,6 +208,7 @@ describe('Processing QueueHandler', () => {
       dispatchQueue: serviceMocks.dispatchQueueServiceMock.initialize(),
       processingService: serviceMocks.processingServiceMock.initialize(),
     }));
+
     handler = instance.handler();
   });
 
@@ -241,21 +251,17 @@ describe('Processing QueueHandler', () => {
         UserID: mockMessageBody_1.UserID,
         CampaignID: mockMessageBody_1.CampaignID,
       },
-      'PROCESSING'
+      NotificationStateEnum.PROCESSING
     );
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenNthCalledWith(
       2,
       {
         DepartmentID: mockMessageBody_1.DepartmentID,
-        MessageBody: mockMessageBody_1.MessageBody,
-        MessageTitle: mockMessageBody_1.MessageTitle,
-        NotificationBody: mockMessageBody_1.NotificationBody,
         NotificationID: mockMessageBody_1.NotificationID,
-        NotificationTitle: mockMessageBody_1.NotificationTitle,
         UserID: mockMessageBody_1.UserID,
         CampaignID: mockMessageBody_1.CampaignID,
       },
-      'PROCESSED'
+      NotificationStateEnum.PROCESSED
     );
   });
 
@@ -351,6 +357,7 @@ describe('Processing QueueHandler', () => {
       {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
+        UserID: mockFailedEvent.Records[0].body.UserID,
       },
       NotificationStateEnum.PROCESSING_FAILED,
       '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
@@ -383,33 +390,45 @@ describe('Processing QueueHandler', () => {
 
   it('should log when processing adapter call returns success = false.', async () => {
     // Arrange
-    const errorMsg = 'Mock UDP failure message.';
-    serviceMocks.processingServiceMock.send.mockResolvedValueOnce({
-      request: {
-        userID: mockEvent.Records[0].body.UserID,
-      },
-      success: false,
-      errors: [errorMsg],
-    });
+    const error = new Error('Mock UDP failure message.');
+    serviceMocks.processingServiceMock.send.mockRejectedValue(error);
 
     // Act
     const result = handler(mockEvent, mockContext);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`UDP Error:`, { errors: [errorMsg] });
+    expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Error during record handling`, {
+      operationId: 'processing',
+      error: error.message,
+      identifiableRecord: {
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        DepartmentID: mockEvent.Records[0].body.DepartmentID,
+        UserID: mockEvent.Records[0].body.UserID,
+        CampaignID: mockEvent.Records[0].body.CampaignID,
+      },
+    });
   });
 
   it('should log when processing adapter throws an error.', async () => {
     // Arrange
-    const errorMsg = 'Mock UDP error.';
-    serviceMocks.processingServiceMock.send.mockRejectedValueOnce(errorMsg);
+    const error = new Error('Mock UDP error.');
+    serviceMocks.processingServiceMock.send.mockRejectedValueOnce(error);
 
     // Act
     const result = handler(mockEvent, mockContext);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`UDP Error:`, { e: errorMsg });
+    expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Error during record handling`, {
+      operationId: 'processing',
+      error: error.message,
+      identifiableRecord: {
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        DepartmentID: mockEvent.Records[0].body.DepartmentID,
+        UserID: mockEvent.Records[0].body.UserID,
+        CampaignID: mockEvent.Records[0].body.CampaignID,
+      },
+    });
   });
 });

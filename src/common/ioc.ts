@@ -16,6 +16,7 @@ import {
   KnownMetrics,
   NotificationService,
   ObservabilityService,
+  ObservabilityUtilities,
   ProcessingQueueService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
@@ -34,9 +35,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
   return () => {
     // Create a single instance and always re-use it on subsequent requests
     if (mode == Mode.SINGLETON) {
-      if (serviceCache[key] == undefined) {
-        serviceCache[key] = fn() as object;
-      }
+      serviceCache[key] ??= fn() as object;
       return serviceCache[key] as Instance;
     }
     // Timebound singleton - same behaviour as singleton, however after TTL expires, subsequent requests trigger recreation
@@ -58,7 +57,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
 
 // Observability
 export const iocGetLogger = ioc(
-  `Logger`,
+  Logger.name,
   Mode.SINGLETON,
   () =>
     new Logger({
@@ -73,9 +72,9 @@ export const iocGetLogger = ioc(
       },
     })
 );
-export const iocGetTracer = ioc(`Tracer`, Mode.SINGLETON, () => new Tracer());
+export const iocGetTracer = ioc(Tracer.name, Mode.SINGLETON, () => new Tracer());
 export const iocGetMetrics = ioc(
-  `Metrics`,
+  Metrics.name,
   Mode.SINGLETON,
   () =>
     new Metrics({
@@ -86,78 +85,78 @@ export const iocGetMetrics = ioc(
       },
     })
 );
-
+export const iocGetUtilities = ioc(ObservabilityUtilities.name, Mode.SINGLETON, () => new ObservabilityUtilities());
 export const iocGetObservabilityService = ioc(
-  `ObservabilityService`,
+  ObservabilityService.name,
   Mode.SINGLETON,
-  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer())
+  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer(), iocGetUtilities())
 );
 
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
-  `ConfigurationService`,
+  ConfigurationService.name,
   Mode.SINGLETON,
   () => new ConfigurationService(iocGetObservabilityService())
 );
 
 export const iocGetSMConfigurationService = ioc(
-  `SMConfigurationService`,
+  SMConfigurationService.name,
   Mode.SINGLETON,
   () => new SMConfigurationService(iocGetObservabilityService())
 );
 
 export const iocGetCacheService = ioc(
-  `CacheService`,
+  CacheService.name,
   Mode.SINGLETON,
   () => new CacheService(iocGetConfigurationService(), iocGetObservabilityService())
 );
 
 // Services - Queue dispatches
 export const iocGetProcessingQueueService = ioc(
-  `ProcessingQueueService`,
+  ProcessingQueueService.name,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new ProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetDispatchQueueService = ioc(
-  `DispatchQueueService`,
+  DispatchQueueService.name,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new DispatchQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 export const iocGetAnalyticsQueueService = ioc(
-  `AnalyticsQueueService`,
+  AnalyticsQueueService.name,
   Mode.TIMEBOUND_SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - DynamoDB
 export const iocGetNotificationDynamoRepository = ioc(
-  `NotificationsDynamoRepository`,
+  NotificationsDynamoRepository.name,
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new NotificationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetMTLSRevocationDynamoRepository = ioc(
-  `MTLSRevocationDynamoRepository`,
+  MTLSRevocationDynamoRepository.name,
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new MTLSRevocationDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetCampaignsDynamoRepository = ioc(
-  `CampaignsDynamoRepository`,
+  CampaignsDynamoRepository.name,
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new CampaignsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations
-export const iocGetNotificationService = ioc(`NotificationService`, Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetNotificationService = ioc(NotificationService.name, Mode.TIMEBOUND_SINGLETON, () =>
   new NotificationService(iocGetObservabilityService(), iocGetConfigurationService()).initialize()
 );
 
-export const iocGetProcessingService = ioc(`ProcessingService`, Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetProcessingService = ioc(ProcessingService.name, Mode.TIMEBOUND_SINGLETON, () =>
   new ProcessingService(
     iocGetObservabilityService(),
     iocGetConfigurationService(),
@@ -167,13 +166,13 @@ export const iocGetProcessingService = ioc(`ProcessingService`, Mode.TIMEBOUND_S
 
 // Services - Analytics wrappers
 export const iocGetAnalyticsQueue = ioc(
-  `AnalyticsQueueService`,
+  AnalyticsQueueService.name,
   Mode.SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetAnalyticsService = ioc(
-  `AnalyticsService`,
+  AnalyticsService.name,
   Mode.SINGLETON,
   async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
 );
@@ -181,7 +180,7 @@ export const iocGetAnalyticsService = ioc(
 // Services - Circuit Breaker (one instance per platform)
 export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBreakerService> =>
   ioc(
-    `CircuitBreakerService:${platform}`,
+    `${CircuitBreakerService.name}:${platform}`,
     Mode.TIMEBOUND_SINGLETON,
     async () =>
       new CircuitBreakerService(
@@ -194,7 +193,7 @@ export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBr
 
 // Services - Other
 export const iocGetContentValidationService = ioc(
-  `ContentValidationService`,
+  ContentValidationService.name,
   Mode.SINGLETON,
   () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
 );

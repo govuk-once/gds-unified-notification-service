@@ -39,7 +39,7 @@ describe('DispatchQueueService', () => {
   });
 
   describe('initialize', () => {
-    it('should retrieve the queue url and log when the dispatch queue service is initalised.', async () => {
+    it('should retrieve the queue url and log when the dispatch queue service is initialised.', async () => {
       // Act
       const result = await instance.initialize();
 

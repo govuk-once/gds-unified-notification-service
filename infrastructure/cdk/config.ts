@@ -31,7 +31,7 @@ export const fromSSM = async (key: string, fallback?: string | null) => {
         )
       ).Parameter?.Value
     );
-  } catch (e) {
+  } catch {
     return useFallback(undefined);
   }
 };

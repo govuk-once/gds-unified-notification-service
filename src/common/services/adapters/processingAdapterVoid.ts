@@ -21,7 +21,6 @@ export class ProcessingAdapterVoid implements ProcessingAdapter {
     });
     return {
       request: request,
-      success: true,
       externalUserID: request.userID,
     };
   }

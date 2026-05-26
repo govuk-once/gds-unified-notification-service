@@ -80,7 +80,7 @@ export abstract class QueueHandler<InputType, OutputType> {
       await initializeDependencies(this, this.dependencies);
 
       for (const record of event.Records as SQSRecord[]) {
-        const receiveCount = parseInt(record.attributes?.ApproximateReceiveCount ?? '1', 10);
+        const receiveCount = Number.parseInt(record.attributes?.ApproximateReceiveCount ?? '1', 10);
         if (receiveCount > 1) {
           this.observability.logger.warn(`SQS message retry attempt`, {
             messageId: record.messageId,

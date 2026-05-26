@@ -39,6 +39,7 @@ export abstract class QueueService<InputType> {
     this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`, {
       sqsMessageBody: messageBody,
     });
+
     try {
       const command = new SendMessageCommand({
         QueueUrl: this.sqsQueueUrl,
@@ -47,12 +48,15 @@ export abstract class QueueService<InputType> {
       });
       const response = await this.client.send(command);
 
-      this.observability.logger.info(`Successfully published message ID: ${response.MessageId}`);
+      this.observability.logger.info('Successfully published message ID', { messageId: response.MessageId });
       this.addPublishingResultMetric(true, 1);
     } catch (error) {
-      this.observability.logger.error(`Error publishing to SQS - ${error}`);
-
+      this.observability.logger.error('Error publishing to SQS', {
+        error: this.observability.utilities.formatError(error),
+      });
       this.addPublishingResultMetric(false, 1);
+
+      throw error;
     }
   }
 
@@ -76,15 +80,21 @@ export abstract class QueueService<InputType> {
       const response = await this.client.send(command);
 
       if (response.Successful) {
-        this.observability.logger.info(`Successfully published ${response.Successful.length} messages.`);
+        this.observability.logger.info('Successfully published messages', {
+          successfulMessageCount: response.Successful.length,
+        });
         this.addPublishingResultMetric(false, response.Successful.length);
       }
       if (response.Failed) {
-        this.observability.logger.error(`Failed to publish ${response.Failed.length} messages.`);
+        this.observability.logger.error('Failed to publish messages', { failedMessageCount: response.Failed.length });
         this.addPublishingResultMetric(false, response.Failed.length);
       }
     } catch (error) {
-      this.observability.logger.error(`Error publishing to SQS - ${error}`);
+      this.observability.logger.error('Error publishing to SQS', {
+        error: this.observability.utilities.formatError(error),
+      });
+
+      throw error;
     }
   }
 }

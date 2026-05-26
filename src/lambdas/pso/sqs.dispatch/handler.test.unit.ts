@@ -187,7 +187,6 @@ describe('Dispatch QueueHandler', () => {
     // Arrange
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
-      success: true,
     } as unknown as NotificationAdapterResult);
 
     // Act
@@ -297,6 +296,8 @@ describe('Dispatch QueueHandler', () => {
       {
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
+        UserID: mockFailedEvent.Records[0].body.UserID,
+        CampaignID: mockFailedEvent.Records[0].body.CampaignID,
       },
       'DISPATCHING_FAILED',
       `✖ Invalid input: expected string, received undefined
@@ -319,35 +320,7 @@ describe('Dispatch QueueHandler', () => {
 
   it('should return an error when the notification service fails to send.', async () => {
     // Arrange
-    serviceMocks.notificationServiceMock.send.mockResolvedValueOnce({
-      notification: {
-        NotificationID: mockEvent.Records[0].body.NotificationID,
-        ExternalUserID: mockEvent.Records[0].body.ExternalUserID,
-        NotificationTitle: mockEvent.Records[0].body.NotificationTitle,
-        NotificationBody: mockEvent.Records[0].body.NotificationBody,
-      },
-      success: false,
-      errors: ['Notification failed to send.'],
-    });
-
-    // Act
-    const result = handler(mockEvent, mockContext);
-
-    // Assert
-    await expect(result).rejects.toThrow(FullBatchFailureError);
-  });
-
-  it('should return an error when the notification service fails to send with no error message.', async () => {
-    // Arrange
-    serviceMocks.notificationServiceMock.send.mockResolvedValueOnce({
-      notification: {
-        NotificationID: mockEvent.Records[0].body.NotificationID,
-        ExternalUserID: mockEvent.Records[0].body.ExternalUserID,
-        NotificationTitle: mockEvent.Records[0].body.NotificationTitle,
-        NotificationBody: mockEvent.Records[0].body.NotificationBody,
-      },
-      success: false,
-    });
+    serviceMocks.notificationServiceMock.send.mockRejectedValueOnce(new Error('Notification failed to send.'));
 
     // Act
     const result = handler(mockEvent, mockContext);
@@ -409,10 +382,7 @@ describe('Dispatch QueueHandler', () => {
 
     it('should record failure when notification service returns success: false', async () => {
       // Arrange
-      serviceMocks.notificationServiceMock.send.mockResolvedValue({
-        success: false,
-        errors: ['Service unavailable'],
-      } as unknown as NotificationAdapterResult);
+      serviceMocks.notificationServiceMock.send.mockRejectedValueOnce(new Error('Service unavailable'));
 
       // Act
       const result = handler(mockEvent, mockContext);
