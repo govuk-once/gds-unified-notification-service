@@ -16,50 +16,75 @@ vi.hoisted(() => {
 
 const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
 const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
-if (psoUrl == undefined || flexUrl == undefined) {
-  throw new Error(
-    'Domain names are not setup for end to end testing, please run development:sandbox:setup to configure.'
-  );
-}
-
-// Ensure AWS env vars are available
-if (
-  process.env.AWS_ACCESS_KEY_ID == undefined ||
-  process.env.AWS_SECRET_ACCESS_KEY == undefined ||
-  process.env.AWS_REGION == undefined
-) {
-  console.log(
-    `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
-  );
-  process.exit(1);
-}
 
 let httpsAgent: https.Agent;
-try {
-  const client = new SSMClient({ region: 'eu-west-2' });
 
-  const inputCert = { Name: '/e2e/pso/mtls/cert', WithDecryption: true };
-  const inputKey = { Name: '/e2e/pso/mtls/key', WithDecryption: true };
-  const cert = await client.send(new GetParameterCommand(inputCert));
-  const key = await client.send(new GetParameterCommand(inputKey));
+beforeAll(async () => {
+  try {
+    if (!psoUrl || !flexUrl) {
+      throw new Error(
+        'Domain names are not setup for end to end testing, please run development:sandbox:setup to configure.'
+      );
+    }
 
-  if (!cert.Parameter || !key.Parameter) {
-    throw new Error('mTLS certificates were not returned from parameter store.');
+    // Ensure AWS env vars are available
+    if (
+      process.env.AWS_ACCESS_KEY_ID == undefined ||
+      process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+      process.env.AWS_REGION == undefined
+    ) {
+      throw new Error(
+        `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
+      );
+    }
+
+    // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
+    const client = new SSMClient({ region: 'eu-west-2' });
+
+    const inputCert = { Name: '/e2e/pso/mtls/cert', WithDecryption: true };
+    const inputKey = { Name: '/e2e/pso/mtls/key', WithDecryption: true };
+    const [cert, key] = await Promise.all([
+      client.send(new GetParameterCommand(inputCert)),
+      client.send(new GetParameterCommand(inputKey)),
+    ]);
+
+    if (!cert.Parameter || !key.Parameter) {
+      throw new Error('mTLS certificates were not returned from parameter store.');
+    }
+
+    // Creates a https agent for mTLS using imported credentials
+    httpsAgent = new https.Agent({
+      cert: `${cert.Parameter?.Value}`,
+      key: `${key.Parameter?.Value}`,
+    });
+
+    if (!httpsAgent) {
+      throw new Error('HTTPS Agent failed to initialize, cannot run end to end tests.');
+    }
+  } catch (error) {
+    console.error('Error setting up HTTPS Agent for end to end tests:', error);
+    throw error;
   }
-  // Creates a https agent for mTLS using imported credentials
-  httpsAgent = new https.Agent({
-    cert: `${cert.Parameter?.Value}`,
-    key: `${key.Parameter?.Value}`,
-  });
-} catch {
-  throw new Error('mTLS certificates were not returned from parameter store.');
-}
+});
 
-if (!httpsAgent) {
-  throw new Error(
-    'mTLS agent has not been configure for end to end testing, please run development:sandbox:setup to configure.'
+// Sanitizer for axios error objects to prevent config or request data from being logged
+const axiosInstanceSanitizer = (instance: AxiosInstance) => {
+  instance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (axios.isAxiosError(error)) {
+        delete error.config;
+        delete error.request;
+        if (error.response) {
+          delete (error.response as Partial<AxiosError>).config;
+          delete (error.response as Partial<AxiosError>).request;
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      return Promise.reject(error);
+    }
   );
-}
+};
 
 // Add clients to test implementation for e2d
 export const test = baseTest
@@ -71,22 +96,7 @@ export const test = baseTest
       httpsAgent,
     });
 
-    instance.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (axios.isAxiosError(error)) {
-          delete error.config;
-          delete error.request;
-          if (error.response) {
-            delete (error.response as Partial<AxiosError>).config;
-            delete (error.response as Partial<AxiosError>).request;
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-        return Promise.reject(error);
-      }
-    );
-
+    axiosInstanceSanitizer(instance);
     return instance;
   })
   // Creates an axios client for FLEX requests
@@ -97,21 +107,8 @@ export const test = baseTest
       httpsAgent,
     });
 
-    instance.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (axios.isAxiosError(error)) {
-          delete error.config;
-          delete error.request;
-          if (error.response) {
-            delete (error.response as Partial<AxiosError>).config;
-            delete (error.response as Partial<AxiosError>).request;
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-        return Promise.reject(error);
-      }
-    );
+    axiosInstanceSanitizer(instance);
+    return instance;
   });
 
 export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
