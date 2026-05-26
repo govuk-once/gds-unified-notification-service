@@ -57,7 +57,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
 
 // Observability
 export const iocGetLogger = ioc(
-  Logger.name,
+  'Logger',
   Mode.SINGLETON,
   () =>
     new Logger({
@@ -72,9 +72,9 @@ export const iocGetLogger = ioc(
       },
     })
 );
-export const iocGetTracer = ioc(Tracer.name, Mode.SINGLETON, () => new Tracer());
+export const iocGetTracer = ioc('Tracer', Mode.SINGLETON, () => new Tracer());
 export const iocGetMetrics = ioc(
-  Metrics.name,
+  'Metrics',
   Mode.SINGLETON,
   () =>
     new Metrics({
@@ -85,78 +85,78 @@ export const iocGetMetrics = ioc(
       },
     })
 );
-export const iocGetUtilities = ioc(ObservabilityUtilities.name, Mode.SINGLETON, () => new ObservabilityUtilities());
+export const iocGetUtilities = ioc('ObservabilityUtilities', Mode.SINGLETON, () => new ObservabilityUtilities());
 export const iocGetObservabilityService = ioc(
-  ObservabilityService.name,
+  'ObservabilityService',
   Mode.SINGLETON,
   () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer(), iocGetUtilities())
 );
 
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
-  ConfigurationService.name,
+  'ConfigurationService',
   Mode.SINGLETON,
   () => new ConfigurationService(iocGetObservabilityService())
 );
 
 export const iocGetSMConfigurationService = ioc(
-  SMConfigurationService.name,
+  'SMConfigurationService',
   Mode.SINGLETON,
   () => new SMConfigurationService(iocGetObservabilityService())
 );
 
 export const iocGetCacheService = ioc(
-  CacheService.name,
+  'CacheService',
   Mode.SINGLETON,
   () => new CacheService(iocGetConfigurationService(), iocGetObservabilityService())
 );
 
 // Services - Queue dispatches
 export const iocGetProcessingQueueService = ioc(
-  ProcessingQueueService.name,
+  'ProcessingQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new ProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetDispatchQueueService = ioc(
-  DispatchQueueService.name,
+  'DispatchQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new DispatchQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 export const iocGetAnalyticsQueueService = ioc(
-  AnalyticsQueueService.name,
+  'AnalyticsQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - DynamoDB
 export const iocGetNotificationDynamoRepository = ioc(
-  NotificationsDynamoRepository.name,
+  'NotificationsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new NotificationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetMTLSRevocationDynamoRepository = ioc(
-  MTLSRevocationDynamoRepository.name,
+  'MTLSRevocationDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new MTLSRevocationDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetCampaignsDynamoRepository = ioc(
-  CampaignsDynamoRepository.name,
+  'CampaignsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new CampaignsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations
-export const iocGetNotificationService = ioc(NotificationService.name, Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, () =>
   new NotificationService(iocGetObservabilityService(), iocGetConfigurationService()).initialize()
 );
 
-export const iocGetProcessingService = ioc(ProcessingService.name, Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetProcessingService = ioc('ProcessingService', Mode.TIMEBOUND_SINGLETON, () =>
   new ProcessingService(
     iocGetObservabilityService(),
     iocGetConfigurationService(),
@@ -166,13 +166,13 @@ export const iocGetProcessingService = ioc(ProcessingService.name, Mode.TIMEBOUN
 
 // Services - Analytics wrappers
 export const iocGetAnalyticsQueue = ioc(
-  AnalyticsQueueService.name,
+  'AnalyticsQueueService',
   Mode.SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetAnalyticsService = ioc(
-  AnalyticsService.name,
+  'AnalyticsService',
   Mode.SINGLETON,
   async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
 );
@@ -180,7 +180,7 @@ export const iocGetAnalyticsService = ioc(
 // Services - Circuit Breaker (one instance per platform)
 export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBreakerService> =>
   ioc(
-    `${CircuitBreakerService.name}:${platform}`,
+    `CircuitBreakerService:${platform}`,
     Mode.TIMEBOUND_SINGLETON,
     async () =>
       new CircuitBreakerService(
@@ -193,7 +193,7 @@ export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBr
 
 // Services - Other
 export const iocGetContentValidationService = ioc(
-  ContentValidationService.name,
+  'ContentValidationService',
   Mode.SINGLETON,
   () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
 );
