@@ -3,8 +3,8 @@
  * This way the SSM Values are created outside of the CDK Stack & modifications can persist
  */
 
-import { KMSClient, ListAliasesCommand } from '@aws-sdk/client-kms';
-import { GetParameterCommand, GetParametersByPathCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { KMSClient } from '@aws-sdk/client-kms';
+import { GetParameterCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
 
@@ -53,15 +53,6 @@ const kms = new KMSClient();
 
 await (async () => {
   const namespace = config.namespace;
-  const aliases = await kms.send(new ListAliasesCommand({}));
-  const alias = aliases.Aliases?.find((alias) =>
-    alias.AliasArn?.endsWith(config.utils.namingHelper('kms', 'key', 'alias'))
-  );
-
-  if (alias == undefined) {
-    console.error(`KMS Key not found - aborting`);
-    return;
-  }
 
   // Iterate keys and set default values if the key does not exist
   const ssmClient = new SSMClient();
@@ -90,8 +81,7 @@ await (async () => {
             Value: defaultValue,
             Type: 'SecureString',
             Overwrite: false,
-            KeyId: alias.AliasName,
-            Description: `Note: This parameter has been created post CDK deployment`,
+            Description: `Note: This parameter has been created post CDK deployment - ${config.env}`,
             Tags: Object.entries(config.defaultTags()).map(([Key, Value]) => ({ Key, Value })),
           })
         )
@@ -102,31 +92,5 @@ await (async () => {
         console.log(` - Param created`);
       }
     }
-  }
-
-  // Detect any keys not defined in /env/external/ namespace
-  let nextToken: string | undefined | -1 = -1;
-  const existingKeysInNamespace: string[] = [];
-  while (nextToken == -1 && nextToken !== undefined) {
-    const [params, errors] = await unwrap(
-      ssm.send(
-        new GetParametersByPathCommand({
-          Path: `/${namespace}/external/`,
-          Recursive: true,
-          WithDecryption: true,
-        })
-      )
-    );
-    nextToken = params?.NextToken == undefined ? undefined : params.NextToken;
-    existingKeysInNamespace.push(
-      ...(params?.Parameters?.map((p) => p.Name!.replace(`/${namespace}/external/`, '')) ?? [])
-    );
-  }
-
-  const depracatedKeys = existingKeysInNamespace.filter(
-    (param) => Object.keys(configurableParameters).includes(param) === false
-  );
-  for (const key of depracatedKeys) {
-    console.log(`${key} is no longer defined by this script, and should be manually removed`);
   }
 })();
