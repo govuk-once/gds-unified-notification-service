@@ -123,6 +123,20 @@ export class UNSPSOResource extends Construct {
       },
     });
 
+    const getCampaignStatus = new UNSLambdaConstruct(this, config, {
+      ...baseHTTP(`getCampaignStatus`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [config.namespace],
+        dynamodb: {
+          messages: refs.dynamodb.campaigns.permissions.readOnlyById,
+        },
+      },
+    });
+
     const postMessage = new UNSLambdaConstruct(this, config, {
       ...baseHTTP(`postMessage`),
       environment: {},
@@ -150,6 +164,7 @@ export class UNSPSOResource extends Construct {
         sqsSend: [this.queues.processing.queue.queueArn, this.queues.analytics.queue.queueArn],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readAndWrite,
+          campaigns: refs.dynamodb.campaigns.permissions.readAndWrite,
         },
       },
       triggers: {
@@ -228,6 +243,7 @@ export class UNSPSOResource extends Construct {
       http: {
         getHealthcheck,
         getNotificationStatus,
+        getCampaignStatus,
         postMessage,
       },
       sqs: {
@@ -270,6 +286,7 @@ export class UNSPSOResource extends Construct {
     })
       .GET(`getHealthcheck`, `/status`, lambdas.http.getHealthcheck.integration)
       .GET(`getNotificationStatus`, `/status/{notificationID}`, lambdas.http.getNotificationStatus.integration)
+      .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, lambdas.http.postMessage.integration);
 
     //// =====================================================
