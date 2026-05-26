@@ -89,7 +89,7 @@ export const config = {
           // Truststore override is used for developer envs
           truststore:
             process.env.truststore_override ??
-            (await fromSSM(`/gdsunsmtls-${mtlsEnvToUse}/exports/pso/truststore`, null)),
+            (await fromSSM(`/gdsunsmtls-${mtlsEnvToUse}/exports/pso/truststore/cdk`, null)),
           domain: await fromSSM(`/gdsunsmtls-${mtlsEnvToUse}/exports/domain`, null),
 
           // Config below is used by mTLS authorizer to support certificate revocation flows (not validation - that's done by API Gateway)

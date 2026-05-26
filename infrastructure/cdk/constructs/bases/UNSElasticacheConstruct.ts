@@ -23,8 +23,8 @@ export class UNSElasticacheConstruct extends Construct {
     // Valkey IAM User
     this.user = new CfnUser(this, `user`, {
       engine: 'valkey',
-      userId: `iamuser`,
-      userName: `iamuser`,
+      userId: namingHelper(`iamuser`),
+      userName: namingHelper(`iamuser`),
       authenticationMode: {
         Type: 'iam',
       },
