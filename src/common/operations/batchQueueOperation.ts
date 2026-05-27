@@ -4,7 +4,6 @@ import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodType } from 'zod';
@@ -32,36 +31,42 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
 
   /**
    * Executes analytics or custom logic, if necessary, for a verified identifiable record.
-   * * @param identifiableRecord - The verified identifiable record payload.
+   * @param identifiableRecord - The verified identifiable record payload.
    */
   protected abstract onStart(identifiableRecord: IIdentifiableMessage): Promise<void>;
 
   /**
    * Executes analytics, or custom logic, if necessary, when record handling fails.
-   * * @param identifiableRecord - The verified identifiable record payload.
-   * * @param error - The error thrown during record handling.
+   * @param identifiableRecord - The verified identifiable record payload.
+   * @param error - The error thrown during record handling.
    */
   protected abstract onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void>;
 
   /**
    * Executes analytics or custom logic, if necessary, for a record after record handling.
-   * * @param identifiableRecord - The verified identifiable record payload.
+   * @param identifiableRecord - The verified identifiable record payload.
    */
   protected abstract onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void>;
 
   /**
+   * Publishes metrics tracking the total number of failed records in a batch.
+   * @param batchItemFailuresCount - The count of records that failed processing within the batch.
+   */
+  protected abstract batchItemFailureMetric(batchItemFailuresCount: number): void;
+
+  /**
    * The implementation of the core record handler that validates the SQS record against a schema
    * and executes the primary business logic.
-   * * @param record - The individual SQS record to process.
+   * @param record - The individual SQS record to process.
    */
   protected abstract recordHandler: (record: SQSRecord) => Promise<void>;
 
   /**
-   * Publishes metrics tracking the total number of failed records in a batch.
-   * * @param batchItemFailuresCount - The count of records that failed processing within the batch.
+   * Validates that the record contains a NotificationID and DepartmentID,
+   * then extracts the identifiable fields to be used for logging.
+   * @param record - The individual SQS record to process.
+   * @returns Object containing the extracted identifiable fields.
    */
-  protected abstract batchItemFailureMetric: (batchItemFailuresCount: number) => void;
-
   protected async validateIdentifiableRecord(record: SQSRecord): Promise<IIdentifiableMessage> {
     const parsedResult = await SqsRecordSchema.extend({
       body: IIdentifiableMessageSchema,
@@ -80,6 +85,12 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     return parsedResult.data.body;
   }
 
+  /**
+   * Validates the record against the schema. If `contentValidationService` is present,
+   * it also executes content-level validation. Throws an error if validation fails.
+   * @param record - The individual SQS record to process.
+   * @returns The SQS record containing the strongly-typed, parsed body.
+   */
   protected async validateRecord(record: SQSRecord): Promise<Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }> {
     type OutputRecord = Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> & { MessageBody?: string } };
 
@@ -114,17 +125,11 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     return validatedRecord.data as OutputRecord;
   }
 
-  protected async validateAnalyticsRecord(record: SQSRecord): Promise<IAnalytics> {
-    // Validate Incoming Analytics events
-    const parsing = await IAnalyticsSchema.safeParseAsync(record.body);
-    if (!parsing.success) {
-      const errorMsg = parsing.error ? z.prettifyError(parsing.error) : 'Failed to parse Analytics event';
-      throw new Error(errorMsg);
-    }
-
-    return parsing.data;
-  }
-
+  /**
+   * Wrapper for the core record handler that manages lifecycle hooks (`onStart`, `onSuccess`, `onError`)
+   * and provides fallback error logging.
+   * @param record - The individual SQS record to orchestrate.
+   */
   protected recordHandlerWrapper = async (record: SQSRecord) => {
     const identifiableRecord = await this.validateIdentifiableRecord(record);
 
@@ -144,6 +149,12 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     }
   };
 
+  /**
+   * Processes a batch of queue records in parallel, validates them, and reports analytics on any processing failures.
+   * @param event - The SQS queue event containing incoming records.
+   * @param context - The execution context passed by Lambda/SQS.
+   * @returns A partial item failure response containing the IDs of any records that failed processing.
+   */
   public async implementation(
     event: QueueEvent<z.infer<InputSchema>>,
     context: Context

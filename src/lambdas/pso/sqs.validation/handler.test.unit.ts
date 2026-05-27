@@ -54,7 +54,30 @@ describe('Validation QueueHandler', () => {
   const mockEvent: QueueEvent<IMessage> = {
     Records: [
       {
-        messageId: 'mockMessageId',
+        messageId: 'mockMessageId_1',
+        receiptHandle: 'mockReceiptHandle',
+        attributes: {
+          ApproximateReceiveCount: '2',
+          SentTimestamp: '202601021513',
+          SenderId: 'mockSenderId',
+          ApproximateFirstReceiveTimestamp: '202601021513',
+        },
+        messageAttributes: {},
+        md5OfBody: 'mockMd5OfBody',
+        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'mockEventSourceARN',
+        awsRegion: 'eu-west2',
+        body: mockMessageBody,
+      },
+    ],
+  };
+
+  const mockEvents: QueueEvent<IMessage> = {
+    Records: [
+      mockEvent.Records[0],
+      {
+        messageId: 'mockMessageId_1',
         receiptHandle: 'mockReceiptHandle',
         attributes: {
           ApproximateReceiveCount: '2',
@@ -253,6 +276,20 @@ describe('Validation QueueHandler', () => {
         ReceivedDateTime: '202601021513',
       })
     );
+  });
+
+  it('should return a list of all failed processes when it partial fails.', async () => {
+    // Act
+    const result = await handler(mockPartialFailedEvent, mockContext);
+
+    // Assert
+    expect(result).toEqual({
+      batchItemFailures: [
+        {
+          itemIdentifier: 'mockMessageId_1',
+        },
+      ],
+    });
   });
 
   it('should add a metric for the number of failed processes for a partial failure.', async () => {

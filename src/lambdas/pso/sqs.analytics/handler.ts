@@ -60,7 +60,8 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate record and extract analytics event entry
-    const entry = await this.validateAnalyticsRecord(record);
+    const analyticsRecord = await this.validateRecord(record);
+    const entry = analyticsRecord.body;
 
     // Update notification object with status event
     await this.notifications.addEvent(entry);
@@ -86,13 +87,13 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
 
   protected async onSuccess(): Promise<void> {}
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({

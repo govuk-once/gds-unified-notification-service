@@ -119,13 +119,13 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
     await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSED);
   }
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 // IoC

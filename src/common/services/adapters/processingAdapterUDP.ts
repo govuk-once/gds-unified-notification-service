@@ -69,7 +69,6 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       userID: request.userID,
     });
 
-    // Note at the minute - this just fetches data and logs it, instead of returning it
     // /v1/{resourcePath+} - notifications is resource namespace that was assigned to us by flex
     const result = await this.client.get(`/v1/notifications`, {
       headers: {

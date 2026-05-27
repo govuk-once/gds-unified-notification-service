@@ -150,13 +150,13 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
     await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.DISPATCHED);
   }
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({

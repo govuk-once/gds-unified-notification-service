@@ -110,13 +110,13 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATED);
   }
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 export const handler = new Validation(

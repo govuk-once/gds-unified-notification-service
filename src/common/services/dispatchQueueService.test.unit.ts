@@ -17,7 +17,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('DispatchQueueService', () => {
-  let instance: DispatchQueueService;
+  let dispatchQueueService: DispatchQueueService;
 
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
@@ -34,14 +34,24 @@ describe('DispatchQueueService', () => {
     mockParameterStore = mockDefaultConfig();
     configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
 
-    instance = new DispatchQueueService(configurationServiceMock, observabilityMock);
-    await instance.initialize();
+    dispatchQueueService = new DispatchQueueService(configurationServiceMock, observabilityMock);
+    await dispatchQueueService.initialize();
+  });
+
+  describe('getQueueName', () => {
+    it('should have return the correct queue name', () => {
+      // Act
+      const result = dispatchQueueService.getQueueName();
+
+      // Assert
+      expect(result).toBe('dispatch');
+    });
   });
 
   describe('initialize', () => {
     it('should retrieve the queue url and log when the dispatch queue service is initialised.', async () => {
       // Act
-      const result = await instance.initialize();
+      const result = await dispatchQueueService.initialize();
 
       // Assert
       expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();

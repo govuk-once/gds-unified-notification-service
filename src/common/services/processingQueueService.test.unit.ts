@@ -54,14 +54,25 @@ describe('ProcessingQueueService', () => {
     await processingQueueService.initialize();
   });
 
+  describe('getQueueName', () => {
+    it('should return the correct queue name', () => {
+      // Act
+      const result = processingQueueService.getQueueName();
+
+      // Assert
+      expect(result).toBe('processing');
+    });
+  });
+
   describe('initialize', () => {
-    it('should retrieve the queue url and log when the processing queue service is initalised.', async () => {
+    it('should retrieve the queue url and log when the processing queue service is initialised.', async () => {
       // Act
       const result = await processingQueueService.initialize();
 
       // Assert
       expectTypeOf(result).toEqualTypeOf<ProcessingQueueService>();
 
+      // Assert
       expect(observabilityMock.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
     });
   });

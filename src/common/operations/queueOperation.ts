@@ -67,6 +67,7 @@ export abstract class QueueHandler<InputType, OutputType> {
         })
       );
   }
+
   protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
     return this.observabilityMiddlewares(middy).use(
       deserializeRecordBodyFromJson(this.observability)

@@ -1,7 +1,9 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
+import { MetricsLabels } from '@common/services';
 import { ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
 import { BoolParameters } from '@common/utils';
 import {
@@ -88,20 +90,7 @@ describe('Processing QueueHandler', () => {
     Records: [
       mockEvent.Records[0],
       {
-        messageId: 'mockMessageId_2',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
+        ...mockEvent.Records[0],
         body: mockMessageBody_2,
       },
     ],
@@ -111,6 +100,7 @@ describe('Processing QueueHandler', () => {
     Records: [
       {
         ...mockEvent.Records[0],
+        messageId: 'mockMessageId_1',
         body: {
           NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
           UserID: 'invalid-id',
@@ -120,20 +110,8 @@ describe('Processing QueueHandler', () => {
         },
       },
       {
+        ...mockEvent.Records[0],
         messageId: 'mockMessageId_2',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
         body: mockMessageBody_2,
       },
     ],
@@ -345,6 +323,18 @@ describe('Processing QueueHandler', () => {
         },
       ],
     });
+  });
+
+  it('should add a metric for the number of failed processes for a partial failure.', async () => {
+    // Act
+    await handler(mockPartialFailedEvent, mockContext);
+
+    // Assert
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
+      MetricUnit.Count,
+      1
+    );
   });
 
   it('should return and error publish an event when message body is not valid.', async () => {

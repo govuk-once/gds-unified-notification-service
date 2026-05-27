@@ -3,7 +3,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import { QueueEvent } from '@common/operations';
-import { CircuitBreakerOpenError } from '@common/services';
+import { CircuitBreakerOpenError, MetricsLabels } from '@common/services';
 import { NotificationAdapterResult } from '@common/services/interfaces';
 import { BoolParameters } from '@common/utils';
 import {
@@ -42,7 +42,7 @@ describe('Dispatch QueueHandler', () => {
     awsRequestId: '12345',
   } as unknown as Context;
 
-  const mockMessageBody: IProcessedMessage = {
+  const mockMessageBody_1: IProcessedMessage = {
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
     UserID: 'test_id_01',
     ExternalUserID: 'test',
@@ -52,10 +52,21 @@ describe('Dispatch QueueHandler', () => {
     NotificationBody: 'psst',
   };
 
+  const mockMessageBody_2: IProcessedMessage = {
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
+    DepartmentID: 'DVLA01',
+    UserID: 'UserID_2',
+    NotificationTitle: 'Test message - 002',
+    NotificationBody: "You've got a message in the message centre - 2",
+    MessageTitle: '',
+    MessageBody: '',
+    ExternalUserID: 'test_2',
+  };
+
   const mockEvent: QueueEvent<IProcessedMessage> = {
     Records: [
       {
-        messageId: 'mockMessageId',
+        messageId: 'mockMessageId_1',
         receiptHandle: 'mockReceiptHandle',
         attributes: {
           ApproximateReceiveCount: '2',
@@ -69,7 +80,18 @@ describe('Dispatch QueueHandler', () => {
         eventSource: 'aws:sqs',
         eventSourceARN: 'mockEventSourceARN',
         awsRegion: 'eu-west2',
-        body: mockMessageBody,
+        body: mockMessageBody_1,
+      },
+    ],
+  };
+
+  const mockEvents: QueueEvent<IProcessedMessage> = {
+    Records: [
+      mockEvent.Records[0],
+      {
+        ...mockEvent.Records[0],
+        messageId: 'mockMessageId_2',
+        body: mockMessageBody_2,
       },
     ],
   };
@@ -78,6 +100,7 @@ describe('Dispatch QueueHandler', () => {
     Records: [
       {
         ...mockEvent.Records[0],
+        messageId: 'mockMessageId_2',
         body: {
           NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
           UserID: 'invalid-id',
@@ -91,8 +114,25 @@ describe('Dispatch QueueHandler', () => {
   } as unknown as QueueEvent<IProcessedMessage>;
 
   const mockPartialFailedEvent: QueueEvent<IProcessedMessage> = {
-    Records: [mockEvent.Records[0], mockFailedEvent.Records[0]],
-  };
+    Records: [
+      {
+        ...mockEvent.Records[0],
+        messageId: 'mockMessageId_1',
+        body: {
+          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+          UserID: 'invalid-id',
+          DepartmentID: 'invalid-id',
+          CampaignID: 'invalid-id',
+          // Missed out on purpose NotificationTitle, NotificationBody
+        },
+      },
+      {
+        ...mockEvent.Records[0],
+        messageId: 'mockMessageId_2',
+        body: mockMessageBody_2,
+      },
+    ],
+  } as unknown as QueueEvent<IProcessedMessage>;
 
   const mockUnidentifiableEvent: QueueEvent<IProcessedMessage> = {
     Records: [
@@ -152,7 +192,7 @@ describe('Dispatch QueueHandler', () => {
   it('should throw an error when the message title equals "FAIL_AT_DISPATCH".', async () => {
     // Arrange
     const mockFailOnTriggerEvent = {
-      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody, NotificationTitle: 'FAIL_AT_DISPATCH' } }],
+      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody_1, NotificationTitle: 'FAIL_AT_DISPATCH' } }],
     };
 
     // Act
@@ -195,10 +235,10 @@ describe('Dispatch QueueHandler', () => {
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
+        DepartmentID: mockMessageBody_1.DepartmentID,
+        NotificationID: mockMessageBody_1.NotificationID,
+        UserID: mockMessageBody_1.UserID,
+        CampaignID: mockMessageBody_1.CampaignID,
       },
       'DISPATCHING'
     );
@@ -216,10 +256,10 @@ describe('Dispatch QueueHandler', () => {
 
     // Assert
     expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
-      ExternalUserID: mockMessageBody.ExternalUserID,
-      NotificationID: mockMessageBody.NotificationID,
-      NotificationTitle: mockMessageBody.NotificationTitle,
-      NotificationBody: mockMessageBody.NotificationBody,
+      ExternalUserID: mockMessageBody_1.ExternalUserID,
+      NotificationID: mockMessageBody_1.NotificationID,
+      NotificationTitle: mockMessageBody_1.NotificationTitle,
+      NotificationBody: mockMessageBody_1.NotificationBody,
     });
   });
 
@@ -239,10 +279,10 @@ describe('Dispatch QueueHandler', () => {
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
+        DepartmentID: mockMessageBody_1.DepartmentID,
+        NotificationID: mockMessageBody_1.NotificationID,
+        UserID: mockMessageBody_1.UserID,
+        CampaignID: mockMessageBody_1.CampaignID,
         DispatchedDateTime: date.toISOString(),
       },
       { resetExpirationDate: true }
@@ -274,13 +314,46 @@ describe('Dispatch QueueHandler', () => {
     );
   });
 
+  it('should dispatch multiple messages to the notification service when messages are valid.', async () => {
+    // Act
+    await handler(mockEvents, mockContext);
+
+    // Assert
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
+      ExternalUserID: mockMessageBody_1.ExternalUserID,
+      NotificationID: mockMessageBody_1.NotificationID,
+      NotificationTitle: mockMessageBody_1.NotificationTitle,
+      NotificationBody: mockMessageBody_1.NotificationBody,
+    });
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
+      ExternalUserID: mockMessageBody_2.ExternalUserID,
+      NotificationID: mockMessageBody_2.NotificationID,
+      NotificationTitle: mockMessageBody_2.NotificationTitle,
+      NotificationBody: mockMessageBody_2.NotificationBody,
+    });
+  });
+
+  it('should return a list of all failed processes when it partial fails.', async () => {
+    // Act
+    const result = await handler(mockPartialFailedEvent, mockContext);
+
+    // Assert
+    expect(result).toEqual({
+      batchItemFailures: [
+        {
+          itemIdentifier: 'mockMessageId_1',
+        },
+      ],
+    });
+  });
+
   it('should add a metric for the number of failed processes for a partial failure.', async () => {
     // Act
     await handler(mockPartialFailedEvent, mockContext);
 
     // Assert
     expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
-      'BATCH_ITEM_FAILURES_DISPATCH',
+      MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
       MetricUnit.Count,
       1
     );
