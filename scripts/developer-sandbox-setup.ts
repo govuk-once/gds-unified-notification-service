@@ -292,7 +292,7 @@ mtls_env_to_use=${mtlsEnvToUse}
 ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverride}"`}`);
 
     // Prompt to perform tf init
-    if (await confirm({ message: `Would you like to initialize terraform?`, default: true })) {
+    if (await confirm({ message: `Would you like to initialize terraform?`, default: false })) {
       (
         await $.cwd('infrastructure/terraform')`terraform init -reconfigure \
       -backend-config "bucket=${bucket}" \

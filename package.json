@@ -16,7 +16,7 @@
     "cdk": "cd infrastructure/cdk && cdk",
     "cdk:diff": "npm run cdk -- diff",
     "cdk:synth": "npm run cdk -- synth",
-    "cdk:deploy": "npm run cdk -- deploy --require-approval never",
+    "cdk:deploy": "npm run cdk -- deploy --require-approval never && npm run cdk:postdeploy:ssm",
     "cdk:import": "npm run cdk -- import",
     "cdk:postdeploy:ssm": "bun --cwd infrastructure/cdk cdk.postdeploy.ssm.ts",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
