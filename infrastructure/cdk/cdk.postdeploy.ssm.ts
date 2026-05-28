@@ -3,7 +3,6 @@
  * This way the SSM Values are created outside of the CDK Stack & modifications can persist
  */
 
-import { KMSClient } from '@aws-sdk/client-kms';
 import { GetParameterCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
@@ -48,9 +47,6 @@ export const configurableParameters = {
   'udp/config/role': 'null',
 };
 
-const ssm = new SSMClient();
-const kms = new KMSClient();
-
 await (async () => {
   const namespace = config.namespace;
 
@@ -62,7 +58,7 @@ await (async () => {
     const fullKey = `/${namespace}/${key}`;
 
     // Attempt to fetch param
-    console.log(`Fetching ${fullKey}`);
+    process.stdout.write(`Checking ${fullKey}  `.padEnd(96, ' '));
     const [getParamResult, getParameterError] = await unwrap(
       ssmClient.send(
         new GetParameterCommand({
@@ -71,9 +67,12 @@ await (async () => {
         })
       )
     );
+    if (getParamResult?.Parameter?.Value !== undefined) {
+      console.log(` - Exists`);
+    }
 
     if (getParamResult?.Parameter?.Value === undefined) {
-      console.log(`Param ${fullKey} does not exist - creating`);
+      console.log(` - Does not exists... creating`);
       const [putParameterResult, putParameterError] = await unwrap(
         ssmClient.send(
           new PutParameterCommand({
@@ -87,7 +86,7 @@ await (async () => {
         )
       );
       if (putParameterError) {
-        console.error(` - Failed to create param ${fullKey}`);
+        console.error(` - Failed to create param`);
       } else {
         console.log(` - Param created`);
       }
