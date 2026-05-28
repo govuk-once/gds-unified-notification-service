@@ -42,6 +42,7 @@ describe('Get /status/campaign/{campaignID}', () => {
         VALIDATING: expect.any(Number),
         VALIDATED: expect.any(Number),
         VALIDATED_API_CALL: expect.any(Number),
+        VALIDATION_FAILED: expect.any(Number),
         PROCESSING: expect.any(Number),
         PROCESSED: expect.any(Number),
         PROCESSING_FAILED: expect.any(Number),
