@@ -120,9 +120,9 @@ export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string)
         [
           NotificationStateEnum.VALIDATED_API_CALL,
           NotificationStateEnum.PROCESSING,
-          NotificationStateEnum.PROCESSED,
-          NotificationStateEnum.DISPATCHING,
           // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.PROCESSED,
+          // NotificationStateEnum.DISPATCHING,
           // NotificationStateEnum.DISPATCHED,
         ].map((Status) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
