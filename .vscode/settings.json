@@ -18,15 +18,15 @@
   "explorer.excludeGitIgnore": false,
   // Inlay type hints -
   "editor.inlayHints.enabled": "on",
-  "typescript.inlayHints.enumMemberValues.enabled": false,
-  "typescript.inlayHints.parameterNames.enabled": "none",
-  "typescript.inlayHints.functionLikeReturnTypes.enabled": false,
-  "typescript.inlayHints.variableTypes.enabled": false,
-  "typescript.inlayHints.parameterTypes.enabled": false,
-  "typescript.inlayHints.propertyDeclarationTypes.enabled": false,
+  "js/ts.inlayHints.enumMemberValues.enabled": false,
+  "js/ts.inlayHints.parameterNames.enabled": "none",
+  "js/ts.inlayHints.functionLikeReturnTypes.enabled": false,
+  "js/ts.inlayHints.variableTypes.enabled": false,
+  "js/ts.inlayHints.parameterTypes.enabled": false,
+  "js/ts.inlayHints.propertyDeclarationTypes.enabled": false,
   // Prefer barrel imports oven relative
-  "typescript.preferences.importModuleSpecifierEnding": "auto",
-  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "js/ts.preferences.importModuleSpecifierEnding": "auto",
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
   // Fix all and organise imports, remove unused
   "editor.codeActionsOnSave": {
     "source.fixAll.prettier": "explicit",
@@ -58,7 +58,7 @@
     "editor.defaultFormatter": "hashicorp.terraform"
   },
   // Use typescript library defined in package.json
-  "typescript.tsdk": "./node_modules/typescript/lib",
+  "js/ts.tsdk.path": "./node_modules/typescript/lib",
   // Coverage gutters config
   "coverage-gutters.coverageBaseDir": "coverage",
   "coverage-gutters.coverageReportFileName": "coverage/**/index.html",
