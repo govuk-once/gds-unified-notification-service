@@ -43,8 +43,18 @@ describe('AnalyticsQueueService', () => {
     await analyticsQueueService.initialize();
   });
 
+  describe('getQueueName', () => {
+    it('should have return the correct queue name', () => {
+      // Act
+      const result = analyticsQueueService.getQueueName();
+
+      // Assert
+      expect(result).toBe('analytics');
+    });
+  });
+
   describe('initialize', () => {
-    it('should retrieve the queue url and log when the analytics queue service is initalised.', async () => {
+    it('should retrieve the queue url and log when the analytics queue service is initialised.', async () => {
       // Act
       const result = await analyticsQueueService.initialize();
 

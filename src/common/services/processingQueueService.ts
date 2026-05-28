@@ -16,11 +16,10 @@ export class ProcessingQueueService extends QueueService<IMessage> {
 
   async initialize() {
     this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
-    this.observability.logger.error(this.sqsQueueUrl);
 
     await super.initialize();
-
     this.observability.logger.info('Processing Queue Service Initialised.');
+
     return this;
   }
 

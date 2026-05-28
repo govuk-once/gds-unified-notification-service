@@ -134,10 +134,21 @@ export type KnownMetrics = Omit<Metrics, 'addMetric'> & {
   ) => void;
 };
 
+export class ObservabilityUtilities {
+  public formatError<T>(error: T): string | T {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return error;
+  }
+}
+
 export class ObservabilityService {
   constructor(
     public logger: Logger,
     public metrics: KnownMetrics,
-    public tracer: Tracer
+    public tracer: Tracer,
+    public utilities: ObservabilityUtilities
   ) {}
 }

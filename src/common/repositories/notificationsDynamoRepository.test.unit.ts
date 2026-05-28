@@ -50,7 +50,7 @@ describe('NotificationsDynamoRepository', () => {
   describe('initialize', () => {
     it('should call super.initialize with correct parameters and return this', async () => {
       // Arrange
-      const superInitalize = vi
+      const superInitialize = vi
         .spyOn(Object.getPrototypeOf(NotificationsDynamoRepository.prototype), 'initialize')
         .mockResolvedValue(undefined);
 
@@ -58,7 +58,7 @@ describe('NotificationsDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitalize).toHaveBeenCalledWith(StringParameters.Table.Inbound.Attributes);
+      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.Inbound.Attributes);
       expect(result).toBe(instance);
     });
   });
@@ -77,6 +77,12 @@ describe('NotificationsDynamoRepository', () => {
     it('marshall record should be sent', async () => {
       // Arrange
       const record: IMessageRecord = recordBody;
+      dynamoMock.on(PutItemCommand).resolvesOnce({
+        ConsumedCapacity: {
+          ReadCapacityUnits: 1,
+          WriteCapacityUnits: 1,
+        },
+      });
 
       // Act
       await instance.createRecord(record);
@@ -92,16 +98,18 @@ describe('NotificationsDynamoRepository', () => {
     it('should log an error if the request fails.', async () => {
       // Arrange
       const record: IMessageRecord = recordBody;
-      const errorMsg = 'Connection Failure';
-      dynamoMock.on(PutItemCommand).rejectsOnce(new Error(errorMsg));
+      const error = new Error('Connection Failure');
+      dynamoMock.on(PutItemCommand).rejectsOnce(error);
 
       // Act
-      await instance.createRecord(record);
+      const result = instance.createRecord(record);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating record table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating record table', {
+        error: error.message,
+        tableName: 'mockNotificationsDynamoRepositoryName',
+      });
     });
   });
 
@@ -119,6 +127,14 @@ describe('NotificationsDynamoRepository', () => {
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
       const record: IMessageRecord[] = [recordBody];
+      dynamoMock.on(BatchWriteItemCommand).resolvesOnce({
+        ConsumedCapacity: [
+          {
+            ReadCapacityUnits: 1,
+            WriteCapacityUnits: 1,
+          },
+        ],
+      });
 
       // Act
       await instance.createRecordBatch(record);
@@ -154,29 +170,34 @@ describe('NotificationsDynamoRepository', () => {
       for (let i = 0; i < 27; i++) {
         record.push(recordBody);
       }
+      const error = new Error('To create batch records, array length must be no greater than 25.');
 
       // Act
-      await instance.createRecordBatch(record);
+      const result = instance.createRecordBatch(record);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${'mockNotificationsDynamoRepositoryName'}. Error: To create batch records, array length must be no greater than 25.`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+        tableName: 'mockNotificationsDynamoRepositoryName',
+        error: error.message,
+      });
     });
 
     it('should log an error if the request fails', async () => {
       // Arrange
       const record: IMessageRecord[] = [recordBody];
-      const errorMsg = 'Connection Failure';
-      dynamoMock.on(BatchWriteItemCommand).rejectsOnce(new Error(errorMsg));
+      const error = new Error('Connection Failure');
+      dynamoMock.on(BatchWriteItemCommand).rejectsOnce(error);
 
       // Act
-      await instance.createRecordBatch(record);
+      const result = instance.createRecordBatch(record);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in creating records table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+        tableName: 'mockNotificationsDynamoRepositoryName',
+        error: error.message,
+      });
     });
   });
 
@@ -188,6 +209,12 @@ describe('NotificationsDynamoRepository', () => {
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
+      dynamoMock.on(UpdateItemCommand).resolvesOnce({
+        ConsumedCapacity: {
+          ReadCapacityUnits: 1,
+          WriteCapacityUnits: 1,
+        },
+      });
 
       // Act
       await instance.updateRecord(mockUpdatedRecord);
@@ -224,17 +251,49 @@ describe('NotificationsDynamoRepository', () => {
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
-      const errorMsg = 'Connection Failure';
-      dynamoMock.on(UpdateItemCommand).rejectsOnce(new Error(errorMsg));
+      const error = new Error('Connection Failure');
+      dynamoMock.on(UpdateItemCommand).rejectsOnce(error);
 
       // Act
-      await instance.updateRecord(record);
+      const result = instance.updateRecord(record);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in updating record table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`,
-        expect.any(Object)
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in updating record table', {
+        tableName: 'mockNotificationsDynamoRepositoryName',
+        error: error.message,
+        params: {
+          ExpressionAttributeNames: {
+            '#ExternalUserID': 'ExternalUserID',
+            '#ProcessedDateTime': 'ProcessedDateTime',
+          },
+          ExpressionAttributeValues: {
+            ':ExternalUserID': {
+              S: 'External-1234',
+            },
+            ':ProcessedDateTime': {
+              S: '202601021513',
+            },
+          },
+          Key: {
+            NotificationID: {
+              S: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+            },
+          },
+          ReturnConsumedCapacity: 'TOTAL',
+          TableName: 'mockNotificationsDynamoRepositoryName',
+          UpdateExpression: 'set #ProcessedDateTime = :ProcessedDateTime, #ExternalUserID = :ExternalUserID',
+        },
+        recordFields: {
+          ExternalUserID: 'External-1234',
+          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+          ProcessedDateTime: '202601021513',
+        },
+        entries: [
+          ['ProcessedDateTime', '202601021513'],
+          ['ExternalUserID', 'External-1234'],
+        ],
+      });
     });
   });
 
@@ -283,16 +342,18 @@ describe('NotificationsDynamoRepository', () => {
     it('should log an error if the request fails', async () => {
       // Arrange
       const mockNotificationID = '1234';
-      const errorMsg = 'Connection Failure';
-      dynamoMock.on(GetItemCommand).rejectsOnce(new Error(errorMsg));
+      const error = new Error('Connection Failure');
+      dynamoMock.on(GetItemCommand).rejectsOnce(error);
 
       // Act
-      await instance.getRecord(mockNotificationID);
+      const result = instance.getRecord(mockNotificationID);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        `Failure in getting record for table: ${'mockNotificationsDynamoRepositoryName'}. Error: ${errorMsg}`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
+        tableName: 'mockNotificationsDynamoRepositoryName',
+        error: error.message,
+      });
     });
   });
 });

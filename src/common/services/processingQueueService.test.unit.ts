@@ -54,14 +54,25 @@ describe('ProcessingQueueService', () => {
     await processingQueueService.initialize();
   });
 
+  describe('getQueueName', () => {
+    it('should return the correct queue name', () => {
+      // Act
+      const result = processingQueueService.getQueueName();
+
+      // Assert
+      expect(result).toBe('processing');
+    });
+  });
+
   describe('initialize', () => {
-    it('should retrieve the queue url and log when the processing queue service is initalised.', async () => {
+    it('should retrieve the queue url and log when the processing queue service is initialised.', async () => {
       // Act
       const result = await processingQueueService.initialize();
 
       // Assert
       expectTypeOf(result).toEqualTypeOf<ProcessingQueueService>();
 
+      // Assert
       expect(observabilityMock.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
     });
   });
@@ -69,7 +80,7 @@ describe('ProcessingQueueService', () => {
   describe('publishMessage', () => {
     it('should send a message when given the message params.', async () => {
       // Arrange
-      sqsMock.on(SendMessageCommand).resolves({
+      sqsMock.on(SendMessageCommand).resolvesOnce({
         MessageId: 'message-1',
       });
 
@@ -90,21 +101,22 @@ describe('ProcessingQueueService', () => {
 
     it('should throw an error and log when the send message command fails', async () => {
       // Arrange
-      const errorMsg = 'SQS Error';
-      sqsMock.on(SendMessageCommand).rejects(new Error(errorMsg));
+      const error = new Error('SQS Error');
+      sqsMock.on(SendMessageCommand).rejectsOnce(error);
 
       // Act
-      await processingQueueService.publishMessage(mockMessageBody);
+      const result = processingQueueService.publishMessage(mockMessageBody);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
     });
   });
 
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params.', async () => {
       // Arrange
-      sqsMock.on(SendMessageBatchCommand).resolves({
+      sqsMock.on(SendMessageBatchCommand).resolvesOnce({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
       });
 
@@ -126,7 +138,9 @@ describe('ProcessingQueueService', () => {
           ],
         })
       );
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Successfully published 1 messages.');
+      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Successfully published messages', {
+        successfulMessageCount: 1,
+      });
     });
 
     it('should send a batch of messages and log any that were failed to be sent.', async () => {
@@ -150,7 +164,7 @@ describe('ProcessingQueueService', () => {
         NotificationBody: 'The DVLA has issued you a new license.',
       };
 
-      sqsMock.on(SendMessageBatchCommand).resolves({
+      sqsMock.on(SendMessageBatchCommand).resolvesOnce({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
         Failed: [{ Id: mockMessageBody.NotificationID, SenderFault: false, Code: 'MockCode' }],
       });
@@ -174,24 +188,27 @@ describe('ProcessingQueueService', () => {
           },
         ],
       });
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish 1 messages.');
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages', {
+        failedMessageCount: 1,
+      });
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
-      const errorMsg = 'SQS Error';
-      sqsMock.on(SendMessageBatchCommand).rejects(new Error(errorMsg));
+      const error = new Error('SQS Error');
+      sqsMock.on(SendMessageBatchCommand).rejectsOnce(error);
 
       // Act
-      await processingQueueService.publishMessageBatch([mockMessageBody]);
+      const result = processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Error publishing to SQS - Error: ${errorMsg}`);
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
     });
 
     it('should use NotificationID from the message body as the batch entry Id', async () => {
       // Arrange
-      sqsMock.on(SendMessageBatchCommand).resolves({
+      sqsMock.on(SendMessageBatchCommand).resolvesOnce({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
       });
 
@@ -218,7 +235,6 @@ describe('ProcessingQueueService', () => {
         NotificationID: `notifiction-${i}`,
         UserId: i,
       }));
-
       sqsMock.on(SendMessageBatchCommand).resolves({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
       });

@@ -20,10 +20,8 @@ import {
   ProcessingQueueService,
 } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { SQSRecord } from 'aws-lambda';
-import z from 'zod';
-
 const requestBodySchema = IMessageSchema;
 
 /**
@@ -79,26 +77,7 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
-    const data = await this.validateRecord(record, {
-      onIdentified: async (identifiableRecord) => {
-        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
-      },
-      onSuccess: (record) => {
-        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
-      },
-      onError: async (identifiableRecord, validationError) => {
-        const errorMsg = validationError ? z.prettifyError(validationError) : {};
-        this.observability.logger.error(`Failed to parse message`, errorMsg);
-        await this.analyticsService.publishEvent(
-          {
-            NotificationID: identifiableRecord.NotificationID,
-            DepartmentID: identifiableRecord.DepartmentID,
-          },
-          NotificationStateEnum.VALIDATION_FAILED,
-          validationError ? z.prettifyError(validationError) : {}
-        );
-      },
-    });
+    const data = await this.validateRecord(record);
     const message = data.body;
 
     await this.notificationsRepository.createRecord({
@@ -115,13 +94,29 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     await this.processingQueue.publishMessage(message);
   };
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected async onStart(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
+  }
+
+  protected async onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void> {
+    await this.analyticsService.publishEvent(
+      identifiableRecord,
+      NotificationStateEnum.VALIDATION_FAILED,
+      this.observability.utilities.formatError(error)
+    );
+  }
+
+  protected async onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATED);
+  }
+
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 export const handler = new Validation(

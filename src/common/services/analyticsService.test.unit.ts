@@ -25,8 +25,11 @@ describe('analyticsService', () => {
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    instance = new AnalyticsService(observabilityMock, serviceMocks.analyticsQueueServiceMock);
     serviceMocks.analyticsQueueServiceMock.addPublishingResultMetric = vi.fn().mockResolvedValue(undefined);
+    serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+    serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+
+    instance = new AnalyticsService(observabilityMock, serviceMocks.analyticsQueueServiceMock);
   });
 
   describe('publishMultipleEvents', () => {

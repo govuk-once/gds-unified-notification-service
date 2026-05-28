@@ -4,17 +4,22 @@ import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import { IAnalytics, IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
-import z, { ZodAny, ZodError, ZodType } from 'zod';
+import z, { ZodAny, ZodType } from 'zod';
 
+/**
+ * Extends QueueHandler to process batch records from a queue via Lambda.
+ * Records are processed individually in parallel. Returns a list of failed records
+ * for retry in the trigger queue, or throws an Error if the entire batch fails.
+ * After 3 failed retry attempts, records are routed to the DLQ.
+ */
 export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> extends QueueHandler<
   z.infer<InputSchema>,
   PartialItemFailureResponse
 > {
   protected enableConfig: string;
-  public requestBodySchema: InputSchema;
+  protected requestBodySchema: InputSchema;
 
   constructor(
     protected config: ConfigurationService,
@@ -24,19 +29,45 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     super(observability);
   }
 
-  public async validateRecord(
-    record: SQSRecord,
-    props: {
-      onIdentified: (identifiableRecord: IIdentifiableMessage) => Promise<void> | void;
-      onSuccess?: (validatedRecord: Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }) => Promise<void> | void;
-      onError?: (
-        identifiableRecord: IIdentifiableMessage,
-        validationError: ZodError | undefined
-      ) => Promise<void> | void;
-    }
-  ): Promise<Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }> {
-    type OutputRecord = Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> & { MessageBody?: string } };
+  /**
+   * Executes analytics or custom logic, if necessary, for a verified identifiable record.
+   * @param identifiableRecord - The verified identifiable record payload.
+   */
+  protected abstract onStart(identifiableRecord: IIdentifiableMessage): Promise<void>;
 
+  /**
+   * Executes analytics, or custom logic, if necessary, when record handling fails.
+   * @param identifiableRecord - The verified identifiable record payload.
+   * @param error - The error thrown during record handling.
+   */
+  protected abstract onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void>;
+
+  /**
+   * Executes analytics or custom logic, if necessary, for a record after record handling.
+   * @param identifiableRecord - The verified identifiable record payload.
+   */
+  protected abstract onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void>;
+
+  /**
+   * Publishes metrics tracking the total number of failed records in a batch.
+   * @param batchItemFailuresCount - The count of records that failed processing within the batch.
+   */
+  protected abstract batchItemFailureMetric(batchItemFailuresCount: number): void;
+
+  /**
+   * The implementation of the core record handler that validates the SQS record against a schema
+   * and executes the primary business logic.
+   * @param record - The individual SQS record to process.
+   */
+  protected abstract recordHandler: (record: SQSRecord) => Promise<void>;
+
+  /**
+   * Validates that the record contains a NotificationID and DepartmentID,
+   * then extracts the identifiable fields to be used for logging.
+   * @param record - The individual SQS record to process.
+   * @returns Object containing the extracted identifiable fields.
+   */
+  protected async validateIdentifiableRecord(record: SQSRecord): Promise<IIdentifiableMessage> {
     const parsedResult = await SqsRecordSchema.extend({
       body: IIdentifiableMessageSchema,
     }).safeParseAsync(record);
@@ -51,8 +82,17 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
       throw new Error(errorMsg);
     }
 
-    const identifiableRecord = parsedResult.data.body;
-    await props.onIdentified(identifiableRecord);
+    return parsedResult.data.body;
+  }
+
+  /**
+   * Validates the record against the schema. If `contentValidationService` is present,
+   * it also executes content-level validation. Throws an error if validation fails.
+   * @param record - The individual SQS record to process.
+   * @returns The SQS record containing the strongly-typed, parsed body.
+   */
+  protected async validateRecord(record: SQSRecord): Promise<Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }> {
+    type OutputRecord = Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> & { MessageBody?: string } };
 
     // Constructs Message fields schema
     const baseSchema = SqsRecordSchema.extend({ body: this.requestBodySchema });
@@ -76,34 +116,45 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
 
     if (!validatedRecord.success) {
       const validationError = validatedRecord.error;
-      if (props.onError) {
-        await props.onError(identifiableRecord, validationError);
-      }
-      throw new Error(`Record failed parsing, NotificationID: ${parsedResult.data.body.NotificationID}`);
-    }
-
-    if (props.onSuccess) {
-      await props.onSuccess(validatedRecord.data as OutputRecord);
+      const errorMsg = validationError
+        ? z.prettifyError(validationError)
+        : 'Failed to validate record with unknown error';
+      throw new Error(errorMsg);
     }
 
     return validatedRecord.data as OutputRecord;
   }
 
-  public async validateAnalyticsRecord(record: SQSRecord): Promise<IAnalytics> {
-    // Validate Incoming Analytics events
-    const parsing = await IAnalyticsSchema.safeParseAsync(record.body);
-    if (!parsing.success) {
-      this.observability.logger.error(`Failed to parse Analytics event`, z.prettifyError(parsing.error));
-      throw new Error(`Failed to parse Analytics Event`);
+  /**
+   * Wrapper for the core record handler that manages lifecycle hooks (`onStart`, `onSuccess`, `onError`)
+   * and provides fallback error logging.
+   * @param record - The individual SQS record to orchestrate.
+   */
+  protected recordHandlerWrapper = async (record: SQSRecord) => {
+    const identifiableRecord = await this.validateIdentifiableRecord(record);
+
+    await this.onStart(identifiableRecord);
+    try {
+      await this.recordHandler(record);
+      await this.onSuccess(identifiableRecord);
+    } catch (error) {
+      await this.onError(identifiableRecord, error);
+      this.observability.logger.error(`Error during record handling`, {
+        operationId: this.operationId,
+        error: this.observability.utilities.formatError(error),
+        identifiableRecord,
+      });
+
+      throw error;
     }
+  };
 
-    return parsing.data;
-  }
-
-  public abstract recordHandler: (record: SQSRecord) => Promise<void>;
-
-  protected abstract batchItemFailureMetric: (batchItemFailuresCount: number) => void;
-
+  /**
+   * Processes a batch of queue records in parallel, validates them, and reports analytics on any processing failures.
+   * @param event - The SQS queue event containing incoming records.
+   * @param context - The execution context passed by Lambda/SQS.
+   * @returns A partial item failure response containing the IDs of any records that failed processing.
+   */
   public async implementation(
     event: QueueEvent<z.infer<InputSchema>>,
     context: Context
@@ -113,7 +164,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     }
 
     const processor = new BatchProcessor(EventType.SQS);
-    const failures = await processPartialResponse(event, this.recordHandler, processor, {
+    const failures = await processPartialResponse(event, this.recordHandlerWrapper, processor, {
       context,
     });
 

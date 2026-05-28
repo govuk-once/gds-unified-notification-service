@@ -30,6 +30,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
   protected key: string;
   protected appId: string;
   protected deeplinkTemplate: string;
+
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService
@@ -81,16 +82,12 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           status: result.status,
           response: result.data,
         });
-        return {
-          notification: request,
-          success: false,
-          errors: result.data,
-        };
+
+        throw new Error('Failed to dispatch notification using OneSignal adapter - received 200 code');
       }
       return {
         notification: request,
         requestId: result.data.id,
-        success: true,
       };
     } catch (error) {
       if (axios.isAxiosError<OnesignalPushNotificationErrorResponse>(error)) {
@@ -106,13 +103,9 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
             })
           ),
         });
-        throw error;
       }
-    }
 
-    return {
-      notification: request,
-      success: false,
-    };
+      throw error;
+    }
   }
 }

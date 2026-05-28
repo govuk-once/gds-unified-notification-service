@@ -7,7 +7,6 @@ import {
   iocGetObservabilityService,
   iocGetProcessingService,
 } from '@common/ioc';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
@@ -17,13 +16,13 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { extractIdentifiers, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
-import z from 'zod';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { BoolParameters } from '@common/utils';
 import { SQSRecord } from 'aws-lambda';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 
 const requestBodySchema = IMessageSchema;
 
@@ -78,46 +77,16 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord): Promise<void> => {
     // Validate Incoming messages
-    const data = await this.validateRecord(record, {
-      onIdentified: async (identifiableRecord) => {
-        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
-      },
-      onSuccess: (record) => {
-        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
-      },
-      onError: async (identifiableRecord, validationError) => {
-        const errorMsg = validationError ? z.prettifyError(validationError) : {};
-        this.observability.logger.error(`Failed to parse message`, errorMsg);
-        await this.analyticsService.publishEvent(
-          {
-            NotificationID: identifiableRecord.NotificationID,
-            DepartmentID: identifiableRecord.DepartmentID,
-          },
-          NotificationStateEnum.PROCESSING_FAILED,
-          validationError ? z.prettifyError(validationError) : {}
-        );
-      },
-    });
+    const data = await this.validateRecord(record);
     const message = data.body;
-    let result;
 
     // Process messages -
-    try {
-      this.observability.logger.info(`UDP Call:`);
-      result = await this.processingService.send({
-        userID: message.UserID,
-      });
-      this.observability.logger.info(`UDP Result:`, { result });
+    this.observability.logger.info(`UDP Call:`);
+    const result = await this.processingService.send({
+      userID: message.UserID,
+    });
 
-      if (!result.success) {
-        this.observability.logger.info(`UDP Error:`, { errors: result.errors });
-        throw new Error('UDP Error'); // TODO: Improve error message
-      }
-    } catch (e) {
-      this.observability.logger.info(`UDP Error:`, { e });
-      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.PROCESSING_FAILED);
-      throw e;
-    }
+    this.observability.logger.info(`UDP Result:`, { result });
     const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
 
     // Update stored rows in notifications message
@@ -130,20 +99,33 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
       ProcessedDateTime: new Date().toISOString(),
     });
 
-    // Mark messages as processed
-    await this.analyticsService.publishEvent(message, NotificationStateEnum.PROCESSED);
-
     // Push processed messages to Dispatch queue
     await this.dispatchQueue.publishMessage(processedMessages);
   };
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected async onStart(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
+  }
+
+  protected async onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void> {
+    await this.analyticsService.publishEvent(
+      identifiableRecord,
+      NotificationStateEnum.PROCESSING_FAILED,
+      this.observability.utilities.formatError(error)
+    );
+  }
+
+  protected async onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSED);
+  }
+
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 // IoC

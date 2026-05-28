@@ -271,11 +271,9 @@ describe('CircuitBreakerService', () => {
       serviceMocks.cacheServiceMock.get.mockResolvedValue(undefined);
       serviceMocks.cacheServiceMock.increment.mockResolvedValue(0);
 
-      const { result, error, circuitBreakerState } = await service.use(() => Promise.resolve('ok'));
+      const result = await service.use(() => Promise.resolve('ok'));
 
       expect(result).toBe('ok');
-      expect(error).toBeUndefined();
-      expect(circuitBreakerState).toBe(CircuitBreakerStateEnum.CLOSED);
     });
 
     it('should return error without recording failure when circuit is already OPEN', async () => {

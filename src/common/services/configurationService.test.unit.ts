@@ -44,17 +44,18 @@ describe('ConfigurationService', () => {
 
     it('should throw an error and log when the call fails', async () => {
       // Arrange
-      const errorMsg = 'AWS Error';
-      ssmMock.on(GetParametersByPathCommand).rejectsOnce(new Error(errorMsg));
+      const error = new Error('AWS Error');
+      ssmMock.on(GetParametersByPathCommand).rejectsOnce(new Error(error.message));
 
       // Act
       const result = config.getParameter('testNameSpace');
 
       // Assert
-      await expect(result).rejects.toThrow(new Error(errorMsg));
-      expect(observability.logger.error).toHaveBeenCalledWith(
-        `Failed fetching value - /undefined/testNameSpace Error: ${errorMsg}`
-      );
+      await expect(result).rejects.toThrow(error);
+      expect(observability.logger.error).toHaveBeenCalledWith('Failed fetching value', {
+        paramName: '/undefined/testNameSpace',
+        error: error.message,
+      });
     });
 
     it('should throw an error if namespace is not in cache', async () => {

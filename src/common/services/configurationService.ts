@@ -55,7 +55,10 @@ export class ConfigurationService extends BaseConfigurableValueService {
       }
       throw new Error('Returned parameter has no value');
     } catch (error) {
-      this.observability.logger.error(`Failed fetching value - ${param.Name} ${error}`);
+      this.observability.logger.error('Failed fetching value', {
+        paramName: param.Name,
+        error: this.observability.utilities.formatError(error),
+      });
       throw error;
     }
   }
