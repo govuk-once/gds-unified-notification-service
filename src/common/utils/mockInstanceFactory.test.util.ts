@@ -11,6 +11,7 @@ import {
   ConfigurationService,
   ContentValidationService,
   DispatchQueueService,
+  MarkdownContentValidationService,
   NotificationService,
   ObservabilityService,
   ProcessingQueueService,
@@ -101,6 +102,10 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     smConfigurationServiceMock
   ) as Mocked<ProcessingService>;
+  const markdownContentValidationService = new MarkdownContentValidationService(
+    observabilityMock,
+    configurationServiceMock
+  );
 
   return {
     // Queue
@@ -120,5 +125,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     circuitBreakerServiceMock,
     contentValidationServiceMock,
     processingServiceMock,
+    markdownContentValidationService,
   };
 };

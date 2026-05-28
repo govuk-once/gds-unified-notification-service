@@ -4,6 +4,7 @@ import {
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
+  iocGetMarkdownContentValidationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
@@ -15,6 +16,7 @@ import {
   AnalyticsService,
   ConfigurationService,
   ContentValidationService,
+  MarkdownContentValidationService,
   MetricsLabels,
   ObservabilityService,
   ProcessingQueueService,
@@ -71,9 +73,10 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     protected contentValidationService: ContentValidationService,
+    protected markdownContentValidationService: MarkdownContentValidationService,
     asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
-    super(config, observability, contentValidationService);
+    super(config, observability, contentValidationService, markdownContentValidationService);
     this.injectDependencies(asyncDependencies);
   }
 
@@ -128,6 +131,7 @@ export const handler = new Validation(
   iocGetConfigurationService(),
   iocGetObservabilityService(),
   iocGetContentValidationService(),
+  iocGetMarkdownContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
     notificationsRepository: iocGetNotificationDynamoRepository(),

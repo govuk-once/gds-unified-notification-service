@@ -14,6 +14,7 @@ import {
   ContentValidationService,
   DispatchQueueService,
   KnownMetrics,
+  MarkdownContentValidationService,
   NotificationService,
   ObservabilityService,
   ProcessingQueueService,
@@ -197,6 +198,12 @@ export const iocGetContentValidationService = ioc(
   `ContentValidationService`,
   Mode.SINGLETON,
   () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
+);
+
+export const iocGetMakrdownContentValidationService = ioc(
+  `MarkdownContentValidationService`,
+  Mode.SINGLETON,
+  () => new MarkdownContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
 );
 
 // Utility FN simplifying integration of dependencies which depend on config within handler

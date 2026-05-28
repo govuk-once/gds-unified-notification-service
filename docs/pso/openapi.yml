@@ -170,6 +170,13 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
+        MessageFormat:
+          type: string
+          enum:
+            - PLAINTEXT
+            - MARKDOWN
+          default: PLAINTEXT
+          description: (Optional) Formats message body to ethier plaintext or makrdown
         DeeplinkURL:
           type: string
           description: Deeplink url to show the notification centre

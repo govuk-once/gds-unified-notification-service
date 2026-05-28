@@ -6,6 +6,7 @@ export * from './cacheService';
 export * from './configurationService';
 export * from './contentValidationService';
 export * from './dispatchQueueService';
+export * from './markdownContentValidationService';
 export * from './notificationService';
 export * from './observabilityService';
 export * from './processingQueueService';
