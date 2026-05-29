@@ -50,7 +50,7 @@ const version = process.env.version ?? 'manual';
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
-const mtlsEnvToUse = process.env.mtls_env_to_use ?? env;
+
 // Setup importable config object
 export const config = {
   // Metadata
@@ -76,7 +76,6 @@ export const config = {
 
   // mTLS config
   mtls,
-  mtlsEnvToUse,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc
