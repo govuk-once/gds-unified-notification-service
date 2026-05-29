@@ -335,6 +335,7 @@ export class UNSAPIGatewayGateway extends Construct {
         cachingEnabled: true,
         dataTraceEnabled: false,
         stageName: 'api',
+        cacheClusterEnabled: false,
         accessLogDestination: new LogGroupLogDestination(
           new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
             logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
