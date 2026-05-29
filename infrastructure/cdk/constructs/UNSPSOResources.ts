@@ -284,6 +284,7 @@ export class UNSPSOResource extends Construct {
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, lambdas.http.postMessage.integration);
 
+    this.gateway.node.addDependency(mtlsRefs.truststoreUpload);
     //// =====================================================
     // SSM Values
     //// =====================================================

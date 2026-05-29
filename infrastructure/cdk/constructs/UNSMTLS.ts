@@ -16,6 +16,7 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 export class UNSMTLSCommon extends Construct {
   public readonly certificateAuthority: UNSCertificateAuthorityConstruct;
   public readonly revocationTable: UNSDynamoDb;
+  public readonly truststoreUpload: UNSS3FileUploadConstruct;
   public readonly truststorePath: string;
 
   constructor(scope: Construct, config: EnvVars, common: UNSCommon) {
@@ -69,7 +70,7 @@ export class UNSMTLSCommon extends Construct {
         ? new Date('2036-01-01')
         : new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
     });
-    const truststoreUpload = new UNSS3FileUploadConstruct(this, constructNamingHelper(`truststore-upload`), {
+    this.truststoreUpload = new UNSS3FileUploadConstruct(this, constructNamingHelper(`truststore-upload`), {
       contents: this.certificateAuthority.certificate.attrCertificate,
       destinationBucket: truststoreBucket,
       path: `truststore.pem`,
