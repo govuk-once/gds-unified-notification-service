@@ -96,7 +96,7 @@ export class UNSFlexResource extends Construct {
     this.publicGateway = new UNSAPIGatewayGateway(this, config, {
       name: [`flex`],
       description: `API Gateway for flex (Public - to be depracated soon)`,
-      domain: 'flex-cdk',
+      domain: config.env !== 'stg' ? 'flex' : 'flex-cdk',
       resources: {
         kms: refs.kms,
       },
