@@ -46,7 +46,7 @@ const project = 'uns';
 const env = process.env.env ?? 'dev';
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`;
-const version = process.env.version ?? 'manual';
+const version = process.env.code_version ?? 'manual';
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
