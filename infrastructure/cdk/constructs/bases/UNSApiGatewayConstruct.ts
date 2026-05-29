@@ -327,6 +327,7 @@ export class UNSAPIGatewayGateway extends Construct {
     this.restApi = new RestApi(this, namingHelper(`restapi`, ...props.name, `restapi`), {
       restApiName: namingHelper(`apigw`, ...props.name),
       description: props.description,
+      cloudWatchRole: true,
       deployOptions: {
         tracingEnabled: true,
         metricsEnabled: true,
