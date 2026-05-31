@@ -1,6 +1,7 @@
 import {
   AccessLogField,
   AccessLogFormat,
+  AuthorizationType,
   DomainNameOptions,
   EndpointType,
   IAuthorizer,
@@ -159,7 +160,10 @@ export class UNSAPIGatewayGateway extends Construct {
   ) {
     const registeredEndpoints = this.restApi.root.resourceForPath(path).addMethod(method, integration, {
       operationName: operationId,
+      // Use custom authorizer if one is set
       authorizer: authorizer ?? this.props.authorizer,
+      // Otherwise: Use IAM authorization if we are a private API gateway
+      authorizationType: this.props.iam?.allowOnlyFromKnownSources ? AuthorizationType.IAM : undefined,
     });
 
     applyCheckovSkips(registeredEndpoints, [
@@ -298,8 +302,8 @@ export class UNSAPIGatewayGateway extends Construct {
       );
 
       // Create external execution invoker IAM role
-      const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name), {
-        roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name),
+      const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`), {
+        roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`),
         assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
       });
       role.node.addDependency(this.restApi);
@@ -347,6 +351,7 @@ export class UNSAPIGatewayGateway extends Construct {
             removalPolicy: config.removalPolicy,
           })
         ),
+
         accessLogFormat: AccessLogFormat.custom(
           JSON.stringify({
             requestId: AccessLogField.contextRequestId(),
