@@ -299,6 +299,7 @@ export class UNSAPIGatewayGateway extends Construct {
 
       // Create external execution invoker IAM role
       const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name), {
+        roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name),
         assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
       });
       role.node.addDependency(this.restApi);
