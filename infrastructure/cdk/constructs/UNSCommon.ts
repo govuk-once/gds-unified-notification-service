@@ -107,6 +107,7 @@ export class UNSCommon extends Construct {
 
       pointInTimeRecovery: true,
       ttlAttribute: 'ExpirationDateTime',
+      ttlDurationInSeconds: 60 * 60 * 24 * 30,
 
       resources: {
         kms: this.kms,
