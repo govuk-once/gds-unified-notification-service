@@ -1,6 +1,6 @@
 import { Duration } from 'aws-cdk-lib';
 import { IKey } from 'aws-cdk-lib/aws-kms';
-import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 
@@ -57,6 +57,7 @@ export class UNSQueueConstruct extends Construct {
         receiveMessageWaitTime: Duration.seconds(dlqCombinedProps.receiveTimeWaitSeconds ?? 10),
         visibilityTimeout: Duration.seconds(dlqCombinedProps.visibilityTimeoutSeconds ?? 30),
         encryptionMasterKey: dlqCombinedProps.resources?.kmsKey ?? props.resources.kmsKey,
+        encryption: QueueEncryption.KMS,
         dataKeyReuse: Duration.seconds(dlqCombinedProps.resources?.kmsKeyReuse ?? props.resources.kmsKeyReuse ?? 3600),
       });
     }
@@ -70,6 +71,7 @@ export class UNSQueueConstruct extends Construct {
       receiveMessageWaitTime: Duration.seconds(props.receiveTimeWaitSeconds ?? 10),
       visibilityTimeout: Duration.seconds(props.visibilityTimeoutSeconds ?? 30),
       encryptionMasterKey: props.resources.kmsKey,
+      encryption: QueueEncryption.KMS,
       dataKeyReuse: Duration.seconds(props.resources.kmsKeyReuse ?? 3600),
       // Attach DLQ targeting definition if configured
       ...(props.deadLetterQueue && this.dlq
