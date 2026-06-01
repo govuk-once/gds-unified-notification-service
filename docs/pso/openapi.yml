@@ -226,29 +226,15 @@ components:
         ProcessingSummary:
           type: object
           properties:
-            VALIDATING:
-              type: integer
-            VALIDATED:
-              type: integer
-            VALIDATED_API_CALL:
-              type: integer
-            PROCESSING:
+            RECEIVED:
               type: integer
             PROCESSED:
               type: integer
-            PROCESSING_FAILED:
-              type: integer
-            DISPATCHING:
-              type: integer
             DISPATCHED:
-              type: integer
-            DISPATCHING_FAILED:
               type: integer
         UsageSummary:
           type: object
           properties:
-            RECEIVED:
-              type: integer
             READ:
               type: integer
             MARKED_AS_UNREAD:
