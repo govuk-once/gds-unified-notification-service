@@ -62,7 +62,7 @@ export const config = {
   namespace,
   defaultTags: () => ({
     project: config.project,
-    env: config.project,
+    env: config.env,
     version: config.version,
     managedBy: 'CDK',
   }),
