@@ -72,6 +72,64 @@ describe('Post /send', () => {
     );
   });
 
+  test('returns 202 when message is valid plaintext but no message format is provided - infers plain text', async ({
+    psoAPI,
+  }) => {
+    // Arrange
+    const messageWithoutFormat = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody: 'End 2 End Test Message Body',
+      },
+    ];
+
+    // Act
+    const result = await psoAPI.post('/send', messageWithoutFormat);
+
+    // Assert
+    expect(result.status).toBe(202);
+    expect(result.data).toEqual([
+      {
+        NotificationID: notificationID,
+      },
+    ]);
+  });
+
+  test('returns 202 when markdown is provided with MARKDOWN as the message format', async ({ psoAPI }) => {
+    // Arrange
+    const messageWithMarkdown: IMessage[] = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody:
+          'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+        MessageFormat: MessageFormatEnum.MARKDOWN,
+      },
+    ];
+
+    // Act
+    const result = await psoAPI.post('/send', messageWithMarkdown);
+
+    // Assert
+    expect(result.status).toBe(202);
+    expect(result.data).toEqual([
+      {
+        NotificationID: notificationID,
+      },
+    ]);
+  });
+
   test('it returns 400 when the request has no body.', async ({ psoAPI }) => {
     // Act
     const result = psoAPI.post('/send');
@@ -169,6 +227,61 @@ describe('Post /send', () => {
 
     // Act
     const result = psoAPI.post('/send', messagesWithNoNotificationBody);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
+        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationBody'
+      )
+    );
+  });
+
+  test('it returns 400 when the message has markdown for a plaintext message.', async ({ psoAPI }) => {
+    // Arrange
+    const messagesWithMarkdown: IMessage[] = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody:
+          'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+        MessageFormat: MessageFormatEnum.PLAINTEXT,
+      },
+    ];
+
+    // Act
+    const result = psoAPI.post('/send', messagesWithMarkdown);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
+        'Bad request: \n\n Message body contains markdown elements but message format is set to PLAINTEXT: strong_open'
+      )
+    );
+  });
+
+  test('it returns 400 when the message has invalid markdown.', async ({ psoAPI }) => {
+    // Arrange
+    const messagesWithInvalidMarkdown: IMessage[] = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
+        MessageFormat: MessageFormatEnum.MARKDOWN,
+      },
+    ];
+
+    // Act
+    const result = psoAPI.post('/send', messagesWithInvalidMarkdown);
 
     // Assert
     await expect(result).rejects.toMatchObject(
