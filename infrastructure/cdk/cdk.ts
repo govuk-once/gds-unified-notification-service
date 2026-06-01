@@ -5,7 +5,7 @@ import { UNSStack } from './constructs/UNSStack';
 
 // Initializes a new instance of the cdk app
 const app = new cdk.App();
-new UNSStack(
+export const stack = new UNSStack(
   app,
   config.utils.namingHelper('stack'),
   {

@@ -12,6 +12,7 @@ import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/custom
 import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
+import { v4 } from 'uuid';
 
 export class UNSMTLSCommon extends Construct {
   public readonly certificateAuthority: UNSCertificateAuthorityConstruct;
@@ -63,6 +64,7 @@ export class UNSMTLSCommon extends Construct {
     //// =====================================================
     // Certficate authority
     //// =====================================================
+    const uuid = v4();
     this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
       certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
       // Main env certs are valid 10 years, sandbox dev ones: 48h
@@ -73,9 +75,9 @@ export class UNSMTLSCommon extends Construct {
     this.truststoreUpload = new UNSS3FileUploadConstruct(this, constructNamingHelper(`truststore-upload`), {
       contents: this.certificateAuthority.certificate.attrCertificate,
       destinationBucket: truststoreBucket,
-      path: `truststore.pem`,
+      path: `truststore.${uuid}.pem`,
     });
-    this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.pem`);
+    this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
 
     //// =====================================================
     // Client certificate generation

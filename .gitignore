@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode,terraform
-# Edit at https://www.toptal.com/developers/gitignore?templates=macos,osx,visualstudiocode,terraform
+# Created by https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode
+# Edit at https://www.toptal.com/developers/gitignore?templates=macos,osx,visualstudiocode
 
 ### macOS ###
 # General
@@ -45,13 +45,6 @@ Temporary Items
 
 # Directories potentially created on remote AFP share
 
-### Terraform ###
-# Local .terraform directories
-**/.terraform/*
-
-# .tfstate files
-*.tfstate
-*.tfstate.*
 
 # Crash log files
 crash.log
@@ -74,12 +67,6 @@ override.tf.json
 # Include override files you do wish to add to version control using negated pattern
 # !example_override.tf
 
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
-
-# Ignore CLI configuration files
-.terraformrc
-terraform.rc
 
 ### VisualStudioCode ###
 .vscode/*
@@ -109,17 +96,10 @@ dist
 .env
 .DS_Store
 
-# Terraform
-**/.terraform
-**/.terraform.lock.hcl
-**/.terraform/**/*
-**/**.tfvars
-**/**.tfstate
-**/**.tfenv
 
 coverage.md
 
-# End of https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode,terraform
+# End of https://www.toptal.com/developers/gitignore/api/macos,osx,visualstudiocode
 
 # End to End Testing
 **/test/e2e/config/**
