@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources';
+import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
 export class UNSStack extends Stack {
   constructor(
@@ -17,7 +18,8 @@ export class UNSStack extends Stack {
     config.utils.tagsHelper(scope);
 
     const common = new UNSCommon(this, config);
-    new UNSPSOResource(this, config, common);
+    const mtls = new UNSMTLSCommon(this, config, common);
+    new UNSPSOResource(this, config, { refs: common, mtlsRefs: mtls });
     new UNSFlexResource(this, config, common);
   }
 }

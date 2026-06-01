@@ -7,6 +7,7 @@ import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApi
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 export class UNSPSOResource extends Construct {
@@ -18,8 +19,17 @@ export class UNSPSOResource extends Construct {
     analytics: UNSQueueConstruct;
   };
   public readonly gateway: UNSAPIGatewayGateway;
-  constructor(scope: Construct, config: EnvVars, refs: UNSCommon) {
+  constructor(
+    scope: Construct,
+    config: EnvVars,
+    props: {
+      refs: UNSCommon;
+      mtlsRefs: UNSMTLSCommon;
+    }
+  ) {
     super(scope, 'pso');
+
+    const { refs, mtlsRefs } = props;
 
     //// =====================================================
     // SQS Queues
@@ -82,19 +92,8 @@ export class UNSPSOResource extends Construct {
       iam: {
         ssmNamespaces: [config.namespace],
         dynamodb: {
-          // If mtls table reference is present in config - give this authorizer a permission to read it
-          ...(config.ssm.mtls.table?.arn
-            ? {
-                mtlsRevocationTable: {
-                  arn: config.ssm.mtls.table?.arn,
-                  read: true,
-                  write: false,
-                  scan: false,
-                },
-              }
-            : {}),
+          revocationTable: mtlsRefs.revocationTable.permissions.readOnlyById,
         },
-        kms: config.ssm.mtls.kms ? [config.ssm.mtls.kms] : [],
       },
     });
 
@@ -266,18 +265,14 @@ export class UNSPSOResource extends Construct {
     });
 
     // Define API Gateway
-    const mtls =
-      config.mtls && config.ssm.mtls.truststore
-        ? {
-            truststore: config.ssm.mtls.truststore,
-          }
-        : undefined;
 
     this.gateway = new UNSAPIGatewayGateway(this, config, {
       name: [`pso`],
       description: `API Gateway for PSOs`,
       domain: 'pso-cdk',
-      mtls,
+      mtls: {
+        truststore: mtlsRefs.truststorePath,
+      },
       resources: {
         kms: refs.kms,
       },
@@ -289,6 +284,7 @@ export class UNSPSOResource extends Construct {
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, lambdas.http.postMessage.integration);
 
+    this.gateway.node.addDependency(mtlsRefs.truststoreUpload);
     //// =====================================================
     // SSM Values
     //// =====================================================
@@ -297,12 +293,7 @@ export class UNSPSOResource extends Construct {
     SSMFromObject(Stack.of(this), config, {
       // DynamoDB Tables
       // mTLS refs
-      'table/mtls/attributes': config.ssm.mtls
-        ? {
-            name: config.ssm.mtls.table?.name,
-            ...(JSON.parse(config.ssm.mtls.table?.attributes ?? '{}') as Record<string, string>),
-          }
-        : undefined,
+      'table/mtls/attributes': mtlsRefs.revocationTable.attributes,
 
       // SQS Qeueue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,
