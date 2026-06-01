@@ -1,3 +1,4 @@
+import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
@@ -55,7 +56,7 @@ describe('GetNotificationById Handler', () => {
       headers: {
         'x-api-key': 'mockBadApiKey',
       },
-    } as unknown as EventType;
+    };
 
     mockInternalServerError = null as unknown as EventType;
 
@@ -89,6 +90,7 @@ describe('GetNotificationById Handler', () => {
       NotificationID: notificationID,
       NotificationTitle: 'You have a new Notification',
       Status: NotificationStateEnum.RECEIVED,
+      MessageFormat: MessageFormatEnum.PLAINTEXT,
     };
 
     instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({

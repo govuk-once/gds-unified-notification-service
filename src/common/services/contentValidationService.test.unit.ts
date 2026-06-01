@@ -1,3 +1,4 @@
+import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ContentValidationService } from '@common/services/contentValidationService';
 import {
@@ -25,6 +26,7 @@ describe('ContentValidationService', () => {
   const expectedError = (content: string) => {
     return httpError.BadRequest(`Bad request: \n\n ${content}`);
   };
+
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
@@ -35,51 +37,36 @@ describe('ContentValidationService', () => {
 
     instance = new ContentValidationService(observabilityMock, configurationServiceMock);
   });
-  describe(`Valid scenarios`, () => {
-    it.each([
-      [`Message mentioning https://content.gov.uk val`],
-      [`Deeplink to any other part of app govuk://home`],
-      ['Message without a deeplink'],
-      [undefined],
-    ])("Content '%s' should be allowed", async (content: string) => {
-      // Arrange & Act
-      const result = await instance.validate(content);
 
-      // Assert
-      expect(result).toEqual(content);
-    });
-  });
-  describe('Protocol validation', () => {
-    it.each([
-      [
-        `Some message mentioning http://unexpected-website.com amongst other things`,
-        `http://unexpected-website.com is using http: protocol which is not allowed. Allowed protocols: govuk:,https:`,
-      ],
-      [
-        `Example scam message trying to open banking apps bankapp://send`,
-        `bankapp://send is using bankapp: protocol which is not allowed. Allowed protocols: govuk:,https:`,
-      ],
-      [
-        `mailto:name@email.com`,
-        `mailto:name@email.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:`,
-      ],
-    ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
-      // Arrange
-      const exception = expectedError(errorMessage);
+  describe(`validate`, () => {
+    describe(`Valid scenarios`, () => {
+      it.each([
+        [`Message mentioning https://content.gov.uk val`],
+        [`Deeplink to any other part of app govuk://home`],
+        ['Message without a deeplink'],
+        [undefined],
+      ])("Content '%s' should be allowed", async (content: string | undefined) => {
+        // Arrange & Act
+        const result = await instance.validate(content);
 
-      // Act & Assert
-      await expect(instance.validate(content)).rejects.toThrow(exception);
+        // Assert
+        expect(result).toEqual(content);
+      });
     });
 
-    describe('Hostname validation', () => {
+    describe('Protocol validation', () => {
       it.each([
         [
-          `Some message mentioning https://unexpected-website.com amongst other things`,
-          `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list.`,
+          `Some message mentioning http://unexpected-website.com amongst other things`,
+          `http://unexpected-website.com is using http: protocol which is not allowed. Allowed protocols: govuk:,https:`,
         ],
         [
-          `https://www.anothernongovwebsite.net`,
-          `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list.`,
+          `Example scam message trying to open banking apps bankapp://send`,
+          `bankapp://send is using bankapp: protocol which is not allowed. Allowed protocols: govuk:,https:`,
+        ],
+        [
+          `mailto:name@email.com`,
+          `mailto:name@email.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:`,
         ],
       ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
         // Arrange
@@ -88,6 +75,116 @@ describe('ContentValidationService', () => {
         // Act & Assert
         await expect(instance.validate(content)).rejects.toThrow(exception);
       });
+
+      describe('Hostname validation', () => {
+        it.each([
+          [
+            `Some message mentioning https://unexpected-website.com amongst other things`,
+            `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list.`,
+          ],
+          [
+            `https://www.anothernongovwebsite.net`,
+            `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list.`,
+          ],
+        ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
+          // Arrange
+          const exception = expectedError(errorMessage);
+
+          // Act
+          const result = instance.validate(content);
+
+          // Act & Assert
+          await expect(result).rejects.toThrow(exception);
+        });
+      });
+    });
+  });
+
+  describe('validateWithMessageFormat', () => {
+    it('Valid message body for markdown.', async () => {
+      // Arrange
+      const message = 'some text some text [Click here](https://dvla.gov.uk) some text some text';
+
+      // Act
+      const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.MARKDOWN);
+
+      // Assert
+      expect(result).toEqual(message);
+    });
+
+    it.each([
+      `    
+      > This is a blockquote, which is not allowed.
+
+      Check out this image: ![Alt text](image.png)
+      `,
+      `
+      javascript
+      const x = 10;
+      `,
+      `
+      | Allowed | Not Allowed |
+      | --- | --- |
+      | Bold text | Tables |
+      `,
+      `
+      This is a long title
+      ====================
+      `,
+      `
+      Subheading One
+      --------------
+      `,
+    ])('Invalid message body for markdown', async (messageBody: string) => {
+      // Act
+      const result = instance.validateWithMessageFormat(messageBody, MessageFormatEnum.MARKDOWN);
+
+      // Assert
+      await expect(result).rejects.toThrow(httpError.BadRequest);
+    });
+
+    it('Valid message body for plain text.', async () => {
+      // Arrange
+      const message = 'some text some text https://dvla.gov.uk/ some text some text';
+
+      // Act
+      const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.MARKDOWN);
+
+      // Assert
+      expect(result).toEqual(message);
+    });
+
+    it.each([
+      `    
+      > This is a blockquote, which is not allowed.
+
+      Check out this image: ![Alt text](image.png)
+      `,
+      `
+      javascript
+      const x = 10;
+      `,
+      `
+      | Allowed | Not Allowed |
+      | --- | --- |
+      | Bold text | Tables |
+      `,
+      `
+      This is a long title
+      ====================
+      `,
+      `
+      Subheading One
+      --------------
+      `,
+      // This would pass the markdown validation
+      'some text some text [Click here](https://dvla.gov.uk) some text some text',
+    ])('Invalid message body for plain text.', async (message: string) => {
+      // Act
+      const result = instance.validateWithMessageFormat(message, MessageFormatEnum.PLAINTEXT);
+
+      // Assert
+      await expect(result).rejects.toThrow(httpError.BadRequest);
     });
   });
 });

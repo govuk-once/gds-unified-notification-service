@@ -13,7 +13,6 @@ import { CacheService, MetricsLabels, ObservabilityService } from '@common/servi
 import { ConfigurationService } from '@common/services/configurationService';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { SQSRecord } from 'aws-lambda';
-import z from 'zod';
 
 const requestBodySchema = IAnalyticsSchema;
 
@@ -61,7 +60,8 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate record and extract analytics event entry
-    const entry = await this.validateAnalyticsRecord(record);
+    const analyticsRecord = await this.validateRecord(record);
+    const entry = analyticsRecord.body;
 
     // Update notification object with status event
     await this.notifications.addEvent(entry);
@@ -81,13 +81,19 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
     });
   };
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected async onStart(): Promise<void> {}
+
+  protected async onError(): Promise<void> {}
+
+  protected async onSuccess(): Promise<void> {}
+
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({

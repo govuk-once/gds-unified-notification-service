@@ -9,7 +9,7 @@ describe('Get /status/campaign/{campaignID}', () => {
   const campaignID = 'testCampaignID';
   const departmentID = 'UNS';
 
-  const mockMessageWithCampaign: IMessage[] = [
+  const mockMessageWithCampaign = [
     {
       CampaignID: campaignID,
       DepartmentID: departmentID,
@@ -20,7 +20,7 @@ describe('Get /status/campaign/{campaignID}', () => {
       NotificationTitle: 'You have a new Notification',
       NotificationBody: 'Here is the Notification body.',
     },
-  ];
+  ] as IMessage[];
 
   test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({ psoAPI }) => {
     // Arrange

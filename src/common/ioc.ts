@@ -14,9 +14,9 @@ import {
   ContentValidationService,
   DispatchQueueService,
   KnownMetrics,
-  MarkdownContentValidationService,
   NotificationService,
   ObservabilityService,
+  ObservabilityUtilities,
   ProcessingQueueService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
@@ -35,9 +35,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
   return () => {
     // Create a single instance and always re-use it on subsequent requests
     if (mode == Mode.SINGLETON) {
-      if (serviceCache[key] == undefined) {
-        serviceCache[key] = fn() as object;
-      }
+      serviceCache[key] ??= fn() as object;
       return serviceCache[key] as Instance;
     }
     // Timebound singleton - same behaviour as singleton, however after TTL expires, subsequent requests trigger recreation
@@ -59,7 +57,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
 
 // Observability
 export const iocGetLogger = ioc(
-  `Logger`,
+  'Logger',
   Mode.SINGLETON,
   () =>
     new Logger({
@@ -74,9 +72,9 @@ export const iocGetLogger = ioc(
       },
     })
 );
-export const iocGetTracer = ioc(`Tracer`, Mode.SINGLETON, () => new Tracer());
+export const iocGetTracer = ioc('Tracer', Mode.SINGLETON, () => new Tracer());
 export const iocGetMetrics = ioc(
-  `Metrics`,
+  'Metrics',
   Mode.SINGLETON,
   () =>
     new Metrics({
@@ -87,78 +85,78 @@ export const iocGetMetrics = ioc(
       },
     })
 );
-
+export const iocGetUtilities = ioc('ObservabilityUtilities', Mode.SINGLETON, () => new ObservabilityUtilities());
 export const iocGetObservabilityService = ioc(
-  `ObservabilityService`,
+  'ObservabilityService',
   Mode.SINGLETON,
-  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer())
+  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer(), iocGetUtilities())
 );
 
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
-  `ConfigurationService`,
+  'ConfigurationService',
   Mode.SINGLETON,
   () => new ConfigurationService(iocGetObservabilityService())
 );
 
 export const iocGetSMConfigurationService = ioc(
-  `SMConfigurationService`,
+  'SMConfigurationService',
   Mode.SINGLETON,
   () => new SMConfigurationService(iocGetObservabilityService())
 );
 
 export const iocGetCacheService = ioc(
-  `CacheService`,
+  'CacheService',
   Mode.SINGLETON,
   () => new CacheService(iocGetConfigurationService(), iocGetObservabilityService())
 );
 
 // Services - Queue dispatches
 export const iocGetProcessingQueueService = ioc(
-  `ProcessingQueueService`,
+  'ProcessingQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new ProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetDispatchQueueService = ioc(
-  `DispatchQueueService`,
+  'DispatchQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new DispatchQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 export const iocGetAnalyticsQueueService = ioc(
-  `AnalyticsQueueService`,
+  'AnalyticsQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - DynamoDB
 export const iocGetNotificationDynamoRepository = ioc(
-  `NotificationsDynamoRepository`,
+  'NotificationsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new NotificationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetMTLSRevocationDynamoRepository = ioc(
-  `MTLSRevocationDynamoRepository`,
+  'MTLSRevocationDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new MTLSRevocationDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetCampaignsDynamoRepository = ioc(
-  `CampaignsDynamoRepository`,
+  'CampaignsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new CampaignsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations
-export const iocGetNotificationService = ioc(`NotificationService`, Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, () =>
   new NotificationService(iocGetObservabilityService(), iocGetConfigurationService()).initialize()
 );
 
-export const iocGetProcessingService = ioc(`ProcessingService`, Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetProcessingService = ioc('ProcessingService', Mode.TIMEBOUND_SINGLETON, () =>
   new ProcessingService(
     iocGetObservabilityService(),
     iocGetConfigurationService(),
@@ -168,13 +166,13 @@ export const iocGetProcessingService = ioc(`ProcessingService`, Mode.TIMEBOUND_S
 
 // Services - Analytics wrappers
 export const iocGetAnalyticsQueue = ioc(
-  `AnalyticsQueueService`,
+  'AnalyticsQueueService',
   Mode.SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetAnalyticsService = ioc(
-  `AnalyticsService`,
+  'AnalyticsService',
   Mode.SINGLETON,
   async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
 );
@@ -195,15 +193,9 @@ export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBr
 
 // Services - Other
 export const iocGetContentValidationService = ioc(
-  `ContentValidationService`,
+  'ContentValidationService',
   Mode.SINGLETON,
   () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
-);
-
-export const iocGetMakrdownContentValidationService = ioc(
-  `MarkdownContentValidationService`,
-  Mode.SINGLETON,
-  () => new MarkdownContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
 );
 
 // Utility FN simplifying integration of dependencies which depend on config within handler

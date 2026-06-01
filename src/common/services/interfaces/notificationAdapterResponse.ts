@@ -2,7 +2,5 @@ import { NotificationAdapterRequest } from '@common/services/interfaces/notifica
 
 export interface NotificationAdapterResult {
   notification: NotificationAdapterRequest;
-  success: boolean;
-  requestId?: string;
-  errors?: string[] | object;
+  requestId: string;
 }

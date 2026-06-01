@@ -164,18 +164,18 @@ export class CircuitBreakerService {
    * Wraps an async operation with circuit breaker protection.
    * Handles checkCircuit, recordSuccess, and recordFailure automatically.
    */
-  async use<T>(
-    fn: () => Promise<T>
-  ): Promise<{ result?: T; error?: unknown; circuitBreakerState: CircuitBreakerStateEnum }> {
+  async use<T>(fn: () => Promise<T>): Promise<T> {
     try {
       await this.checkCircuit();
       const result = await fn();
       await this.recordSuccess();
-      return { result: result, circuitBreakerState: await this.getState() };
+
+      return result;
     } catch (error) {
       if (!(error instanceof CircuitBreakerOpenError)) {
         await this.recordFailure();
       }
+
       throw error;
     }
   }

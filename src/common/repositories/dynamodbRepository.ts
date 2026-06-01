@@ -64,7 +64,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
   }
 
   public async createRecord(record: RecordType): Promise<void> {
-    this.observability.logger.info(`Creating record in table: ${this.tableAttributes.name}`);
+    this.observability.logger.info('Creating record in table', { tableName: this.tableAttributes.name });
 
     try {
       await this.observeCapacity(
@@ -75,14 +75,21 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
           ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
         })
       );
-      this.observability.logger.info(`Successfully created record in table: ${this.tableAttributes.name}`);
+      this.observability.logger.info('Successfully created record in table', { tableName: this.tableAttributes.name });
     } catch (error) {
-      this.observability.logger.error(`Failure in creating record table: ${this.tableAttributes.name}. ${error}`);
+      this.observability.logger.error('Failure in creating record table', {
+        tableName: this.tableAttributes.name,
+        error: this.observability.utilities.formatError(error),
+      });
+      throw error;
     }
   }
 
   public async createRecordBatch(batchRecords: RecordType[]): Promise<void> {
-    this.observability.logger.info(`Creating ${batchRecords.length} records in table: ${this.tableAttributes.name}`);
+    this.observability.logger.info('Creating records in table', {
+      batchRecordLength: batchRecords.length,
+      tableName: this.tableAttributes.name,
+    });
 
     try {
       if (batchRecords.length === 0) {
@@ -107,9 +114,13 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
         })
       );
 
-      this.observability.logger.info(`Successfully created records in table: ${this.tableAttributes.name}`);
+      this.observability.logger.info('Successfully created records in table', { tableName: this.tableAttributes.name });
     } catch (error) {
-      this.observability.logger.error(`Failure in creating records table: ${this.tableAttributes.name}. ${error}`);
+      this.observability.logger.error('Failure in creating records table', {
+        tableName: this.tableAttributes.name,
+        error: this.observability.utilities.formatError(error),
+      });
+      throw error;
     }
   }
 
@@ -117,9 +128,10 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     recordFields: Partial<RecordType>,
     options?: { resetExpirationDate: boolean }
   ): Promise<void> {
-    this.observability.logger.info(
-      `Update record in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
-    );
+    this.observability.logger.info('Update record in table', {
+      tableName: this.tableAttributes.name,
+      key: this.tableAttributes.hashKey,
+    });
 
     const keyValue = recordFields[this.tableAttributes.hashKey as keyof RecordType];
     if (!keyValue) {
@@ -157,18 +169,22 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     try {
       await this.observeCapacity(this.updateRecord.name, this.client.updateItem(params));
-      this.observability.logger.info(`Successfully updated record in table: ${this.tableAttributes.name}`, {
+      this.observability.logger.info('Successfully updated record in table', {
+        tableName: this.tableAttributes.name,
         params,
         entries,
         recordFields,
       });
     } catch (error) {
-      this.observability.logger.error(`Failure in updating record table: ${this.tableAttributes.name}. ${error}`, {
-        error,
+      this.observability.logger.error(`Failure in updating record table`, {
+        tableName: this.tableAttributes.name,
+        error: this.observability.utilities.formatError(error),
         params,
         entries,
         recordFields,
       });
+
+      throw error;
     }
   }
 
@@ -185,25 +201,30 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     try {
       await this.observeCapacity(this.appendToList.name, this.client.updateItem(params));
-      this.observability.logger.info(`Successfully updated record in table: ${this.tableAttributes.name}`, {
+      this.observability.logger.info('Successfully updated record in table', {
+        tableName: this.tableAttributes.name,
         params,
         listKey,
         item,
       });
     } catch (error) {
-      this.observability.logger.error(`Failure in updating record table: ${this.tableAttributes.name}. ${error}`, {
-        error,
+      this.observability.logger.error('Failure in updating record table', {
+        tableName: this.tableAttributes.name,
+        error: this.observability.utilities.formatError(error),
         params,
         listKey,
         item,
       });
+      throw error;
     }
   }
 
   public async getRecord(keyValue: string): Promise<RecordType | null> {
-    this.observability.logger.info(
-      `Retrieving record in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey} and value: ${keyValue}`
-    );
+    this.observability.logger.info('Retrieving record in table', {
+      tableName: this.tableAttributes.name,
+      key: this.tableAttributes.hashKey,
+      value: keyValue,
+    });
 
     const params = {
       TableName: this.tableAttributes.name,
@@ -216,28 +237,38 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       const { Item } = await this.client.getItem(params);
 
       if (!Item) {
-        this.observability.logger.info(
-          `No item in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey}`
-        );
+        this.observability.logger.info('No item in table', {
+          tableName: this.tableAttributes.name,
+          key: this.tableAttributes.hashKey,
+          value: keyValue,
+        });
         return null;
       }
 
       const response = unmarshall(Item) as RecordType;
 
-      this.observability.logger.info(
-        `Retrieved record in table: ${this.tableAttributes.name} with key: ${this.tableAttributes.hashKey}`
-      );
+      this.observability.logger.info('Retrieved record in table', {
+        tableName: this.tableAttributes.name,
+        key: this.tableAttributes.hashKey,
+        value: keyValue,
+        response,
+      });
       return response;
     } catch (error) {
-      this.observability.logger.error(`Failure in getting record for table: ${this.tableAttributes.name}. ${error}`);
-      return null;
+      this.observability.logger.error('Failure in getting record for table', {
+        tableName: this.tableAttributes.name,
+        error: this.observability.utilities.formatError(error),
+      });
+      throw error;
     }
   }
 
   public async deleteRecord(keyValue: string): Promise<void> {
-    this.observability.logger.error(
-      `Deleting record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
-    );
+    this.observability.logger.info('Deleting record in table', {
+      tableName: this.tableAttributes.name,
+      key: this.tableAttributes.hashKey,
+      value: keyValue,
+    });
     const params: DeleteItemCommandInput = {
       TableName: this.tableAttributes.name,
       Key: marshall({
@@ -248,13 +279,16 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
     try {
       await this.observeCapacity(this.deleteRecord.name, this.client.deleteItem(params));
-      this.observability.logger.error(
-        `Successfully deleted record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
-      );
-    } catch {
-      this.observability.logger.error(
-        `Failure in deleting record in table: ${this.tableAttributes.name} with key ${this.tableAttributes.hashKey}`
-      );
+      this.observability.logger.info('Successfully deleted record in table', {
+        tableName: this.tableAttributes.name,
+        key: this.tableAttributes.hashKey,
+      });
+    } catch (error) {
+      this.observability.logger.error('Failure in deleting record in table', {
+        tableName: this.tableAttributes.name,
+        key: this.tableAttributes.hashKey,
+        error: this.observability.utilities.formatError(error),
+      });
     }
   }
 
@@ -279,13 +313,16 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       }
       return Items.map((item) => unmarshall(item) as RecordType);
     } catch (error) {
-      this.observability.logger.error(`Failure in getting records for table ${this.tableAttributes.name}. ${error}`);
-      return [];
+      this.observability.logger.error('Failure in getting records for table', {
+        tableName: this.tableAttributes.name,
+        error: this.observability.utilities.formatError(error),
+      });
+      throw error;
     }
   }
 
   public async incrementRecord(record: RecordType, counter: string): Promise<void> {
-    this.observability.logger.info(`Incrementing record in table: ${this.tableAttributes.name}`);
+    this.observability.logger.info('Incrementing record in table', { tableName: this.tableAttributes.name });
 
     try {
       const keyValue = record[this.tableAttributes.hashKey as keyof RecordType];
@@ -317,10 +354,11 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
 
       await this.observeCapacity(this.incrementRecord.name, this.client.updateItem(params));
     } catch (error) {
-      this.observability.logger.error(
-        `Failure in adding record or incrementing in table: ${this.tableAttributes.name}`,
-        { error }
-      );
+      this.observability.logger.error('Failure in adding record or incrementing in table', {
+        error: this.observability.utilities.formatError(error),
+        tableName: this.tableAttributes.name,
+      });
+      throw error;
     }
   }
 

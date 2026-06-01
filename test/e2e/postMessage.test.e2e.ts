@@ -1,3 +1,4 @@
+import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { BadRequestAxiosError } from '@test/e2e/utils/AxiosErrors';
@@ -21,6 +22,7 @@ describe('Post /send', () => {
         NotificationBody: 'This is an end 2 end test!',
         MessageTitle: 'End 2 End Test Message Title',
         MessageBody: 'End 2 End Test Message Body',
+        MessageFormat: MessageFormatEnum.PLAINTEXT,
       },
     ];
   });
@@ -55,9 +57,9 @@ describe('Post /send', () => {
         [
           NotificationStateEnum.VALIDATED_API_CALL,
           NotificationStateEnum.PROCESSING,
-          NotificationStateEnum.PROCESSED,
-          NotificationStateEnum.DISPATCHING,
           // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.PROCESSED,
+          // NotificationStateEnum.DISPATCHING,
           // NotificationStateEnum.DISPATCHED,
         ].map((Status) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return

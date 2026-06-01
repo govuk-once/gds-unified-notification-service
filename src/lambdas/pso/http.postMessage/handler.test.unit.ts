@@ -1,3 +1,4 @@
+import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import {
   mockDefaultConfig,
@@ -36,7 +37,10 @@ describe('PostMessage Handler', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
+    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
+
+  // TODO: Add markdown test case.
 
   // Mock AWS Lambda Context
   const mockContext = {
@@ -46,7 +50,6 @@ describe('PostMessage Handler', () => {
 
   // Mock the event
   let mockEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
 
   beforeEach(() => {
     // Reset all mock
@@ -68,13 +71,6 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-    } as unknown as EventType;
-
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'Content-Type': `application/json`,
       },
     } as unknown as EventType;
 

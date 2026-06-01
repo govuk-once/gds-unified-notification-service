@@ -22,10 +22,9 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import { extractIdentifiers } from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
-import z from 'zod';
 
 const requestBodySchema = IProcessedMessageSchema;
 
@@ -83,26 +82,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
-    const data = await this.validateRecord(record, {
-      onIdentified: async (identifiableRecord) => {
-        await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.DISPATCHING);
-      },
-      onSuccess: (record) => {
-        this.observability.logger.info(`Message was successfully parsed`, record.body.NotificationID);
-      },
-      onError: async (identifiableRecord, validationError) => {
-        const errorMsg = validationError ? z.prettifyError(validationError) : {};
-        this.observability.logger.error(`Failed to parse message`, errorMsg);
-        await this.analyticsService.publishEvent(
-          {
-            NotificationID: identifiableRecord.NotificationID,
-            DepartmentID: identifiableRecord.DepartmentID,
-          },
-          NotificationStateEnum.DISPATCHING_FAILED,
-          errorMsg
-        );
-      },
-    });
+    const data = await this.validateRecord(record);
     const message = data.body;
 
     // Check circuit breaker status before dispatch and fail if circuit breaker rate limiting enforced
@@ -119,42 +99,23 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
         )
       ).exceeded
     ) {
-      this.observability.logger.error(`Notification failed to dispatch`, extractIdentifiers(message));
-      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
-
       throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
     }
 
     // Prepare request
-    try {
-      const result = await this.circuitBreakerService.use(async () => {
-        const result = await this.notificationsService.send({
+    const result = await this.circuitBreakerService.use(
+      async () =>
+        await this.notificationsService.send({
           ExternalUserID: message.ExternalUserID,
           NotificationID: message.NotificationID,
           NotificationTitle: message.NotificationTitle,
           NotificationBody: message.NotificationBody,
-        });
-        if (result.success) {
-          return result;
-        }
-
-        if (result.errors) {
-          throw new Error(JSON.stringify(result.errors));
-        }
-        throw new Error('Request to notification provider failed with no error message');
-      });
-
-      this.observability.logger.info(`Notification dispatched`, {
-        ...extractIdentifiers(message),
-        ProviderRequestID: result.result?.requestId,
-      });
-      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHED);
-    } catch (error) {
-      this.observability.logger.error(`Notification failed to dispatch`, extractIdentifiers(message), { error });
-      await this.analyticsService.publishEvent(extractIdentifiers(message), NotificationStateEnum.DISPATCHING_FAILED);
-
-      throw error;
-    }
+        })
+    );
+    this.observability.logger.info(`Notification dispatched`, {
+      ...extractIdentifiers(message),
+      ProviderRequestID: result.requestId,
+    });
 
     // Update stored record with timestamp - also reset expiration date
     await this.notificationsDynamoRepository.updateRecord(
@@ -173,13 +134,29 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
     );
   };
 
-  protected batchItemFailureMetric = (batchItemFailuresCount: number) => {
+  protected async onStart(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.DISPATCHING);
+  }
+
+  protected async onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void> {
+    await this.analyticsService.publishEvent(
+      identifiableRecord,
+      NotificationStateEnum.DISPATCHING_FAILED,
+      this.observability.utilities.formatError(error)
+    );
+  }
+
+  protected async onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.DISPATCHED);
+  }
+
+  protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
       MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
       MetricUnit.Count,
       batchItemFailuresCount
     );
-  };
+  }
 }
 
 export const handler = new Dispatch(iocGetConfigurationService(), iocGetObservabilityService(), () => ({

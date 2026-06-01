@@ -1,7 +1,10 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
+import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
+import { MetricsLabels } from '@common/services';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -47,12 +50,15 @@ describe('Validation QueueHandler', () => {
     NotificationBody: 'You have a new message in the message center',
     MessageTitle: 'Hi there',
     MessageBody: 'MOCK_LONG_MESSAGE',
+    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
+
+  // TODO: Add markdown test case.
 
   const mockEvent: QueueEvent<IMessage> = {
     Records: [
       {
-        messageId: 'mockMessageId',
+        messageId: 'mockMessageId_1',
         receiptHandle: 'mockReceiptHandle',
         attributes: {
           ApproximateReceiveCount: '2',
@@ -215,8 +221,7 @@ describe('Validation QueueHandler', () => {
         UserID: mockMessageBody.UserID,
         CampaignID: mockMessageBody.CampaignID,
       },
-
-      'VALIDATING'
+      NotificationStateEnum.VALIDATING
     );
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
@@ -228,9 +233,9 @@ describe('Validation QueueHandler', () => {
         NotificationTitle: mockMessageBody.NotificationTitle,
         UserID: mockMessageBody.UserID,
         CampaignID: mockMessageBody.CampaignID,
+        MessageFormat: mockMessageBody.MessageFormat,
       },
-
-      'VALIDATED'
+      NotificationStateEnum.VALIDATED
     );
   });
 
@@ -255,13 +260,27 @@ describe('Validation QueueHandler', () => {
     );
   });
 
+  it('should return a list of all failed processes when it partial fails.', async () => {
+    // Act
+    const result = await handler(mockPartialFailedEvent, mockContext);
+
+    // Assert
+    expect(result).toEqual({
+      batchItemFailures: [
+        {
+          itemIdentifier: 'mockMessageId_1',
+        },
+      ],
+    });
+  });
+
   it('should add a metric for the number of failed processes for a partial failure.', async () => {
     // Act
     await handler(mockPartialFailedEvent, mockContext);
 
     // Assert
     expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
-      'BATCH_ITEM_FAILURES_VALIDATION',
+      MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
       MetricUnit.Count,
       1
     );
@@ -276,18 +295,20 @@ describe('Validation QueueHandler', () => {
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
-        UserID: mockFailedEvent.Records[0].body.UserID,
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         CampaignID: mockFailedEvent.Records[0].body.CampaignID,
+        UserID: mockFailedEvent.Records[0].body.UserID,
       },
-      'VALIDATING'
+      NotificationStateEnum.VALIDATING
     );
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
+        UserID: mockFailedEvent.Records[0].body.UserID,
+        CampaignID: mockFailedEvent.Records[0].body.CampaignID,
       },
-      'VALIDATION_FAILED',
+      NotificationStateEnum.VALIDATION_FAILED,
       '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
     );
   });
@@ -323,8 +344,10 @@ describe('Validation QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: 'TEST01',
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+        DepartmentID: 'TEST01',
+        CampaignID: 'CAM_ID',
+        UserID: 'UserID',
       },
       'VALIDATION_FAILED',
       expect.stringContaining(`https://google.com is using google.com hostname which is not on the allow list.`)

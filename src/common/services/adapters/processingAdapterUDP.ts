@@ -19,6 +19,7 @@ const UDPConfigSchema = z.object({
 export class ProcessingAdapterUDP implements ProcessingAdapter {
   public client: axios.Axios;
   public udpConfig: z.infer<typeof UDPConfigSchema>;
+
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
@@ -61,7 +62,6 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       });
       this.client.interceptors.request.use(interceptor);
     }
-    return;
   }
 
   async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {
@@ -69,46 +69,29 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       userID: request.userID,
     });
 
-    // Note at the minute - this just fetches data and logs it, instead of returning it
-    try {
-      // /v1/{resourcePath+} - notifications is resource naspace that was assigned to us by flex
-      const result = await this.client.get(`/v1/notifications`, {
-        headers: {
-          // TODO: Figure out nicer way of passing that in to support multiple PSO's in the future
-          'requesting-service': 'dvla',
-          'requesting-service-user-id': request.userID,
-        },
-      });
-      const data = z
-        .object({
-          data: z.object({
-            consentStatus: z.string(),
-            pushId: z.string(),
-            // Backwards compatibility for testing purposes
-            // NotificationId was recently renamed to PushId
-            notificationId: z.string().optional(),
-          }),
-        })
-        .parse(result.data);
+    // /v1/{resourcePath+} - notifications is resource namespace that was assigned to us by flex
+    const result = await this.client.get(`/v1/notifications`, {
+      headers: {
+        // TODO: Figure out nicer way of passing that in to support multiple PSO's in the future
+        'requesting-service': 'dvla',
+        'requesting-service-user-id': request.userID,
+      },
+    });
+    const data = z
+      .object({
+        data: z.object({
+          consentStatus: z.string(),
+          pushId: z.string(),
+          // Backwards compatibility for testing purposes
+          // NotificationId was recently renamed to PushId
+          notificationId: z.string().optional(),
+        }),
+      })
+      .parse(result.data);
 
-      return {
-        request,
-        success: true,
-        externalUserID: data.data.notificationId ?? data.data.pushId,
-      };
-    } catch (e) {
-      if (axios.isAxiosError(e)) {
-        this.observability.logger.error(`Axios Error data`, { e, data: e.response?.data });
-      } else {
-        this.observability.logger.error(`Non-axios Error`, { e });
-      }
-    }
-
-    // Fallback on 1:1 mapping
     return {
-      request: request,
-      success: true,
-      externalUserID: request.userID,
+      request,
+      externalUserID: data.data.notificationId ?? data.data.pushId,
     };
   }
 }

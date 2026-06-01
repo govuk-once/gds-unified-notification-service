@@ -326,9 +326,9 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
       const gatewayClient = new APIGatewayClient();
       const domains = await gatewayClient.send(new GetDomainNamesCommand());
 
-      const psoCustomeDomainName = domains.items?.find((x) => (x.domainName as string)?.includes(`gdsuns-${env}-pso`));
+      const psoCustomeDomainName = domains.items?.find((x) => (x.domainName as string)?.includes(`uns-${env}-pso-cdk`));
       const flexCustomeDomainName = domains.items?.find((x) =>
-        (x.domainName as string)?.includes(`gdsuns-${env}-flex`)
+        (x.domainName as string)?.includes(`uns-${env}-flex-cdk`)
       );
 
       if (psoCustomeDomainName && flexCustomeDomainName) {

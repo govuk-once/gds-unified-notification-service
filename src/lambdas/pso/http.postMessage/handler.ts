@@ -10,7 +10,6 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
@@ -18,7 +17,6 @@ import {
   AnalyticsService,
   ConfigurationService,
   ContentValidationService,
-  MarkdownContentValidationService,
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
@@ -74,7 +72,6 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     protected contentValidationService: ContentValidationService,
-    protected markdownContentValidationService: MarkdownContentValidationService,
     dependencies?: () => HandlerDependencies<PostMessage>
   ) {
     super(observability);
@@ -91,12 +88,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
     // Pre-validate all messages & reject request when one of them contains unsupported url
     for (const message of messages) {
-      const validator =
-        message.MessageFormat === MessageFormatEnum.MARKDOWN
-          ? this.markdownContentValidationService
-          : this.contentValidationService;
-
-      await validator.validate(message.MessageBody);
+      await this.contentValidationService.validateWithMessageFormat(message.MessageBody, message.MessageFormat);
     }
 
     // Publish analytics & push items to the processing queue

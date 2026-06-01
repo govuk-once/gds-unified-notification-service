@@ -1,3 +1,4 @@
+import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
@@ -20,6 +21,7 @@ describe('Get /status/{notificationID}', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'This message is an end to end test.',
         NotificationBody: 'Here is the Notification body.',
+        MessageFormat: MessageFormatEnum.PLAINTEXT,
       },
     ];
   });
@@ -42,9 +44,9 @@ describe('Get /status/{notificationID}', () => {
         [
           NotificationStateEnum.VALIDATED_API_CALL,
           NotificationStateEnum.PROCESSING,
-          NotificationStateEnum.PROCESSED,
-          NotificationStateEnum.DISPATCHING,
           // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.PROCESSED,
+          // NotificationStateEnum.DISPATCHING,
           // NotificationStateEnum.DISPATCHED,
         ].map((Status) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
