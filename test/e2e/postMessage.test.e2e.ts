@@ -286,7 +286,34 @@ describe('Post /send', () => {
     // Assert
     await expect(result).rejects.toMatchObject(
       BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationBody'
+        'Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
+      )
+    );
+  });
+
+  test('it returns 400 when the message has invalid markdown.', async ({ psoAPI }) => {
+    // Arrange
+    const messagesWithInvalidMarkdown: IMessage[] = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody: '> -------- Heading\n>\n> This is a heading defined in the wrong way. -----------',
+        MessageFormat: MessageFormatEnum.MARKDOWN,
+      },
+    ];
+
+    // Act
+    const result = psoAPI.post('/send', messagesWithInvalidMarkdown);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
+        'Bad Request: \n\n Message body contains markdown elements but message format is set to MARKDOWN: blockquote_open'
       )
     );
   });
