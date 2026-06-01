@@ -26,9 +26,6 @@
     "test": "vitest --testTimeout 60000",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e --testTimeout 60000",
-    "tflint": "terraform fmt -check -diff -recursive && tflint --init && tflint --chdir=infrastructure/terraform  --config .tflint.hcl",
-    "tflint:fix": "terraform fmt -recursive",
-    "tfsec": "tfsec .",
     "upgrade": "ncu -u -d 'npm run test' && npm audit --omit dev"
   },
   "devDependencies": {

@@ -14,13 +14,38 @@ import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueC
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
+const interfaceEndpoints = {
+  // API
+  Apigateway: InterfaceVpcEndpointAwsService.APIGATEWAY,
+
+  // Compute & Params
+  Lambda: InterfaceVpcEndpointAwsService.LAMBDA,
+  Sqs: InterfaceVpcEndpointAwsService.SQS,
+  Kms: InterfaceVpcEndpointAwsService.KMS,
+  Ssm: InterfaceVpcEndpointAwsService.SSM,
+  SecretsManager: InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+
+  // Cloudwatch
+  CloudwatchApplicationInsights: InterfaceVpcEndpointAwsService.CLOUDWATCH_APPLICATION_INSIGHTS,
+  CloudwatchLogs: InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+  CloudwatchMonitoring: InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
+  Xray: InterfaceVpcEndpointAwsService.XRAY,
+
+  // Networking
+  NetworkFirewall: InterfaceVpcEndpointAwsService.NETWORK_FIREWALL,
+};
+const gatewayEndpoints = {
+  DynamoDB: GatewayVpcEndpointAwsService.DYNAMODB,
+  S3: GatewayVpcEndpointAwsService.S3,
+};
+
 export class UNSCommon extends Construct {
   public readonly kms: kms.Key;
 
   public readonly codeSigning: CodeSigningConfig;
   public readonly codeSigningProfile: SigningProfile;
 
-  public readonly vpc: UNSVpcConstruct;
+  public readonly vpc: UNSVpcConstruct<typeof interfaceEndpoints, typeof gatewayEndpoints>;
 
   public readonly dynamodb: {
     readonly messages: UNSDynamoDb;
@@ -68,30 +93,8 @@ export class UNSCommon extends Construct {
       name: ['main'],
       cidr: config.vpc.cidr,
       zones: config.vpc.zones,
-      interfaceEndpoints: {
-        // API
-        Apigateway: InterfaceVpcEndpointAwsService.APIGATEWAY,
-
-        // Compute & Params
-        Lambda: InterfaceVpcEndpointAwsService.LAMBDA,
-        Sqs: InterfaceVpcEndpointAwsService.SQS,
-        Kms: InterfaceVpcEndpointAwsService.KMS,
-        Ssm: InterfaceVpcEndpointAwsService.SSM,
-        SecretsManager: InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
-
-        // Cloudwatch
-        CloudwatchApplicationInsights: InterfaceVpcEndpointAwsService.CLOUDWATCH_APPLICATION_INSIGHTS,
-        CloudwatchLogs: InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-        CloudwatchMonitoring: InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
-        Xray: InterfaceVpcEndpointAwsService.XRAY,
-
-        // Networking
-        NetworkFirewall: InterfaceVpcEndpointAwsService.NETWORK_FIREWALL,
-      },
-      gatewayEndpoints: {
-        DynamoDB: GatewayVpcEndpointAwsService.DYNAMODB,
-        S3: GatewayVpcEndpointAwsService.S3,
-      },
+      interfaceEndpoints: interfaceEndpoints,
+      gatewayEndpoints: gatewayEndpoints,
     });
 
     //// =====================================================

@@ -1,9 +1,8 @@
 // This script is to be executed via npm run development:sandbox:setup
 // Generates environment ID based on email signing the commits (git config -- set user.email) by default (directly configurable options available below)
-// Saves generated config into teraform/notifications/terraform.tfvars
+// Saves generated config into infrastructure/cdk/.env
 // If AWS environment variables are present
-// - prompts the creation if tfstate bucket does not exist
-// - prompts terraform initiation
+// - prompts mirroring SSM values from DEV to Developers-sandbox
 //
 // Usage:
 //   Developer sandbox setup

@@ -11,6 +11,7 @@ import {
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
@@ -51,6 +52,7 @@ export interface UNSAPIGatewayGatewayProps {
     readonly allowOnlyFromKnownSources?: {
       readonly awsAccountID: string;
       readonly vpceIDs: string[];
+      readonly vpceEndpoints: IVpcEndpoint[];
     };
   };
 }
@@ -278,14 +280,14 @@ export class UNSAPIGatewayGateway extends Construct {
   constructPrivatePolicies(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
     // Add VPC endpoint resource policy if configuration is provided
     if (props.iam?.allowOnlyFromKnownSources) {
-      this.restApi.addToResourcePolicy(
-        new PolicyStatement({
-          principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
-          actions: ['execute-api:Invoke'],
-          resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
-          effect: Effect.ALLOW,
-        })
-      );
+      // // // this.restApi.addToResourcePolicy(
+      // // //   new PolicyStatement({
+      // // //     principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
+      // // //     actions: ['execute-api:Invoke'],
+      // // //     resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
+      // // //     effect: Effect.ALLOW,
+      // // //   })
+      // // // );
 
       this.restApi.addToResourcePolicy(
         new PolicyStatement({
@@ -368,6 +370,15 @@ export class UNSAPIGatewayGateway extends Construct {
           })
         ),
       },
+
+      ...(props.iam?.allowOnlyFromKnownSources?.vpceIDs
+        ? {
+            endpointConfiguration: {
+              types: [EndpointType.PRIVATE],
+              vpcEndpoints: props.iam.allowOnlyFromKnownSources.vpceEndpoints,
+            },
+          }
+        : {}),
 
       // Conditional custom domain name setup
       ...domainConfig,
