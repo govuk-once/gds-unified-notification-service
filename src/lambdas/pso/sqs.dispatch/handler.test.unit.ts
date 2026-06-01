@@ -66,17 +66,6 @@ describe('Dispatch QueueHandler', () => {
     MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
-  const mockMessageBody_2: IProcessedMessage = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
-    DepartmentID: 'DVLA01',
-    UserID: 'UserID_2',
-    NotificationTitle: 'Test message - 002',
-    NotificationBody: "You've got a message in the message centre - 2",
-    MessageTitle: '',
-    MessageBody: '',
-    ExternalUserID: 'test_2',
-  };
-
   const mockEvent: QueueEvent<IProcessedMessage> = {
     Records: [
       {
