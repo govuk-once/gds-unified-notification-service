@@ -6,6 +6,8 @@ import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources'
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
 export class UNSStack extends Stack {
+  public readonly pso: UNSPSOResource;
+  public readonly flex: UNSFlexResource;
   constructor(
     scope: Construct,
     protected id: string,
@@ -19,7 +21,7 @@ export class UNSStack extends Stack {
 
     const common = new UNSCommon(this, config);
     const mtls = new UNSMTLSCommon(this, config, common);
-    new UNSPSOResource(this, config, { refs: common, mtlsRefs: mtls });
-    new UNSFlexResource(this, config, common);
+    this.pso = new UNSPSOResource(this, config, { refs: common, mtlsRefs: mtls });
+    this.flex = new UNSFlexResource(this, config, common);
   }
 }

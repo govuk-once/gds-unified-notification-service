@@ -8,10 +8,8 @@ This service is ran with AWS using serverless architecture.
 ### Built With
 
 - Node.js v22.21.1 (LTS) & NPM v11.6
-- Terraform v1.14.1
-- TFlint v0.60.0
-- TFSec v1.28.14
 - Checkov v3.2.490
+- AWS CDK
 
 Recommending use of [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm), [tfenv](https://github.com/tfutils/tfenv)
 
@@ -40,22 +38,20 @@ tfenv use
 npm install
 ```
 
-5. Initialize terraform - relies on gds-cli being already configured
+5. Initialize CDK - relies on gds-cli being already configured
 
-This guided wizard will create a tfstate bucket within AWS based on your developer email, and initialize TF on your behalf.
+This guided wizard will create a tfstate bucket within AWS based on your developer email, and initialize CDK on your behalf.
 
 ```sh
-eval $(gds-cli aws {name_of_sandbox_or_dev_account} -e)
+eval $(gds-cli aws once-notifications-development-admin -e)
 npm run development:sandbox:setup
 ```
 
-6. Recommended - Install checkov & tfsec - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
+6. Recommended - Install checkov - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
 
 ```sh
-brew install tfsec
 brew install checkov
 # Pre-configured aliases
-npm run tfsec
 npm run checkov
 ```
 
@@ -84,7 +80,7 @@ First one authenticates your shell session with the sandbox aws account, second 
 npm run development:sandbox:setup
 ```
 
-This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/terraform/terraform.tfvars` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
+This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/cdk/.env` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
 Also, if mTLS is enables, it pulls mTLS certificates and domain name into the repository for end to end testing locally.
 
 After the initial setup is completed, another 2 commands can be used to release to sandbox
@@ -94,7 +90,7 @@ npm run development:sandbox:release
 npm run development:sandbox:release:plan
 ```
 
-Both versions will convert TS bundles into JS, and execute terraform.
+Both versions will convert TS bundles into JS, and execute CDK.
 Plan will only output the expected changes, release will allow deploying to AWS (sandbox).
 
 ## Testing
@@ -132,8 +128,6 @@ A quick summary:
 
 - Husky - Automatically lint commit messages. [Husky](https://typicode.github.io/husky)
 - commitlint - Lint commit messages to adhere to a commit convention. [commitlint](https://github.com/conventional-changelog/commitlint)
-- TFLint - Framework for terraform to find possible errors for Major Cloud providers. [TFLint](https://github.com/terraform-linters/tflint)
-- TF Organizing step - in order to maintain naming convention defined in [README.md](./infrastructure/terraform/README.md) - script is executed to ensure filename prefixes are sequential and do not overlap.
 
 Read more in : [./.husky/README.md](./.husky/README.md)
 
