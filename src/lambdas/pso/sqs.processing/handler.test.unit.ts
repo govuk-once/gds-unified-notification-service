@@ -63,8 +63,9 @@ describe('Processing QueueHandler', () => {
     NotificationTitle: 'Test message - 002',
     NotificationBody: "You've got a message in the message centre - 2",
     MessageTitle: 'Hi there',
-    MessageBody: 'MOCK_LONG_MESSAGE',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
+    MessageBody:
+      'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+    MessageFormat: MessageFormatEnum.MARKDOWN,
   };
 
   const mockEvent: QueueEvent<IMessage> = {

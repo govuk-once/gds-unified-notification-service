@@ -159,6 +159,7 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
   });
+
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
     // Act
     const result = await handler(
@@ -168,8 +169,83 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(400);
-    expect(result.body).toEqual(`Bad request: 
+    expect(result.body).toEqual(
+      `Bad request: \n\n https://bitcoin.com is using bitcoin.com hostname which is not on the allow list.`
+    );
+  });
 
- https://bitcoin.com is using bitcoin.com hostname which is not on the allow list.`);
+  it('should validate messages that contain PLAINTEXT with PLAINTEXT MessageFormat.', async () => {
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+  });
+
+  it('should validate messages that contain MARKDOWN with MARKDOWN MessageFormat.', async () => {
+    // Arrange
+    const mockMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      MessageFormat: MessageFormatEnum.MARKDOWN,
+    };
+    const mockEventWithMarkdown = {
+      ...mockEvent,
+      body: JSON.stringify([mockMarkdownMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventWithMarkdown, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+  });
+
+  it('should reject messages that contain MARKDOWN with PLAINTEXT MessageFormat.', async () => {
+    // Arrange
+    const mockInvalidPlaintextMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      MessageFormat: MessageFormatEnum.PLAINTEXT,
+    };
+    const mockEventWithInvalidPlaintext = {
+      ...mockEvent,
+      body: JSON.stringify([mockInvalidPlaintextMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventWithInvalidPlaintext, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(result.body).toEqual(
+      `Bad request: \n\n Message body contains markdown elements but message format is set to PLAINTEXT: strong_open`
+    );
+  });
+
+  it('should reject messages that contain invalid MARKDOWN.', async () => {
+    // Arrange
+    const mockInvalidMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
+      MessageFormat: MessageFormatEnum.MARKDOWN,
+    };
+    const mockEventInvalidMarkdown = {
+      ...mockEvent,
+      body: JSON.stringify([mockInvalidMarkdownMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventInvalidMarkdown, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(result.body).toEqual(
+      `Bad request: \n\n https://google.com is using google.com hostname which is not on the allow list.`
+    );
   });
 });

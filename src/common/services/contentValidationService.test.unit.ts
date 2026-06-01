@@ -101,10 +101,12 @@ describe('ContentValidationService', () => {
   });
 
   describe('validateWithMessageFormat', () => {
-    it('Valid message body for markdown.', async () => {
-      // Arrange
-      const message = 'some text some text [Click here](https://dvla.gov.uk) some text some text';
-
+    it.each([
+      '# This is a Heading',
+      '* Item 1\n* Item 2\n* Item 3',
+      'some text some text [Click here](https://dvla.gov.uk) some text some text',
+      'This contains **bold text** and *italicized text*.',
+    ])('Valid message body for markdown.', async (message: string) => {
       // Act
       const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.MARKDOWN);
 
@@ -143,12 +145,14 @@ describe('ContentValidationService', () => {
       await expect(result).rejects.toThrow(httpError.BadRequest);
     });
 
-    it('Valid message body for plain text.', async () => {
-      // Arrange
-      const message = 'some text some text https://dvla.gov.uk/ some text some text';
-
+    it.each([
+      'some text some text https://dvla.gov.uk/ some text some text',
+      'Hello world, this is a normal single-line sentence.',
+      'Line one of a paragraph.\nLine two of the same paragraph via softbreak.',
+      'Paragraph one.\n\nParagraph two after a double return.',
+    ])('Valid message body for plain text.', async (message: string) => {
       // Act
-      const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.MARKDOWN);
+      const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.PLAINTEXT);
 
       // Assert
       expect(result).toEqual(message);
@@ -177,8 +181,10 @@ describe('ContentValidationService', () => {
       Subheading One
       --------------
       `,
-      // This would pass the markdown validation
       'some text some text [Click here](https://dvla.gov.uk) some text some text',
+      '# This heading structure is forbidden in plain text',
+      '* List item 1\n* List item 2',
+      'This string contains **bold** styling tokens',
     ])('Invalid message body for plain text.', async (message: string) => {
       // Act
       const result = instance.validateWithMessageFormat(message, MessageFormatEnum.PLAINTEXT);

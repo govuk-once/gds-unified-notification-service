@@ -53,8 +53,6 @@ describe('Validation QueueHandler', () => {
     MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
-  // TODO: Add markdown test case.
-
   const mockEvent: QueueEvent<IMessage> = {
     Records: [
       {
@@ -257,6 +255,131 @@ describe('Validation QueueHandler', () => {
         ...mockMessageBody,
         ReceivedDateTime: '202601021513',
       })
+    );
+  });
+
+  it('should validate messages that contain PLAINTEXT with PLAINTEXT MessageFormat.', async () => {
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        MessageBody: mockMessageBody.MessageBody,
+        MessageTitle: mockMessageBody.MessageTitle,
+        NotificationBody: mockMessageBody.NotificationBody,
+        NotificationID: mockMessageBody.NotificationID,
+        NotificationTitle: mockMessageBody.NotificationTitle,
+        UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
+        MessageFormat: mockMessageBody.MessageFormat,
+      },
+      NotificationStateEnum.VALIDATED
+    );
+  });
+
+  it('should validate messages that contain MARKDOWN with MARKDOWN MessageFormat.', async () => {
+    // Arrange
+    const mockMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      MessageFormat: MessageFormatEnum.MARKDOWN,
+    };
+    const mockEventWithMarkdown: QueueEvent<IMessage> = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: mockMarkdownMessageBody,
+        },
+      ],
+    };
+
+    // Act
+    await handler(mockEventWithMarkdown, mockContext);
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMarkdownMessageBody.DepartmentID,
+        MessageBody: mockMarkdownMessageBody.MessageBody,
+        MessageTitle: mockMarkdownMessageBody.MessageTitle,
+        NotificationBody: mockMarkdownMessageBody.NotificationBody,
+        NotificationID: mockMarkdownMessageBody.NotificationID,
+        NotificationTitle: mockMarkdownMessageBody.NotificationTitle,
+        UserID: mockMarkdownMessageBody.UserID,
+        CampaignID: mockMarkdownMessageBody.CampaignID,
+        MessageFormat: mockMarkdownMessageBody.MessageFormat,
+      },
+      NotificationStateEnum.VALIDATED
+    );
+  });
+
+  it('should reject messages that contain MARKDOWN with PLAINTEXT MessageFormat.', async () => {
+    // Arrange
+    const mockInvalidPlaintextMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      MessageFormat: MessageFormatEnum.PLAINTEXT,
+    };
+    const mockEventWithInvalidPlaintext: QueueEvent<IMessage> = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: mockInvalidPlaintextMessageBody,
+        },
+      ],
+    };
+
+    // Act
+    const result = handler(mockEventWithInvalidPlaintext, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
+      },
+      NotificationStateEnum.VALIDATION_FAILED,
+      '✖ BadRequestError: Bad request: \n\n Message body contains markdown elements but message format is set to PLAINTEXT: strong_open'
+    );
+  });
+
+  it('should reject messages that contain invalid MARKDOWN.', async () => {
+    // Arrange
+    const mockInvalidMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
+      MessageFormat: MessageFormatEnum.MARKDOWN,
+    };
+    const mockEventInvalidMarkdown: QueueEvent<IMessage> = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: mockInvalidMarkdownMessageBody,
+        },
+      ],
+    };
+
+    // Act
+    const result = handler(mockEventInvalidMarkdown, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
+      },
+      NotificationStateEnum.VALIDATION_FAILED,
+      '✖ BadRequestError: Bad request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
     );
   });
 

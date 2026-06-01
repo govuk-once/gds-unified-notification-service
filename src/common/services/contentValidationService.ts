@@ -135,7 +135,9 @@ export class ContentValidationService {
     for (const token of tokens) {
       // Validates the token types against the allowed list, returns false if validation is failed.
       if (!ALLOWED_TOKEN_TYPES_PLAINTEXT.has(token.type)) {
-        this.createError(`${token.info} has unsupported markdown as plain text.`);
+        this.createError(
+          `Message body contains markdown elements but message format is set to PLAINTEXT: ${token.type}`
+        );
       }
 
       // Validates the types of children of the token recursively against the allowed list, returns false if validation is failed.
@@ -149,7 +151,9 @@ export class ContentValidationService {
     for (const token of tokens) {
       // Validates the token types against the allowed list, returns false if validation is failed.
       if (!ALLOWED_TOKEN_TYPES_MARKDOWN.has(token.type)) {
-        this.createError(`${token.info} has unsupported markdown as plain text.`);
+        this.createError(
+          `Message body contains markdown elements but message format is set to MARKDOWN: ${token.type}`
+        );
       }
 
       // Dedicated detection of a markdown link
