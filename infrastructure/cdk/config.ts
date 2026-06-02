@@ -115,6 +115,19 @@ export const config = {
         Tags.of(construct).add(key, value);
       }
     },
+    // Rolling week to week dates - used for short term mtls certs
+    lastSunday: () => {
+      const lastSunday = new Date();
+      lastSunday.setDate(new Date().getDate() - new Date().getDay() - 1);
+      lastSunday.setUTCHours(0, 0, 0, 0);
+      return lastSunday;
+    },
+    nextSunday: () => {
+      const nextSunday = new Date(config.utils.lastSunday().getTime());
+      nextSunday.setDate(config.utils.lastSunday().getDate() + 6);
+      nextSunday.setUTCHours(23, 59, 59, 0);
+      return nextSunday;
+    },
   },
 };
 
