@@ -102,6 +102,13 @@ export abstract class APIHandler<
   }
 
   /**
+   * Adds error handler that formats errors into json error response
+   */
+  protected errorHandlingMiddlewares(middy: IMiddleware): IMiddleware {
+    return middy.use(httpErrorHandler());
+  }
+
+  /**
    * Ties in separate middleware groups
    * @param middy
    * @returns
@@ -110,6 +117,7 @@ export abstract class APIHandler<
     middy = this.sanitizationMiddlewares(middy);
     middy = this.observabilityMiddlewares(middy);
     middy = this.validationMiddlewares(middy);
+    middy = this.errorHandlingMiddlewares(middy);
     return middy;
   }
 

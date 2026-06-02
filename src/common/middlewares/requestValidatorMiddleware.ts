@@ -1,6 +1,6 @@
+import { BadRequestError } from '@common/models/BadRequestError';
 import type { MiddlewareObj } from '@middy/core';
 import type { APIGatewayEvent, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
-import httpError from 'http-errors';
 import { type ZodType, z } from 'zod';
 
 export const requestValidatorMiddleware = (
@@ -10,7 +10,7 @@ export const requestValidatorMiddleware = (
     if (schema) {
       const { error, data } = schema.safeParse(request.event.body);
       if (error) {
-        throw new httpError.BadRequest(`Bad Request: \n\n${z.prettifyError(error)}`);
+        throw new BadRequestError([z.prettifyError(error)]);
       }
       // Re-inject parsed object back into the event
       request.event.body = data as string;
