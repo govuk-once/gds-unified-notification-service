@@ -21,10 +21,10 @@ export class UNSElasticacheConstruct extends Construct {
     super(scope, constructNamingHelper(`elch`, ...props.name));
 
     // Valkey IAM User
-    this.user = new CfnUser(this, `user`, {
+    this.user = new CfnUser(this, `useriam`, {
       engine: 'valkey',
-      userId: namingHelper(`iamuser`),
-      userName: namingHelper(`iamuser`),
+      userId: namingHelper(`useriam`),
+      userName: namingHelper(`useriam`),
       authenticationMode: {
         Type: 'iam',
       },
