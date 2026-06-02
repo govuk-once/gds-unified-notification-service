@@ -57,6 +57,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.info('Received request', { event });
+
     // Authorize
     const isValidApiKey = await this.validateApiKey(event);
     if (!isValidApiKey) {

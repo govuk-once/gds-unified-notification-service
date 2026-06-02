@@ -98,6 +98,7 @@ export class UNSLambdaConstruct extends Construct {
 
     // Define role
     this.role = new Role(this, constructNamingHelper(`iamr`, props.serviceName, ...props.name), {
+      roleName: namingHelper(`iamr`, props.serviceName, ...props.name),
       assumedBy: new ServicePrincipal(`lambda.amazonaws.com`, { region: stack.env.region }),
     });
 

@@ -269,7 +269,7 @@ export class UNSPSOResource extends Construct {
     this.gateway = new UNSAPIGatewayGateway(this, config, {
       name: [`pso`],
       description: `API Gateway for PSOs`,
-      domain: 'pso-cdk',
+      domain: config.env !== 'stg' ? 'pso' : 'pso-cdk',
       mtls: {
         truststore: mtlsRefs.truststorePath,
       },

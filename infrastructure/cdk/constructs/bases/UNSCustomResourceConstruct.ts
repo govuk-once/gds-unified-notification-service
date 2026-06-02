@@ -1,15 +1,18 @@
 import * as cdk from 'aws-cdk-lib';
+import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as customResources from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export interface UNSCustomResourceConstructProps {
   name: string[];
   tsFn: string;
   modules: string[];
+  kms: Key;
 }
 
 export class UNSCustomResourceConstruct<
@@ -33,6 +36,7 @@ export class UNSCustomResourceConstruct<
       logGroupName: `/aws/lambda/${functionName}`,
       retention: RetentionDays.ONE_MONTH,
       removalPolicy: config.removalPolicy,
+      encryptionKey: props.kms,
     });
 
     // Build the Custom Resource Lambda function to execute Key/CSR generation
@@ -53,6 +57,14 @@ export class UNSCustomResourceConstruct<
     this.provider = new customResources.Provider(this, constructNamingHelper('provider'), {
       onEventHandler: this.fn,
     });
+
+    // Checkov skips for construct lambdas
+    applyCheckovSkips(this.fn, [
+      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+      ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
+    ]);
   }
 
   public use(caller: Construct, props: InputType) {

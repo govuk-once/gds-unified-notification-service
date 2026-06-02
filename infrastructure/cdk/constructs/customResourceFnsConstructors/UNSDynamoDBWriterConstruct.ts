@@ -1,3 +1,4 @@
+import { Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCustomResourceConstruct } from 'infrastructure/cdk/constructs/bases/UNSCustomResourceConstruct';
@@ -6,11 +7,12 @@ import { UNSDynamoDbWriterProps } from 'infrastructure/cdk/customResourceFns/uns
 
 export class UNSDynamoDBWriterConstruct extends UNSCustomResourceConstruct<UNSDynamoDbWriterProps> {
   public readonly table: UNSDynamoDb;
-  constructor(scope: Construct, config: EnvVars, table: UNSDynamoDb) {
+  constructor(scope: Construct, config: EnvVars, table: UNSDynamoDb, props: { kms: Key }) {
     super(scope, config, {
       name: ['dynamodb-writer'],
       tsFn: 'unsDynamoDBWriter',
       modules: [],
+      kms: props.kms,
     });
 
     this.table = table;
