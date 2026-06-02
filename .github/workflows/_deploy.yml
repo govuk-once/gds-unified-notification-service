@@ -62,26 +62,7 @@ jobs:
       - name: 🔨 Build bundles
         run: npm run build
 
-      - name: 🏗️ Terraform Deploy
-        if: ${{ inputs.ENVIRONMENT != 'dev' }}
-        working-directory: ./infrastructure/terraform
-        run: |
-          terraform init \
-            -backend-config "region=$TF_VAR_region" \
-            -backend-config "bucket=$TF_VAR_bucket" \
-            -backend-config "key=$TF_VAR_key"
-          terraform apply -auto-approve
-        env:
-          TF_VAR_region: ${{ vars.AWS_REGION }}
-          TF_VAR_bucket: ${{ secrets.TF_STATE_BUCKET }}
-          TF_VAR_env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
-          TF_VAR_key: state.json
-          TF_VAR_code_version: ${{ inputs.VERSION }}
-          TF_VAR_use_mtls: 'true'
-          TF_VAR_is_main_environment_in_account: 'true'
-
       - name: Terraform Destroy 💣
-        if: ${{ inputs.ENVIRONMENT == 'dev' }}
         working-directory: ./infrastructure/terraform
         run: |
           terraform init \
