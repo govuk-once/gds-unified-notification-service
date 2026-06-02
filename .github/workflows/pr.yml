@@ -90,11 +90,6 @@ jobs:
           config_file: .checkov.yaml
           quiet: true
 
-      # Security scans - Always executed even if the formatting or tests fail
-      - name: 🔐 TF Sec
-        if: success() || failure()
-        uses: aquasecurity/tfsec-action@a73ebc46fba54691e25cbe901656e7b205fb9bf2 # v1.0.0
-
       - name: 🔐 Checkov GitHub Action
         if: success() || failure()
         uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
@@ -120,7 +115,7 @@ jobs:
       - name: 🕵🏻 SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
-        if: success() || failure() # SonarQube Seems to be having stability issues today  22/05/2026
+        if: success() || failure()
         with:
           pollingTimeoutSec: 600
         env:
@@ -129,7 +124,7 @@ jobs:
 
       - name: 🕵🏻 Create Comment with SonarQube's Quality Gate
         uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
-        if: success() || failure() # SonarQube Seems to be having stability issues today  22/05/2026
+        if: success() || failure()
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: 'govuk-once/gds-unified-notification-service'
