@@ -10,13 +10,16 @@ export type unss3ObjectWriterProps = {
 const client = new S3Client({});
 export const handler = async (event: CloudFormationCustomResourceEvent<unss3ObjectWriterProps>) => {
   if (event.RequestType == 'Delete') {
+    console.log(`Deleting file`);
     await client.send(
       new DeleteObjectCommand({
         Bucket: event.ResourceProperties.bucket,
         Key: event.ResourceProperties.key,
       })
     );
+    console.log(`Delete completed`);
   } else {
+    console.log(`Updating file`);
     await client.send(
       new PutObjectCommand({
         Bucket: event.ResourceProperties.bucket,
@@ -24,6 +27,7 @@ export const handler = async (event: CloudFormationCustomResourceEvent<unss3Obje
         Body: event.ResourceProperties.source,
       })
     );
+    console.log(`Update completed`);
   }
   // Return the generated PEM structural block back up
   return {
