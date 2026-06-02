@@ -67,10 +67,9 @@ export class UNSMTLSCommon extends Construct {
     const uuid = v4();
     this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
       certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
-      // Main env certs are valid 10 years, sandbox dev ones: 48h
-      certificateValidityEndDate: config.isMainEnv
-        ? new Date('2036-01-01')
-        : new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
+      // Main env certs are valid 10 years, sandbox roll sunday to sunday
+      certificateValidityEndDate: config.isMainEnv ? new Date('2036-01-01') : config.utils.nextSunday(),
+      certificateValidityStartDate: config.isMainEnv ? undefined : config.utils.lastSunday(),
     });
     this.truststoreUpload = new UNSS3FileUploadConstruct(this, constructNamingHelper(`truststore-upload`), {
       contents: this.certificateAuthority.certificate.attrCertificate,
@@ -82,17 +81,25 @@ export class UNSMTLSCommon extends Construct {
     //// =====================================================
     // Client certificate generation
     //// =====================================================
-    const csrProvider = new UNSClientCertificateGeneratorConstruct(this, config);
-    const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.revocationTable);
-    const smWriterProvider = new UNSSMWriterProvider(this, config);
+    const csrProvider = new UNSClientCertificateGeneratorConstruct(this, config, { kms: common.kms });
+    common.kms.grantEncryptDecrypt(csrProvider.fn);
 
-    for (const certificateDetails of getConsumers(config.env)) {
+    const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.revocationTable, {
+      kms: common.kms,
+    });
+    common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
+
+    const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: common.kms });
+    common.kms.grantEncryptDecrypt(smWriterProvider.fn);
+
+    for (const certificateDetails of getConsumers(config.env, config)) {
       const certificate = new UNSClientCertificateConstruct(
         this,
         certificateDetails.id,
         config,
         // Add references & providers
         {
+          encryptionKey: common.kms,
           certificateAuthorityArn: this.certificateAuthority.certificateAuthority.attrArn,
           csrProvider,
           dynamoDBWriterProvider,
@@ -110,6 +117,9 @@ export class UNSMTLSCommon extends Construct {
           },
         }
       );
+      certificate.node.addDependency(this.certificateAuthority.certificate);
+      certificate.node.addDependency(this.certificateAuthority.certificateActivation);
+      certificate.node.addDependency(this.certificateAuthority.certificateAuthority);
     }
   }
 }
