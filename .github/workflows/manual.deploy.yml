@@ -25,15 +25,6 @@ jobs:
       VERSION: ${{ github.ref_name}}
     secrets: inherit
 
-  releaseDevCDK:
-    if: ${{ inputs.deploy_to_dev }}
-    name: Deploy to dev (CDK)
-    uses: ./.github/workflows/_deploy.cdk.yml
-    with:
-      ENVIRONMENT: dev
-      VERSION: ${{ github.ref_name}}
-    secrets: inherit
-
   releaseStaging:
     if: ${{ inputs.deploy_to_stg }}
     name: Deploy to staging

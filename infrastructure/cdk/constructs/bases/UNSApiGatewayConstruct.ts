@@ -1,6 +1,7 @@
 import {
   AccessLogField,
   AccessLogFormat,
+  AuthorizationType,
   DomainNameOptions,
   EndpointType,
   IAuthorizer,
@@ -10,6 +11,7 @@ import {
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
@@ -50,6 +52,7 @@ export interface UNSAPIGatewayGatewayProps {
     readonly allowOnlyFromKnownSources?: {
       readonly awsAccountID: string;
       readonly vpceIDs: string[];
+      readonly vpceEndpoints: IVpcEndpoint[];
     };
   };
 }
@@ -159,7 +162,10 @@ export class UNSAPIGatewayGateway extends Construct {
   ) {
     const registeredEndpoints = this.restApi.root.resourceForPath(path).addMethod(method, integration, {
       operationName: operationId,
+      // Use custom authorizer if one is set
       authorizer: authorizer ?? this.props.authorizer,
+      // Otherwise: Use IAM authorization if we are a private API gateway
+      authorizationType: this.props.iam?.allowOnlyFromKnownSources ? AuthorizationType.IAM : undefined,
     });
 
     applyCheckovSkips(registeredEndpoints, [
@@ -274,14 +280,14 @@ export class UNSAPIGatewayGateway extends Construct {
   constructPrivatePolicies(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
     // Add VPC endpoint resource policy if configuration is provided
     if (props.iam?.allowOnlyFromKnownSources) {
-      this.restApi.addToResourcePolicy(
-        new PolicyStatement({
-          principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
-          actions: ['execute-api:Invoke'],
-          resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
-          effect: Effect.ALLOW,
-        })
-      );
+      // // // this.restApi.addToResourcePolicy(
+      // // //   new PolicyStatement({
+      // // //     principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
+      // // //     actions: ['execute-api:Invoke'],
+      // // //     resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
+      // // //     effect: Effect.ALLOW,
+      // // //   })
+      // // // );
 
       this.restApi.addToResourcePolicy(
         new PolicyStatement({
@@ -298,7 +304,8 @@ export class UNSAPIGatewayGateway extends Construct {
       );
 
       // Create external execution invoker IAM role
-      const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name), {
+      const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`), {
+        roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`),
         assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
       });
       role.node.addDependency(this.restApi);
@@ -327,13 +334,17 @@ export class UNSAPIGatewayGateway extends Construct {
     this.restApi = new RestApi(this, namingHelper(`restapi`, ...props.name, `restapi`), {
       restApiName: namingHelper(`apigw`, ...props.name),
       description: props.description,
+      cloudWatchRole: true,
       deployOptions: {
         tracingEnabled: true,
         metricsEnabled: true,
-        cacheDataEncrypted: true,
-        cachingEnabled: true,
         dataTraceEnabled: false,
         stageName: 'api',
+
+        cachingEnabled: false,
+        cacheDataEncrypted: false,
+        cacheClusterEnabled: false,
+
         accessLogDestination: new LogGroupLogDestination(
           new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
             logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
@@ -342,6 +353,7 @@ export class UNSAPIGatewayGateway extends Construct {
             removalPolicy: config.removalPolicy,
           })
         ),
+
         accessLogFormat: AccessLogFormat.custom(
           JSON.stringify({
             requestId: AccessLogField.contextRequestId(),
@@ -359,6 +371,15 @@ export class UNSAPIGatewayGateway extends Construct {
         ),
       },
 
+      ...(props.iam?.allowOnlyFromKnownSources?.vpceIDs
+        ? {
+            endpointConfiguration: {
+              types: [EndpointType.PRIVATE],
+              vpcEndpoints: props.iam.allowOnlyFromKnownSources.vpceEndpoints,
+            },
+          }
+        : {}),
+
       // Conditional custom domain name setup
       ...domainConfig,
     });
@@ -374,6 +395,9 @@ export class UNSAPIGatewayGateway extends Construct {
     this.constructRoute53Entries(config, props, fullDomain, hostedZone);
 
     // Apply security checkov exceptions
-    applyCheckovSkips(this.restApi, [['CKV_AWS_59', 'Other authorizations are in place']]);
+    applyCheckovSkips(this.restApi, [
+      ['CKV_AWS_59', 'Other authorizations are in place'],
+      ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
+    ]);
   }
 }

@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as acmpca from 'aws-cdk-lib/aws-acmpca';
+import { Key } from 'aws-cdk-lib/aws-kms';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -8,6 +9,7 @@ import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/custom
 import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 
 export interface UNSClientCertificateConstructRefs {
+  readonly encryptionKey: Key;
   readonly certificateAuthorityArn: string;
   readonly csrProvider: UNSClientCertificateGeneratorConstruct;
   readonly dynamoDBWriterProvider: UNSDynamoDBWriterConstruct;
@@ -46,6 +48,7 @@ export class UNSClientCertificateConstruct extends Construct {
       secretName: `${config.prefix}/tls/${props.certificateId}/private-key`,
       description: `Generated RSA Private Key for ${props.certificateId}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      encryptionKey: refs.encryptionKey,
     });
     this.privateKeySecret.grantWrite(refs.csrProvider.fn);
 
@@ -53,6 +56,7 @@ export class UNSClientCertificateConstruct extends Construct {
       secretName: `${config.prefix}/tls/${props.certificateId}/crt`,
       description: `Generated CRT file for ${props.certificateId}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      encryptionKey: refs.encryptionKey,
     });
     this.privateKeyCRT.grantWrite(refs.smWriterProvider.fn);
 

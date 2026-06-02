@@ -1,9 +1,8 @@
 // This script is to be executed via npm run development:sandbox:setup
 // Generates environment ID based on email signing the commits (git config -- set user.email) by default (directly configurable options available below)
-// Saves generated config into teraform/notifications/terraform.tfvars
+// Saves generated config into infrastructure/cdk/.env
 // If AWS environment variables are present
-// - prompts the creation if tfstate bucket does not exist
-// - prompts terraform initiation
+// - prompts mirroring SSM values from DEV to Developers-sandbox
 //
 // Usage:
 //   Developer sandbox setup
@@ -16,25 +15,13 @@
 //     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
-import { APIGatewayClient, GetDomainNamesCommand } from '@aws-sdk/client-api-gateway';
-import {
-  CopyObjectCommand,
-  CreateBucketCommand,
-  GetObjectCommand,
-  ListBucketsCommand,
-  PutBucketVersioningCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import { GetParameterCommand, GetParametersByPathCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
 import { $, file } from 'bun';
 import { createHash } from 'node:crypto';
 import { unwrap } from 'scripts/helpers';
-import { v7 as ulid } from 'uuid';
-
-export const prefix = `gdsuns`;
-export const suffix = `s3-tfstate`;
 
 // Ensure AWS env vars are available
 if (
@@ -55,7 +42,6 @@ export const getConfig = async () => {
     return {
       label: `For ${process.env.AS_ENVIRONMENT}`,
       env: process.env.AS_ENVIRONMENT,
-      bucket: `${prefix}-${process.env.AS_ENVIRONMENT}-${suffix}`,
     };
   }
 
@@ -70,7 +56,6 @@ export const getConfig = async () => {
   return {
     label: `For developer: ${email}`,
     env,
-    bucket: `${prefix}-${env}-${suffix}`,
   };
 };
 
@@ -85,7 +70,7 @@ export const importSSMNamespace = async (env: string, label: string, namespace: 
       (
         await ssmClient.send(
           new GetParametersByPathCommand({
-            Path: `/gdsuns-dev/${namespace}`,
+            Path: `/uns-dev/${namespace}`,
             Recursive: true,
             WithDecryption: true,
             MaxResults: 10,
@@ -98,10 +83,7 @@ export const importSSMNamespace = async (env: string, label: string, namespace: 
       // Build param paths
 
       // Note: CDK Migration is dropping gds prefix in SSM
-      const sandboxParamName = param.replace(
-        `/gdsuns-dev/`,
-        process.env.CDK_IMPORT === 'true' ? `/uns-${env}/` : `/gdsuns-${env}/`
-      );
+      const sandboxParamName = param.replace(`/uns-dev/`, `/uns-${env}/`);
 
       // Fetch current param values from SSM
       const [getParameterResult, getParameterError] = await unwrap(
@@ -133,6 +115,7 @@ export const importSSMNamespace = async (env: string, label: string, namespace: 
 
         // Prompt user whether the update should be set
         console.log(`Parameter: ${param}`);
+        console.log(`Parameter sandbox: ${sandboxParamName}`);
         if (getParameterResult.Parameter?.Value !== getParameterSandboxResult.Parameter?.Value) {
           console.log(`Sandbox: ${sandbox}`);
           console.log(`Dev: ${dev}`);
@@ -169,10 +152,9 @@ export const importSSMNamespace = async (env: string, label: string, namespace: 
 
 const script = async function () {
   try {
-    const tfvars = `./infrastructure/terraform/terraform.tfvars`;
     const cdk = `./infrastructure/cdk/.env`;
 
-    const { env, bucket, label } = await getConfig();
+    const { env, label } = await getConfig();
 
     // Fetch current account id
     const [identityResult, identityError] = await unwrap(stsClient.send(new GetCallerIdentityCommand()));
@@ -195,147 +177,15 @@ const script = async function () {
       }
     }
 
-    // Fetch buckets
-    const [listBucketsResult, listBucketsError] = await unwrap(s3Client.send(new ListBucketsCommand()));
-    if (listBucketsResult == undefined) {
-      return console.error(`Failed to fetch buckets: ${listBucketsError.message}`);
-    }
-
-    // Prompt bucket creation if the state storage doesnt exist
-    if (listBucketsResult.Buckets?.map((bucket) => bucket.Name)?.includes(bucket) == false) {
-      // Prompt to create a bucket outlining AWS account used
-      if (await confirm({ message: `Would you like to create ${bucket} in ${accountIdHashed}` })) {
-        const [createBucketResult, createBucketError] = await unwrap(
-          s3Client.send(new CreateBucketCommand({ Bucket: bucket, ACL: 'private' }))
-        );
-        if (createBucketResult == undefined) {
-          return console.error(`Failed creation of a ${bucket}: ${createBucketError.message}`);
-        }
-        console.log(`Created ${bucket} in ${createBucketResult.Location} ARN: ${createBucketResult.BucketArn}`);
-
-        // Enable versioning on the bucket
-        const [putBucketVersioningResult, putBucketVersioningError] = await unwrap(
-          s3Client.send(
-            new PutBucketVersioningCommand({
-              Bucket: bucket,
-              VersioningConfiguration: {
-                Status: 'Enabled',
-              },
-            })
-          )
-        );
-
-        if (putBucketVersioningResult == undefined) {
-          return console.error(`Failed enabling of versioning on ${bucket}: ${putBucketVersioningError.message}`);
-        }
-        console.log(`Enabled versioning on the bucket`);
-      } else {
-        console.log(`Developer tfstate bucket ${bucket} already exists in current ${accountIdHashed}`);
-      }
-    }
-
-    // Conditionally enable mTLS
-    const useMtls = await confirm({ message: 'Would you like to enable mTLS?', default: true });
-    let mtlsEnvToUse: null | string = null;
-    let truststoreOverride: null | string = null;
-    if (useMtls) {
-      mtlsEnvToUse = env;
-      if (
-        await confirm({
-          message: 'Would you like to use dev envs mTLS config instead of your own sandbox?',
-          default: true,
-        })
-      ) {
-        mtlsEnvToUse = 'dev';
-        // Prompt whether a new copy of truststore should be created
-        if (
-          await confirm({
-            message: 'Would you like to create a copy of the truststore from dev?',
-            default: true,
-          })
-        ) {
-          const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-certificate`;
-          const targetKey = `trustore.${env}.${ulid()}.pem`;
-          await s3Client.send(
-            new CopyObjectCommand({
-              CopySource: `${targetBucket}/truststore.pem`,
-              Bucket: targetBucket,
-              Key: targetKey,
-            })
-          );
-          truststoreOverride = `${targetBucket}/${targetKey}`;
-          console.log(` - Created ${truststoreOverride}`);
-        }
-      }
-    }
-
-    // Save config to tfvars
-    void file(tfvars).write(`# Auto-generated by ${import.meta.file}
-# ${label}
-
-bucket              = "${bucket}"
-key                 = "state.tfstate"
-region              = "eu-west-2"
-env                 = "${env}"
-use_mtls            = ${useMtls}
-mtls_env_to_use     = ${mtlsEnvToUse == null ? mtlsEnvToUse : `"${mtlsEnvToUse}"`}
-truststore_override = ${truststoreOverride == null ? truststoreOverride : `"s3://${truststoreOverride}"`}`);
-
-    // Save config to tfvars
+    // Save config to cdk env
     void file(cdk).write(`# Auto-generated by ${import.meta.file}
 # ${label}
 
 region=eu-west-2
 env=${env}
-use_mtls=${useMtls}
-mtls_env_to_use=${mtlsEnvToUse}
-${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverride}"`}`);
+use_mtls=true`);
 
-    // Prompt to perform tf init
-    if (await confirm({ message: `Would you like to initialize terraform?`, default: false })) {
-      (
-        await $.cwd('infrastructure/terraform')`terraform init -reconfigure \
-      -backend-config "bucket=${bucket}" \
-      -backend-config "key=state.tfstate" \
-      -backend-config "region=eu-west-2"`
-      ).text();
-    }
-
-    // Import mTLS certificates and domain name for end to end testing
-    if (useMtls) {
-      const targetBucket = `gdsunsmtls-${mtlsEnvToUse}-s3-mtls-client-certificates`;
-      const targetKey = `gdsunsmtls-${mtlsEnvToUse}/dev/dev-2026-Q1-Q2`;
-
-      for (const fileExt of ['crt', 'pem']) {
-        const response = await s3Client.send(
-          new GetObjectCommand({
-            Bucket: targetBucket,
-            Key: `${targetKey}.${fileExt}`,
-          })
-        );
-
-        const certOutput = await response.Body?.transformToByteArray();
-        if (!certOutput) {
-          throw new Error('Failed to parse certificates from s3 bucket.');
-        }
-
-        // Now you can use writeFile
-        await file(`./test/e2e/config/cert-file.${fileExt}`).write(certOutput);
-      }
-
-      const gatewayClient = new APIGatewayClient();
-      const domains = await gatewayClient.send(new GetDomainNamesCommand());
-
-      const psoCustomeDomainName = domains.items?.find((x) => (x.domainName as string)?.includes(`gdsuns-${env}-pso`));
-      const flexCustomeDomainName = domains.items?.find((x) =>
-        (x.domainName as string)?.includes(`gdsuns-${env}-flex`)
-      );
-
-      if (psoCustomeDomainName && flexCustomeDomainName) {
-        const envOutput = `AWS_PSO_CUSTOM_DOMAIN_NAME=${psoCustomeDomainName.domainName}\nAWS_FLEX_CUSTOM_DOMAIN_NAME=${flexCustomeDomainName.domainName}`;
-        await file(`./.env`).write(envOutput);
-      }
-    }
+    console.log(`Config generated & saved to ${cdk}`);
 
     // Post initialization - check if SSM params are set and update them with values from dev env
     await importSSMNamespace(env, 'Dispatch (OneSignal)', `config/dispatch`);
@@ -344,8 +194,8 @@ ${truststoreOverride == null ? '' : `truststore_override="s3://${truststoreOverr
       [
         ``,
         `Setup completed, now you can run: `,
-        ` - npm run development:sandbox:release     - to trigger terraform apply for your environment`,
-        ` - npm development:sandbox:release:plan    - to trigger terraform plan for your environment`,
+        ` - npm run cdk:diff       - to preview CDK changes before applying`,
+        ` - npm run cdk:deploy     - to apply CDK changes & release your environment`,
       ].join('\n')
     );
   } catch (e) {

@@ -1,3 +1,4 @@
+import { EnvVars } from 'infrastructure/cdk/config';
 import { devConsumers } from 'infrastructure/cdk/consumers/devConsumers';
 import { productionConsumers } from 'infrastructure/cdk/consumers/productionConsumers';
 import { stagingConsumers } from 'infrastructure/cdk/consumers/stagingConsumers';
@@ -16,7 +17,7 @@ export const certificate = (props: {
 
 export type GroupedConsumerCertificates = ReturnType<typeof certificate>[];
 
-export const getConsumers = (env: string): GroupedConsumerCertificates => {
+export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCertificates => {
   switch (env) {
     case 'dev':
       return devConsumers();
@@ -28,15 +29,13 @@ export const getConsumers = (env: string): GroupedConsumerCertificates => {
       return productionConsumers();
   }
 
-  // Unmatched - sandbox certificate generation
+  // Unmatched - sandbox certificate generation - rolling sunday to sunday
+  const hour = 60 * 60 * 1000;
 
-  const yesterdayMidnight = new Date();
-  yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
-  yesterdayMidnight.setUTCHours(0, 0, 0, 0);
-
-  const tomorrowMidnight = new Date();
-  tomorrowMidnight.setDate(tomorrowMidnight.getDate() + 1);
-  tomorrowMidnight.setUTCHours(23, 59, 59, 0);
+  console.log([
+    new Date(config.utils.lastSunday().getTime() + hour),
+    new Date(config.utils.nextSunday().getTime() - hour),
+  ]);
 
   return [
     // Note: sandbox envs use short term certificates, which can be no longer than 24h
@@ -44,10 +43,9 @@ export const getConsumers = (env: string): GroupedConsumerCertificates => {
       commonName: 'sandbox.dev.today',
       organization: 'UNS',
       organizationalUnit: 'sandbox',
-      // Round to 00:00:00 yesterday
-      startDate: yesterdayMidnight,
-      // Round to 00:00:00 tomorrow
-      expirationDate: tomorrowMidnight,
+      // Sandbox certs should start at 00:01 sunday, and roll into 23:58 (CA is 00:00 to 23:59)
+      startDate: new Date(config.utils.lastSunday().getTime() + hour),
+      expirationDate: new Date(config.utils.nextSunday().getTime() - hour),
       revoked: false,
     }),
   ];

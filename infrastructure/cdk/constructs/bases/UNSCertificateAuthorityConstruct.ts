@@ -5,6 +5,7 @@ import { EnvVars } from 'infrastructure/cdk/config';
 
 export interface UNSCertificateAuthorityConstructProps {
   readonly certificateUsageMode: 'GENERAL_PURPOSE' | 'SHORT_LIVED_CERTIFICATE';
+  readonly certificateValidityStartDate?: Date;
   readonly certificateValidityEndDate: Date;
 }
 
@@ -39,6 +40,14 @@ export class UNSCertificateAuthorityConstruct extends Construct {
       certificateSigningRequest: this.certificateAuthority.attrCertificateSigningRequest,
       signingAlgorithm: 'SHA512WITHRSA',
       templateArn: `arn:${cdk.Aws.PARTITION}:acm-pca:::template/RootCACertificate/V1`,
+      ...(props.certificateValidityStartDate
+        ? {
+            validityNotBefore: {
+              type: 'ABSOLUTE',
+              value: Math.floor(props.certificateValidityStartDate.getTime() / 1000),
+            },
+          }
+        : {}),
       validity: {
         type: 'ABSOLUTE',
         value: Math.floor(props.certificateValidityEndDate.getTime() / 1000),
