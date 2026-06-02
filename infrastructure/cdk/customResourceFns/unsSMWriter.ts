@@ -9,7 +9,7 @@ export type UNSSMWriterProps = {
 const secretsManager = new SecretsManagerClient({});
 export const handler = async (event: CloudFormationCustomResourceEvent<UNSSMWriterProps>) => {
   if (event.RequestType !== 'Delete') {
-    // Save pem to SM
+    // Save value to SM
     await secretsManager.send(
       new PutSecretValueCommand({
         SecretId: event.ResourceProperties.secretArn,
@@ -17,7 +17,7 @@ export const handler = async (event: CloudFormationCustomResourceEvent<UNSSMWrit
       })
     );
   }
-  // Return the generated PEM structural block back up to the CDK pipeline stack evaluation
+  // Return the generated structural block back up to the CDK pipeline stack evaluation
   return {
     PhysicalResourceId: event.LogicalResourceId ?? 'unknown',
     Data: {},
