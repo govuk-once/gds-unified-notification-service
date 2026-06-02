@@ -4,10 +4,9 @@
   // List of extensions which should be recommended for users of this workspace.
   "recommendations": [
     "dbaeumer.vscode-eslint",
-    "ryanluker.vscode-coverage-gutters",
     "vitest.explorer",
     "esbenp.prettier-vscode",
-    "mermaidchart.vscode-mermaid-chart"
+    "github.vscode-github-actions"
   ],
   // List of extensions recommended by VS Code that should not be recommended for users of this workspace.
   "unwantedRecommendations": []
