@@ -40,8 +40,6 @@ describe('PostMessage Handler', () => {
     MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
-  // TODO: Add markdown test case.
-
   // Mock AWS Lambda Context
   const mockContext = {
     functionName: 'postMessage',
@@ -163,14 +161,14 @@ describe('PostMessage Handler', () => {
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
     // Act
     const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://bitcoin.com' }]) },
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://example.com' }]) },
       mockContext
     );
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(result.body).toEqual(
-      `Bad request: \n\n https://bitcoin.com is using bitcoin.com hostname which is not on the allow list.`
+      `Bad request: \n\n https://example.com is using example.com hostname which is not on the allow list.`
     );
   });
 

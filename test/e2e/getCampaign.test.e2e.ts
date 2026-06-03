@@ -1,4 +1,3 @@
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
@@ -20,7 +19,7 @@ describe('Get /status/campaign/{campaignID}', () => {
       NotificationTitle: 'You have a new Notification',
       NotificationBody: 'Here is the Notification body.',
     },
-  ] as IMessage[];
+  ];
 
   test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({ psoAPI }) => {
     // Arrange
