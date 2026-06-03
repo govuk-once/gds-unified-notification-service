@@ -141,7 +141,7 @@ export class UNSCommon extends Construct {
     //// =====================================================
 
     this.elasticache = new UNSElasticacheConstruct(this, config, {
-      name: ['main'],
+      name: ['cache'],
       vpc: this.vpc,
       kms: this.kms,
     });

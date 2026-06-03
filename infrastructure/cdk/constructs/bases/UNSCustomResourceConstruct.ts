@@ -66,6 +66,12 @@ export class UNSCustomResourceConstruct<
       ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
       ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
     ]);
+    applyCheckovSkipsRecursive(this.provider.onEventHandler, [
+      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+      ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
+    ]);
   }
 
   public use(caller: Construct, props: InputType) {

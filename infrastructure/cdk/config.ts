@@ -62,7 +62,6 @@ export const config = {
   defaultTags: () => ({
     project: config.project,
     env: config.env,
-    version: config.version,
     managedBy: 'CDK',
   }),
 

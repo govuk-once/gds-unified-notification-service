@@ -265,11 +265,10 @@ export class UNSPSOResource extends Construct {
     });
 
     // Define API Gateway
-
     this.gateway = new UNSAPIGatewayGateway(this, config, {
       name: [`pso`],
       description: `API Gateway for PSOs`,
-      domain: config.env !== 'stg' ? 'pso' : 'pso-cdk',
+      domain: 'pso',
       mtls: {
         truststore: mtlsRefs.truststorePath,
       },

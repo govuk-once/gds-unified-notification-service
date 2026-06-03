@@ -18,13 +18,13 @@ export class UNSElasticacheConstruct extends Construct {
 
   constructor(scope: Construct, config: EnvVars, props: UNSElasticacheConstructProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
-    super(scope, constructNamingHelper(`elch`, ...props.name));
+    super(scope, constructNamingHelper(`elca`, ...props.name));
 
     // Valkey IAM User
-    this.user = new CfnUser(this, `user`, {
+    this.user = new CfnUser(this, `elcauser`, {
       engine: 'valkey',
-      userId: namingHelper(`iamuser`),
-      userName: namingHelper(`iamuser`),
+      userId: namingHelper(`elcauser`),
+      userName: namingHelper(`elcauser`),
       authenticationMode: {
         Type: 'iam',
       },
@@ -34,7 +34,7 @@ export class UNSElasticacheConstruct extends Construct {
     // Valkey User Group assignment
     this.group = new CfnUserGroup(this, `group`, {
       engine: 'valkey',
-      userGroupId: namingHelper(`elch`, `group`).split(`-`).join(``),
+      userGroupId: namingHelper(`elca`, `group`).split(`-`).join(``),
       userIds: [this.user.userId],
     });
     this.group.addDependency(this.user);
@@ -42,7 +42,7 @@ export class UNSElasticacheConstruct extends Construct {
     // Valkey Serverless Cluster setup
     this.cache = new CfnServerlessCache(this, `cache`, {
       engine: 'valkey',
-      serverlessCacheName: namingHelper(`elch`, `main`),
+      serverlessCacheName: namingHelper(`elca`, `main`),
       subnetIds: props.vpc.vpc.privateSubnets.map((s) => s.subnetId),
       securityGroupIds: [props.vpc.securityGroups.privateEgress.securityGroupId],
       majorEngineVersion: '8',
