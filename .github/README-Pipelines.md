@@ -133,8 +133,6 @@ sequenceDiagram
 
 - Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager).
 
-- Setup Terraform: This step sets up Terraform in the checked-out code.
-
-- Terraform Deploy: This step uses Terraform to deploy the infrastructure to AWS configured using the environment variables.
+- Deploy CDK: Trigger
 
 </details>

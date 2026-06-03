@@ -1,4 +1,4 @@
-import { Stack, StackProps } from 'aws-cdk-lib/core';
+import { Stack, StackProps, Tags } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
@@ -17,7 +17,18 @@ export class UNSStack extends Stack {
     super(scope, id, props);
 
     // Note: tags should propagate downwards automatically from there
-    config.utils.tagsHelper(scope);
+    for (const [key, value] of Object.entries({
+      ...config.defaultTags(),
+    })) {
+      Tags.of(scope).add(key, value, {
+        // ElastiCache resources struggle with tags & reject version updates
+        excludeResourceTypes: [
+          `AWS::ElastiCache::User`,
+          `AWS::ElastiCache::UserGroup`,
+          `AWS::ElastiCache::ServerlessCache`,
+        ],
+      });
+    }
 
     const common = new UNSCommon(this, config);
     const mtls = new UNSMTLSCommon(this, config, common);

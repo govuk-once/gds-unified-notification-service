@@ -1,6 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { CfnDeletionPolicy, RemovalPolicy, Tags } from 'aws-cdk-lib/core';
-import { Construct } from 'constructs';
+import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib/core';
 import dotenv from 'dotenv';
 import { camelCase } from 'infrastructure/cdk/utils/camelCase';
 import { existsSync } from 'node:fs';
@@ -107,14 +106,6 @@ export const config = {
         .namingHelper(...args)
         .split('-')
         .join('_'),
-    tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
-      for (const [key, value] of Object.entries({
-        ...config.defaultTags(),
-        ...(additionalTags ?? {}),
-      })) {
-        Tags.of(construct).add(key, value);
-      }
-    },
     // Rolling week to week dates - used for short term mtls certs
     lastSunday: () => {
       const lastSunday = new Date();

@@ -1,23 +1,25 @@
 import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
+import { CustomResource } from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCertificateAuthorityConstruct } from 'infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct';
 import { UNSClientCertificateConstruct } from 'infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBContruct';
-import { UNSS3FileUploadConstruct } from 'infrastructure/cdk/constructs/bases/UNSS3FileUploadConstruct';
 import { UNSClientCertificateGeneratorConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSClientCertificateGeneratorConstruct';
 import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
+import { UNSs3ObjectConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSs3ObjectConstruct';
 import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { v4 } from 'uuid';
 
 export class UNSMTLSCommon extends Construct {
   public readonly certificateAuthority: UNSCertificateAuthorityConstruct;
   public readonly revocationTable: UNSDynamoDb;
-  public readonly truststoreUpload: UNSS3FileUploadConstruct;
+  public readonly truststoreUpload: CustomResource;
   public readonly truststorePath: string;
 
   constructor(scope: Construct, config: EnvVars, common: UNSCommon) {
@@ -60,21 +62,30 @@ export class UNSMTLSCommon extends Construct {
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: config.isMainEnv ? false : true,
     });
+    applyCheckovSkips(truststoreBucket, [
+      ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
+    ]);
 
     //// =====================================================
     // Certficate authority
     //// =====================================================
-    const uuid = v4();
     this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
       certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
       // Main env certs are valid 10 years, sandbox roll sunday to sunday
       certificateValidityEndDate: config.isMainEnv ? new Date('2036-01-01') : config.utils.nextSunday(),
       certificateValidityStartDate: config.isMainEnv ? undefined : config.utils.lastSunday(),
     });
-    this.truststoreUpload = new UNSS3FileUploadConstruct(this, constructNamingHelper(`truststore-upload`), {
-      contents: this.certificateAuthority.certificate.attrCertificate,
-      destinationBucket: truststoreBucket,
-      path: `truststore.${uuid}.pem`,
+
+    // ApiGateway tends to 'reserve' truststore file forever, and cannot share it with other api gateways
+    // In order to support future mTLS cert sharing between dev & sandbox environment
+    const uuid = v4();
+    this.truststoreUpload = new UNSs3ObjectConstruct(this, config, {
+      bucket: truststoreBucket,
+      kms: common.kms,
+    }).use(this, {
+      bucket: truststoreBucket.bucketName,
+      key: `truststore.${uuid}.pem`,
+      source: this.certificateAuthority.certificate.attrCertificate,
     });
     this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
 

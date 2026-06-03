@@ -6,7 +6,7 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as customResources from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyCheckovSkipsRecursive } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export interface UNSCustomResourceConstructProps {
   name: string[];
@@ -49,6 +49,7 @@ export class UNSCustomResourceConstruct<
       bundling: {
         nodeModules: props.modules,
       },
+      environmentEncryption: props.kms,
     });
     loggroup.grantRead(this.fn);
     loggroup.grantWrite(this.fn);
@@ -59,7 +60,7 @@ export class UNSCustomResourceConstruct<
     });
 
     // Checkov skips for construct lambdas
-    applyCheckovSkips(this.fn, [
+    applyCheckovSkipsRecursive(this, [
       ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
       ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
       ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
@@ -68,9 +69,23 @@ export class UNSCustomResourceConstruct<
   }
 
   public use(caller: Construct, props: InputType) {
-    return new cdk.CustomResource(caller, this.config.utils.constructNamingHelper(`cdk`, ...this.props.name), {
-      serviceToken: this.provider.serviceToken,
-      properties: props,
-    });
+    const customResource = new cdk.CustomResource(
+      caller,
+      this.config.utils.constructNamingHelper(`cdk-custom`, ...this.props.name),
+      {
+        serviceToken: this.provider.serviceToken,
+        properties: props,
+      }
+    );
+
+    // Checkov skips for construct lambdas
+    applyCheckovSkipsRecursive(this, [
+      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
+      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
+      ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
+    ]);
+
+    return customResource;
   }
 }
