@@ -33,6 +33,7 @@ describe('Analytics QueueHandler', () => {
   const validAnalytics: IAnalytics = {
     EventID: '123',
     DepartmentID: 'DEP1',
+    OrganisationID: 'ORG1',
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
     CampaignID: 'CAM_ID',
     Event: NotificationStateEnum.RECEIVED,
@@ -183,6 +184,7 @@ describe('Analytics QueueHandler', () => {
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledTimes(1);
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledWith(
       mockEventWithCampaign.Records[0].body.CampaignID,
+      mockEventWithCampaign.Records[0].body.OrganisationID,
       mockEventWithCampaign.Records[0].body.DepartmentID,
       mockEventWithCampaign.Records[0].body.Event
     );

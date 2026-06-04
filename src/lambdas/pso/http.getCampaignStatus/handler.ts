@@ -49,22 +49,26 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
-    const departmentID = event.requestContext.authorizer?.Organization as string;
-    if (!departmentID) {
+    const organisationID = event.requestContext.authorizer?.Organization as string;
+    if (!organisationID) {
       throw new httpErrors.BadRequest();
     }
 
-    const compositeID = `${departmentID}/${campaignID}`;
+    const departmentID = event.queryStringParameters?.departmentID;
+
+    const compositeID = CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID);
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
     // If it doesn't exist - 404
     if (campaign == null) {
       throw new httpErrors.NotFound();
     }
 
+    const compositeSegments = campaign.CompositeID.split('/');
+
     return {
       body: {
-        CampaignID: campaign.CompositeID.split('/')[1],
-        DepartmentID: campaign.CompositeID.split('/')[0],
+        CampaignID: compositeSegments[compositeSegments.length - 1],
+        DepartmentID: compositeSegments.length >= 3 ? compositeSegments[1] : compositeSegments[0],
         ProcessingSummary: {
           RECEIVED: (campaign.VALIDATED ?? 0) + (campaign.VALIDATED_API_CALL ?? 0),
           PROCESSED: campaign.PROCESSED ?? 0,

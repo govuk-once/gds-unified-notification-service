@@ -182,10 +182,23 @@ describe('campaignDynamoRepository', () => {
     });
   });
 
+  describe('buildCompositeID', () => {
+    it('should build an organisation/department/campaign key when all parts are present', () => {
+      // Arrange, Act, Assert
+      expect(CampaignsDynamoRepository.buildCompositeID('ORG01', 'DEPT01', 'CAMP01')).toBe('ORG01/DEPT01/CAMP01');
+    });
+
+    it('should build an organisation/campaign key when department is absent', () => {
+      // Arrange, Act, Assert
+      expect(CampaignsDynamoRepository.buildCompositeID('ORG01', undefined, 'CAMP01')).toBe('ORG01/CAMP01');
+    });
+  });
+
   describe('IncrementCampaignRecord', () => {
-    it('should increment record with correct table name', async () => {
+    it('should increment record with an organisation/department/campaign composite key', async () => {
       // Arrange
       const campaignID = 'CAMP01';
+      const organisationID = 'ORG01';
       const departmentID = 'DEPT01';
       const event = NotificationStateEnum.VALIDATED;
 
@@ -197,19 +210,40 @@ describe('campaignDynamoRepository', () => {
       });
 
       // Act
-      await instance.incrementCampaigns(campaignID, departmentID, event);
+      await instance.incrementCampaigns(campaignID, organisationID, departmentID, event);
 
       // Assert
       expect(dynamoMock.calls()).toHaveLength(1);
       const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
       expect(command.input.TableName).toBe('mockCampaignsDynamoRepositoryName');
-      expect(command.input.Key).toEqual(marshall({ CompositeID: 'DEPT01/CAMP01' }));
+      expect(command.input.Key).toEqual(marshall({ CompositeID: 'ORG01/DEPT01/CAMP01' }));
       expect(command.input.ExpressionAttributeNames).toEqual({ '#counter': event });
       expect(command.input.ExpressionAttributeValues).toEqual({
         ':incr': { N: '1' },
         ':start_value': { N: '0' },
       });
       expect(command.input.UpdateExpression).toEqual(`set #counter = if_not_exists(#counter, :start_value) + :incr`);
+    });
+
+    it('should increment record with an organisation/campaign composite key when department is absent', async () => {
+      // Arrange
+      const campaignID = 'CAMP01';
+      const organisationID = 'ORG01';
+      const event = NotificationStateEnum.VALIDATED;
+
+      dynamoMock.on(UpdateItemCommand).resolvesOnce({
+        ConsumedCapacity: {
+          ReadCapacityUnits: 1,
+          WriteCapacityUnits: 1,
+        },
+      });
+
+      // Act
+      await instance.incrementCampaigns(campaignID, organisationID, undefined, event);
+
+      // Assert
+      const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
+      expect(command.input.Key).toEqual(marshall({ CompositeID: 'ORG01/CAMP01' }));
     });
   });
 });

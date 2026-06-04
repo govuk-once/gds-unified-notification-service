@@ -31,7 +31,7 @@ describe('Get /status/campaign/{campaignID}', () => {
     });
 
     // Act
-    const result = await psoAPI.get(`/status/campaign/${campaignID}`);
+    const result = await psoAPI.get(`/status/campaign/${campaignID}?departmentID=${departmentID}`);
 
     // Assert
     expect(result.status).toBe(200);

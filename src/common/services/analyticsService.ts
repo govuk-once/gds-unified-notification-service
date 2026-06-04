@@ -4,7 +4,10 @@ import { AnalyticsQueueService, MetricsLabels, ObservabilityService, prefixEvent
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 
-export type AnalyticsEventFromIMessage = Pick<IMessage, 'DepartmentID' | 'NotificationID' | 'CampaignID'> & {
+export type AnalyticsEventFromIMessage = Pick<
+  IMessage,
+  'DepartmentID' | 'OrganisationID' | 'NotificationID' | 'CampaignID'
+> & {
   APIGWExtendedID?: string;
 };
 
@@ -42,6 +45,7 @@ export class AnalyticsService {
       EventID: uuid(),
       NotificationID: message.NotificationID,
       DepartmentID: message.DepartmentID,
+      OrganisationID: message.OrganisationID,
       CampaignID: message.CampaignID,
       APIGWExtendedID: message.APIGWExtendedID,
       EventDateTime: new Date().toISOString(),

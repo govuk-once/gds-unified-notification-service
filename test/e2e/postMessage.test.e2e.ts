@@ -78,7 +78,7 @@ describe('Post /send', () => {
     await expect(result).rejects.toMatchObject(BadRequestAxiosError());
   });
 
-  test('it returns 400 when the message has no departmentID.', async ({ psoAPI }) => {
+  test('it returns 202 when the message has no departmentID (DepartmentID is now optional).', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoDepartmentID = [
       {
@@ -93,14 +93,11 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithNoDepartmentID);
+    const result = await psoAPI.post('/send', messagesWithNoDepartmentID);
 
     // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].DepartmentID'
-      )
-    );
+    expect(result.status).toBe(202);
+    expect(result.data).toEqual([{ NotificationID: notificationID }]);
   });
 
   test('it returns 400 when the message has no userID.', async ({ psoAPI }) => {

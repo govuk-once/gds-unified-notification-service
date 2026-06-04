@@ -109,6 +109,39 @@ describe('PostMessage Handler', () => {
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
   });
 
+  it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
+    // Arrange
+    const organisationID = 'ORG01';
+    const authorizedEvent = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: { Organization: organisationID },
+      },
+    } as unknown as EventType;
+
+    // Act
+    await handler(authorizedEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
+      { ...mockMessageBody, OrganisationID: organisationID },
+    ]);
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
+      [
+        {
+          ...mockMessageBody,
+          OrganisationID: organisationID,
+          APIGWExtendedID: authorizedEvent.requestContext.requestId,
+        },
+      ],
+      NotificationStateEnum.VALIDATED_API_CALL
+    );
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      expect.objectContaining({ OrganisationID: organisationID }),
+    ]);
+  });
+
   it('should make a record of notifications messages', async () => {
     // Arrange
     vi.useFakeTimers();

@@ -139,10 +139,9 @@ describe('Dispatch QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          // Set DepartmentID to undefined on purpose
+          NotificationID: 'invalid-notification-id',
           UserID: 'invalid-id',
           ExternalUserID: 'test',
-          DepartmentID: undefined,
           NotificationTitle: 'Boom',
           NotificationBody: 'psst',
         },
@@ -402,7 +401,7 @@ describe('Dispatch QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
   });
 
-  it('should return an error and log when a message has no NotificationID or DepartmentID', async () => {
+  it('should return an error and log when a message has an invalid NotificationID', async () => {
     // Act
     const result = handler(mockUnidentifiableEvent, mockContext);
 
@@ -410,16 +409,10 @@ describe('Dispatch QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-      {
-        error: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
-        raw: {
-          DepartmentID: undefined,
-          ExternalUserID: 'test',
-          NotificationBody: 'psst',
-          NotificationTitle: 'Boom',
-          UserID: 'invalid-id',
-        },
-      }
+      expect.objectContaining({
+        error: expect.stringContaining('body.NotificationID'),
+        raw: mockUnidentifiableEvent.Records[0].body,
+      })
     );
   });
 

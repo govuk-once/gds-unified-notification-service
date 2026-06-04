@@ -114,6 +114,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: departmentID
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: successful operation
@@ -140,14 +145,13 @@ components:
     MessageRequest:
       type: object
       required:
-        - DepartmentID
         - UserID
         - NotificationTitle
         - NotificationBody
       properties:
         DepartmentID:
           type: string
-          description: ID of department sending notification
+          description: (Optional) ID of department sending notification
         NotificationID:
           type: string
           description: ID of the notification to be used for idempotency & analytics, ID will be dynamically generated if one has not been supplied

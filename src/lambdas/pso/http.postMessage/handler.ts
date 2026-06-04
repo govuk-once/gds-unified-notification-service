@@ -25,7 +25,7 @@ import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema.strict()).min(1);
+const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
 /**
@@ -84,7 +84,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
 
-    const messages = event.body;
+    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
+    const messages = event.body.map((body) => ({
+      ...body,
+      ...(organisationID ? { OrganisationID: organisationID } : {}),
+    }));
 
     // Pre-validate all messages & reject request when one of them contains unsupported url
     for (const message of messages) {
