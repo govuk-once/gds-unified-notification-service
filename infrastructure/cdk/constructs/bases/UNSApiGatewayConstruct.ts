@@ -1,3 +1,4 @@
+import { RemovalPolicy } from 'aws-cdk-lib';
 import {
   AccessLogField,
   AccessLogFormat,
@@ -331,10 +332,19 @@ export class UNSAPIGatewayGateway extends Construct {
     const { fullDomain, hostedZone, domainConfig } = this.domainConfig(config, props);
 
     // Initialize API Gateway RestApi
+    const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
+      logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
+      retention: RetentionDays.ONE_YEAR,
+      encryptionKey: props.resources.kms,
+      removalPolicy: config.removalPolicy,
+    });
+
     this.restApi = new RestApi(this, namingHelper(`restapi`, ...props.name, `restapi`), {
       restApiName: namingHelper(`apigw`, ...props.name),
       description: props.description,
       cloudWatchRole: true,
+      cloudWatchRoleRemovalPolicy: RemovalPolicy.RETAIN,
+
       deployOptions: {
         tracingEnabled: true,
         metricsEnabled: true,
@@ -345,14 +355,7 @@ export class UNSAPIGatewayGateway extends Construct {
         cacheDataEncrypted: false,
         cacheClusterEnabled: false,
 
-        accessLogDestination: new LogGroupLogDestination(
-          new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
-            logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
-            retention: RetentionDays.ONE_YEAR,
-            encryptionKey: props.resources.kms,
-            removalPolicy: config.removalPolicy,
-          })
-        ),
+        accessLogDestination: new LogGroupLogDestination(loggroup),
 
         accessLogFormat: AccessLogFormat.custom(
           JSON.stringify({
@@ -383,6 +386,9 @@ export class UNSAPIGatewayGateway extends Construct {
       // Conditional custom domain name setup
       ...domainConfig,
     });
+
+    this.restApi.deploymentStage.node.addDependency(loggroup);
+    this.restApi.node.addDependency(loggroup);
 
     // Register all HTTP methods & integrations that have been added as props
     for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
