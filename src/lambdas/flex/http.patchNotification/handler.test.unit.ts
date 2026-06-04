@@ -180,7 +180,7 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
-      'Notification Id has not been provided - returning 401'
+      'Notification Id has not been provided - returning 400'
     );
   });
 

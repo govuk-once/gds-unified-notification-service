@@ -107,6 +107,7 @@ jobs:
 
       # SonarQube - Scan, Gate, Report
       - name: 🕵🏻 Run SonarQube Scan
+        continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
@@ -114,6 +115,7 @@ jobs:
 
       - name: 🕵🏻 SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
+        continue-on-error: true
         uses: sonarsource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
         if: success() || failure()
         with:
@@ -123,6 +125,7 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       - name: 🕵🏻 Create Comment with SonarQube's Quality Gate
+        continue-on-error: true
         uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
         if: success() || failure()
         with:

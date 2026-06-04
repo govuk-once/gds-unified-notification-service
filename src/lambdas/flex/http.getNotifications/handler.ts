@@ -84,7 +84,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       value: externalUserID,
     });
 
-    this.observability.logger.info('Found notifications', { length: notifications.length });
+    this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
     return {
       body: notifications
         .filter((notification) => {

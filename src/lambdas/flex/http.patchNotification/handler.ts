@@ -85,7 +85,7 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     const externalUserID = event.queryStringParameters?.externalUserID;
 
     if (!notificationID) {
-      this.observability.logger.debug('Notification Id has not been provided - returning 401');
+      this.observability.logger.debug('Notification Id has not been provided - returning 400');
       throw new httpErrors.BadRequest();
     }
 

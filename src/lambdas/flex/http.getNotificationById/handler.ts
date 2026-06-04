@@ -77,7 +77,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle missing path param
     if (!notificationID) {
-      this.observability.logger.debug('Notification Id has not been provided - returning 401');
+      this.observability.logger.debug('Notification Id has not been provided - returning 400');
       throw new httpErrors.BadRequest();
     }
 
