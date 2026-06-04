@@ -57,9 +57,16 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.debug('Received request', {
+      path: event.path,
+      externalUserID: event.queryStringParameters?.externalUserID,
+      requestId: context.awsRequestId,
+    });
+
     const isValidApiKey = await this.validateApiKey(event);
 
     if (!isValidApiKey) {
+      this.observability.logger.debug('Invalid api key - returning 401');
       throw new httpErrors.Unauthorized();
     }
 
@@ -69,19 +76,23 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     // Handle missing path param
     if (!notificationID) {
-      this.observability.logger.info('Notification Id has not been provided.');
+      this.observability.logger.debug('Notification Id has not been provided - returning 400');
       throw new httpErrors.BadRequest();
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
-      this.observability.logger.info('Notification Id has not been provided.');
+      this.observability.logger.debug('Notification does not exists - returning 404');
       throw new httpErrors.NotFound();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
+      this.observability.logger.debug('Notification belongs to another user - returning 404', {
+        userOnNotification: notification.ExternalUserID,
+        queryingUser: externalUserID,
+      });
       throw new httpErrors.NotFound();
     }
 

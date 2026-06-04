@@ -57,11 +57,16 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request', { event });
+    this.observability.logger.debug('Received request', {
+      path: event.path,
+      externalUserID: event.queryStringParameters?.externalUserID,
+      requestId: context.awsRequestId,
+    });
 
     // Authorize
     const isValidApiKey = await this.validateApiKey(event);
     if (!isValidApiKey) {
+      this.observability.logger.debug('Invalid api key - returning 401');
       throw new httpErrors.Unauthorized();
     }
 
@@ -70,6 +75,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (!externalUserID) {
+      this.observability.logger.debug('Bad request - missing external user id - returning 400');
       throw new httpErrors.BadRequest();
     }
 
@@ -78,6 +84,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       value: externalUserID,
     });
 
+    this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here

@@ -154,7 +154,7 @@ describe('PatchNotification Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request', {
+    expect(observabilityMocks.logger.debug).toHaveBeenCalledWith('Successful request - returning 200', {
       notificationID: mockDbRecord.NotificationID,
       status: 'READ',
     });
@@ -179,7 +179,9 @@ describe('PatchNotification Handler', () => {
     await handler(mockMissingIdEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Notification Id has not been provided.');
+    expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
+      'Notification Id has not been provided - returning 400'
+    );
   });
 
   it('should return 401 with status unauthorized and should return', async () => {
