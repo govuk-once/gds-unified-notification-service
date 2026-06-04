@@ -114,7 +114,7 @@ describe('GetNotificationById Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(200);
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request.', {
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request - returning 200', {
       notificationID: mockDbRecord.NotificationID,
     });
   });

@@ -49,6 +49,7 @@ const version = process.env.code_version ?? 'manual';
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
+const debugMode = env !== 'prod';
 
 // Setup importable config object
 export const config = {
@@ -71,6 +72,7 @@ export const config = {
 
   // Flags
   isMainEnv,
+  debugMode,
 
   // mTLS config
   mtls,
