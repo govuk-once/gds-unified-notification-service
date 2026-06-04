@@ -120,7 +120,16 @@ export const config = {
       nextSunday.setUTCHours(23, 59, 59, 0);
       return nextSunday;
     },
+    // Used to make once-platform-construct resource naming match
+    namingProvider: () => ({
+      getPrefix: () => config.prefix,
+      getResourceId: (id?: string) => id,
+      getResourceName: (id: string) => id,
+    }),
   },
 };
+
+// Inject COPY env to ENVIRONMENT - as that's variable use by once-project-constructs
+process.env.ENVIRONMENT = process.env.ENVIRONMENT ?? env;
 
 export type EnvVars = typeof config;
