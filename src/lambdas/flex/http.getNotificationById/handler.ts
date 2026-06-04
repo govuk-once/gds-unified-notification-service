@@ -58,9 +58,16 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
+    this.observability.logger.debug('Received request', {
+      path: event.path,
+      externalUserID: event.queryStringParameters?.externalUserID,
+      requestId: context.awsRequestId,
+    });
+
     const isValidApiKey = await this.validateApiKey(event);
 
     if (!isValidApiKey) {
+      this.observability.logger.debug('Invalid api key - returning 401');
       throw new httpErrors.Unauthorized();
     }
 
@@ -70,7 +77,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle missing path param
     if (!notificationID) {
-      this.observability.logger.info('Notification Id has not been provided.');
+      this.observability.logger.debug('Notification Id has not been provided - returning 401');
       throw new httpErrors.BadRequest();
     }
 
@@ -78,16 +85,22 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle not found or hidden notifications
     if (!notification) {
+      this.observability.logger.debug('Notification not found - returning 404');
       throw new httpErrors.NotFound();
     }
 
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
     if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+      this.observability.logger.debug('Notification has expired - returning 404');
       throw new httpErrors.NotFound();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
+      this.observability.logger.debug('Notification belongs to another user - returning 404', {
+        userOnNotification: notification.ExternalUserID,
+        queryingUser: externalUserID,
+      });
       throw new httpErrors.NotFound();
     }
 
@@ -95,10 +108,11 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     const notificationResponse = IMessageRecordToIFlexNotification(notification);
 
     if (notificationResponse.Status == NotificationDispatchedStateEnum.HIDDEN) {
+      this.observability.logger.debug('Notfication has been marked as hidden - returning 404');
       throw new httpErrors.NotFound();
     }
 
-    this.observability.logger.info('Successful request.', { notificationID });
+    this.observability.logger.info('Successful request - returning 200', { notificationID });
 
     return {
       body: notificationResponse,

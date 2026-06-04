@@ -43,9 +43,9 @@ export class UNSStack extends Stack {
     this.metadata = new Construct(this, `metadata`);
     this.metadataEntries = Object.entries({ ...config.defaultTags(), version: config.version }).map(
       ([key, value]) =>
-        new CfnOutput(this.metadata, `metadata-${key}`, {
+        new CfnOutput(this.metadata, key, {
+          description: `Build metadata - ${key}`,
           value: value,
-          exportName: key,
         })
     );
   }

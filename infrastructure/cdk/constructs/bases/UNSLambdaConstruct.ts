@@ -201,6 +201,7 @@ export class UNSLambdaConstruct extends Construct {
         OTEL_AWS_APPLICATION_SIGNALS_ENABLED: 'false',
         OTEL_SERVICE_VERSION: config.version,
         AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING: `true`,
+        LOG_LEVEL: config.debugMode ? `DEBUG` : `INFO`,
         ...(props.environment ?? {}),
       },
       ...(props.resources.dlq
