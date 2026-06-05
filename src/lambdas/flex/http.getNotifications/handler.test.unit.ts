@@ -83,14 +83,14 @@ describe('getNotifications Handler', () => {
       headers: {
         'x-api-key': 'mockApiKey',
       },
-    } as unknown as EventType;
+    };
 
     mockUnauthorizedEvent = {
       ...mockEvent,
       headers: {
         'x-api-key': 'mockBadApiKey',
       },
-    } as unknown as EventType;
+    };
 
     mockInternalServerError = null as unknown as EventType;
 
@@ -134,7 +134,7 @@ describe('getNotifications Handler', () => {
     });
   });
 
-  it('should exclude all notifications with expiry date in the pastfrom getRecords call', async () => {
+  it('should exclude all notifications with expiry date in the past from getRecords call', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 

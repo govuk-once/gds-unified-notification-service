@@ -83,7 +83,7 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
 
     if (!notificationID) {
       this.observability.logger.debug('Notification Id has not been provided - returning 400');
-      throw new BadRequestError();
+      throw new BadRequestError(['Notification Id has not been provided']);
     }
 
     // Confirm existence & ownership

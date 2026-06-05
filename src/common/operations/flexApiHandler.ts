@@ -22,6 +22,7 @@ export abstract class FlexAPIHandler<InputSchema extends ZodType, OutputSchema e
 
     if (providedApiKey !== apiKey) {
       this.observability.logger.error('No matching API key: ', { apiKey });
+      this.observability.logger.debug('Invalid api key - returning 401');
       throw new UnauthorizedError();
     }
   }

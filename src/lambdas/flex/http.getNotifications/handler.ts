@@ -57,7 +57,14 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request', { event });
+    this.observability.logger.debug('Received request', {
+      path: event.path,
+      externalUserID: event.queryStringParameters?.externalUserID,
+      requestId: context.awsRequestId,
+    });
+
+    // Authorize
+    await this.validateApiKey(event);
 
     // Extract details
     const externalUserID = event.queryStringParameters?.externalUserID;
@@ -65,7 +72,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     // Handle missing query param
     if (!externalUserID) {
       this.observability.logger.debug('Bad request - missing external user id - returning 400');
-      throw new BadRequestError();
+      throw new BadRequestError(['Missing external user id']);
     }
 
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
