@@ -29,6 +29,6 @@ export const IMessageSchema = IIdentifiableMessageSchema.extend({
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
-  MessageFormat: z.enum(MessageFormatEnum).optional().default(MessageFormatEnum.PLAINTEXT),
+  MessageFormat: z.enum(MessageFormatEnum).optional().default(MessageFormatEnum.MARKDOWN),
 });
 export type IMessage = z.infer<typeof IMessageSchema>;

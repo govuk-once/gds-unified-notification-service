@@ -22,7 +22,7 @@ describe('Post /send', () => {
         NotificationBody: 'This is an end 2 end test!',
         MessageTitle: 'End 2 End Test Message Title',
         MessageBody: 'End 2 End Test Message Body',
-        MessageFormat: MessageFormatEnum.PLAINTEXT,
+        MessageFormat: MessageFormatEnum.MARKDOWN,
       },
     ];
   });
@@ -72,7 +72,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('returns 202 when message is valid plaintext but no message format is provided - infers plain text', async ({
+  test('returns 202 when message is valid markdown but no message format is provided - infers markdown', async ({
     psoAPI,
   }) => {
     // Arrange
