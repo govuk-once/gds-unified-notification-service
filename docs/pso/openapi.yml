@@ -267,48 +267,32 @@ components:
             HIDDEN:
               type: integer
 
+    BaseError:
+      type: object
+      properties:
+        Status:
+          type: integer
+        HttpError:
+          type: string
+        Errors:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: string
+
     BadRequestError:
-      type: object
-      properties:
-        Status:
-          type: integer
-        HttpError:
-          type: string
-        Errors:
-          type: array
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
     UnauthorizedError:
-      type: object
-      properties:
-        Status:
-          type: integer
-        HttpError:
-          type: string
-        Errors:
-          type: array
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
     NotFoundError:
-      type: object
-      properties:
-        Status:
-          type: integer
-        HttpError:
-          type: string
-        Errors:
-          type: array
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
     ExpectationFailedError:
-      type: object
-      properties:
-        Status:
-          type: integer
-        HttpError:
-          type: string
-        Errors:
-          type: array
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
     InternalServerError:
-      type: object
-      properties:
-        Status:
-          type: integer
-        HttpError:
-          type: string
-        Errors:
-          type: array
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
