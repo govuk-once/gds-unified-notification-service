@@ -22,7 +22,7 @@ jobs:
     uses: ./.github/workflows/_deploy.yml
     with:
       ENVIRONMENT: dev
-      VERSION: ${{ github.ref_name}}
+      VERSION: ${{ github.ref_name }}@${{ github.sha }}
     secrets: inherit
 
   releaseStaging:
@@ -31,5 +31,5 @@ jobs:
     uses: ./.github/workflows/_deploy.yml
     with:
       ENVIRONMENT: staging
-      VERSION: ${{ github.ref_name}}
+      VERSION: ${{ github.ref_name }}@${{ github.sha }}
     secrets: inherit
