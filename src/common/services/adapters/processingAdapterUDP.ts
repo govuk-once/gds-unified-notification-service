@@ -4,12 +4,12 @@ import { SMConfigurationService } from '@common/services/smConfigurationService'
 import * as axios from 'axios';
 import z from 'zod';
 
+import { ProcessingAdapterError } from '@common/models/Errors/BadGatewayError';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { NoLinkingIdFound } from '@common/models/Errors/NotFoundError';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
 import { aws4Interceptor } from 'aws4-axios';
-import { NoLinkingIdFound } from '@common/models/Errors/NotFoundError';
-import { ProcessingAdapterError } from '@common/models/Errors/BadGatewayError';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 
 const UDPConfigSchema = z.object({
   apiAccountId: z.string(),
@@ -105,7 +105,17 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
   private errorHandler(request: ProcessingAdapterRequest, error: unknown): never {
     if (axios.isAxiosError(error)) {
-      this.observability.logger.error(`Axios Error data`, { error, data: error.response?.data });
+      this.observability.logger.error(`Axios Error data`, {
+        NotificationID: request.userID,
+        // Creates a deep clone of the error object
+        axiosError: structuredClone({
+          status: error.status,
+          response: error.response?.data,
+          message: error.message,
+          name: error.name,
+          stack: JSON.stringify(error.stack),
+        }),
+      });
 
       if (error.response?.status === 404) {
         throw new NoLinkingIdFound([`User ${request.userID} does not exist in UDP service`]);
