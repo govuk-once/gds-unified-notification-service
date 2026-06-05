@@ -58,9 +58,14 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    await this.validateApiKey(event);
-
     this.observability.logger.info('Received request', { event });
+    this.observability.logger.debug('Received request', {
+      path: event.path,
+      externalUserID: event.queryStringParameters?.externalUserID,
+      requestId: context.awsRequestId,
+    });
+
+    await this.validateApiKey(event);
 
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
@@ -68,22 +73,23 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     // Handle missing path param
     if (!notificationID) {
-      const errorMsg = 'Notification Id is missing from path.';
-      this.observability.logger.info(errorMsg);
-      throw new BadRequestError([errorMsg]);
+      this.observability.logger.debug('Notification Id has not been provided - returning 400');
+      throw new BadRequestError(['Notification Id is missing from path.']);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
-      const errorMsg = 'Notification was not found.';
-      this.observability.logger.info(errorMsg);
-      throw new NotFoundError([errorMsg]);
+      this.observability.logger.debug('Notification does not exists - returning 404');
+      throw new NotFoundError(['Notification was not found.']);
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      this.observability.logger.info('User is not authorized to access this notification.');
+      this.observability.logger.debug('Notification belongs to another user - returning 404', {
+        userOnNotification: notification.ExternalUserID,
+        queryingUser: externalUserID,
+      });
       throw new NotFoundError(['Notification was not found.']);
     }
 

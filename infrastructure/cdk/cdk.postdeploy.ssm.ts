@@ -34,7 +34,7 @@ export const configurableParameters = {
   // Default values for url content control within the data
   'content/allowed/protocols': 'govuk:,https:',
   'content/allowed/urlHostnames': '*.gov.uk',
-  'notification/deeplinkTemplate': 'govuk://app.gov.uk/notificationcentre/,detail?id:{id}',
+  'notification/deeplinkTemplate': 'govuk://app.gov.uk/notificationcentre/detail?id:{id}',
 
   // Configurations for FLEX - these values are serialized JSON
   'api/flex/apiKey': 'mockApiKey',

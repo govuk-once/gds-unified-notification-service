@@ -66,35 +66,49 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.debug('Received request', {
+      path: event.path,
+      params: event.pathParameters,
+      notificationID: event.pathParameters?.notificationID,
+      externalUserID: event.queryStringParameters?.externalUserID,
+      requestId: context.awsRequestId,
+    });
+
     // Authorize
     await this.validateApiKey(event);
-
-    this.observability.logger.info('Received request', { event });
 
     // Validate
     const notificationID = event.pathParameters?.notificationID;
     const externalUserID = event.queryStringParameters?.externalUserID;
+
     if (!notificationID) {
-      this.observability.logger.info('Notification Id has not been provided.');
+      this.observability.logger.debug('Notification Id has not been provided - returning 400');
       throw new BadRequestError();
     }
 
     // Confirm existence & ownership
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
     if (!notification) {
-      this.observability.logger.info('Notification does not exists');
+      this.observability.logger.debug('Notification does not exists - returning 404');
       throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
+      this.observability.logger.debug('Notification belongs to another user - returning 404', {
+        userOnNotification: notification.ExternalUserID,
+        queryingUser: externalUserID,
+      });
       throw new NotFoundError();
     }
 
     // Fire off a request with status up to analytics lambda
     await this.analytics.publishEvent(notification, event.body.Status);
 
-    this.observability.logger.info('Successful request', { notificationID, status: event.body.Status });
+    this.observability.logger.debug('Successful request - returning 200', {
+      notificationID,
+      status: event.body.Status,
+    });
 
     return {
       body: {},

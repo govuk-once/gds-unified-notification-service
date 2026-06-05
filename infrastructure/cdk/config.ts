@@ -1,6 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { CfnDeletionPolicy, RemovalPolicy, Tags } from 'aws-cdk-lib/core';
-import { Construct } from 'constructs';
+import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib/core';
 import dotenv from 'dotenv';
 import { camelCase } from 'infrastructure/cdk/utils/camelCase';
 import { existsSync } from 'node:fs';
@@ -50,6 +49,7 @@ const version = process.env.code_version ?? 'manual';
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
+const debugMode = env !== 'prod';
 
 // Setup importable config object
 export const config = {
@@ -63,7 +63,6 @@ export const config = {
   defaultTags: () => ({
     project: config.project,
     env: config.env,
-    version: config.version,
     managedBy: 'CDK',
   }),
 
@@ -73,6 +72,7 @@ export const config = {
 
   // Flags
   isMainEnv,
+  debugMode,
 
   // mTLS config
   mtls,
@@ -107,14 +107,6 @@ export const config = {
         .namingHelper(...args)
         .split('-')
         .join('_'),
-    tagsHelper: (construct: Construct, additionalTags?: Record<string, string>) => {
-      for (const [key, value] of Object.entries({
-        ...config.defaultTags(),
-        ...(additionalTags ?? {}),
-      })) {
-        Tags.of(construct).add(key, value);
-      }
-    },
     // Rolling week to week dates - used for short term mtls certs
     lastSunday: () => {
       const lastSunday = new Date();
@@ -128,7 +120,16 @@ export const config = {
       nextSunday.setUTCHours(23, 59, 59, 0);
       return nextSunday;
     },
+    // Used to make once-platform-construct resource naming match
+    namingProvider: () => ({
+      getPrefix: () => config.prefix,
+      getResourceId: (id?: string) => id,
+      getResourceName: (id: string) => id,
+    }),
   },
 };
+
+// Inject COPY env to ENVIRONMENT - as that's variable use by once-project-constructs
+process.env.ENVIRONMENT = process.env.ENVIRONMENT ?? env;
 
 export type EnvVars = typeof config;

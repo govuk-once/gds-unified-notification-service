@@ -32,11 +32,6 @@ export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCerti
   // Unmatched - sandbox certificate generation - rolling sunday to sunday
   const hour = 60 * 60 * 1000;
 
-  console.log([
-    new Date(config.utils.lastSunday().getTime() + hour),
-    new Date(config.utils.nextSunday().getTime() - hour),
-  ]);
-
   return [
     // Note: sandbox envs use short term certificates, which can be no longer than 24h
     certificate({

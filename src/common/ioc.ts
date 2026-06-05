@@ -22,6 +22,7 @@ import {
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { InMemoryTTLCache } from '@common/utils';
+import { LogLevel } from 'node_modules/@aws-lambda-powertools/logger/lib/esm/types/Logger';
 
 enum Mode {
   SINGLETON,
@@ -62,6 +63,7 @@ export const iocGetLogger = ioc(
   () =>
     new Logger({
       serviceName: process.env.SERVICE_NAME ?? 'undefined',
+      logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'INFO',
       correlationIdSearchFn: search,
       // Prevent accidental logging of message contents
       jsonReplacerFn: (key, value) => {

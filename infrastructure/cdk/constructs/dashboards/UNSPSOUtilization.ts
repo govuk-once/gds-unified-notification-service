@@ -1,0 +1,333 @@
+import { Stack } from 'aws-cdk-lib';
+import * as cw from 'aws-cdk-lib/aws-cloudwatch';
+import { Construct } from 'constructs';
+import { EnvVars } from 'infrastructure/cdk/config';
+import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
+
+export class UNSPSOUtilization extends Construct {
+  constructor(scope: Construct, id: string, config: EnvVars, refs: { pso: UNSPSOResource }) {
+    super(scope, id);
+    const stack = Stack.of(this);
+
+    // TODO: Refactor to use proper widget defintions, this is just initial TF migration 1:1
+    const rawDashboard = {
+      widgets: [
+        {
+          type: 'metric',
+          x: 0,
+          y: 0,
+          width: 6,
+          height: 7,
+          properties: {
+            metrics: [
+              [
+                {
+                  expression: 'SUM(METRICS())',
+                  label: 'Expression1',
+                  id: 'e1',
+                  visible: false,
+                  region: config.region,
+                  period: 60,
+                },
+              ],
+              [
+                'AWS/ApiGateway',
+                'Count',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                'Resource',
+                '/send',
+                'Stage',
+                'api',
+                'Method',
+                'POST',
+                {
+                  id: 'm6',
+                  label: 'Incoming',
+                  region: config.region,
+                },
+              ],
+              [
+                `NOTIFICATIONS_${config.prefix}`.replace('-', '_').toUpperCase(),
+                'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
+                'environment',
+                config.prefix,
+                'service',
+                'NOTIFICATIONS_POSTMESSAGE',
+                {
+                  id: 'm3',
+                  region: config.region,
+                  label: 'Queued Successfully',
+                },
+              ],
+              [
+                'AWS/ApiGateway',
+                '4XXError',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                'Resource',
+                '/send',
+                'Stage',
+                'api',
+                'Method',
+                'POST',
+                {
+                  id: 'm1',
+                  label: '4XX Error',
+                },
+              ],
+              [
+                '.',
+                '5XXError',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                {
+                  id: 'm2',
+                  label: '5XX Error',
+                },
+              ],
+            ],
+            view: 'singleValue',
+            stacked: false,
+            region: config.region,
+            stat: 'Sum',
+            period: 60,
+            title: 'Incoming Notification Totals',
+            liveData: true,
+            sparkline: true,
+            start: '-PT1M',
+            end: 'P0D',
+          },
+        },
+        {
+          type: 'metric',
+          x: 0,
+          y: 7,
+          width: 18,
+          height: 10,
+          properties: {
+            metrics: [
+              [
+                'AWS/ApiGateway',
+                'Count',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                {
+                  region: config.region,
+                },
+              ],
+            ],
+            view: 'timeSeries',
+            stacked: true,
+            region: config.region,
+            stat: 'Sum',
+            period: 60,
+            title: 'History ',
+            legend: {
+              position: 'hidden',
+            },
+          },
+        },
+        {
+          type: 'metric',
+          x: 6,
+          y: 0,
+          width: 6,
+          height: 7,
+          properties: {
+            metrics: [
+              [
+                {
+                  expression: 'SUM(METRICS())',
+                  label: 'Expression1',
+                  id: 'e1',
+                  visible: false,
+                  region: config.region,
+                  period: 86400,
+                },
+              ],
+              [
+                'AWS/ApiGateway',
+                'Count',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                'Resource',
+                '/send',
+                'Stage',
+                'api',
+                'Method',
+                'POST',
+                {
+                  id: 'm6',
+                  label: 'Incoming',
+                  region: config.region,
+                },
+              ],
+              [
+                `NOTIFICATIONS_${config.prefix}`.replace('-', '_').toUpperCase(),
+                'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
+                'environment',
+                config.prefix,
+                'service',
+                'NOTIFICATIONS_POSTMESSAGE',
+                {
+                  id: 'm3',
+                  region: config.region,
+                  label: 'Queued Successfully',
+                },
+              ],
+              [
+                'AWS/ApiGateway',
+                '4XXError',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                'Resource',
+                '/send',
+                'Stage',
+                'api',
+                'Method',
+                'POST',
+                {
+                  id: 'm1',
+                  label: '4XX Error',
+                },
+              ],
+              [
+                '.',
+                '5XXError',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                {
+                  id: 'm2',
+                  label: '5XX Error',
+                },
+              ],
+            ],
+            view: 'singleValue',
+            stacked: false,
+            region: config.region,
+            stat: 'Sum',
+            period: 86400,
+            title: 'Incoming Notification Totals',
+            liveData: true,
+            sparkline: true,
+            start: '-PT24H',
+            end: 'P0D',
+          },
+        },
+        {
+          type: 'metric',
+          x: 12,
+          y: 0,
+          width: 6,
+          height: 7,
+          properties: {
+            metrics: [
+              [
+                {
+                  expression: 'SUM(METRICS())',
+                  label: 'Expression1',
+                  id: 'e1',
+                  visible: false,
+                  region: config.region,
+                  period: 604800,
+                },
+              ],
+              [
+                'AWS/ApiGateway',
+                'Count',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                'Resource',
+                '/send',
+                'Stage',
+                'api',
+                'Method',
+                'POST',
+                {
+                  id: 'm6',
+                  label: 'Incoming',
+                  region: config.region,
+                },
+              ],
+              [
+                `NOTIFICATIONS_${config.prefix}`.replace('-', '_').toUpperCase(),
+                'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
+                'environment',
+                config.prefix,
+                'service',
+                'NOTIFICATIONS_POSTMESSAGE',
+                {
+                  id: 'm3',
+                  region: config.region,
+                  label: 'Queued Successfully',
+                },
+              ],
+              [
+                'AWS/ApiGateway',
+                '4XXError',
+                'ApiName',
+                refs?.pso.gateway.restApi.restApiName,
+                'Resource',
+                '/send',
+                'Stage',
+                'api',
+                'Method',
+                'POST',
+                {
+                  id: 'm1',
+                  label: '4XX Error',
+                  region: config.region,
+                },
+              ],
+              [
+                '.',
+                '5XXError',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                '.',
+                {
+                  id: 'm2',
+                  label: '5XX Error',
+                  region: config.region,
+                },
+              ],
+            ],
+            view: 'singleValue',
+            stacked: false,
+            region: config.region,
+            stat: 'Sum',
+            period: 604800,
+            title: 'Incoming Notification Totals',
+            liveData: true,
+            sparkline: true,
+            start: '-PT168H',
+            end: 'P0D',
+          },
+        },
+      ],
+    };
+
+    new cw.CfnDashboard(this, 'dashboard', {
+      dashboardName: config.utils.namingHelper(id),
+      dashboardBody: stack.toJsonString(rawDashboard),
+    });
+  }
+}

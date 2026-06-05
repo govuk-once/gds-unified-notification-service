@@ -57,9 +57,6 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    // Authorize
-    await this.validateApiKey(event);
-
     this.observability.logger.info('Received request', { event });
 
     // Extract details
@@ -67,6 +64,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (!externalUserID) {
+      this.observability.logger.debug('Bad request - missing external user id - returning 400');
       throw new BadRequestError();
     }
 
@@ -75,6 +73,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       value: externalUserID,
     });
 
+    this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
     return {
       body: notifications
         .filter((notification) => {
@@ -92,7 +91,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
             return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
           }
           // If one of the records doesnt have a dispatch time - move it to the back
-          return !a.DispatchedDateTime ? 1 : -1;
+          return a.DispatchedDateTime ? -1 : 1;
         }),
       statusCode: 200,
     };

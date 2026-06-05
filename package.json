@@ -6,7 +6,7 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "build:validate": "tsc",
-    "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact",
+    "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact --quiet",
     "commit": "cz",
     "development:sandbox:release": "npm run build && npm run cdk:deploy",
     "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
@@ -65,6 +65,7 @@
     "msw": "^2.12.7",
     "node-forge": "^1.4.0",
     "npm-check-updates": "^21.0.1",
+    "once-platform-constructs": "^1.2.0",
     "prettier": "3.7.4",
     "semantic-release": "^25.0.2",
     "tsx": "^4.21.0",

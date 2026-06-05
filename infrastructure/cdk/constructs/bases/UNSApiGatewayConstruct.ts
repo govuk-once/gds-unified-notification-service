@@ -1,3 +1,4 @@
+import { RemovalPolicy } from 'aws-cdk-lib';
 import {
   AccessLogField,
   AccessLogFormat,
@@ -60,6 +61,7 @@ export interface UNSAPIGatewayGatewayProps {
 export class UNSAPIGatewayGateway extends Construct {
   public readonly restApi: RestApi;
   public readonly props: UNSAPIGatewayGatewayProps;
+  public readonly waf: wafv2.CfnWebACL;
 
   //// =====================================================
   // Domain
@@ -272,6 +274,8 @@ export class UNSAPIGatewayGateway extends Construct {
       resourceArn: webAcl.attrArn,
       logDestinationConfigs: [wafLogGroup.logGroupArn],
     });
+
+    return webAcl;
   }
 
   //// =====================================================
@@ -331,10 +335,19 @@ export class UNSAPIGatewayGateway extends Construct {
     const { fullDomain, hostedZone, domainConfig } = this.domainConfig(config, props);
 
     // Initialize API Gateway RestApi
+    const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
+      logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
+      retention: RetentionDays.ONE_YEAR,
+      encryptionKey: props.resources.kms,
+      removalPolicy: config.removalPolicy,
+    });
+
     this.restApi = new RestApi(this, namingHelper(`restapi`, ...props.name, `restapi`), {
       restApiName: namingHelper(`apigw`, ...props.name),
       description: props.description,
       cloudWatchRole: true,
+      cloudWatchRoleRemovalPolicy: RemovalPolicy.RETAIN,
+
       deployOptions: {
         tracingEnabled: true,
         metricsEnabled: true,
@@ -345,14 +358,7 @@ export class UNSAPIGatewayGateway extends Construct {
         cacheDataEncrypted: false,
         cacheClusterEnabled: false,
 
-        accessLogDestination: new LogGroupLogDestination(
-          new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
-            logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
-            retention: RetentionDays.ONE_YEAR,
-            encryptionKey: props.resources.kms,
-            removalPolicy: config.removalPolicy,
-          })
-        ),
+        accessLogDestination: new LogGroupLogDestination(loggroup),
 
         accessLogFormat: AccessLogFormat.custom(
           JSON.stringify({
@@ -384,6 +390,9 @@ export class UNSAPIGatewayGateway extends Construct {
       ...domainConfig,
     });
 
+    this.restApi.deploymentStage.node.addDependency(loggroup);
+    this.restApi.node.addDependency(loggroup);
+
     // Register all HTTP methods & integrations that have been added as props
     for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
       this.addIntegration(operationId, path, method, integration, authorizer);
@@ -391,11 +400,15 @@ export class UNSAPIGatewayGateway extends Construct {
 
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
-    this.constructWAF(config, props);
+    this.waf = this.constructWAF(config, props);
     this.constructRoute53Entries(config, props, fullDomain, hostedZone);
 
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [
+      ['CKV_AWS_59', 'Other authorizations are in place'],
+      ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
+    ]);
+    applyCheckovSkips(this.restApi.deploymentStage, [
       ['CKV_AWS_59', 'Other authorizations are in place'],
       ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
     ]);
