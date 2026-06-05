@@ -175,7 +175,7 @@ components:
           enum:
             - PLAINTEXT
             - MARKDOWN
-          default: PLAINTEXT
+          default: MARKDOWN
           description: (Optional) Formats message body to either plaintext or markdown
     MessageRequestResponse:
       type: object
