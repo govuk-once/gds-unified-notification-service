@@ -276,8 +276,6 @@ components:
           type: string
         Errors:
           type: array
-          items:
-            type: string
     UnauthorizedError:
       type: object
       properties:
@@ -287,8 +285,6 @@ components:
           type: string
         Errors:
           type: array
-          items:
-            type: string
     NotFoundError:
       type: object
       properties:
@@ -298,8 +294,6 @@ components:
           type: string
         Errors:
           type: array
-          items:
-            type: string
     ExpectationFailedError:
       type: object
       properties:
@@ -309,8 +303,6 @@ components:
           type: string
         Errors:
           type: array
-          items:
-            type: string
     InternalServerError:
       type: object
       properties:
@@ -320,5 +312,3 @@ components:
           type: string
         Errors:
           type: array
-          items:
-            type: string
