@@ -65,6 +65,7 @@
     "msw": "^2.12.7",
     "node-forge": "^1.4.0",
     "npm-check-updates": "^21.0.1",
+    "once-platform-constructs": "^1.2.0",
     "prettier": "3.7.4",
     "semantic-release": "^25.0.2",
     "tsx": "^4.21.0",
