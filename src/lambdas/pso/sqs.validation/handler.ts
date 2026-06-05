@@ -102,7 +102,7 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     await this.analyticsService.publishEvent(
       identifiableRecord,
       NotificationStateEnum.VALIDATION_FAILED,
-      this.observability.utilities.formatError(error)
+      this.observability.formatError(error)
     );
   }
 

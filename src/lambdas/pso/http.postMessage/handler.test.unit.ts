@@ -46,7 +46,6 @@ describe('PostMessage Handler', () => {
 
   // Mock the event
   let mockEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
 
   beforeEach(() => {
     // Reset all mock
@@ -68,13 +67,6 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-    } as unknown as EventType;
-
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'Content-Type': `application/json`,
       },
     } as unknown as EventType;
 
@@ -166,14 +158,16 @@ describe('PostMessage Handler', () => {
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
     // Act
     const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://bitcoin.com' }]) },
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://example.com' }]) },
       mockContext
     );
 
     // Assert
     expect(result.statusCode).toEqual(400);
-    expect(result.body).toEqual(`Bad request: 
-
- https://bitcoin.com is using bitcoin.com hostname which is not on the allow list.`);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequestError',
+      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
+    });
   });
 });

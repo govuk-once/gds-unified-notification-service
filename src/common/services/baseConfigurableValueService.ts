@@ -1,3 +1,4 @@
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services/observabilityService';
 import * as z from 'zod';
 
@@ -20,22 +21,24 @@ export abstract class BaseConfigurableValueService {
 
       // If schema processing failed
       if (result.error) {
-        const errorMsg = `Could not parse parameter ${namespace} to type`;
-        this.observability.logger.error(errorMsg, {
+        this.observability.logger.error(`Could not parse parameter ${namespace} to type`, {
           method: 'getParameterAsType',
           error: z.prettifyError(result.error),
         });
-        throw new Error(errorMsg);
+        throw new ServiceMisconfigurationError();
       }
 
       // Return cast value type
-      return result.data as z.infer<T>;
-    } catch {
-      const errorMsg = `Could not parse parameter ${namespace} to type`;
-      this.observability.logger.error(errorMsg, {
+      return result.data;
+    } catch (error) {
+      if (error instanceof ServiceMisconfigurationError) {
+        throw error;
+      }
+
+      this.observability.logger.error(`Could not parse parameter ${namespace} to type`, {
         method: 'getParameterAsType',
       });
-      throw new Error(errorMsg);
+      throw new ServiceMisconfigurationError();
     }
   }
 

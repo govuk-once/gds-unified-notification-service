@@ -6,6 +6,8 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -15,7 +17,6 @@ import {
   IMessageRecordToIFlexNotification,
 } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -58,11 +59,9 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
-    const isValidApiKey = await this.validateApiKey(event);
+    await this.validateApiKey(event);
 
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
+    this.observability.logger.info('Received request', { event });
 
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
@@ -71,31 +70,31 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     // Handle missing path param
     if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
-      throw new httpErrors.BadRequest();
+      throw new BadRequestError();
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     // Handle not found or hidden notifications
     if (!notification) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
     if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // If message is marked as hidden - return 404
     const notificationResponse = IMessageRecordToIFlexNotification(notification);
 
     if (notificationResponse.Status == NotificationDispatchedStateEnum.HIDDEN) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     this.observability.logger.info('Successful request.', { notificationID });

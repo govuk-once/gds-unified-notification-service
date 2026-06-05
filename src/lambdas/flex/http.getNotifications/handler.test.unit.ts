@@ -32,6 +32,8 @@ describe('getNotifications Handler', () => {
 
   const mockDbRecord: IMessageRecord = {
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    DepartmentID: 'DEP01',
+    UserID: 'UserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
@@ -48,7 +50,7 @@ describe('getNotifications Handler', () => {
       },
     ],
     DispatchedDateTime: '2026-02-13',
-  } as IMessageRecord;
+  };
 
   const mockResponse: IFlexNotification = {
     DispatchedDateTime: '2026-02-13',

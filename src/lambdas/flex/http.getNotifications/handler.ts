@@ -6,6 +6,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -16,7 +17,6 @@ import {
 } from '@project/lambdas/interfaces/IFlexNotification';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -57,20 +57,17 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request', { event });
-
     // Authorize
-    const isValidApiKey = await this.validateApiKey(event);
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
+    await this.validateApiKey(event);
+
+    this.observability.logger.info('Received request', { event });
 
     // Extract details
     const externalUserID = event.queryStringParameters?.externalUserID;
 
     // Handle missing query param
     if (!externalUserID) {
-      throw new httpErrors.BadRequest();
+      throw new BadRequestError();
     }
 
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({

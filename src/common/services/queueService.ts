@@ -1,4 +1,6 @@
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { SerializationError } from '@common/models/Errors/BadRequestError';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services/observabilityService';
 
 export const serializeRecordBodyToJson = <InputType>(body: InputType, observability: ObservabilityService): string => {
@@ -8,8 +10,9 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
   try {
     return JSON.stringify(body);
   } catch {
-    observability.logger.info('Failed parsing record body to JSON', { raw: body });
-    throw new Error('Failed parsing record body to JSON');
+    const errorMsg = 'Failed parsing record body to JSON';
+    observability.logger.info(errorMsg, { raw: body });
+    throw new SerializationError([errorMsg]);
   }
 };
 
@@ -23,7 +26,8 @@ export abstract class QueueService<InputType> {
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {
     if (this.sqsQueueUrl == undefined) {
-      throw new Error('Failed to fetch queueUrl');
+      this.observability.logger.error(`Failed to fetch SQS Queue URL for queue ${this.queueName}`);
+      throw new ServiceMisconfigurationError();
     }
     this.client = new SQSClient({ region: 'eu-west-2' });
     return this;
@@ -52,10 +56,9 @@ export abstract class QueueService<InputType> {
       this.addPublishingResultMetric(true, 1);
     } catch (error) {
       this.observability.logger.error('Error publishing to SQS', {
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
       this.addPublishingResultMetric(false, 1);
-
       throw error;
     }
   }
@@ -91,7 +94,7 @@ export abstract class QueueService<InputType> {
       }
     } catch (error) {
       this.observability.logger.error('Error publishing to SQS', {
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
 
       throw error;

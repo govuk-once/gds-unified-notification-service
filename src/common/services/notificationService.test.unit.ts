@@ -1,4 +1,5 @@
 // Unbound methods are allowed as that's how vi.mocked works
+import { BadGatewayError } from '@common/models/Errors/BadGatewayError';
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
 import { EnumParameters, StringParameters } from '@common/utils';
 import {
@@ -149,7 +150,7 @@ describe('NotificationService', () => {
       const result = instance.send(mockRequest);
 
       // Assert
-      await expect(result).rejects.toThrowError('Request failed with status code 400');
+      await expect(result).rejects.toThrow(new BadGatewayError(['Request failed with status code 400']));
       expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
         NotificationID: mockRequest.NotificationID,
       });

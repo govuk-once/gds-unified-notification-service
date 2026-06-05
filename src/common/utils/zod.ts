@@ -19,3 +19,14 @@ export const groupValidation = async <T, U extends z.ZodRawShape>(data: T[], sch
 
   return [data, valid, invalid] as const;
 };
+
+export const errorFormatter = (error: z.ZodError) => {
+  const validationErrors = [];
+  const formattedErrors = error.issues.map((issue) => {
+    const pathString = issue.path.join('.');
+    return `${issue.message} → at ${pathString}.`;
+  });
+
+  validationErrors.push(...formattedErrors);
+  return validationErrors;
+};

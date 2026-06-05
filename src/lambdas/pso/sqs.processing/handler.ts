@@ -111,7 +111,7 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
     await this.analyticsService.publishEvent(
       identifiableRecord,
       NotificationStateEnum.PROCESSING_FAILED,
-      this.observability.utilities.formatError(error)
+      this.observability.formatError(error)
     );
   }
 

@@ -1,3 +1,4 @@
+import { ContentValidationError } from '@common/models/Errors/BadRequestError';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ContentValidationService } from '@common/services/contentValidationService';
 import {
@@ -5,7 +6,6 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import httpError from 'http-errors';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -23,8 +23,9 @@ describe('ContentValidationService', () => {
   let mockParameterStore = mockDefaultConfig();
 
   const expectedError = (content: string) => {
-    return httpError.BadRequest(`Bad request: \n\n ${content}`);
+    return new ContentValidationError([content]);
   };
+
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
@@ -35,6 +36,7 @@ describe('ContentValidationService', () => {
 
     instance = new ContentValidationService(observabilityMock, configurationServiceMock);
   });
+
   describe(`Valid scenarios`, () => {
     it.each([
       [`Message mentioning https://content.gov.uk val`],
@@ -49,6 +51,7 @@ describe('ContentValidationService', () => {
       expect(result).toEqual(content);
     });
   });
+
   describe('Protocol validation', () => {
     it.each([
       [
@@ -75,11 +78,11 @@ describe('ContentValidationService', () => {
       it.each([
         [
           `Some message mentioning https://unexpected-website.com amongst other things`,
-          `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list.`,
+          `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list`,
         ],
         [
           `https://www.anothernongovwebsite.net`,
-          `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list.`,
+          `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list`,
         ],
       ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
         // Arrange

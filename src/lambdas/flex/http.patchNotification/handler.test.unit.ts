@@ -30,6 +30,8 @@ describe('PatchNotification Handler', () => {
 
   const mockDbRecord: IMessageRecord = {
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    DepartmentID: 'DEP01',
+    UserID: 'UserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
@@ -46,7 +48,7 @@ describe('PatchNotification Handler', () => {
       },
     ],
     DispatchedDateTime: '2026-02-13',
-  } as IMessageRecord;
+  };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -169,6 +171,7 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
   });
 
   it('should log error when notificationID is missing', async () => {
@@ -191,6 +194,7 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
   });
 
   it('should fetch API key from config service', async () => {
@@ -214,5 +218,6 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(404);
+    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFoundError', Errors: [] });
   });
 });

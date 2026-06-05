@@ -97,9 +97,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].DepartmentID'
-      )
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationTitle.'])
     );
   });
 
@@ -122,7 +120,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError('Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].UserID')
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.UserID.'])
     );
   });
 
@@ -145,9 +143,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationTitle'
-      )
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationTitle.'])
     );
   });
 
@@ -170,9 +166,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationBody'
-      )
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationBody.'])
     );
   });
 });

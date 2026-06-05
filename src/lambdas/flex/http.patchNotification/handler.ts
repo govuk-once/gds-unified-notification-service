@@ -7,12 +7,13 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.object({
@@ -66,30 +67,28 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     // Authorize
-    const isValidApiKey = await this.validateApiKey(event);
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
+    await this.validateApiKey(event);
 
     this.observability.logger.info('Received request', { event });
+
     // Validate
     const notificationID = event.pathParameters?.notificationID;
     const externalUserID = event.queryStringParameters?.externalUserID;
     if (!notificationID) {
       this.observability.logger.info('Notification Id has not been provided.');
-      throw new httpErrors.BadRequest();
+      throw new BadRequestError();
     }
 
     // Confirm existence & ownership
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
     if (!notification) {
       this.observability.logger.info('Notification does not exists');
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Fire off a request with status up to analytics lambda

@@ -15,7 +15,6 @@
 //     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
-import { S3Client } from '@aws-sdk/client-s3';
 import { GetParameterCommand, GetParametersByPathCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { confirm } from '@inquirer/prompts';
@@ -34,7 +33,7 @@ if (
   );
   process.exit(1);
 }
-const [stsClient, s3Client, ssmClient] = [new STSClient(), new S3Client(), new SSMClient()] as const;
+const [stsClient, ssmClient] = [new STSClient(), new SSMClient()] as const;
 
 export const getConfig = async () => {
   // Allow running `AS_ENVIRONMENT=dev npm run development:sandbox:setup` to repoint local TF to non sandbox setups

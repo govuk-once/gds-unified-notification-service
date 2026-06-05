@@ -8,11 +8,10 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { IDynamodbRepository } from '@common/repositories/interfaces/IDynamodbRepository';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 
-export abstract class DynamodbRepository<RecordType extends object> implements IDynamodbRepository<RecordType> {
+export abstract class DynamodbRepository<RecordType extends object> {
   private client: DynamoDB;
   protected tableAttributes: IDynamoAttributes;
 
@@ -79,7 +78,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error('Failure in creating record table', {
         tableName: this.tableAttributes.name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
       throw error;
     }
@@ -118,7 +117,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error('Failure in creating records table', {
         tableName: this.tableAttributes.name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
       throw error;
     }
@@ -178,7 +177,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error(`Failure in updating record table`, {
         tableName: this.tableAttributes.name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
         params,
         entries,
         recordFields,
@@ -210,7 +209,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error('Failure in updating record table', {
         tableName: this.tableAttributes.name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
         params,
         listKey,
         item,
@@ -257,7 +256,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error('Failure in getting record for table', {
         tableName: this.tableAttributes.name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
       throw error;
     }
@@ -287,7 +286,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       this.observability.logger.error('Failure in deleting record in table', {
         tableName: this.tableAttributes.name,
         key: this.tableAttributes.hashKey,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
     }
   }
@@ -315,7 +314,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
     } catch (error) {
       this.observability.logger.error('Failure in getting records for table', {
         tableName: this.tableAttributes.name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
       throw error;
     }
@@ -355,7 +354,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       await this.observeCapacity(this.incrementRecord.name, this.client.updateItem(params));
     } catch (error) {
       this.observability.logger.error('Failure in adding record or incrementing in table', {
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
         tableName: this.tableAttributes.name,
       });
       throw error;

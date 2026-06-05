@@ -1,3 +1,6 @@
+import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
+import { BaseError } from '@common/models/Errors/BaseError';
+import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   NotificationAdapter,
@@ -36,7 +39,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     protected config: ConfigurationService
   ) {}
 
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     // Initialize only if the client has not been previously initialized
     if (this.client !== undefined) {
       return;
@@ -56,10 +59,11 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     });
   }
 
-  async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {
+  public async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {
     const metadata = {
       NotificationID: request.NotificationID,
     };
+
     try {
       this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);
       const result = await this.client.post<OneSignalPushNotificationResponse>(`/notifications?c=push`, {
@@ -83,29 +87,48 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           response: result.data,
         });
 
-        throw new Error('Failed to dispatch notification using OneSignal adapter - received 200 code');
+        if (result.status === 404) {
+          throw new NoDispatchIdFound([`User ${request.ExternalUserID} does not exist in OneSignal service`]);
+        }
+        const errors = result.data.errors;
+        const errorPayload = Array.isArray(errors)
+          ? errors
+          : ['Failed to dispatch notification using OneSignal adapter - received 200 code'];
+        throw new DispatchAdapterError(errorPayload);
       }
+
       return {
         notification: request,
         requestId: result.data.id,
       };
     } catch (error) {
-      if (axios.isAxiosError<OnesignalPushNotificationErrorResponse>(error)) {
-        this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
-          ...metadata,
-          axiosError: JSON.parse(
-            JSON.stringify({
-              status: error.status,
-              response: error.response?.data,
-              message: error.message,
-              name: error.name,
-              stack: JSON.stringify(error.stack),
-            })
-          ),
-        });
-      }
-
-      throw error;
+      this.errorHandler(request, error);
     }
+  }
+
+  private errorHandler(request: NotificationAdapterRequest, error: unknown): never {
+    if (axios.isAxiosError<OnesignalPushNotificationErrorResponse>(error)) {
+      this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
+        NotificationID: request.NotificationID,
+        // Creates a deep clone of the error object
+        axiosError: structuredClone({
+          status: error.status,
+          response: error.response?.data,
+          message: error.message,
+          name: error.name,
+          stack: JSON.stringify(error.stack),
+        }),
+      });
+
+      if (error.response?.status === 404) {
+        throw new NoDispatchIdFound([`User ${request.ExternalUserID} not found in OneSignal`]);
+      }
+      throw new DispatchAdapterError([error.message]);
+    }
+
+    if (!(error instanceof BaseError)) {
+      this.observability.logger.error(`Non-axios Error`, { error });
+    }
+    throw error;
   }
 }

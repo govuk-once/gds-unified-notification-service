@@ -7,12 +7,13 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -57,11 +58,9 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    const isValidApiKey = await this.validateApiKey(event);
+    await this.validateApiKey(event);
 
-    if (!isValidApiKey) {
-      throw new httpErrors.Unauthorized();
-    }
+    this.observability.logger.info('Received request', { event });
 
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
@@ -69,20 +68,23 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     // Handle missing path param
     if (!notificationID) {
-      this.observability.logger.info('Notification Id has not been provided.');
-      throw new httpErrors.BadRequest();
+      const errorMsg = 'Notification Id is missing from path.';
+      this.observability.logger.info(errorMsg);
+      throw new BadRequestError([errorMsg]);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
-      this.observability.logger.info('Notification Id has not been provided.');
-      throw new httpErrors.NotFound();
+      const errorMsg = 'Notification was not found.';
+      this.observability.logger.info(errorMsg);
+      throw new NotFoundError([errorMsg]);
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      throw new httpErrors.NotFound();
+      this.observability.logger.info('User is not authorized to access this notification.');
+      throw new NotFoundError(['Notification was not found.']);
     }
 
     // Trigger marking as hidden

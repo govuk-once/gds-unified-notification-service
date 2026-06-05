@@ -1,6 +1,6 @@
+import { ContentValidationError } from '@common/models/Errors/BadRequestError';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
-import httpError from 'http-errors';
 
 export class ContentValidationService {
   constructor(
@@ -8,8 +8,8 @@ export class ContentValidationService {
     protected config: ConfigurationService
   ) {}
 
-  private createError(content: string) {
-    return new httpError.BadRequest(`Bad request: \n\n ${content}`);
+  private createError(content: string): never {
+    throw new ContentValidationError([content]);
   }
 
   async validate(input: string | undefined) {
@@ -35,7 +35,7 @@ export class ContentValidationService {
       }
       // Validate protocol is on the list
       if (protocols.includes(url.protocol) == false) {
-        throw this.createError(
+        this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${protocols.join(',')}`
         );
       }
@@ -54,7 +54,7 @@ export class ContentValidationService {
           .some((valid) => valid);
 
         if (validHostname == false) {
-          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list.`);
+          this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list`);
         }
       }
     }
