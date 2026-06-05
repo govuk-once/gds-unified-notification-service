@@ -170,9 +170,6 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
-        DeeplinkURL:
-          type: string
-          description: Deeplink url to show the notification centre
     MessageRequestResponse:
       type: object
       properties:
