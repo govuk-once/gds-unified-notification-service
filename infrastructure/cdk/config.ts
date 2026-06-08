@@ -50,7 +50,7 @@ const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
 const debugMode = env !== 'prod';
-const debuggableFlexApiGateway = env !== 'stg' && env !== 'prod';
+const debuggableFlexApiGateway = env == 'dev' || isMainEnv == false;
 
 // Setup importable config object
 export const config = {
