@@ -203,7 +203,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 400 when the message has invalid markdown.', async ({ psoAPI }) => {
+  test('it returns 400 when the message has invalid url in markdown.', async ({ psoAPI }) => {
     // Arrange
     const messagesWithInvalidMarkdown: IMessage[] = [
       {
@@ -224,7 +224,7 @@ describe('Post /send', () => {
     // Assert
     await expect(result).rejects.toMatchObject(
       BadRequestAxiosError(
-        'Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
+        'Bad Request: \n\n https://example.com is using example.com hostname which is not on the allow list.'
       )
     );
   });
@@ -240,7 +240,7 @@ describe('Post /send', () => {
         NotificationTitle: 'End 2 End Test',
         NotificationBody: 'This is an end 2 end test!',
         MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: '> -------- Heading\n>\n> This is a heading defined in the wrong way. -----------',
+        MessageBody: '    const x = 10;\n    const y = 20;',
       },
     ];
 
@@ -249,9 +249,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n Message body contains markdown elements but message format is set to MARKDOWN: blockquote_open'
-      )
+      BadRequestAxiosError('Bad Request: \n\n Message body contains markdown elements which are not valid: code_block')
     );
   });
 });

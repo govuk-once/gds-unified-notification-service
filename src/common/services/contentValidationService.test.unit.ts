@@ -23,7 +23,7 @@ describe('ContentValidationService', () => {
   let mockParameterStore = mockDefaultConfig();
 
   const expectedError = (content: string) => {
-    return httpError.BadRequest(`Bad request: \n\n ${content}`);
+    return httpError.BadRequest(`Bad Request: \n\n ${content}`);
   };
 
   beforeEach(() => {

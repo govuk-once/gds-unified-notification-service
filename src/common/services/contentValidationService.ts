@@ -50,7 +50,7 @@ export class ContentValidationService {
 
   public createError(content: string): HttpError {
     this.observability.logger.warn(content);
-    return new httpError.BadRequest(`Bad request: \n\n ${content}`);
+    return new httpError.BadRequest(`Bad Request: \n\n ${content}`);
   }
 
   public async validateUrls(input: string | undefined) {

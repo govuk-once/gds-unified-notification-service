@@ -166,7 +166,7 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(result.body).toEqual(
-      `Bad request: \n\n https://example.com is using example.com hostname which is not on the allow list.`
+      `Bad Request: \n\n https://example.com is using example.com hostname which is not on the allow list.`
     );
   });
 
@@ -207,7 +207,7 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(result.body).toEqual(
-      `Bad request: \n\n https://google.com is using google.com hostname which is not on the allow list.`
+      `Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.`
     );
   });
 });

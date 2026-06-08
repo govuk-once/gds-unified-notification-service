@@ -290,7 +290,7 @@ describe('Validation QueueHandler', () => {
     );
   });
 
-  it('should reject messages that contain invalid MARKDOWN.', async () => {
+  it('should reject messages that contain invalid markdown.', async () => {
     // Arrange
     const mockInvalidMarkdownMessageBody = {
       ...mockMessageBody,
@@ -318,7 +318,7 @@ describe('Validation QueueHandler', () => {
         CampaignID: mockMessageBody.CampaignID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
-      '✖ BadRequestError: Bad request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
+      '✖ BadRequestError: Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
     );
   });
 
