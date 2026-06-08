@@ -60,7 +60,9 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
     this.observability.logger.debug('Received request', {
       path: event.path,
+      notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
+      pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
     });
 
@@ -73,11 +75,17 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
-    const externalUserID = event.queryStringParameters?.externalUserID;
+    const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
 
     // Handle missing path param
-    if (!notificationID) {
+    if (notificationID == undefined) {
       this.observability.logger.debug('Notification Id has not been provided - returning 400');
+      throw new httpErrors.BadRequest();
+    }
+
+    // Handle missing query param
+    if (externalUserID == undefined || externalUserID === '') {
+      this.observability.logger.debug('Push Id has not been provided - returning 400');
       throw new httpErrors.BadRequest();
     }
 
