@@ -13,10 +13,11 @@ permissions:
 
 jobs:
   release:
+    name: Semantic release
     runs-on: ubuntu-latest
     timeout-minutes: 60
     outputs:
-      semVer: ${{ steps.release.outputs.version }}
+      semVer: ${{ steps.release.outputs.semVer }}
 
     steps:
       - name: Checkout Code
@@ -57,5 +58,14 @@ jobs:
     uses: ./.github/workflows/_deploy.yml
     with:
       ENVIRONMENT: dev
+      VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
+    secrets: inherit
+
+  releaseStaging:
+    needs: [release, releaseToDev]
+    name: Deploy to staging
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ENVIRONMENT: staging
       VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
     secrets: inherit
