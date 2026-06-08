@@ -88,7 +88,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
     // Pre-validate all messages & reject request when one of them contains unsupported url
     for (const message of messages) {
-      await this.contentValidationService.validateWithMessageFormat(message.MessageBody, message.MessageFormat);
+      await this.contentValidationService.validate(message.MessageBody);
     }
 
     // Publish analytics & push items to the processing queue

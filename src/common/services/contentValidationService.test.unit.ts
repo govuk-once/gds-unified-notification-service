@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ContentValidationService } from '@common/services/contentValidationService';
 import {
@@ -38,7 +37,7 @@ describe('ContentValidationService', () => {
     instance = new ContentValidationService(observabilityMock, configurationServiceMock);
   });
 
-  describe(`validate`, () => {
+  describe(`validateUrls`, () => {
     describe(`Valid scenarios`, () => {
       it.each([
         [`Message mentioning https://content.gov.uk val`],
@@ -47,7 +46,7 @@ describe('ContentValidationService', () => {
         [undefined],
       ])("Content '%s' should be allowed", async (content: string | undefined) => {
         // Arrange & Act
-        const result = await instance.validate(content);
+        const result = await instance.validateUrls(content);
 
         // Assert
         expect(result).toEqual(content);
@@ -73,7 +72,7 @@ describe('ContentValidationService', () => {
         const exception = expectedError(errorMessage);
 
         // Act & Assert
-        await expect(instance.validate(content)).rejects.toThrow(exception);
+        await expect(instance.validateUrls(content)).rejects.toThrow(exception);
       });
 
       describe('Hostname validation', () => {
@@ -91,7 +90,7 @@ describe('ContentValidationService', () => {
           const exception = expectedError(errorMessage);
 
           // Act
-          const result = instance.validate(content);
+          const result = instance.validateUrls(content);
 
           // Act & Assert
           await expect(result).rejects.toThrow(exception);
@@ -100,97 +99,63 @@ describe('ContentValidationService', () => {
     });
   });
 
-  describe('validateWithMessageFormat', () => {
+  describe('validate', () => {
     it.each([
-      '# This is a Heading',
-      '* Item 1\n* Item 2\n* Item 3',
-      'some text some text [Click here](https://dvla.gov.uk) some text some text',
-      'This contains **bold text** and *italicized text*.',
-    ])('Valid message body for markdown.', async (message: string) => {
+      ['# Heading 1\n## Heading 2\n### Heading 3', 'Standard ATX Headers'],
+      ['This is a long title\n====================', 'Setext H1 Header'],
+      ['Subheading One\n--------------', 'Setext H2 Header'],
+      ['This contains **bold text** and __more bold__.', 'Bold styling'],
+      ['This contains *italic text* and _more italics_.', 'Italics styling'],
+      ['* Item One\n* Item Two\n* Item Three', 'Bullet lists'],
+      ['1. First\n2. Second\n3. Third', 'Numbered lists'],
+      ['Click [here](https://content.gov.uk) to visit our site.', 'Links and link text'],
+    ])('Validates message body with valid markdown: %s', async (message: string) => {
       // Act
-      const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.MARKDOWN);
+      const result = await instance.validate(message);
 
       // Assert
       expect(result).toEqual(message);
     });
 
     it.each([
-      `    
-      > This is a blockquote, which is not allowed.
+      [
+        `> This is a blockquote, which is not allowed.\n\nCheck out this image: ![Alt text](image.png)`,
+        `Message body contains markdown elements which are not valid: blockquote_open`,
+      ],
+      [
+        `    const x = 10;\n    const y = 20;`,
+        `Message body contains markdown elements which are not valid: code_block`,
+      ],
+      [`\`\`\`javascript\nconst x = 10;\n\`\`\``, `Message body contains markdown elements which are not valid: fence`],
+      [
+        `This sentence contains \`inline code\` right here.`,
+        `Message body contains markdown elements which are not valid: code_inline`,
+      ],
+      [
+        `| Allowed | Not Allowed |\n| --- | --- |\n| Bold text | Tables |`,
+        `Message body contains markdown elements which are not valid: table_open`,
+      ],
+      [
+        `Some paragraph text\n\n---\n\nMore paragraph text`,
+        `Message body contains markdown elements which are not valid: hr`,
+      ],
+      [
+        `This is <u>underlined html</u> text.`,
+        `Message body contains markdown elements which are not valid: html_inline`,
+      ],
+      [`This is ~~crossed out~~ text.`, `Message body contains markdown elements which are not valid: s_open`],
+    ])(
+      'Rejects message body with invalid markdown: %s\nWith error message: %s',
+      async (messageBody: string, errorMessage: string) => {
+        // Arrange
+        const exception = expectedError(errorMessage);
 
-      Check out this image: ![Alt text](image.png)
-      `,
-      `
-      javascript
-      const x = 10;
-      `,
-      `
-      | Allowed | Not Allowed |
-      | --- | --- |
-      | Bold text | Tables |
-      `,
-      `
-      This is a long title
-      ====================
-      `,
-      `
-      Subheading One
-      --------------
-      `,
-    ])('Invalid message body for markdown', async (messageBody: string) => {
-      // Act
-      const result = instance.validateWithMessageFormat(messageBody, MessageFormatEnum.MARKDOWN);
+        // Act
+        const result = instance.validate(messageBody);
 
-      // Assert
-      await expect(result).rejects.toThrow(httpError.BadRequest);
-    });
-
-    it.each([
-      'some text some text https://dvla.gov.uk/ some text some text',
-      'Hello world, this is a normal single-line sentence.',
-      'Line one of a paragraph.\nLine two of the same paragraph via softbreak.',
-      'Paragraph one.\n\nParagraph two after a double return.',
-    ])('Valid message body for plain text.', async (message: string) => {
-      // Act
-      const result = await instance.validateWithMessageFormat(message, MessageFormatEnum.PLAINTEXT);
-
-      // Assert
-      expect(result).toEqual(message);
-    });
-
-    it.each([
-      `    
-      > This is a blockquote, which is not allowed.
-
-      Check out this image: ![Alt text](image.png)
-      `,
-      `
-      javascript
-      const x = 10;
-      `,
-      `
-      | Allowed | Not Allowed |
-      | --- | --- |
-      | Bold text | Tables |
-      `,
-      `
-      This is a long title
-      ====================
-      `,
-      `
-      Subheading One
-      --------------
-      `,
-      'some text some text [Click here](https://dvla.gov.uk) some text some text',
-      '# This heading structure is forbidden in plain text',
-      '* List item 1\n* List item 2',
-      'This string contains **bold** styling tokens',
-    ])('Invalid message body for plain text.', async (message: string) => {
-      // Act
-      const result = instance.validateWithMessageFormat(message, MessageFormatEnum.PLAINTEXT);
-
-      // Assert
-      await expect(result).rejects.toThrow(httpError.BadRequest);
-    });
+        // Assert
+        await expect(result).rejects.toThrow(exception);
+      }
+    );
   });
 });

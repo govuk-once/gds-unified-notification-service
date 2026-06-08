@@ -6,7 +6,6 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -72,7 +71,6 @@ describe('NotificationsDynamoRepository', () => {
       NotificationTitle: 'Hi there',
       NotificationBody: 'You have a new message in the message center',
       ReceivedDateTime: '202601021513',
-      MessageFormat: MessageFormatEnum.PLAINTEXT,
       Events: [],
     };
 
@@ -123,7 +121,6 @@ describe('NotificationsDynamoRepository', () => {
       NotificationTitle: 'Hi there',
       NotificationBody: 'You have a new message in the message center',
       ReceivedDateTime: '202601021513',
-      MessageFormat: MessageFormatEnum.PLAINTEXT,
       Events: [],
     };
 
@@ -312,7 +309,6 @@ describe('NotificationsDynamoRepository', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
-        MessageFormat: MessageFormatEnum.PLAINTEXT,
         ReceivedDateTime: '202601021513',
         Events: [],
       };

@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
@@ -62,7 +61,6 @@ describe('getNotifications Handler', () => {
     NotificationBody: 'Here is the Notification body.',
     Events: [mockReceivedEvent],
     DispatchedDateTime: '2026-02-13',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   const mockResponse: IFlexNotification = {
@@ -73,7 +71,6 @@ describe('getNotifications Handler', () => {
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     NotificationTitle: 'You have a new Notification',
     Status: NotificationDispatchedStateEnum.RECEIVED,
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   beforeEach(() => {

@@ -1,5 +1,4 @@
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils';
@@ -40,7 +39,6 @@ describe('ProcessingQueueService', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new medical driving license',
     NotificationBody: 'The DVLA has issued you a new license.',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   beforeEach(async () => {
@@ -155,7 +153,6 @@ describe('ProcessingQueueService', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
-        MessageFormat: MessageFormatEnum.PLAINTEXT,
       };
       const mockMessageBody_1 = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
@@ -165,7 +162,6 @@ describe('ProcessingQueueService', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
-        MessageFormat: MessageFormatEnum.PLAINTEXT,
       };
 
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({

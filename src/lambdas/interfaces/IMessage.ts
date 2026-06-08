@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
@@ -29,6 +28,5 @@ export const IMessageSchema = IIdentifiableMessageSchema.extend({
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
-  MessageFormat: z.enum(MessageFormatEnum).optional().default(MessageFormatEnum.MARKDOWN),
 });
 export type IMessage = z.infer<typeof IMessageSchema>;

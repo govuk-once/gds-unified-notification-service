@@ -2,7 +2,6 @@ import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { QueueEvent } from '@common/operations';
 import { CircuitBreakerOpenError, MetricsLabels } from '@common/services';
 import { NotificationAdapterResult } from '@common/services/interfaces';
@@ -51,7 +50,6 @@ describe('Dispatch QueueHandler', () => {
     CampaignID: 'CAM_ID',
     NotificationTitle: 'Boom',
     NotificationBody: 'psst',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   const mockMessageBody_2: IProcessedMessage = {
@@ -63,7 +61,6 @@ describe('Dispatch QueueHandler', () => {
     MessageTitle: '',
     MessageBody: '',
     ExternalUserID: 'test_2',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   const mockEvent: QueueEvent<IProcessedMessage> = {

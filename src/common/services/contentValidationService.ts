@@ -2,10 +2,9 @@ import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
-import httpError from 'http-errors';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
+import httpError, { HttpError } from 'http-errors';
 
-const ALLOWED_TOKEN_TYPES_PLAINTEXT: ReadonlySet<string> = new Set([
+const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   // Standard text containment
   'paragraph_open',
   'paragraph_close',
@@ -15,10 +14,7 @@ const ALLOWED_TOKEN_TYPES_PLAINTEXT: ReadonlySet<string> = new Set([
   // Line breaks
   'softbreak',
   'hardbreak',
-]);
 
-const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
-  ...ALLOWED_TOKEN_TYPES_PLAINTEXT,
   // Headers (h1, h2, h3)
   'heading_open',
   'heading_close',
@@ -52,12 +48,12 @@ export class ContentValidationService {
     protected config: ConfigurationService
   ) {}
 
-  public createError(content: string): never {
+  public createError(content: string): HttpError {
     this.observability.logger.warn(content);
-    throw new httpError.BadRequest(`Bad request: \n\n ${content}`);
+    return new httpError.BadRequest(`Bad request: \n\n ${content}`);
   }
 
-  public async validate(input: string | undefined) {
+  public async validateUrls(input: string | undefined) {
     if (input == undefined || input == '') {
       return input;
     }
@@ -80,7 +76,7 @@ export class ContentValidationService {
       }
       // Validate protocol is on the list
       if (!protocols.includes(url.protocol)) {
-        this.createError(
+        throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${protocols.join(',')}`
         );
       }
@@ -99,86 +95,57 @@ export class ContentValidationService {
           .some(Boolean);
 
         if (!validHostname) {
-          this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list.`);
+          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list.`);
         }
       }
     }
     return input;
   }
 
-  public async validateWithMessageFormat(input: string | undefined, messageFormat: MessageFormatEnum): Promise<string> {
+  public async validate(input: string | undefined): Promise<string> {
     // Does not validate if undefined or empty string
     if (input === undefined || input.trim() === '') {
-      this.createError('Message body is undefined or empty string.');
+      throw this.createError('Message body is undefined or empty string.');
     }
 
     const tokens = this.parser.parse(input, {});
 
-    if (messageFormat === MessageFormatEnum.PLAINTEXT) {
-      this.observability.logger.info('Validating message body for plain text.');
-      await this.validateContentAsPlainText(tokens);
-      await this.validate(input);
-      return input;
-    }
-
-    if (messageFormat === MessageFormatEnum.MARKDOWN) {
-      this.observability.logger.info('Validating message body for allowed markdown.');
-      await this.validateContentAsMarkdownText(tokens);
-      return input;
-    }
-
-    this.observability.logger.error('MessageFormatEnum type was not implemented for this function.');
-    throw new httpError.BadRequest('Bad Request');
-  }
-
-  private async validateContentAsPlainText(tokens: Token[]): Promise<void> {
+    this.observability.logger.info('Validating message body for allowed markdown.');
     for (const token of tokens) {
-      // Validates the token types against the allowed list, returns false if validation is failed.
-      if (!ALLOWED_TOKEN_TYPES_PLAINTEXT.has(token.type)) {
-        this.createError(
-          `Message body contains markdown elements but message format is set to PLAINTEXT: ${token.type}`
-        );
-      }
-
-      // Validates the types of children of the token recursively against the allowed list, returns false if validation is failed.
-      if (token.children) {
-        return this.validateContentAsPlainText(token.children);
-      }
+      await this.validateMarkdown(token);
     }
+
+    return input;
   }
 
-  private async validateContentAsMarkdownText(tokens: Token[]) {
-    for (const token of tokens) {
-      // Validates the token types against the allowed list, returns false if validation is failed.
-      if (!ALLOWED_TOKEN_TYPES_MARKDOWN.has(token.type)) {
-        this.createError(
-          `Message body contains markdown elements but message format is set to MARKDOWN: ${token.type}`
-        );
-      }
-
-      // Dedicated detection of a markdown link
-      await this.validateMarkdownLink(token);
-
-      // Validates the types of children of the token recursively against the allowed list, returns false if validation is failed.
-      if (token.children) {
-        await this.validateContentAsMarkdownText(token.children);
-      }
+  private async validateMarkdown(token: Token): Promise<void> {
+    // Validate the token type against the allowed list
+    if (!ALLOWED_TOKEN_TYPES_MARKDOWN.has(token.type)) {
+      throw this.createError(`Message body contains markdown elements which are not valid: ${token.type}`);
     }
-  }
 
-  private async validateMarkdownLink(token: Token) {
+    // Handle Explicit Markdown Links
     if (token.type === 'link_open') {
-      // Extract the URL from the markdown attributes
       const urlAttr = token.attrs?.find((attr) => attr[0] === 'href');
       const url = urlAttr ? urlAttr[1] : undefined;
 
-      // Check the url is not empty
       if (!url || url.trim() === '') {
-        this.createError('Failed markdown validation as url is empty.');
+        throw this.createError('Failed markdown validation as url is empty.');
       }
 
-      // Validate the URL specifically
-      await this.validate(url);
+      await this.validateUrls(url);
+    }
+
+    // Handle raw URLs
+    if (token.type === 'text' && token.content) {
+      await this.validateUrls(token.content);
+    }
+
+    // Recursively check children
+    if (token.children && token.children.length > 0) {
+      for (const child of token.children) {
+        await this.validateMarkdown(child);
+      }
     }
   }
 }

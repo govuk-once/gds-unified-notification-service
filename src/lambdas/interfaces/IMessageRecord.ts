@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import * as z from 'zod';
 
@@ -19,7 +18,6 @@ export const IMessageRecordSchema = z.object({
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
-  MessageFormat: z.enum(MessageFormatEnum).optional().default(MessageFormatEnum.PLAINTEXT),
 
   // Event timestamps - triggered during handler logic
   ReceivedDateTime: z.string().optional(),

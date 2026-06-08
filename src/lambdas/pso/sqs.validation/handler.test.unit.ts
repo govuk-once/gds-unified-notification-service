@@ -1,7 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
@@ -50,7 +49,6 @@ describe('Validation QueueHandler', () => {
     NotificationBody: 'You have a new message in the message center',
     MessageTitle: 'Hi there',
     MessageBody: 'MOCK_LONG_MESSAGE',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   const mockEvent: QueueEvent<IMessage> = {
@@ -231,7 +229,6 @@ describe('Validation QueueHandler', () => {
         NotificationTitle: mockMessageBody.NotificationTitle,
         UserID: mockMessageBody.UserID,
         CampaignID: mockMessageBody.CampaignID,
-        MessageFormat: mockMessageBody.MessageFormat,
       },
       NotificationStateEnum.VALIDATED
     );
@@ -258,34 +255,12 @@ describe('Validation QueueHandler', () => {
     );
   });
 
-  it('should validate messages that contain PLAINTEXT with PLAINTEXT MessageFormat.', async () => {
-    // Act
-    await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
-      {
-        DepartmentID: mockMessageBody.DepartmentID,
-        MessageBody: mockMessageBody.MessageBody,
-        MessageTitle: mockMessageBody.MessageTitle,
-        NotificationBody: mockMessageBody.NotificationBody,
-        NotificationID: mockMessageBody.NotificationID,
-        NotificationTitle: mockMessageBody.NotificationTitle,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
-        MessageFormat: mockMessageBody.MessageFormat,
-      },
-      NotificationStateEnum.VALIDATED
-    );
-  });
-
-  it('should validate messages that contain MARKDOWN with MARKDOWN MessageFormat.', async () => {
+  it('should validate messages with valid markdown.', async () => {
     // Arrange
     const mockMarkdownMessageBody = {
       ...mockMessageBody,
       MessageBody:
         'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
-      MessageFormat: MessageFormatEnum.MARKDOWN,
     };
     const mockEventWithMarkdown: QueueEvent<IMessage> = {
       Records: [
@@ -310,43 +285,8 @@ describe('Validation QueueHandler', () => {
         NotificationTitle: mockMarkdownMessageBody.NotificationTitle,
         UserID: mockMarkdownMessageBody.UserID,
         CampaignID: mockMarkdownMessageBody.CampaignID,
-        MessageFormat: mockMarkdownMessageBody.MessageFormat,
       },
       NotificationStateEnum.VALIDATED
-    );
-  });
-
-  it('should reject messages that contain MARKDOWN with PLAINTEXT MessageFormat.', async () => {
-    // Arrange
-    const mockInvalidPlaintextMessageBody = {
-      ...mockMessageBody,
-      MessageBody:
-        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
-      MessageFormat: MessageFormatEnum.PLAINTEXT,
-    };
-    const mockEventWithInvalidPlaintext: QueueEvent<IMessage> = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: mockInvalidPlaintextMessageBody,
-        },
-      ],
-    };
-
-    // Act
-    const result = handler(mockEventWithInvalidPlaintext, mockContext);
-
-    // Assert
-    await expect(result).rejects.toThrow(FullBatchFailureError);
-    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
-      {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
-      },
-      NotificationStateEnum.VALIDATION_FAILED,
-      '✖ BadRequestError: Bad request: \n\n Message body contains markdown elements but message format is set to PLAINTEXT: strong_open'
     );
   });
 
@@ -355,7 +295,6 @@ describe('Validation QueueHandler', () => {
     const mockInvalidMarkdownMessageBody = {
       ...mockMessageBody,
       MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
-      MessageFormat: MessageFormatEnum.MARKDOWN,
     };
     const mockEventInvalidMarkdown: QueueEvent<IMessage> = {
       Records: [
@@ -457,7 +396,7 @@ describe('Validation QueueHandler', () => {
       {
         ...mockEvent,
         Records: [
-          { ...mockEvent.Records[0], body: { ...mockEvent.Records[0].body, MessageBody: 'https://google.com' } },
+          { ...mockEvent.Records[0], body: { ...mockEvent.Records[0].body, MessageBody: 'https://example.com' } },
         ],
       },
       mockContext
@@ -473,7 +412,7 @@ describe('Validation QueueHandler', () => {
         UserID: 'UserID',
       },
       'VALIDATION_FAILED',
-      expect.stringContaining(`https://google.com is using google.com hostname which is not on the allow list.`)
+      expect.stringContaining(`https://example.com is using example.com hostname which is not on the allow list.`)
     );
   });
 });

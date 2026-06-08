@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import {
   mockDefaultConfig,
@@ -37,7 +36,6 @@ describe('PostMessage Handler', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   // Mock AWS Lambda Context
@@ -172,22 +170,12 @@ describe('PostMessage Handler', () => {
     );
   });
 
-  it('should validate messages that contain PLAINTEXT with PLAINTEXT MessageFormat.', async () => {
-    // Act
-    const result = await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(202);
-    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
-  });
-
-  it('should validate messages that contain MARKDOWN with MARKDOWN MessageFormat.', async () => {
+  it('should validate messages that contain valid markdown.', async () => {
     // Arrange
     const mockMarkdownMessageBody = {
       ...mockMessageBody,
       MessageBody:
         'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
-      MessageFormat: MessageFormatEnum.MARKDOWN,
     };
     const mockEventWithMarkdown = {
       ...mockEvent,
@@ -202,35 +190,11 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
   });
 
-  it('should reject messages that contain MARKDOWN with PLAINTEXT MessageFormat.', async () => {
-    // Arrange
-    const mockInvalidPlaintextMessageBody = {
-      ...mockMessageBody,
-      MessageBody:
-        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
-      MessageFormat: MessageFormatEnum.PLAINTEXT,
-    };
-    const mockEventWithInvalidPlaintext = {
-      ...mockEvent,
-      body: JSON.stringify([mockInvalidPlaintextMessageBody]),
-    };
-
-    // Act
-    const result = await handler(mockEventWithInvalidPlaintext, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
-    expect(result.body).toEqual(
-      `Bad request: \n\n Message body contains markdown elements but message format is set to PLAINTEXT: strong_open`
-    );
-  });
-
-  it('should reject messages that contain invalid MARKDOWN.', async () => {
+  it('should reject messages that contain invalid markdown.', async () => {
     // Arrange
     const mockInvalidMarkdownMessageBody = {
       ...mockMessageBody,
       MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
-      MessageFormat: MessageFormatEnum.MARKDOWN,
     };
     const mockEventInvalidMarkdown = {
       ...mockEvent,

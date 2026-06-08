@@ -170,13 +170,6 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
-        MessageFormat:
-          type: string
-          enum:
-            - PLAINTEXT
-            - MARKDOWN
-          default: MARKDOWN
-          description: (Optional) Formats message body to either plaintext or markdown
     MessageRequestResponse:
       type: object
       properties:

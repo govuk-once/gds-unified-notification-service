@@ -1,7 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
@@ -53,7 +52,6 @@ describe('Processing QueueHandler', () => {
     NotificationBody: "You've got a message in the message centre",
     MessageTitle: 'Hi there',
     MessageBody: 'MOCK_LONG_MESSAGE',
-    MessageFormat: MessageFormatEnum.PLAINTEXT,
   };
 
   const mockMessageBody_2: IMessage = {
@@ -65,7 +63,6 @@ describe('Processing QueueHandler', () => {
     MessageTitle: 'Hi there',
     MessageBody:
       'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
-    MessageFormat: MessageFormatEnum.MARKDOWN,
   };
 
   const mockEvent: QueueEvent<IMessage> = {
@@ -283,7 +280,6 @@ describe('Processing QueueHandler', () => {
       UserID: mockMessageBody_1.UserID,
       ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: mockMessageBody_1.CampaignID,
-      MessageFormat: mockMessageBody_1.MessageFormat,
     });
   });
 
@@ -302,7 +298,6 @@ describe('Processing QueueHandler', () => {
       UserID: mockMessageBody_1.UserID,
       ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: mockMessageBody_1.CampaignID,
-      MessageFormat: mockMessageBody_1.MessageFormat,
     });
     expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
       DepartmentID: mockMessageBody_2.DepartmentID,
@@ -314,7 +309,6 @@ describe('Processing QueueHandler', () => {
       UserID: mockMessageBody_2.UserID,
       ExternalUserID: mockMessageBody_2.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: mockMessageBody_2.CampaignID,
-      MessageFormat: mockMessageBody_2.MessageFormat,
     });
   });
 

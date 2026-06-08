@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
@@ -21,7 +20,6 @@ describe('Get /status/{notificationID}', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'This message is an end to end test.',
         NotificationBody: 'Here is the Notification body.',
-        MessageFormat: MessageFormatEnum.PLAINTEXT,
       },
     ];
   });

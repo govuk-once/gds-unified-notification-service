@@ -1,7 +1,6 @@
 import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
 import { BoolParameters } from '@common/utils';
@@ -12,7 +11,6 @@ import z, { ZodAny, ZodType } from 'zod';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RequiredSchema = z.object({
   MessageBody: z.string().optional(),
-  MessageFormat: z.enum(MessageFormatEnum).optional(),
 });
 type BaseFields = z.infer<typeof RequiredSchema>;
 
@@ -111,9 +109,9 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     const contentValidationService = this.contentValidationService;
     const schema = contentValidationService
       ? baseSchema.strict().superRefine(async (data, ctx) => {
-          if (data.body?.MessageBody && data.body?.MessageFormat) {
+          if (data.body?.MessageBody) {
             try {
-              await contentValidationService.validateWithMessageFormat(data.body.MessageBody, data.body.MessageFormat);
+              await contentValidationService.validate(data.body.MessageBody);
             } catch (e) {
               ctx.addIssue(`${e}`);
             }

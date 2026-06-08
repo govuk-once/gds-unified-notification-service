@@ -1,4 +1,3 @@
-import { MessageFormatEnum } from '@common/models/MessageFormatEnum';
 import { NotificationDispatchedStateEnum, NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessageRecord, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessageRecord';
 import z from 'zod';
@@ -9,7 +8,6 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
   NotificationBody: true,
   MessageTitle: true,
   MessageBody: true,
-  MessageFormat: true,
   DispatchedDateTime: true,
 })
   .extend({ Status: z.enum(NotificationDispatchedStateEnum) })
@@ -36,7 +34,6 @@ export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNo
     NotificationBody: item.NotificationBody,
     MessageTitle: item.MessageTitle,
     MessageBody: item.MessageBody,
-    MessageFormat: item.MessageFormat ?? MessageFormatEnum.PLAINTEXT,
     DispatchedDateTime: item.DispatchedDateTime,
     // Infer status from Events
     Status: latestEvent ?? NotificationStateEnum.RECEIVED,
