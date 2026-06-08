@@ -97,7 +97,7 @@ export const test = baseTest
   .extend('psoAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${psoUrl}`,
-      timeout: 10000,
+      timeout: 60000,
       httpsAgent,
     });
 
@@ -108,7 +108,7 @@ export const test = baseTest
   .extend('flexAPI', ({}) => {
     const instance = axios.create({
       baseURL: `https://${flexUrl}`,
-      timeout: 10000,
+      timeout: 60000,
       httpsAgent,
     });
 

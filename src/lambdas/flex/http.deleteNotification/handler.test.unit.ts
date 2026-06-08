@@ -30,6 +30,9 @@ describe('DeleteNotification Handler', () => {
   let mockEvent: EventType;
   let mockMissingIdEvent: EventType;
 
+  const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;
+  const externalUserID = `abc-cdef-ghi`;
+
   const mockDbRecord: IMessageRecord = {
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     DepartmentID: 'DEP01',
@@ -41,7 +44,7 @@ describe('DeleteNotification Handler', () => {
     Events: [
       {
         EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+        NotificationID: notificationID,
         DepartmentID: 'abc',
         Event: NotificationStateEnum.RECEIVED,
         EventDateTime: new Date().toISOString(),
@@ -65,6 +68,9 @@ describe('DeleteNotification Handler', () => {
       },
       pathParameters: {
         notificationID: '12345',
+      },
+      queryStringParameters: {
+        externalUserID,
       },
     } as unknown as EventType;
 
@@ -181,6 +187,15 @@ describe('DeleteNotification Handler', () => {
     expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
   });
 
+  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
+    // Act
+    const result = await handler(mockUnauthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
+  });
+
   it('return internal server error when config servers throws an error', async () => {
     // Arrange
     const error = new ServiceMisconfigurationError();
@@ -192,14 +207,5 @@ describe('DeleteNotification Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(500);
     expect(JSON.parse(result.body)).toEqual({ Status: 500, HttpError: 'InternalServerError', Errors: [] });
-  });
-
-  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
   });
 });

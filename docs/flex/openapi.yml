@@ -17,7 +17,7 @@ paths:
       tags:
         - MVP
       parameters:
-        - name: externalUserID
+        - name: pushID
           in: query
           required: true
           schema:
@@ -58,7 +58,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: externalUserID
+        - name: pushID
           in: query
           required: true
           schema:
@@ -107,7 +107,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: externalUserID
+        - name: pushID
           in: query
           required: true
           schema:
@@ -152,7 +152,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: externalUserID
+        - name: pushID
           in: query
           required: true
           schema:
