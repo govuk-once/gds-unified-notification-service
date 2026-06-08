@@ -106,7 +106,7 @@ export class UNSFlexResource extends Construct {
     // API Gateway
     //// =====================================================
 
-    if (config.debugMode) {
+    if (config.debuggableFlexApiGateway) {
       this.publicGateway = new UNSAPIGatewayGateway(this, config, {
         name: [`flex`],
         description: `API Gateway for flex (Public - to be depracated soon)`,
