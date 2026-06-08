@@ -151,6 +151,36 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(400);
   });
 
+  it('should return 401 when externalUserID is an empty string', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {
+      externalUserID: '',
+    };
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+  });
+
+  it('should return 401 when pushID is an empty string', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {
+      pushID: '',
+    };
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+  });
+
   it('should return 401 with status unauthorized when invalid API key is provided', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);

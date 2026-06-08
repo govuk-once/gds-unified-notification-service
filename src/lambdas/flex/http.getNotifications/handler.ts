@@ -76,7 +76,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
 
     // Handle missing query param
-    if (externalUserID == undefined) {
+    if (externalUserID == undefined || externalUserID === '') {
       this.observability.logger.debug('Push Id has not been provided - returning 400');
       throw new httpErrors.BadRequest();
     }
