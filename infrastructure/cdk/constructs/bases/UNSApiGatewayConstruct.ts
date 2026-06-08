@@ -248,12 +248,13 @@ export class UNSAPIGatewayGateway extends Construct {
           metricName: `${config.prefix}-aws-bad-input-rule-metric`,
           name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
         }),
-        this.managedRule({
-          priority: 100,
-          managedRuleName: 'AWSManagedRulesAnonymousIpList',
-          metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
-          name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
-        }),
+        // This rule while sensible rejects E2E tests from GH Actions
+        // this.managedRule({
+        //   priority: 100,
+        //   managedRuleName: 'AWSManagedRulesAnonymousIpList',
+        //   metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
+        //   name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
+        // }),
       ],
     });
 
