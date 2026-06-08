@@ -22,9 +22,9 @@
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage  --project unit",
     "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage --project unit",
-    "test": "vitest --testTimeout 60000",
+    "test": "vitest",
     "test:unit": "vitest --project unit",
-    "test:e2e": "vitest --project e2e --testTimeout 60000",
+    "test:e2e": "vitest --project e2e",
     "upgrade": "ncu -u -d 'npm run test' && npm audit --omit dev"
   },
   "devDependencies": {

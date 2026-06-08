@@ -17,10 +17,10 @@ jobs:
     steps:
       # Setup
       - name: ⚙️ Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: ⚙️ Configure AWS credentials (For package registry pulling)
-        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
         with:
           audience: sts.amazonaws.com
           role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
@@ -30,7 +30,7 @@ jobs:
         run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
 
       - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: '.node-version'
 
@@ -83,24 +83,16 @@ jobs:
         if: success() || failure()
         uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
         with:
-          output_format: cli
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
           soft_fail: true
           framework: cloudformation
           directory: infrastructure/cdk/cdk.out/
           config_file: .checkov.yaml
           quiet: true
 
-      - name: 🔐 Checkov GitHub Action
-        if: success() || failure()
-        uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
-        with:
-          output_format: cli,sarif
-          output_file_path: console,results.sarif
-          soft_fail: true
-          quiet: true
-
       - name: ⚙️ Upload SARIF file
-        uses: github/codeql-action/upload-sarif@cdefb33c0f6224e58673d9004f47f7cb3e328b89 # v4
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         if: success() || failure()
         with:
           sarif_file: results.sarif
@@ -108,7 +100,7 @@ jobs:
       # SonarQube - Scan, Gate, Report
       - name: 🕵🏻 Run SonarQube Scan
         continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
