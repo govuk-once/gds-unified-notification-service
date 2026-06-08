@@ -29,12 +29,16 @@ describe('DeleteNotification Handler', () => {
   let mockEvent: EventType;
   let mockMissingIdEvent: EventType;
 
+  const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;
+  const externalUserID = `abc-cdef-ghi`;
+
   const mockDbRecord: IMessageRecord = {
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationID: notificationID,
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
+    ExternalUserID: externalUserID,
     Events: [
       {
         EventID: '00000000-0000-0000-0000-a04ff992fcc3',
@@ -62,6 +66,9 @@ describe('DeleteNotification Handler', () => {
       },
       pathParameters: {
         notificationID: '12345',
+      },
+      queryStringParameters: {
+        externalUserID,
       },
     } as unknown as EventType;
 
@@ -131,16 +138,17 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(500);
   });
 
-  it('return internal server error when config servers throws an error', async () => {
+  it('should return 401 when externalUserID/pushID is undefined', async () => {
     // Arrange
-    const error = new Error('Config Service Error');
-    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {};
 
     // Act
-    const result = await handler(mockInternalServerError, mockContext);
+    const result = await handler(mockEvent, mockContext);
 
     // Assert
-    expect(result.statusCode).toEqual(500);
+    expect(result.statusCode).toEqual(400);
   });
 
   it('should return 401 with status unauthorized when invalid API key is provided', async () => {
@@ -152,5 +160,17 @@ describe('DeleteNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
+  });
+
+  it('return internal server error when config servers throws an error', async () => {
+    // Arrange
+    const error = new Error('Config Service Error');
+    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
+
+    // Act
+    const result = await handler(mockInternalServerError, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(500);
   });
 });
