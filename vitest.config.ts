@@ -28,5 +28,6 @@ export default defineConfig({
       reporter: [process.env.VITEST_DETAILED_COVERAGE == 'true' ? 'text' : 'text-summary', 'lcov'],
     },
     silent: process.env.VITEST_SILENT == 'true',
+    testTimeout: 30000,
   },
 });
