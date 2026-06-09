@@ -140,14 +140,15 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       );
     }
 
-    const attributes = Array.from(
-      new Set([this.tableAttributes.hashKey, this.tableAttributes.rangeKey, ...this.tableAttributes.attributes])
-    );
+    const attributes = new Set([
+      this.tableAttributes.hashKey,
+      this.tableAttributes.rangeKey,
+      ...this.tableAttributes.attributes,
+    ]);
 
-    // TODO: This needs a better solution
     // Filter out known keys from payloads - as dynamodb updates cannot be updating those fields
     const entries = Object.entries(this.beforeUpdate(recordFields)).filter(
-      ([key, value]) => attributes.includes(key) == false && value != undefined
+      ([key, value]) => !attributes.has(key) && value != undefined
     );
 
     const updateExpression = 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', ');
@@ -370,7 +371,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       this.tableAttributes.expirationDurationInSeconds > 0
       ? ({
           [this.tableAttributes.expirationAttribute]: new Date(
-            new Date().getTime() + this.tableAttributes.expirationDurationInSeconds * 1000
+            Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
           ).toISOString(),
         } as Partial<RecordType>)
       : {};
@@ -382,7 +383,7 @@ export abstract class DynamodbRepository<RecordType extends object> implements I
       ...record,
       // Dynamically inject expiration date if table calls for it
       ...this.createExpirationDatePartial(),
-    } as RecordType;
+    };
   }
 
   public beforeUpdate(partial: Partial<RecordType>, options?: { resetExpirationDate: boolean }) {

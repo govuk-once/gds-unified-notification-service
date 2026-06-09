@@ -59,7 +59,7 @@ await (async () => {
 
     // Attempt to fetch param
     process.stdout.write(`Checking ${fullKey}  `.padEnd(96, ' '));
-    const [getParamResult, getParameterError] = await unwrap(
+    const [getParamResult] = await unwrap(
       ssmClient.send(
         new GetParameterCommand({
           Name: fullKey,
@@ -73,7 +73,7 @@ await (async () => {
 
     if (getParamResult?.Parameter?.Value === undefined) {
       console.log(` - Does not exists... creating`);
-      const [putParameterResult, putParameterError] = await unwrap(
+      const [, putParameterError] = await unwrap(
         ssmClient.send(
           new PutParameterCommand({
             Name: fullKey,
