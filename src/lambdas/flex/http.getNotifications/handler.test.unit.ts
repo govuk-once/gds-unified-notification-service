@@ -31,6 +31,9 @@ describe('getNotifications Handler', () => {
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
+  const notificationId = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+  const externalUserID = `abc-cdef-ghi`;
+
   const mockReceivedEvent: IAnalytics = {
     EventID: '00000000-0000-0000-0000-a04ff992fcc3',
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
@@ -59,6 +62,7 @@ describe('getNotifications Handler', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
+    ExternalUserID: externalUserID,
     Events: [mockReceivedEvent],
     DispatchedDateTime: '2026-02-13',
   };
@@ -85,7 +89,7 @@ describe('getNotifications Handler', () => {
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
       },
       queryStringParameters: {
-        externalUserID: 'user-ABC',
+        externalUserID: externalUserID,
       },
     } as unknown as EventType;
 
@@ -131,12 +135,13 @@ describe('getNotifications Handler', () => {
 
   it('should fetch all notifications from getRecords call', async () => {
     // Act
-    await handler(mockAuthorizedEvent, mockContext);
+    const { statusCode } = await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
+    expect(statusCode).toEqual(200);
     expect(serviceMocks.notificationsDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
       field: 'ExternalUserID',
-      value: 'user-ABC',
+      value: externalUserID,
     });
   });
 
@@ -221,5 +226,48 @@ describe('getNotifications Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([]);
+  });
+
+  it('should return 400 when externalUserID/pushID is undefined', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {};
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+  });
+
+  it('should return 400 when externalUserID is an empty string', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {
+      externalUserID: '',
+    };
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+  });
+
+  it('should return 400 when pushID is an empty string', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {
+      pushID: '',
+    };
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
   });
 });
