@@ -62,7 +62,7 @@ describe('GetNotificationById Handler', () => {
       queryStringParameters: {
         externalUserID: externalUserID,
       },
-    } as unknown as EventType;
+    };
 
     mockInternalServerError = null as unknown as EventType;
 

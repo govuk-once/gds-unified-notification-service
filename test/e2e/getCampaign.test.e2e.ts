@@ -1,4 +1,3 @@
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
@@ -9,7 +8,7 @@ describe('Get /status/campaign/{campaignID}', () => {
   const campaignID = 'testCampaignID';
   const departmentID = 'UNS';
 
-  const mockMessageWithCampaign: IMessage[] = [
+  const mockMessageWithCampaign = [
     {
       CampaignID: campaignID,
       DepartmentID: departmentID,
