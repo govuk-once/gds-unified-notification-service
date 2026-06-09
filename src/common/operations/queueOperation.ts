@@ -23,18 +23,19 @@ export const deserializeRecordBodyFromJson = <OutputType>(
   observability: ObservabilityService
 ): MiddlewareObj<SQSEvent, QueueEvent<OutputType>, Error> => ({
   before: (request): void => {
-    for (let i = 0; i < request.event.Records.length; i++) {
+    for (const record of request.event.Records) {
       try {
-        request.event.Records[i].body = JSON.parse(request.event.Records[i].body);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        record.body = JSON.parse(record.body);
       } catch {
-        observability.logger.info('Failed parsing JSON within SQS Body', { raw: request.event.Records[i].body });
+        observability.logger.info('Failed parsing JSON within SQS Body', { raw: record.body });
       }
     }
   },
 });
 
 export abstract class QueueHandler<InputType, OutputType> {
-  public operationId: string;
+  public abstract operationId: string;
 
   constructor(protected observability: ObservabilityService) {}
 

@@ -29,12 +29,13 @@ export class ContentValidationService {
       let url: URL;
       try {
         url = new URL(segment);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_) {
         // String segment is not a valid URL
         continue;
       }
       // Validate protocol is on the list
-      if (protocols.includes(url.protocol) == false) {
+      if (!protocols.includes(url.protocol)) {
         throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${protocols.join(',')}`
         );
@@ -51,9 +52,9 @@ export class ContentValidationService {
             // Otherwise check for exact match
             return url.hostname == hostname;
           })
-          .some((valid) => valid);
+          .some(Boolean);
 
-        if (validHostname == false) {
+        if (!validHostname) {
           throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list.`);
         }
       }

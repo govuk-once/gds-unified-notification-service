@@ -50,7 +50,7 @@ const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
 const debugMode = env !== 'prod';
-const debuggableFlexApiGateway = env == 'dev' || isMainEnv == false;
+const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 
 // Setup importable config object
 export const config = {
@@ -117,7 +117,7 @@ export const config = {
       return lastSunday;
     },
     nextSunday: () => {
-      const nextSunday = new Date(config.utils.lastSunday().getTime());
+      const nextSunday = config.utils.lastSunday();
       nextSunday.setDate(config.utils.lastSunday().getDate() + 6);
       nextSunday.setUTCHours(23, 59, 59, 0);
       return nextSunday;

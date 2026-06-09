@@ -86,7 +86,7 @@ export class CacheService {
     // Fallback on storage if
     if (value == undefined && options?.factory !== undefined) {
       await this.store(key, await options.factory());
-      return (await this.get<T>(key)) as T | undefined;
+      return await this.get<T>(key);
     }
     return undefined;
   }
@@ -104,7 +104,7 @@ export class CacheService {
   }
 
   async rateLimit(key: string, maxPerMinute: number, increment?: number) {
-    const unixEpoch = new Date().getTime() / 1000;
+    const unixEpoch = Date.now() / 1000;
     const roundedUnixEpoch = unixEpoch - (unixEpoch % 60);
     const rateLimitKey = `${key}:${roundedUnixEpoch}`;
 

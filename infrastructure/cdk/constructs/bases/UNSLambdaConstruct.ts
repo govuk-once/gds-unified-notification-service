@@ -202,7 +202,7 @@ export class UNSLambdaConstruct extends Construct {
         OTEL_SERVICE_VERSION: config.version,
         AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING: `true`,
         LOG_LEVEL: config.debugMode ? `DEBUG` : `INFO`,
-        ...(props.environment ?? {}),
+        ...props.environment,
       },
       ...(props.resources.dlq
         ? {
@@ -231,7 +231,7 @@ export class UNSLambdaConstruct extends Construct {
     ]);
   }
 
-  static baseFactory(serviceName: string, kind: 'http' | 'sqs' = 'http', signingConfig: CodeSigningConfig) {
+  static baseFactory(serviceName: string, signingConfig: CodeSigningConfig, kind: 'http' | 'sqs' = 'http') {
     return (operationId: string) => ({
       serviceName,
       name: [operationId],
@@ -241,9 +241,9 @@ export class UNSLambdaConstruct extends Construct {
   }
 
   static baseSQSFactory(serviceName: string, signingConfig: CodeSigningConfig) {
-    return UNSLambdaConstruct.baseFactory(serviceName, 'sqs', signingConfig);
+    return UNSLambdaConstruct.baseFactory(serviceName, signingConfig, 'sqs');
   }
   static baseHTTPFactory(serviceName: string, signingConfig: CodeSigningConfig) {
-    return UNSLambdaConstruct.baseFactory(serviceName, 'http', signingConfig);
+    return UNSLambdaConstruct.baseFactory(serviceName, signingConfig, 'http');
   }
 }

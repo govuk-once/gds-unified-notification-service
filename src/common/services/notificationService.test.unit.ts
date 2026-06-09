@@ -160,7 +160,7 @@ describe('NotificationService', () => {
         `Failed to dispatch notification using OneSignal adapter`,
         expect.objectContaining({
           NotificationID: mockRequest.NotificationID,
-          axiosError: expect.any(Object),
+          error: expect.any(Object),
         })
       );
     });

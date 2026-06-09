@@ -104,7 +104,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
             return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
           }
           // If one of the records doesnt have a dispatch time - move it to the back
-          return !a.DispatchedDateTime ? 1 : -1;
+          return a.DispatchedDateTime ? -1 : 1;
         }),
       statusCode: 200,
     };
