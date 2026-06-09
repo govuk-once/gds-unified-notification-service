@@ -60,7 +60,7 @@ export class UNSMTLSCommon extends Construct {
 
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
-      autoDeleteObjects: config.isMainEnv ? false : true,
+      autoDeleteObjects: !config.isMainEnv,
     });
     applyCheckovSkips(truststoreBucket, [
       ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],

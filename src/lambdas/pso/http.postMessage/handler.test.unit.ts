@@ -155,6 +155,7 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
   });
+
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
     // Act
     const result = await handler(
@@ -164,10 +165,49 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual({
-      Status: 400,
-      HttpError: 'BadRequest',
-      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
-    });
+    expect(JSON.parse(result.body)).toEqual(
+      {Status:400,HttpError:"BadRequest",Errors:["https://example.com is using example.com hostname which is not on the allow list"]}
+    );
+  });
+
+  it('should validate messages that contain valid markdown.', async () => {
+    // Arrange
+    const mockMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+    };
+    const mockEventWithMarkdown = {
+      ...mockEvent,
+      body: JSON.stringify([mockMarkdownMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventWithMarkdown, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+  });
+
+  it('should reject messages that contain invalid markdown.', async () => {
+    // Arrange
+    const mockInvalidMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody: '    const x = 10;\n    const y = 20;',
+    };
+    const mockEventInvalidMarkdown = {
+      ...mockEvent,
+      body: JSON.stringify([mockInvalidMarkdownMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventInvalidMarkdown, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual(
+      {Status:400,HttpError:"BadRequest",Errors:["Message body contains markdown elements which are not valid: code_block"]}
+    );
   });
 });

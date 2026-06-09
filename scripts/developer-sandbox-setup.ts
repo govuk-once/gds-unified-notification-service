@@ -58,25 +58,30 @@ export const getConfig = async () => {
   };
 };
 
-export const importSSMNamespace = async (env: string, label: string, namespace: string) => {
+export const importSSMNamespace = async (env: string, label: string, namespaces: string[]) => {
   if (
     await confirm({
       message: `Would you like to import ${label} configuration values from dev env into sandbox?`,
       default: false,
     })
   ) {
-    const params = (
-      (
-        await ssmClient.send(
-          new GetParametersByPathCommand({
-            Path: `/uns-dev/${namespace}`,
-            Recursive: true,
-            WithDecryption: true,
-            MaxResults: 10,
-          })
-        )
-      ).Parameters ?? []
-    ).map((p) => p.Name!);
+    const params: string[] = [];
+    for (const namespace of namespaces) {
+      params.push(
+        ...(
+          (
+            await ssmClient.send(
+              new GetParametersByPathCommand({
+                Path: `/uns-dev/${namespace}`,
+                Recursive: true,
+                WithDecryption: true,
+                MaxResults: 10,
+              })
+            )
+          ).Parameters ?? []
+        ).map((p) => p.Name!)
+      );
+    }
 
     for (const param of params) {
       // Build param paths
@@ -187,8 +192,8 @@ use_mtls=true`);
     console.log(`Config generated & saved to ${cdk}`);
 
     // Post initialization - check if SSM params are set and update them with values from dev env
-    await importSSMNamespace(env, 'Dispatch (OneSignal)', `config/dispatch`);
-    await importSSMNamespace(env, 'Processing (UDP)', `config/processing`);
+    await importSSMNamespace(env, 'Dispatch (OneSignal)', [`config/dispatch`]);
+    await importSSMNamespace(env, 'Processing (UDP)', [`config/processing`, `udp/config`]);
     console.log(
       [
         ``,

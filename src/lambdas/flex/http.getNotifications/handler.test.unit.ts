@@ -1,6 +1,7 @@
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
+import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
@@ -33,6 +34,26 @@ describe('getNotifications Handler', () => {
   const notificationId = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
   const externalUserID = `abc-cdef-ghi`;
 
+  const mockReceivedEvent: IAnalytics = {
+    EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+    NotificationID: notificationId,
+    DepartmentID: 'abc',
+    Event: NotificationDispatchedStateEnum.RECEIVED,
+    EventDateTime: new Date().toISOString(),
+    EventReason: '',
+    APIGWExtendedID: 'Test',
+  };
+
+  const mockHiddenEvent: IAnalytics = {
+    EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+    NotificationID: notificationId,
+    DepartmentID: 'abc',
+    Event: NotificationDispatchedStateEnum.HIDDEN,
+    EventDateTime: new Date().toISOString(),
+    EventReason: '',
+    APIGWExtendedID: 'Test',
+  };
+
   const mockDbRecord: IMessageRecord = {
     NotificationID: notificationId,
     DepartmentID: 'DEP01',
@@ -61,7 +82,7 @@ describe('getNotifications Handler', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     MessageTitle: 'You have a new Message',
     NotificationBody: 'Here is the Notification body.',
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationID: notificationId,
     NotificationTitle: 'You have a new Notification',
     Status: NotificationDispatchedStateEnum.RECEIVED,
   };
@@ -104,6 +125,7 @@ describe('getNotifications Handler', () => {
 
     handler = instance.handler();
 
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([mockDbRecord]);
   });
 
@@ -113,9 +135,6 @@ describe('getNotifications Handler', () => {
   });
 
   it('should return 200 with status ok and return a notification', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);
 
@@ -125,9 +144,6 @@ describe('getNotifications Handler', () => {
   });
 
   it('should fetch all notifications from getRecords call', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const { statusCode } = await handler(mockAuthorizedEvent, mockContext);
 
@@ -141,9 +157,7 @@ describe('getNotifications Handler', () => {
 
   it('should exclude all notifications with expiry date in the past from getRecords call', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValueOnce([
       {
         ...mockDbRecord,
         ExpirationDateTime: new Date(0).toISOString(), // 1970
@@ -161,8 +175,7 @@ describe('getNotifications Handler', () => {
 
   it('should return an empty array when there are no notifications', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValue([]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValueOnce([]);
 
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);
@@ -173,9 +186,6 @@ describe('getNotifications Handler', () => {
   });
 
   it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockUnauthorizedEvent, mockContext);
 
@@ -184,9 +194,6 @@ describe('getNotifications Handler', () => {
   });
 
   it('should fetch API key from config service', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     await handler(mockAuthorizedEvent, mockContext);
 
@@ -195,9 +202,6 @@ describe('getNotifications Handler', () => {
   });
 
   it('should handle errors when calling API key with status internal server error', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockInternalServerError, mockContext);
 
@@ -219,31 +223,10 @@ describe('getNotifications Handler', () => {
 
   it('should exclude notifications with HIDDEN status', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([
+    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValueOnce([
       {
         ...mockDbRecord,
-        Events: [
-          {
-            EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-            NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-            DepartmentID: 'abc',
-            Event: NotificationDispatchedStateEnum.RECEIVED,
-            EventDateTime: new Date().toISOString(),
-            EventReason: '',
-            APIGWExtendedID: 'Test',
-          },
-          {
-            EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-            NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-            DepartmentID: 'abc',
-            Event: NotificationDispatchedStateEnum.HIDDEN,
-            EventDateTime: new Date().toISOString(),
-            EventReason: '',
-            APIGWExtendedID: 'Test',
-          },
-        ],
+        Events: [mockReceivedEvent, mockHiddenEvent],
       },
     ]);
 

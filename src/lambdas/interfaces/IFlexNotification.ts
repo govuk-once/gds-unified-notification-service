@@ -36,6 +36,6 @@ export const IMessageRecordToIFlexNotification = (item: IMessageRecord): IFlexNo
     MessageBody: item.MessageBody,
     DispatchedDateTime: item.DispatchedDateTime,
     // Infer status from Events
-    Status: latestEvent == undefined ? NotificationStateEnum.RECEIVED : latestEvent,
+    Status: latestEvent ?? NotificationStateEnum.RECEIVED,
   });
 };

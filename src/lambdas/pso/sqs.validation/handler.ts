@@ -22,6 +22,7 @@ import {
 import { BoolParameters } from '@common/utils';
 import { IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { SQSRecord } from 'aws-lambda';
+
 const requestBodySchema = IMessageSchema;
 
 /**

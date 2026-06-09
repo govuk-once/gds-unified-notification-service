@@ -262,6 +262,73 @@ describe('Validation QueueHandler', () => {
     );
   });
 
+  it('should validate messages with valid markdown.', async () => {
+    // Arrange
+    const mockMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+    };
+    const mockEventWithMarkdown: QueueEvent<IMessage> = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: mockMarkdownMessageBody,
+        },
+      ],
+    };
+
+    // Act
+    await handler(mockEventWithMarkdown, mockContext);
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMarkdownMessageBody.DepartmentID,
+        MessageBody: mockMarkdownMessageBody.MessageBody,
+        MessageTitle: mockMarkdownMessageBody.MessageTitle,
+        NotificationBody: mockMarkdownMessageBody.NotificationBody,
+        NotificationID: mockMarkdownMessageBody.NotificationID,
+        NotificationTitle: mockMarkdownMessageBody.NotificationTitle,
+        UserID: mockMarkdownMessageBody.UserID,
+        CampaignID: mockMarkdownMessageBody.CampaignID,
+      },
+      NotificationStateEnum.VALIDATED
+    );
+  });
+
+  it('should reject messages that contain invalid markdown.', async () => {
+    // Arrange
+    const mockInvalidMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
+    };
+    const mockEventInvalidMarkdown: QueueEvent<IMessage> = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: mockInvalidMarkdownMessageBody,
+        },
+      ],
+    };
+
+    // Act
+    const result = handler(mockEventInvalidMarkdown, mockContext);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      {
+        DepartmentID: mockMessageBody.DepartmentID,
+        NotificationID: mockMessageBody.NotificationID,
+        UserID: mockMessageBody.UserID,
+        CampaignID: mockMessageBody.CampaignID,
+      },
+      NotificationStateEnum.VALIDATION_FAILED,
+      ['https://example.com is using example.com hostname which is not on the allow list → at body.MessageBody.']
+    );
+  });
+
   it('should return a list of all failed processes when it partial fails.', async () => {
     // Act
     const result = await handler(mockPartialFailedEvent, mockContext);
@@ -339,7 +406,7 @@ describe('Validation QueueHandler', () => {
       {
         ...mockEvent,
         Records: [
-          { ...mockEvent.Records[0], body: { ...mockEvent.Records[0].body, MessageBody: 'https://google.com' } },
+          { ...mockEvent.Records[0], body: { ...mockEvent.Records[0].body, MessageBody: 'https://example.com' } },
         ],
       },
       mockContext
@@ -355,7 +422,7 @@ describe('Validation QueueHandler', () => {
         UserID: 'UserID',
       },
       'VALIDATION_FAILED',
-      [`https://google.com is using google.com hostname which is not on the allow list → at body.MessageBody.`]
+      [`https://example.com is using example.com hostname which is not on the allow list → at body.MessageBody.`]
     );
   });
 });

@@ -9,6 +9,12 @@ import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambd
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodType } from 'zod';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const RequiredSchema = z.object({
+  MessageBody: z.string().optional(),
+});
+type BaseFields = z.infer<typeof RequiredSchema>;
+
 /**
  * Extends QueueHandler to process batch records from a queue via Lambda.
  * Records are processed individually in parallel. Returns a list of failed records
@@ -20,7 +26,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
   PartialItemFailureResponse
 > {
   protected enableConfig: string;
-  protected requestBodySchema: InputSchema;
+  protected requestBodySchema: ZodType<z.infer<InputSchema> & BaseFields>;
 
   constructor(
     protected config: ConfigurationService,
@@ -93,7 +99,9 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
    * @returns The SQS record containing the strongly-typed, parsed body.
    */
   protected async validateRecord(record: SQSRecord): Promise<Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }> {
-    type OutputRecord = Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> & { MessageBody?: string } };
+    type OutputRecord = Omit<SQSRecord, 'body'> & {
+      body: z.infer<InputSchema>;
+    };
 
     // Constructs Message fields schema
     const baseSchema = SqsRecordSchema.extend({ body: this.requestBodySchema });
@@ -102,11 +110,9 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     const contentValidationService = this.contentValidationService;
     const schema = contentValidationService
       ? baseSchema.strict().superRefine(async (data, ctx) => {
-          const typed = data as unknown as OutputRecord;
-          if (typed.body?.MessageBody) {
-            // Is this the best way to catch errors in superRefine?
+          if (data.body?.MessageBody) {
             try {
-              await contentValidationService.validate(typed.body.MessageBody);
+              await contentValidationService.validate(data.body.MessageBody);
             } catch (e) {
               if (e instanceof ContentValidationError) {
                 ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['body', 'MessageBody'] });

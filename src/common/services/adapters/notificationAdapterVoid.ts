@@ -15,7 +15,6 @@ export class NotificationAdapterVoid implements NotificationAdapter {
   // Empty shim
   async initialize(): Promise<void> {
     await Promise.resolve();
-    return;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

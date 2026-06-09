@@ -83,25 +83,27 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     });
 
     this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
+    const responseBody = notifications
+      .filter((notification) => {
+        // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
+        if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+          return false;
+        }
+        return true;
+      })
+      .map((n) => IMessageRecordToIFlexNotification(n))
+      .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
+      .sort((a, b) => {
+        // Sort by dispatch time, most recent first
+        if (a.DispatchedDateTime && b.DispatchedDateTime) {
+          return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
+        }
+        // If one of the records doesnt have a dispatch time - move it to the back
+        return a.DispatchedDateTime ? -1 : 1;
+      });
+
     return {
-      body: notifications
-        .filter((notification) => {
-          // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
-          if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
-            return false;
-          }
-          return true;
-        })
-        .map((n) => IMessageRecordToIFlexNotification(n))
-        .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
-        .sort((a, b) => {
-          // Sort by dispatch time, most recent first
-          if (a.DispatchedDateTime && b.DispatchedDateTime) {
-            return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
-          }
-          // If one of the records doesnt have a dispatch time - move it to the back
-          return a.DispatchedDateTime ? -1 : 1;
-        }),
+      body: responseBody,
       statusCode: 200,
     };
   }

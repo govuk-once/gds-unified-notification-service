@@ -3,7 +3,7 @@ import { BaseConfigurableValueService } from '@common/services/baseConfigurableV
 import { ObservabilityService } from '@common/services/observabilityService';
 
 export class SMConfigurationService extends BaseConfigurableValueService {
-  private client;
+  private readonly client;
   constructor(protected observability: ObservabilityService) {
     super(observability);
     this.client = new SecretsManagerClient({ region: 'eu-west-2' });

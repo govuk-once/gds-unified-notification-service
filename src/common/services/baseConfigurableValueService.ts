@@ -62,7 +62,7 @@ export abstract class BaseConfigurableValueService {
         .string()
         .transform((value) => (value === '' ? null : value))
         .nullable()
-        .refine((value) => value === null || !isNaN(Number(value)), {
+        .refine((value) => value === null || !Number.isNaN(Number(value)), {
           message: 'Invalid number',
         })
         .transform((value) => (value === null ? null : Number(value)))

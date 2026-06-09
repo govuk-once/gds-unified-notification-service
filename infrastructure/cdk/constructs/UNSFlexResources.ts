@@ -168,7 +168,7 @@ export class UNSFlexResource extends Construct {
         undefined,
         config.utils.namingProvider()
       ).createDashboard(`flex-service`, {
-        lambdas: [...Object.values(this.lambdas.http)].map((x) => x.fn),
+        lambdas: Object.values(this.lambdas.http).map((x) => x.fn),
         name: config.utils.namingHelper(`flex-service`),
         restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter((api) => api !== undefined),
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],

@@ -14,10 +14,10 @@ export class CircuitBreakerOpenError extends Error {
 
 export class CircuitBreakerService {
   constructor(
-    private observability: ObservabilityService,
-    private config: ConfigurationService,
-    private cacheService: CacheService,
-    private platform: string
+    private readonly observability: ObservabilityService,
+    private readonly config: ConfigurationService,
+    private readonly cacheService: CacheService,
+    private readonly platform: string
   ) {}
 
   private stateKey(platform: string) {
