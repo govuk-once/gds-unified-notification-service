@@ -4,7 +4,7 @@ export class NotFoundError extends BaseError {
   constructor(errors?: string[], message?: string) {
     super(errors ?? [], message);
     this.statusCode = 404;
-    this.name = 'NotFoundError';
+    this.name = 'NotFound';
   }
 }
 

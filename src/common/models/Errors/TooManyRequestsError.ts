@@ -4,7 +4,7 @@ export class TooManyRequestsError extends BaseError {
   constructor(errors?: string[], message?: string) {
     super(errors ?? [], message);
     this.statusCode = 429;
-    this.name = 'TooManyRequestsError';
+    this.name = 'TooManyRequests';
   }
 }
 

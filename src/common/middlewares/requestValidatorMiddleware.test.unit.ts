@@ -56,4 +56,16 @@ describe('requestValidatorMiddleware', () => {
       ])
     );
   });
+
+  it('should throw error in case of undefined object', async () => {
+    // Arrange - define mock lambda
+    const handler = vi.fn();
+    const fn = middy().use(instance).handler(handler);
+
+    // Act
+    const promise = fn({ body: undefined } as unknown as APIGatewayEvent, mockContext);
+
+    // Expect
+    await expect(promise).rejects.toThrow(new BadRequestError(['Invalid input: expected object, received undefined']));
+  });
 });

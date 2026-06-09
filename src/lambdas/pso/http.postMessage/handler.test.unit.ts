@@ -166,7 +166,7 @@ describe('PostMessage Handler', () => {
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
-      HttpError: 'BadRequestError',
+      HttpError: 'BadRequest',
       Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
     });
   });

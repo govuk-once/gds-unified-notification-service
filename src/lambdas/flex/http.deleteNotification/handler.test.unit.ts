@@ -37,6 +37,7 @@ describe('DeleteNotification Handler', () => {
     NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
     DepartmentID: 'DEP01',
     UserID: 'UserID',
+    ExternalUserID: externalUserID,
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
@@ -140,8 +141,63 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
-      HttpError: 'BadRequestError',
-      Errors: ['Notification Id is missing from path.'],
+      HttpError: 'BadRequest',
+      Errors: ['NotificationID has not been provided'],
+    });
+  });
+
+  it('should return 400 when externalUserID/pushID is undefined', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {};
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['PushID has not been provided'],
+    });
+  });
+
+  it('should return 400 when externalUserID is an empty string', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {
+      externalUserID: '',
+    };
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['PushID has not been provided'],
+    });
+  });
+
+  it('should return 400 when pushID is an empty string', async () => {
+    // Arrange
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    mockEvent.queryStringParameters = {
+      pushID: '',
+    };
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['PushID has not been provided'],
     });
   });
 
@@ -156,8 +212,8 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(404);
     expect(JSON.parse(result.body)).toEqual({
       Status: 404,
-      HttpError: 'NotFoundError',
-      Errors: ['Notification was not found.'],
+      HttpError: 'NotFound',
+      Errors: [],
     });
   });
 
@@ -173,8 +229,8 @@ describe('DeleteNotification Handler', () => {
     expect(result.statusCode).toEqual(404);
     expect(JSON.parse(result.body)).toEqual({
       Status: 404,
-      HttpError: 'NotFoundError',
-      Errors: ['Notification was not found.'],
+      HttpError: 'NotFound',
+      Errors: [],
     });
   });
 

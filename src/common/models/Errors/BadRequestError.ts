@@ -4,7 +4,7 @@ export class BadRequestError extends BaseError {
   constructor(errors?: string[], message?: string) {
     super(errors ?? [], message);
     this.statusCode = 400;
-    this.name = 'BadRequestError';
+    this.name = 'BadRequest';
   }
 }
 

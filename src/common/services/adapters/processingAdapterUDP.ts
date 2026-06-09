@@ -107,14 +107,12 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
     if (axios.isAxiosError(error)) {
       this.observability.logger.error(`Axios Error data`, {
         NotificationID: request.userID,
-        // Creates a deep clone of the error object
-        axiosError: structuredClone({
-          status: error.status,
-          response: error.response?.data,
-          message: error.message,
+        error: {
           name: error.name,
-          stack: JSON.stringify(error.stack),
-        }),
+          status: error.status,
+          message: error.message,
+          response: error.response?.data,
+        },
       });
 
       if (error.response?.status === 404) {

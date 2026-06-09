@@ -73,8 +73,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('Push Id has not been provided - returning 400');
-      throw new BadRequestError(['Push Id has not been provided']);
+      this.observability.logger.debug('PushID has not been provided - returning 400');
+      throw new BadRequestError(['PushID has not been provided.']);
     }
 
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({

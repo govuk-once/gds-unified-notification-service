@@ -4,7 +4,7 @@ export class BadGatewayError extends BaseError {
   constructor(errors?: string[], message?: string) {
     super(errors ?? [], message);
     this.statusCode = 502;
-    this.name = 'BadGatewayError';
+    this.name = 'BadGateway';
   }
 }
 

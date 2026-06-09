@@ -48,6 +48,6 @@ describe('GetNotificationStatus Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(404);
-    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFoundError', Errors: [] });
+    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 });

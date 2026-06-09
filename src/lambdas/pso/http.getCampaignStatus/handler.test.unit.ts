@@ -157,7 +157,7 @@ describe('GetCampaignStatus Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(404);
-    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFoundError', Errors: [] });
+    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 
   it('should return 400 if department ID is missing', async () => {
@@ -171,7 +171,7 @@ describe('GetCampaignStatus Handler', () => {
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
-      HttpError: 'BadRequestError',
+      HttpError: 'BadRequest',
       Errors: ['Missing DepartmentID'],
     });
   });

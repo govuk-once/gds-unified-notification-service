@@ -159,10 +159,20 @@ describe('NotificationService', () => {
       });
       expect(observabilityMock.logger.error).toHaveBeenCalledWith(
         `Failed to dispatch notification using OneSignal adapter`,
-        expect.objectContaining({
+        {
           NotificationID: mockRequest.NotificationID,
-          axiosError: expect.any(Object),
-        })
+          error: {
+            message: 'Request failed with status code 400',
+            name: 'AxiosError',
+            response: {
+              errors: [
+                'Request is malformed: Failed to parse app_id from request',
+                'Failed to parse app_id from request (app_id is present but malformed)',
+              ],
+            },
+            status: 400,
+          },
+        }
       );
     });
   });

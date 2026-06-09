@@ -248,11 +248,11 @@ describe('getNotifications Handler', () => {
     ]);
 
     // Act
-    const { body, statusCode } = await handler(mockAuthorizedEvent, mockContext);
-    const result = JSON.parse(body) as [];
+    const result = await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
-    expect(statusCode).toEqual(200);
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([]);
   });
 
   it('should return 400 when externalUserID/pushID is undefined', async () => {

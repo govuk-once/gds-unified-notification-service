@@ -75,7 +75,7 @@ describe('Post /send', () => {
     const result = psoAPI.post('/send');
 
     // Assert
-    await expect(result).rejects.toMatchObject(BadRequestAxiosError());
+    await expect(result).rejects.toMatchObject(BadRequestAxiosError(['Invalid input: expected array, received null']));
   });
 
   test('it returns 400 when the message has no departmentID.', async ({ psoAPI }) => {
@@ -97,7 +97,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationTitle.'])
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.DepartmentID.'])
     );
   });
 

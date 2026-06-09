@@ -59,6 +59,6 @@ describe('Get /status/campaign/{campaignID}', () => {
     const result = psoAPI.get(`/status/campaign/${invalidCampaignID}`);
 
     // Assert
-    await expect(result).rejects.toMatchObject(NotFoundAxiosError);
+    await expect(result).rejects.toMatchObject(NotFoundAxiosError());
   });
 });
