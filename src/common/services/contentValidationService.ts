@@ -94,7 +94,7 @@ export class ContentValidationService {
           .some(Boolean);
 
         if (!validHostname) {
-          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list.`);
+          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list`);
         }
       }
     }

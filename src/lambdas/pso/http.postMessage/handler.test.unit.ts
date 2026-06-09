@@ -165,9 +165,11 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual(
-      {Status:400,HttpError:"BadRequest",Errors:["https://example.com is using example.com hostname which is not on the allow list"]}
-    );
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
+    });
   });
 
   it('should validate messages that contain valid markdown.', async () => {
@@ -206,8 +208,10 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual(
-      {Status:400,HttpError:"BadRequest",Errors:["Message body contains markdown elements which are not valid: code_block"]}
-    );
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Message body contains markdown elements which are not valid: code_block'],
+    });
   });
 });

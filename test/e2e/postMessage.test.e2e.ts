@@ -217,9 +217,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        ['https://example.com is using example.com hostname which is not on the allow list.']
-      )
+      BadRequestAxiosError(['https://example.com is using example.com hostname which is not on the allow list'])
     );
   });
 

@@ -79,11 +79,11 @@ describe('ContentValidationService', () => {
         it.each([
           [
             `Some message mentioning https://unexpected-website.com amongst other things`,
-            `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list.`,
+            `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list`,
           ],
           [
             `https://www.anothernongovwebsite.net`,
-            `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list.`,
+            `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list`,
           ],
         ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
           // Arrange
