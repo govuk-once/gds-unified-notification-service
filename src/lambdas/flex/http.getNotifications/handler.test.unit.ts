@@ -36,7 +36,7 @@ describe('getNotifications Handler', () => {
 
   const mockReceivedEvent: IAnalytics = {
     EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationID: notificationId,
     DepartmentID: 'abc',
     Event: NotificationDispatchedStateEnum.RECEIVED,
     EventDateTime: new Date().toISOString(),
@@ -46,7 +46,7 @@ describe('getNotifications Handler', () => {
 
   const mockHiddenEvent: IAnalytics = {
     EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationID: notificationId,
     DepartmentID: 'abc',
     Event: NotificationDispatchedStateEnum.HIDDEN,
     EventDateTime: new Date().toISOString(),
@@ -55,7 +55,7 @@ describe('getNotifications Handler', () => {
   };
 
   const mockDbRecord: IMessageRecord = {
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationID: notificationId,
     DepartmentID: 'abc',
     UserID: 'UserID',
     MessageTitle: 'You have a new Message',
@@ -72,7 +72,7 @@ describe('getNotifications Handler', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     MessageTitle: 'You have a new Message',
     NotificationBody: 'Here is the Notification body.',
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+    NotificationID: notificationId,
     NotificationTitle: 'You have a new Notification',
     Status: NotificationDispatchedStateEnum.RECEIVED,
   };
