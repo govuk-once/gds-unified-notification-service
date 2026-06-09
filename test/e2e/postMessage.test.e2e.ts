@@ -102,7 +102,9 @@ describe('Post /send', () => {
     const result = psoAPI.post('/send');
 
     // Assert
-    await expect(result).rejects.toMatchObject(BadRequestAxiosError(['Invalid input: expected array, received null']));
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(['Invalid input: expected array, received null → at .'])
+    );
   });
 
   test('it returns 400 when the message has no departmentID.', async ({ psoAPI }) => {

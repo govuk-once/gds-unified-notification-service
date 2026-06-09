@@ -66,6 +66,8 @@ describe('requestValidatorMiddleware', () => {
     const promise = fn({ body: undefined } as unknown as APIGatewayEvent, mockContext);
 
     // Expect
-    await expect(promise).rejects.toThrow(new BadRequestError(['Invalid input: expected object, received undefined']));
+    await expect(promise).rejects.toThrow(
+      new BadRequestError(['Invalid input: expected object, received undefined → at .'])
+    );
   });
 });
