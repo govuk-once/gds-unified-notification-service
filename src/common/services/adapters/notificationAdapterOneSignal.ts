@@ -93,15 +93,12 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
       if (axios.isAxiosError<OnesignalPushNotificationErrorResponse>(error)) {
         this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
           ...metadata,
-          axiosError: JSON.parse(
-            JSON.stringify({
-              status: error.status,
-              response: error.response?.data,
-              message: error.message,
-              name: error.name,
-              stack: JSON.stringify(error.stack),
-            })
-          ),
+          error: {
+            name: error.name,
+            status: error.status,
+            message: error.message,
+            response: error.response?.data,
+          },
         });
       }
 

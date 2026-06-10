@@ -50,8 +50,8 @@ describe('Processing QueueHandler', () => {
     CampaignID: 'CAM_ID',
     NotificationTitle: 'Hey',
     NotificationBody: "You've got a message in the message centre",
-    MessageTitle: '',
-    MessageBody: '',
+    MessageTitle: 'Hi there',
+    MessageBody: 'MOCK_LONG_MESSAGE',
   };
 
   const mockMessageBody_2: IMessage = {
@@ -60,8 +60,9 @@ describe('Processing QueueHandler', () => {
     UserID: 'UserID_2',
     NotificationTitle: 'Test message - 002',
     NotificationBody: "You've got a message in the message centre - 2",
-    MessageTitle: '',
-    MessageBody: '',
+    MessageTitle: 'Hi there',
+    MessageBody:
+      'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
   };
 
   const mockEvent: QueueEvent<IMessage> = {

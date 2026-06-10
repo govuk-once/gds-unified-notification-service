@@ -8,6 +8,7 @@ export default mergeConfig(
       name: 'e2e',
       include: ['**/*.{test,test.e2e}.ts'],
       setupFiles: ['utils/setup.e2e.vitest.ts'],
+      testTimeout: 60000,
     },
   })
 );

@@ -46,7 +46,6 @@ describe('PostMessage Handler', () => {
 
   // Mock the event
   let mockEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
 
   beforeEach(() => {
     // Reset all mock
@@ -68,13 +67,6 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-    } as unknown as EventType;
-
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'Content-Type': `application/json`,
       },
     } as unknown as EventType;
 
@@ -196,17 +188,59 @@ describe('PostMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
   });
+
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
     // Act
     const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://bitcoin.com' }]) },
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://example.com' }]) },
       mockContext
     );
 
     // Assert
     expect(result.statusCode).toEqual(400);
-    expect(result.body).toEqual(`Bad request: 
+    expect(result.body).toEqual(
+      `Bad Request: \n\n https://example.com is using example.com hostname which is not on the allow list.`
+    );
+  });
 
- https://bitcoin.com is using bitcoin.com hostname which is not on the allow list.`);
+  it('should validate messages that contain valid markdown.', async () => {
+    // Arrange
+    const mockMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody:
+        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+    };
+    const mockEventWithMarkdown = {
+      ...mockEvent,
+      body: JSON.stringify([mockMarkdownMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventWithMarkdown, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+  });
+
+  it('should reject messages that contain invalid markdown.', async () => {
+    // Arrange
+    const mockInvalidMarkdownMessageBody = {
+      ...mockMessageBody,
+      MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
+    };
+    const mockEventInvalidMarkdown = {
+      ...mockEvent,
+      body: JSON.stringify([mockInvalidMarkdownMessageBody]),
+    };
+
+    // Act
+    const result = await handler(mockEventInvalidMarkdown, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(result.body).toEqual(
+      `Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.`
+    );
   });
 });

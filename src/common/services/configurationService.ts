@@ -6,7 +6,8 @@ import { InMemoryTTLCache } from '@common/utils';
 export class ConfigurationService extends BaseConfigurableValueService {
   protected inMemoryCache = new InMemoryTTLCache<string, string>(60000);
   protected prefix = process.env.PREFIX;
-  private client;
+  private readonly client;
+
   constructor(protected observability: ObservabilityService) {
     super(observability);
     this.client = new SSMClient({ region: 'eu-west-2' });
@@ -44,7 +45,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
 
     try {
       // If namespace does not contain value - fetch namepsace
-      if (this.inMemoryCache.has(param.Name) == false) {
+      if (!this.inMemoryCache.has(param.Name)) {
         await this.refreshCache();
       }
 

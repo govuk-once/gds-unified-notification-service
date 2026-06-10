@@ -1,13 +1,26 @@
+import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSFlexResource extends Construct {
   public readonly serviceName = 'pso';
-  public readonly publicGateway: UNSAPIGatewayGateway;
+  public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
+  public readonly lambdas: {
+    http: {
+      getNotifications: UNSLambdaConstruct;
+      getNotificationById: UNSLambdaConstruct;
+      patchNotification: UNSLambdaConstruct;
+      deleteNotification: UNSLambdaConstruct;
+    };
+  };
+  public readonly dashboards: {
+    service: Dashboard;
+  };
   constructor(scope: Construct, config: EnvVars, refs: UNSCommon) {
     super(scope, 'flex');
 
@@ -80,7 +93,7 @@ export class UNSFlexResource extends Construct {
       },
     });
 
-    const lambdas = {
+    this.lambdas = {
       http: {
         getNotifications,
         getNotificationById,
@@ -93,15 +106,17 @@ export class UNSFlexResource extends Construct {
     // API Gateway
     //// =====================================================
 
-    this.publicGateway = new UNSAPIGatewayGateway(this, config, {
-      name: [`flex`],
-      description: `API Gateway for flex (Public - to be depracated soon)`,
-      domain: 'flex',
-      resources: {
-        kms: refs.kms,
-      },
-      type: 'PUBLIC',
-    });
+    if (config.debuggableFlexApiGateway) {
+      this.publicGateway = new UNSAPIGatewayGateway(this, config, {
+        name: [`flex`],
+        description: `API Gateway for flex (Public - to be depracated soon)`,
+        domain: 'flex',
+        resources: {
+          kms: refs.kms,
+        },
+        type: 'PUBLIC',
+      });
+    }
 
     this.gateway = new UNSAPIGatewayGateway(this, config, {
       name: [`flex-private`],
@@ -122,16 +137,42 @@ export class UNSFlexResource extends Construct {
           : {},
     });
 
-    for (const gateway of [this.publicGateway, this.gateway]) {
+    for (const gateway of [this.publicGateway, this.gateway].filter((gateway) => gateway !== undefined)) {
       gateway
-        .GET('getNotifications', '/notifications', lambdas.http.getNotifications.integration)
-        .GET('getNotificationById', '/notifications/{notificationID}', lambdas.http.getNotificationById.integration)
+        .GET('getNotifications', '/notifications', this.lambdas.http.getNotifications.integration)
+        .GET(
+          'getNotificationById',
+          '/notifications/{notificationID}',
+          this.lambdas.http.getNotificationById.integration
+        )
         .PATCH(
           'patchNotification',
           '/notifications/{notificationID}/status',
-          lambdas.http.patchNotification.integration
+          this.lambdas.http.patchNotification.integration
         )
-        .DELETE('deleteNotification', '/notifications/{notificationID}', lambdas.http.deleteNotification.integration);
+        .DELETE(
+          'deleteNotification',
+          '/notifications/{notificationID}',
+          this.lambdas.http.deleteNotification.integration
+        );
     }
+
+    //// =====================================================
+    // Xray Dashboards
+    //// =====================================================
+    this.dashboards = {
+      service: new StandardServiceDashboardFactory(
+        this,
+        `flex`,
+        undefined,
+        undefined,
+        config.utils.namingProvider()
+      ).createDashboard(`flex-service`, {
+        lambdas: Object.values(this.lambdas.http).map((x) => x.fn),
+        name: config.utils.namingHelper(`flex-service`),
+        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter((api) => api !== undefined),
+        tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
+      }),
+    };
   }
 }

@@ -1,14 +1,18 @@
 import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
+import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
+import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
+import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -18,7 +22,28 @@ export class UNSPSOResource extends Construct {
     dispatch: UNSQueueConstruct;
     analytics: UNSQueueConstruct;
   };
+  public readonly lambdas: {
+    authorizers: { mtlsCertificateRevocationAuthorizer: UNSLambdaConstruct };
+    http: {
+      getHealthcheck: UNSLambdaConstruct;
+      getNotificationStatus: UNSLambdaConstruct;
+      getCampaignStatus: UNSLambdaConstruct;
+      postMessage: UNSLambdaConstruct;
+    };
+    sqs: {
+      validation: UNSLambdaConstruct;
+      processing: UNSLambdaConstruct;
+      dispatch: UNSLambdaConstruct;
+      analytics: UNSLambdaConstruct;
+    };
+  };
   public readonly gateway: UNSAPIGatewayGateway;
+
+  public readonly dashboards: {
+    flow: UNSPSOFlow;
+    utilization: UNSPSOUtilization;
+    service: Dashboard;
+  };
   constructor(
     scope: Construct,
     config: EnvVars,
@@ -237,7 +262,7 @@ export class UNSPSOResource extends Construct {
       },
     });
 
-    const lambdas = {
+    this.lambdas = {
       authorizers: { mtlsCertificateRevocationAuthorizer },
       http: {
         getHealthcheck,
@@ -260,7 +285,7 @@ export class UNSPSOResource extends Construct {
     // Define authorizer
     const authorizer = new RequestAuthorizer(this, config.utils.namingHelper(`mtlsRequestAuthorizer`), {
       identitySources: [IdentitySource.context(`identity.clientCert.clientCertPem`)],
-      handler: lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
+      handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
       resultsCacheTtl: Duration.seconds(0),
     });
 
@@ -278,12 +303,41 @@ export class UNSPSOResource extends Construct {
       authorizer: authorizer,
       type: 'PUBLIC',
     })
-      .GET(`getHealthcheck`, `/status`, lambdas.http.getHealthcheck.integration)
-      .GET(`getNotificationStatus`, `/status/{notificationID}`, lambdas.http.getNotificationStatus.integration)
-      .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, lambdas.http.getCampaignStatus.integration)
-      .POST(`postMessage`, `/send`, lambdas.http.postMessage.integration);
+      .GET(`getHealthcheck`, `/status`, this.lambdas.http.getHealthcheck.integration)
+      .GET(`getNotificationStatus`, `/status/{notificationID}`, this.lambdas.http.getNotificationStatus.integration)
+      .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, this.lambdas.http.getCampaignStatus.integration)
+      .POST(`postMessage`, `/send`, this.lambdas.http.postMessage.integration);
 
     this.gateway.node.addDependency(mtlsRefs.truststoreUpload);
+
+    //// =====================================================
+    // Xray Dashboards
+    //// =====================================================
+    this.dashboards = {
+      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
+        pso: this,
+      }),
+      flow: new UNSPSOFlow(this, `pso-flow-dashboard`, config, {
+        pso: this,
+      }),
+      service: new StandardServiceDashboardFactory(
+        this,
+        `pso`,
+        undefined,
+        undefined,
+        config.utils.namingProvider()
+      ).createDashboard(`pso-service`, {
+        lambdas: [
+          ...Object.values(this.lambdas.http),
+          ...Object.values(this.lambdas.sqs),
+          ...Object.values(this.lambdas.authorizers),
+        ].map((x) => x.fn),
+        name: config.utils.namingHelper(`pso-service`),
+        restApis: [this.gateway.restApi],
+        tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
+      }),
+    };
+
     //// =====================================================
     // SSM Values
     //// =====================================================

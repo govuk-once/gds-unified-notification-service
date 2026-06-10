@@ -70,6 +70,33 @@ describe('Post /send', () => {
     );
   });
 
+  test('returns 202 when message is valid markdown', async ({ psoAPI }) => {
+    // Arrange
+    const messageWithoutFormat = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody: 'End 2 End Test Message Body',
+      },
+    ];
+
+    // Act
+    const result = await psoAPI.post('/send', messageWithoutFormat);
+
+    // Assert
+    expect(result.status).toBe(202);
+    expect(result.data).toEqual([
+      {
+        NotificationID: notificationID,
+      },
+    ]);
+  });
+
   test('it returns 400 when the request has no body.', async ({ psoAPI }) => {
     // Act
     const result = psoAPI.post('/send');
@@ -170,6 +197,56 @@ describe('Post /send', () => {
       BadRequestAxiosError(
         'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationBody'
       )
+    );
+  });
+
+  test('it returns 400 when the message has invalid url in markdown.', async ({ psoAPI }) => {
+    // Arrange
+    const messagesWithInvalidMarkdown: IMessage[] = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
+      },
+    ];
+
+    // Act
+    const result = psoAPI.post('/send', messagesWithInvalidMarkdown);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(
+        'Bad Request: \n\n https://example.com is using example.com hostname which is not on the allow list.'
+      )
+    );
+  });
+
+  test('it returns 400 when the message has invalid markdown.', async ({ psoAPI }) => {
+    // Arrange
+    const messagesWithInvalidMarkdown: IMessage[] = [
+      {
+        NotificationID: notificationID,
+        CampaignID: 'testCampaignID',
+        DepartmentID: 'testDepartmentID',
+        UserID: 'testExternalUserID',
+        NotificationTitle: 'End 2 End Test',
+        NotificationBody: 'This is an end 2 end test!',
+        MessageTitle: 'End 2 End Test Message Title',
+        MessageBody: '    const x = 10;\n    const y = 20;',
+      },
+    ];
+
+    // Act
+    const result = psoAPI.post('/send', messagesWithInvalidMarkdown);
+
+    // Assert
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError('Bad Request: \n\n Message body contains markdown elements which are not valid: code_block')
     );
   });
 });

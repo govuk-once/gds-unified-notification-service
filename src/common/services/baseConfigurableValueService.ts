@@ -29,7 +29,7 @@ export abstract class BaseConfigurableValueService {
       }
 
       // Return cast value type
-      return result.data as z.infer<T>;
+      return result.data;
     } catch {
       const errorMsg = `Could not parse parameter ${namespace} to type`;
       this.observability.logger.error(errorMsg, {
@@ -59,7 +59,7 @@ export abstract class BaseConfigurableValueService {
         .string()
         .transform((value) => (value === '' ? null : value))
         .nullable()
-        .refine((value) => value === null || !isNaN(Number(value)), {
+        .refine((value) => value === null || !Number.isNaN(Number(value)), {
           message: 'Invalid number',
         })
         .transform((value) => (value === null ? null : Number(value)))

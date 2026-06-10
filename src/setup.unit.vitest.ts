@@ -6,6 +6,7 @@ import { handlers } from './_unittesthttpmocks';
 vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
+  process.env.LOG_LEVEL = 'DEBUG';
 });
 
 // Conditionally enable MSW - it will intercept all http/s requests and allow easier unit testing of 3rd party services

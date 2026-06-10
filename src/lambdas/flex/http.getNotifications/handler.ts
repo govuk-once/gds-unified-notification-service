@@ -59,7 +59,9 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.debug('Received request', {
       path: event.path,
+      notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
+      pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
     });
 
@@ -71,11 +73,11 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     }
 
     // Extract details
-    const externalUserID = event.queryStringParameters?.externalUserID;
+    const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
 
     // Handle missing query param
-    if (!externalUserID) {
-      this.observability.logger.debug('Bad request - missing external user id - returning 400');
+    if (externalUserID == undefined || externalUserID === '') {
+      this.observability.logger.debug('Push Id has not been provided - returning 400');
       throw new httpErrors.BadRequest();
     }
 
@@ -85,25 +87,27 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     });
 
     this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
+    const responseBody = notifications
+      .filter((notification) => {
+        // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
+        if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+          return false;
+        }
+        return true;
+      })
+      .map((n) => IMessageRecordToIFlexNotification(n))
+      .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
+      .sort((a, b) => {
+        // Sort by dispatch time, most recent first
+        if (a.DispatchedDateTime && b.DispatchedDateTime) {
+          return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
+        }
+        // If one of the records doesnt have a dispatch time - move it to the back
+        return a.DispatchedDateTime ? -1 : 1;
+      });
+
     return {
-      body: notifications
-        .filter((notification) => {
-          // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
-          if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
-            return false;
-          }
-          return true;
-        })
-        .map((n) => IMessageRecordToIFlexNotification(n))
-        .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
-        .sort((a, b) => {
-          // Sort by dispatch time, most recent first
-          if (a.DispatchedDateTime && b.DispatchedDateTime) {
-            return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
-          }
-          // If one of the records doesnt have a dispatch time - move it to the back
-          return !a.DispatchedDateTime ? 1 : -1;
-        }),
+      body: responseBody,
       statusCode: 200,
     };
   }

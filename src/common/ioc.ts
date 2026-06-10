@@ -22,7 +22,6 @@ import {
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { InMemoryTTLCache } from '@common/utils';
-import { LogLevel } from 'node_modules/@aws-lambda-powertools/logger/lib/esm/types/Logger';
 
 enum Mode {
   SINGLETON,
@@ -42,7 +41,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
     // Timebound singleton - same behaviour as singleton, however after TTL expires, subsequent requests trigger recreation
     // This is quite useful for config dependent classes as it allows config to be updates without constant refreshing
     if (mode == Mode.TIMEBOUND_SINGLETON) {
-      if (serviceCacheTTL.has(key) == false) {
+      if (!serviceCacheTTL.has(key)) {
         serviceCacheTTL.set(key, fn() as object);
       }
       return serviceCacheTTL.get(key) as Instance;
@@ -63,7 +62,15 @@ export const iocGetLogger = ioc(
   () =>
     new Logger({
       serviceName: process.env.SERVICE_NAME ?? 'undefined',
-      logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'INFO',
+      logLevel: (process.env.LOG_LEVEL ?? 'INFO') as
+        | undefined
+        | 'TRACE'
+        | 'DEBUG'
+        | 'INFO'
+        | 'WARN'
+        | 'ERROR'
+        | 'SILENT'
+        | 'CRITICAL',
       correlationIdSearchFn: search,
       // Prevent accidental logging of message contents
       jsonReplacerFn: (key, value) => {

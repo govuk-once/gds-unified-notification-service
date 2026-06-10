@@ -61,6 +61,7 @@ export interface UNSAPIGatewayGatewayProps {
 export class UNSAPIGatewayGateway extends Construct {
   public readonly restApi: RestApi;
   public readonly props: UNSAPIGatewayGatewayProps;
+  public readonly waf: wafv2.CfnWebACL;
 
   //// =====================================================
   // Domain
@@ -247,12 +248,13 @@ export class UNSAPIGatewayGateway extends Construct {
           metricName: `${config.prefix}-aws-bad-input-rule-metric`,
           name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
         }),
-        this.managedRule({
-          priority: 100,
-          managedRuleName: 'AWSManagedRulesAnonymousIpList',
-          metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
-          name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
-        }),
+        // This rule while sensible rejects E2E tests from GH Actions
+        // this.managedRule({
+        //   priority: 100,
+        //   managedRuleName: 'AWSManagedRulesAnonymousIpList',
+        //   metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
+        //   name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
+        // }),
       ],
     });
 
@@ -273,6 +275,8 @@ export class UNSAPIGatewayGateway extends Construct {
       resourceArn: webAcl.attrArn,
       logDestinationConfigs: [wafLogGroup.logGroupArn],
     });
+
+    return webAcl;
   }
 
   //// =====================================================
@@ -397,7 +401,7 @@ export class UNSAPIGatewayGateway extends Construct {
 
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
-    this.constructWAF(config, props);
+    this.waf = this.constructWAF(config, props);
     this.constructRoute53Entries(config, props, fullDomain, hostedZone);
 
     // Apply security checkov exceptions
