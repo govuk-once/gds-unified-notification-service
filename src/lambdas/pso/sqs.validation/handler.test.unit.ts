@@ -190,25 +190,21 @@ describe('Validation QueueHandler', () => {
   });
 
   it.each([
-    [`true`, `false`, `validation`],
-    [`false`, `true`, `common`],
+    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [`true`, `false`, `Service is disabled due to parameter config/validation/enabled being set to false`],
   ])(
-    'should obey SSM Enabled flags Common: %s Validation: %s',
-    async (commonEnabled: string, validation: string, serviceDisabled: string) => {
+    'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
+    async (commonEnabled: string, validationEnabled: string, expectErrorMessage: string) => {
       // Arrange
       mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      if (validation == `false`) {
-        mockParameterStore[BoolParameters.Config.Validation.Enabled] = validation;
-      }
+      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validationEnabled;
 
       // Act
       const result = handler(mockEvent, mockContext);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
-        `Service is disabled due to parameter config/${serviceDisabled}/enabled being set to false`
-      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
     }
   );
 

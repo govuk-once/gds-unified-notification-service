@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import https from 'node:https';
 import { test as baseTest } from 'vitest';
 
-dotenv.config({ path: 'infrastructure/cdk/.env' });
+dotenv.config();
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -14,29 +14,30 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
 
-let psoUrl: string;
-let flexUrl: string;
+const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
+const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
 
 let httpsAgent: https.Agent;
 
 beforeAll(async () => {
   try {
+    if (!psoUrl || !flexUrl) {
+      throw new Error(
+        'Domain names are not setup for end to end testing, please run development:sandbox:setup to configure.'
+      );
+    }
+
     // Ensure AWS env vars are available
     if (
       process.env.AWS_ACCESS_KEY_ID == undefined ||
       process.env.AWS_SECRET_ACCESS_KEY == undefined ||
-      process.env.AWS_REGION == undefined ||
-      process.env.env == undefined
+      process.env.AWS_REGION == undefined
     ) {
-      console.error(process.env.env);
       throw new Error(
         `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
       );
     }
 
-    const env = process.env.env;
-    if (env === 'dev') {
-      psoUrl = 'pso.development.notifications.once.service.gov.uk';
       flexUrl = 'flex.development.notifications.once.service.gov.uk';
     } else {
       psoUrl = `uns-${env}-pso.development.notifications.once.service.gov.uk`;

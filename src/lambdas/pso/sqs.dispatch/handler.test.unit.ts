@@ -204,25 +204,21 @@ describe('Dispatch QueueHandler', () => {
   });
 
   it.each([
-    [`true`, `false`, `dispatch`],
-    [`false`, `true`, `common`],
+    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [`true`, `false`, `Service is disabled due to parameter config/dispatch/enabled being set to false`],
   ])(
-    'should obey SSM Enabled flags Common: %s Dispatch: %s',
-    async (commonEnabled: string, dispatchEnabled: string, serviceDisabled: string) => {
+    'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
+    async (commonEnabled: string, dispatchEnabled: string, expectErrorMessage: string) => {
       // Arrange
       mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      if (dispatchEnabled == `false`) {
-        mockParameterStore[BoolParameters.Config.Dispatch.Enabled] = dispatchEnabled;
-      }
+      mockParameterStore[BoolParameters.Config.Dispatch.Enabled] = dispatchEnabled;
 
       // Act
       const result = handler(mockEvent, mockContext);
 
-      //Assert
+      // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
-        `Service is disabled due to parameter config/${serviceDisabled}/enabled being set to false`
-      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
     }
   );
 
