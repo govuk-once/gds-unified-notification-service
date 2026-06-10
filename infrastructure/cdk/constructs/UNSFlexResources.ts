@@ -71,6 +71,7 @@ export class UNSFlexResource extends Construct {
       },
       iam: {
         ssmNamespaces: [config.namespace],
+        sqsSend: [refs.queues.analytics.queue.queueArn],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
         },
