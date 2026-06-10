@@ -19,8 +19,8 @@ export const extractIdentifiers = (partial: IIdentifiableMessage) => ({
   NotificationID: partial.NotificationID,
   UserID: partial.UserID,
   DepartmentID: partial.DepartmentID,
-  OrganisationID: partial.OrganisationID,
   CampaignID: partial.CampaignID,
+  OrganisationID: partial.OrganisationID,
 });
 
 // Message Fields Schemas
@@ -30,5 +30,6 @@ export const IMessageSchema = IIdentifiableMessageSchema.extend({
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
+  OrganisationID: z.string(),
 });
 export type IMessage = z.infer<typeof IMessageSchema>;

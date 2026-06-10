@@ -65,6 +65,7 @@ describe('getNotifications Handler', () => {
     ExternalUserID: externalUserID,
     Events: [mockReceivedEvent],
     DispatchedDateTime: '2026-02-13',
+    OrganisationID: 'ORG01',
   };
 
   const mockResponse: IFlexNotification = {

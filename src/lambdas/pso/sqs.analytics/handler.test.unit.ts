@@ -33,7 +33,7 @@ describe('Analytics QueueHandler', () => {
   const validAnalytics: IAnalytics = {
     EventID: '123',
     DepartmentID: 'DEP1',
-    OrganisationID: 'ORG1',
+    OrganisationID: 'ORG01',
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
     CampaignID: 'CAM_ID',
     Event: NotificationStateEnum.RECEIVED,

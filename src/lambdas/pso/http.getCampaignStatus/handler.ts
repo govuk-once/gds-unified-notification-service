@@ -64,10 +64,11 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     }
 
     const compositeSegments = campaign.CompositeID.split('/');
+    const campaignId = compositeSegments[compositeSegments.length - 1];
 
     return {
       body: {
-        CampaignID: compositeSegments[compositeSegments.length - 1],
+        CampaignID: campaignId,
         DepartmentID: compositeSegments.length >= 3 ? compositeSegments[1] : compositeSegments[0],
         ProcessingSummary: {
           RECEIVED: (campaign.VALIDATED ?? 0) + (campaign.VALIDATED_API_CALL ?? 0),

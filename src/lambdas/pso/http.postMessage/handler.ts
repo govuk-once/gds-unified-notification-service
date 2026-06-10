@@ -23,6 +23,7 @@ import {
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
+import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
@@ -85,9 +86,14 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     this.observability.logger.info('Received request', { event });
 
     const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
+
+    if (!organisationID) {
+      throw new httpErrors.BadRequest('Organisation could be not be resolved from the client certificate.');
+    }
+
     const messages = event.body.map((body) => ({
       ...body,
-      ...(organisationID ? { OrganisationID: organisationID } : {}),
+      OrganisationID: organisationID,
     }));
 
     // Pre-validate all messages & reject request when one of them contains unsupported url

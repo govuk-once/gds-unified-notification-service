@@ -49,6 +49,7 @@ describe('Validation QueueHandler', () => {
     NotificationBody: 'You have a new message in the message center',
     MessageTitle: 'Hi there',
     MessageBody: 'MOCK_LONG_MESSAGE',
+    OrganisationID: 'ORG01',
   };
 
   const mockEvent: QueueEvent<IMessage> = {
@@ -81,6 +82,8 @@ describe('Validation QueueHandler', () => {
           NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
+          CampaignID: 'CAMP01',
+          OrganisationID: 'ORG01',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -215,6 +218,7 @@ describe('Validation QueueHandler', () => {
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
         CampaignID: mockMessageBody.CampaignID,
+        OrganisationID: mockMessageBody.OrganisationID,
       },
       NotificationStateEnum.VALIDATING
     );
@@ -228,6 +232,7 @@ describe('Validation QueueHandler', () => {
         NotificationTitle: mockMessageBody.NotificationTitle,
         UserID: mockMessageBody.UserID,
         CampaignID: mockMessageBody.CampaignID,
+        OrganisationID: mockMessageBody.OrganisationID,
       },
       NotificationStateEnum.VALIDATED
     );
@@ -284,6 +289,7 @@ describe('Validation QueueHandler', () => {
         NotificationTitle: mockMarkdownMessageBody.NotificationTitle,
         UserID: mockMarkdownMessageBody.UserID,
         CampaignID: mockMarkdownMessageBody.CampaignID,
+        OrganisationID: mockMarkdownMessageBody.OrganisationID,
       },
       NotificationStateEnum.VALIDATED
     );
@@ -315,6 +321,7 @@ describe('Validation QueueHandler', () => {
         NotificationID: mockMessageBody.NotificationID,
         UserID: mockMessageBody.UserID,
         CampaignID: mockMessageBody.CampaignID,
+        OrganisationID: mockMessageBody.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
       '✖ BadRequestError: Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
@@ -359,6 +366,7 @@ describe('Validation QueueHandler', () => {
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         CampaignID: mockFailedEvent.Records[0].body.CampaignID,
         UserID: mockFailedEvent.Records[0].body.UserID,
+        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
       },
       NotificationStateEnum.VALIDATING
     );
@@ -368,6 +376,7 @@ describe('Validation QueueHandler', () => {
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         UserID: mockFailedEvent.Records[0].body.UserID,
         CampaignID: mockFailedEvent.Records[0].body.CampaignID,
+        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
       '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
@@ -409,6 +418,7 @@ describe('Validation QueueHandler', () => {
         DepartmentID: 'TEST01',
         CampaignID: 'CAM_ID',
         UserID: 'UserID',
+        OrganisationID: 'ORG01',
       },
       'VALIDATION_FAILED',
       expect.stringContaining(`https://example.com is using example.com hostname which is not on the allow list.`)

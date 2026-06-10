@@ -185,12 +185,14 @@ describe('campaignDynamoRepository', () => {
   describe('buildCompositeID', () => {
     it('should build an organisation/department/campaign key when all parts are present', () => {
       // Arrange, Act, Assert
-      expect(CampaignsDynamoRepository.buildCompositeID('ORG01', 'DEPT01', 'CAMP01')).toBe('ORG01/DEPT01/CAMP01');
+      const result = CampaignsDynamoRepository.buildCompositeID('ORG01', 'DEPT01', 'CAMP01');
+      expect(result).toBe('ORG01/DEPT01/CAMP01');
     });
 
     it('should build an organisation/campaign key when department is absent', () => {
       // Arrange, Act, Assert
-      expect(CampaignsDynamoRepository.buildCompositeID('ORG01', undefined, 'CAMP01')).toBe('ORG01/CAMP01');
+      const result = CampaignsDynamoRepository.buildCompositeID('ORG01', undefined, 'CAMP01');
+      expect(result).toBe('ORG01/CAMP01');
     });
   });
 
