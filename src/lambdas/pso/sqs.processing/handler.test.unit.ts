@@ -1,6 +1,8 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { ProcessingAdapterError } from '@common/models/Errors/BadGatewayError';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
@@ -197,23 +199,21 @@ describe('Processing QueueHandler', () => {
   });
 
   it.each([
-    [`true`, `false`],
-    [`false`, `true`],
+    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [`true`, `false`, `Service is disabled due to parameter config/processing/enabled being set to false`],
   ])(
-    'should obey SSM Enabled flags Common: %s Processing: %s',
-    async (commonEnabled: string, processingEnabled: string) => {
+    'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
+    async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
       // Arrange
       mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      if (processingEnabled == `false`) {
-        mockParameterStore[BoolParameters.Config.Processing.Enabled] = processingEnabled;
-      }
+      mockParameterStore[BoolParameters.Config.Processing.Enabled] = processingEnabled;
 
-      // Act & Assert
-      await expect(handler(mockEvent, mockContext)).rejects.toThrow(
-        new Error(
-          `Function disabled due to config/common/enabled or config/processing/enabled SSM param being toggled off`
-        )
-      );
+      // Act
+      const result = handler(mockEvent, mockContext);
+
+      // Assert
+      await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
     }
   );
 
@@ -351,7 +351,10 @@ describe('Processing QueueHandler', () => {
         UserID: mockFailedEvent.Records[0].body.UserID,
       },
       NotificationStateEnum.PROCESSING_FAILED,
-      '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
+      [
+        'Invalid input: expected string, received undefined → at body.NotificationTitle.',
+        'Invalid input: expected string, received undefined → at body.NotificationBody.',
+      ]
     );
   });
 
@@ -381,7 +384,7 @@ describe('Processing QueueHandler', () => {
 
   it('should log when processing adapter call returns success = false.', async () => {
     // Arrange
-    const error = new Error('Mock UDP failure message.');
+    const error = new ProcessingAdapterError(['Mock UDP failure message.']);
     serviceMocks.processingServiceMock.send.mockRejectedValue(error);
 
     // Act
@@ -391,7 +394,7 @@ describe('Processing QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Error during record handling`, {
       operationId: 'processing',
-      error: error.message,
+      error: error.errors,
       identifiableRecord: {
         NotificationID: mockEvent.Records[0].body.NotificationID,
         DepartmentID: mockEvent.Records[0].body.DepartmentID,
@@ -403,7 +406,7 @@ describe('Processing QueueHandler', () => {
 
   it('should log when processing adapter throws an error.', async () => {
     // Arrange
-    const error = new Error('Mock UDP error.');
+    const error = new ProcessingAdapterError(['Mock UDP error.']);
     serviceMocks.processingServiceMock.send.mockRejectedValueOnce(error);
 
     // Act
@@ -413,7 +416,7 @@ describe('Processing QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Error during record handling`, {
       operationId: 'processing',
-      error: error.message,
+      error: error.errors,
       identifiableRecord: {
         NotificationID: mockEvent.Records[0].body.NotificationID,
         DepartmentID: mockEvent.Records[0].body.DepartmentID,

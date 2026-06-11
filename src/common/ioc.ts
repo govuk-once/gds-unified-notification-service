@@ -2,6 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
@@ -16,7 +17,6 @@ import {
   KnownMetrics,
   NotificationService,
   ObservabilityService,
-  ObservabilityUtilities,
   ProcessingQueueService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
@@ -51,7 +51,7 @@ const ioc = <Instance>(key: string, mode: Mode, fn: () => Instance) => {
       return fn();
     }
 
-    throw new Error('Failed to resolve IOC, unexpected mode');
+    throw new ServiceMisconfigurationError(['Failed to resolve IOC, unexpected mode']);
   };
 };
 
@@ -106,11 +106,10 @@ export const iocGetMetrics = ioc(
       },
     })
 );
-export const iocGetUtilities = ioc('ObservabilityUtilities', Mode.SINGLETON, () => new ObservabilityUtilities());
 export const iocGetObservabilityService = ioc(
   'ObservabilityService',
   Mode.SINGLETON,
-  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer(), iocGetUtilities())
+  () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer())
 );
 
 // Services - Config & Cache

@@ -47,11 +47,7 @@ describe('GetNotificationStatus Handler', () => {
     const result = await handler(mockEvent, mockContext);
 
     // Assert
-    expect(result).toEqual(
-      expect.objectContaining({
-        body: 'Not Found',
-        statusCode: 404,
-      })
-    );
+    expect(result.statusCode).toEqual(404);
+    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 });

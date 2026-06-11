@@ -30,9 +30,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Status'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
   /send:
     post:
@@ -62,15 +64,17 @@ paths:
                 items:
                   $ref: '#/components/schemas/MessageRequestResponse'
         '400':
-          description: Bad request
+          description: Bad Request Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BadRequestResponse'
+                $ref: '#/components/schemas/BadRequestError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
   /status/{notificationID}:
     get:
@@ -95,12 +99,24 @@ paths:
                 maxItems: 10
                 items:
                   $ref: '#/components/schemas/MessageStatus'
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
         '404':
-          description: Not Found
+          description: Not Found Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
   /status/campaign/{campaignID}:
     get:
@@ -121,12 +137,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CampaignStatus'
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
         '404':
-          description: Not Found
+          description: Not Found Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
 components:
   schemas:
@@ -239,8 +267,32 @@ components:
             HIDDEN:
               type: integer
 
-    BadRequestResponse:
+    BaseError:
       type: object
       properties:
-        message:
+        Status:
+          type: integer
+        HttpError:
           type: string
+        Errors:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: string
+
+    BadRequestError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    UnauthorizedError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    ExpectationFailedError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    InternalServerError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'

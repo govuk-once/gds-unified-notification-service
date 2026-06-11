@@ -56,14 +56,24 @@ describe('getNotifications Handler', () => {
 
   const mockDbRecord: IMessageRecord = {
     NotificationID: notificationId,
-    DepartmentID: 'abc',
+    DepartmentID: 'DEP01',
     UserID: 'UserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
     ExternalUserID: externalUserID,
-    Events: [mockReceivedEvent],
+    Events: [
+      {
+        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+        NotificationID: notificationId,
+        DepartmentID: 'abc',
+        Event: NotificationDispatchedStateEnum.RECEIVED,
+        EventDateTime: new Date().toISOString(),
+        EventReason: '',
+        APIGWExtendedID: 'Test',
+      },
+    ],
     DispatchedDateTime: '2026-02-13',
   };
 
@@ -145,7 +155,7 @@ describe('getNotifications Handler', () => {
     });
   });
 
-  it('should exclude all notifications with expiry date in the pastfrom getRecords call', async () => {
+  it('should exclude all notifications with expiry date in the past from getRecords call', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValueOnce([
       {

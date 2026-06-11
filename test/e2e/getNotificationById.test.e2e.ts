@@ -65,6 +65,6 @@ describe('Get /status/{notificationID}', () => {
     const result = psoAPI.get(`/status/${mockInvalidNotificationID}`);
 
     // Assert
-    await expect(result).rejects.toMatchObject(NotFoundAxiosError);
+    await expect(result).rejects.toMatchObject(NotFoundAxiosError());
   });
 });

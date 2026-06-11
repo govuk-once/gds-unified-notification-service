@@ -69,6 +69,8 @@ describe('GetNotificationById Handler', () => {
     // Reset db object
     mockDbRecord = {
       NotificationID: notificationID,
+      DepartmentID: 'DEP01',
+      UserID: 'UserID',
       MessageTitle: 'You have a new Message',
       MessageBody: 'Open Notification Centre to read your notifications',
       NotificationTitle: 'You have a new Notification',
@@ -86,7 +88,7 @@ describe('GetNotificationById Handler', () => {
         },
       ],
       DispatchedDateTime: '2026-02-13',
-    } as IMessageRecord;
+    };
 
     // Reset expected response
     mockResponse = {

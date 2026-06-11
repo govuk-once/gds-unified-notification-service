@@ -1,9 +1,10 @@
 import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
+import { ContentValidationError, UnidentifiableRecordError } from '@common/models/Errors/BadRequestError';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
-import { BoolParameters } from '@common/utils';
+import { BoolParameters, errorFormatter } from '@common/utils';
 import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodType } from 'zod';
@@ -85,7 +86,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
         error: parsedResult.error ? z.prettifyError(parsedResult.error) : {},
       });
 
-      throw new Error(errorMsg);
+      throw new UnidentifiableRecordError([errorMsg]);
     }
 
     return parsedResult.data.body;
@@ -113,7 +114,15 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
             try {
               await contentValidationService.validate(data.body.MessageBody);
             } catch (e) {
-              ctx.addIssue(`${e}`);
+              if (e instanceof ContentValidationError) {
+                ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['body', 'MessageBody'] });
+                return;
+              }
+              ctx.addIssue({
+                code: 'custom',
+                message: e instanceof Error ? e.message : 'Unknown error in content validation',
+                path: ['body', 'MessageBody'],
+              });
             }
           }
         })
@@ -123,10 +132,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
 
     if (!validatedRecord.success) {
       const validationError = validatedRecord.error;
-      const errorMsg = validationError
-        ? z.prettifyError(validationError)
-        : 'Failed to validate record with unknown error';
-      throw new Error(errorMsg);
+      throw new ContentValidationError(errorFormatter(validationError));
     }
 
     return validatedRecord.data as OutputRecord;
@@ -148,7 +154,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
       await this.onError(identifiableRecord, error);
       this.observability.logger.error(`Error during record handling`, {
         operationId: this.operationId,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
         identifiableRecord,
       });
 

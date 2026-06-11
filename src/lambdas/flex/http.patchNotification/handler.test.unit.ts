@@ -33,6 +33,8 @@ describe('PatchNotification Handler', () => {
 
   const mockDbRecord: IMessageRecord = {
     NotificationID: notificationID,
+    DepartmentID: 'DEP01',
+    UserID: 'UserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
@@ -50,7 +52,7 @@ describe('PatchNotification Handler', () => {
       },
     ],
     DispatchedDateTime: '2026-02-13',
-  } as IMessageRecord;
+  };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -176,19 +178,26 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
   });
 
-  it('should log error when notificationID is missing', async () => {
+  it('should log and return 400 when notificationID is missing', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
 
     // Act
-    await handler(mockMissingIdEvent, mockContext);
+    const result = await handler(mockMissingIdEvent, mockContext);
 
     // Assert
     expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
-      'Notification Id has not been provided - returning 400'
+      'NotificationID has not been provided - returning 400'
     );
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['NotificationID has not been provided'],
+    });
   });
 
   it('should return 401 with status unauthorized and should return', async () => {
@@ -200,6 +209,7 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(401);
+    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
   });
 
   it('should fetch API key from config service', async () => {
@@ -223,6 +233,7 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(404);
+    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
   it('should return 400 when externalUserID/pushID is undefined', async () => {
     // Arrange

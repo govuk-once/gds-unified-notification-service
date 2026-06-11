@@ -1,8 +1,8 @@
+import { ContentValidationError } from '@common/models/Errors/BadRequestError';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
-import httpError, { HttpError } from 'http-errors';
 
 const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   // Standard text containment
@@ -48,9 +48,8 @@ export class ContentValidationService {
     protected config: ConfigurationService
   ) {}
 
-  public createError(content: string): HttpError {
-    this.observability.logger.warn(content);
-    return new httpError.BadRequest(`Bad Request: \n\n ${content}`);
+  private createError(content: string) {
+    return new ContentValidationError([content]);
   }
 
   public async validateUrls(input: string | undefined) {
@@ -75,7 +74,7 @@ export class ContentValidationService {
         continue;
       }
       // Validate protocol is on the list
-      if (!protocols.includes(url.protocol)) {
+      if (protocols.includes(url.protocol) == false) {
         throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${protocols.join(',')}`
         );
@@ -95,7 +94,7 @@ export class ContentValidationService {
           .some(Boolean);
 
         if (!validHostname) {
-          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list.`);
+          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list`);
         }
       }
     }

@@ -1,4 +1,5 @@
 import { responseValidatorMiddleware } from '@common/middlewares/responseValidatorMiddleware';
+import { ExpectationFailedError } from '@common/models/Errors/ExpectationFailedError';
 import middy from '@middy/core';
 import { APIGatewayEvent, Context } from 'aws-lambda';
 import z from 'zod';
@@ -10,11 +11,20 @@ describe('responseValidatorMiddleware', () => {
     b: z.string(),
   });
 
-  const instance = responseValidatorMiddleware(schema);
+  const observabilityMock = {
+    logger: {
+      error: vi.fn(),
+    },
+  };
+  const instance = responseValidatorMiddleware((message: string, errors: { errors: string[] }) => {
+    observabilityMock.logger.error(message, { errors });
+  }, schema);
 
   it('should do nothing if schema is not supplied', async () => {
     // Arrange - define mock lambda
-    const schemalessInstance = responseValidatorMiddleware(undefined);
+    const schemalessInstance = responseValidatorMiddleware((message: string, errors: { errors: string[] }) => {
+      observabilityMock.logger.error(message, { errors });
+    });
     const obj = { a: 1, b: 'two' };
     const handler = vi.fn().mockResolvedValueOnce({ body: obj });
     const fn = middy().use(schemalessInstance).handler(handler);
@@ -39,7 +49,7 @@ describe('responseValidatorMiddleware', () => {
     expect(result).toEqual({ body: obj });
   });
 
-  it('should throw error in case of invalid response schema', async () => {
+  it('should throw error in case of invalid response schema and log the error', async () => {
     // Arrange - define mock lambda
     const obj = { a: { b: 'c' } };
     const handler = vi.fn().mockResolvedValueOnce({ body: obj });
@@ -49,6 +59,7 @@ describe('responseValidatorMiddleware', () => {
     const promise = fn({} as APIGatewayEvent, mockContext);
 
     // Expect
-    await expect(promise).rejects.toThrowError('Expectation Failed');
+    await expect(promise).rejects.toThrow(new ExpectationFailedError());
+    expect(observabilityMock.logger.error).toHaveBeenCalledTimes(1);
   });
 });

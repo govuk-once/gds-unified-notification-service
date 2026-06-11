@@ -1,4 +1,5 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { InMemoryTTLCache } from '@common/utils';
@@ -54,11 +55,13 @@ export class ConfigurationService extends BaseConfigurableValueService {
         this.observability.logger.info(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
         return this.inMemoryCache.get(param.Name)!;
       }
-      throw new Error('Returned parameter has no value');
+
+      this.observability.logger.error(`Retrieve parameter /${this.prefix}/${namespace} has no value`);
+      throw new ServiceMisconfigurationError();
     } catch (error) {
       this.observability.logger.error('Failed fetching value', {
         paramName: param.Name,
-        error: this.observability.utilities.formatError(error),
+        error: this.observability.formatError(error),
       });
       throw error;
     }
@@ -67,7 +70,8 @@ export class ConfigurationService extends BaseConfigurableValueService {
   public async ensureServiceIsEnabled(...keys: string[]) {
     for (const key of keys) {
       if ((await this.getBooleanParameter(key)) !== true) {
-        throw new Error(`Function disabled due to ${keys.join(' or ')} SSM param being toggled off`);
+        this.observability.logger.error(`Service is disabled due to parameter ${key} being set to false`);
+        throw new ServiceMisconfigurationError();
       }
     }
   }

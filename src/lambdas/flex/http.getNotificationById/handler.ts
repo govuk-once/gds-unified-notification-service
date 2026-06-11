@@ -6,6 +6,8 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -15,7 +17,6 @@ import {
   IMessageRecordToIFlexNotification,
 } from '@project/lambdas/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -66,12 +67,8 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       requestId: context.awsRequestId,
     });
 
-    const isValidApiKey = await this.validateApiKey(event);
-
-    if (!isValidApiKey) {
-      this.observability.logger.debug('Invalid api key - returning 401');
-      throw new httpErrors.Unauthorized();
-    }
+    // Authorize
+    await this.validateApiKey(event);
 
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
@@ -79,14 +76,14 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle missing path param
     if (notificationID == undefined) {
-      this.observability.logger.debug('Notification Id has not been provided - returning 400');
-      throw new httpErrors.BadRequest();
+      this.observability.logger.info('NotificationID has not been provided - returning 400');
+      throw new BadRequestError(['NotificationID has not been provided']);
     }
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('Push Id has not been provided - returning 400');
-      throw new httpErrors.BadRequest();
+      this.observability.logger.debug('PushID has not been provided - returning 400');
+      throw new BadRequestError(['PushID has not been provided']);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
@@ -94,13 +91,13 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     // Handle not found or hidden notifications
     if (!notification) {
       this.observability.logger.debug('Notification not found - returning 404');
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
     if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
       this.observability.logger.debug('Notification has expired - returning 404');
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
@@ -109,15 +106,15 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
         userOnNotification: notification.ExternalUserID,
         queryingUser: externalUserID,
       });
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // If message is marked as hidden - return 404
     const notificationResponse = IMessageRecordToIFlexNotification(notification);
 
     if (notificationResponse.Status == NotificationDispatchedStateEnum.HIDDEN) {
-      this.observability.logger.debug('Notfication has been marked as hidden - returning 404');
-      throw new httpErrors.NotFound();
+      this.observability.logger.debug('Notification has been marked as hidden - returning 404');
+      throw new NotFoundError();
     }
 
     this.observability.logger.info('Successful request - returning 200', { notificationID });

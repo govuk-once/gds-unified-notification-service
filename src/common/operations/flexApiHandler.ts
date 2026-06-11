@@ -1,4 +1,5 @@
 import { ITypedRequestEvent } from '@common/middlewares';
+import { UnauthorizedError } from '@common/models/Errors/UnauthorisedError';
 import { APIHandler } from '@common/operations/httpOperation';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
@@ -15,14 +16,14 @@ export abstract class FlexAPIHandler<InputSchema extends ZodType, OutputSchema e
     super(observability);
   }
 
-  protected async validateApiKey(event: ITypedRequestEvent<unknown>): Promise<boolean> {
+  protected async validateApiKey(event: ITypedRequestEvent<unknown>) {
     const apiKey = await this.config.getParameter(StringParameters.Api.Flex.ApiKey);
-    const providedApiKey = event.headers['x-api-key'];
+    const providedApiKey = event?.headers['x-api-key'];
 
     if (providedApiKey !== apiKey) {
       this.observability.logger.error('No matching API key: ', { apiKey });
-      return false;
+      this.observability.logger.debug('Invalid api key - returning 401');
+      throw new UnauthorizedError();
     }
-    return true;
   }
 }

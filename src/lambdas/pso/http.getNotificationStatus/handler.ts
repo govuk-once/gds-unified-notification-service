@@ -6,11 +6,11 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
 import { INotificationStatusSchema } from '@project/lambdas/interfaces/INotificationStatus';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -41,7 +41,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
 
     // If it doesnt exist - 404
     if (notification == null) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     this.observability.logger.info(`Found notification`, { notification });

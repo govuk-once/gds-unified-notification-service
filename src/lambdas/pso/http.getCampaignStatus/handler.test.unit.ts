@@ -156,11 +156,8 @@ describe('GetCampaignStatus Handler', () => {
     const result = await handler(mockEvent, mockContext);
 
     // Assert
-    expect(result).toEqual(
-      expect.objectContaining({
-        statusCode: 404,
-      })
-    );
+    expect(result.statusCode).toEqual(404);
+    expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 
   it('should return 400 if department ID is missing', async () => {
@@ -171,10 +168,11 @@ describe('GetCampaignStatus Handler', () => {
     const result = await handler(mockEvent, mockContext);
 
     // Assert
-    expect(result).toEqual(
-      expect.objectContaining({
-        statusCode: 400,
-      })
-    );
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Missing DepartmentID'],
+    });
   });
 });

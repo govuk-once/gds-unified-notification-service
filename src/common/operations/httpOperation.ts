@@ -13,6 +13,8 @@ import {
   responseValidatorMiddleware,
   serializeBodyToJson,
 } from '@common/middlewares';
+import { httpErrorHandlerMiddleware } from '@common/middlewares/httpErrorHandlerMiddleware';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
@@ -49,7 +51,8 @@ export abstract class APIHandler<
     event: ITypedRequestEvent<InferredInputSchema>,
     context: Context
   ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
-    throw new Error('Not Implemented');
+    this.observability.logger.error(`No implementation found for operation ${this.operationId}`);
+    throw new ServiceMisconfigurationError();
   }
 
   /**
@@ -96,9 +99,22 @@ export abstract class APIHandler<
    * Adds layers of structure enforcement for incoming and outcoming data
    */
   protected validationMiddlewares(middy: IMiddleware): IMiddleware {
-    return middy
-      .use(requestValidatorMiddleware(this.requestBodySchema))
-      .use(responseValidatorMiddleware(this.responseBodySchema));
+    return middy.use(requestValidatorMiddleware(this.requestBodySchema)).use(
+      responseValidatorMiddleware((message: string, errors: { errors: string[] }) => {
+        this.observability.logger.error(message, { errors });
+      }, this.responseBodySchema)
+    );
+  }
+
+  /**
+   * Adds error handler that formats errors into json error response
+   */
+  protected errorHandlingMiddlewares(middy: IMiddleware): IMiddleware {
+    return middy.use(
+      httpErrorHandlerMiddleware((message: string, statusCode: number, errors: string[] | Error) => {
+        this.observability.logger.error(message, { statusCode: statusCode, errors: errors });
+      })
+    );
   }
 
   /**
@@ -110,6 +126,7 @@ export abstract class APIHandler<
     middy = this.sanitizationMiddlewares(middy);
     middy = this.observabilityMiddlewares(middy);
     middy = this.validationMiddlewares(middy);
+    middy = this.errorHandlingMiddlewares(middy);
     return middy;
   }
 
