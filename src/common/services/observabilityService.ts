@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { BaseError } from '@common/models/Errors/BaseError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 
 // Coverts all analytics events into a metric
@@ -134,21 +135,23 @@ export type KnownMetrics = Omit<Metrics, 'addMetric'> & {
   ) => void;
 };
 
-export class ObservabilityUtilities {
-  public formatError<T>(error: T): string | T {
-    if (error instanceof Error) {
-      return error.message;
-    }
-
-    return error;
-  }
-}
-
 export class ObservabilityService {
   constructor(
     public logger: Logger,
     public metrics: KnownMetrics,
-    public tracer: Tracer,
-    public utilities: ObservabilityUtilities
+    public tracer: Tracer
   ) {}
+
+  public formatError<T>(error: T): string | T | string[] {
+    if (error instanceof BaseError) {
+      return error.errors;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    this.logger.error('An unexpected error type was encountered in formatError', { error });
+    return error;
+  }
 }

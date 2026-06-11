@@ -1,6 +1,7 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
+import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
@@ -187,25 +188,27 @@ describe('Validation QueueHandler', () => {
     const result = handler(mockFailOnTriggerEvent, mockContext);
 
     // Assert
-    await expect(result).rejects.toThrow(new Error('Simulating an error!'));
+    await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
   });
 
   it.each([
-    [`true`, `false`],
-    [`false`, `true`],
-  ])('should obey SSM Enabled flags Common: %s Validation: %s', async (commonEnabled: string, validation: string) => {
-    // Arrange
-    mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-    if (validation == `false`) {
-      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validation;
+    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [`true`, `false`, `Service is disabled due to parameter config/validation/enabled being set to false`],
+  ])(
+    'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
+    async (commonEnabled: string, validationEnabled: string, expectErrorMessage: string) => {
+      // Arrange
+      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
+      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validationEnabled;
+
+      // Act
+      const result = handler(mockEvent, mockContext);
+
+      // Assert
+      await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
     }
-    // Act & Assert
-    await expect(handler(mockEvent, mockContext)).rejects.toThrow(
-      new Error(
-        `Function disabled due to config/common/enabled or config/validation/enabled SSM param being toggled off`
-      )
-    );
-  });
+  );
 
   it('should publish analytics events when lambda beings validating record.', async () => {
     // Act
@@ -299,7 +302,7 @@ describe('Validation QueueHandler', () => {
     // Arrange
     const mockInvalidMarkdownMessageBody = {
       ...mockMessageBody,
-      MessageBody: '# Heading\n\nThis is a [link](https://google.com) with an unapproved hostname.',
+      MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
     };
     const mockEventInvalidMarkdown: QueueEvent<IMessage> = {
       Records: [
@@ -324,7 +327,7 @@ describe('Validation QueueHandler', () => {
         OrganisationID: mockMessageBody.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
-      '✖ BadRequestError: Bad Request: \n\n https://google.com is using google.com hostname which is not on the allow list.'
+      ['https://example.com is using example.com hostname which is not on the allow list → at body.MessageBody.']
     );
   });
 
@@ -379,7 +382,10 @@ describe('Validation QueueHandler', () => {
         OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
-      '✖ Invalid input: expected string, received undefined\n  → at body.NotificationTitle\n✖ Invalid input: expected string, received undefined\n  → at body.NotificationBody'
+      [
+        'Invalid input: expected string, received undefined → at body.NotificationTitle.',
+        'Invalid input: expected string, received undefined → at body.NotificationBody.',
+      ]
     );
   });
 
@@ -421,7 +427,7 @@ describe('Validation QueueHandler', () => {
         OrganisationID: 'ORG01',
       },
       'VALIDATION_FAILED',
-      expect.stringContaining(`https://example.com is using example.com hostname which is not on the allow list.`)
+      [`https://example.com is using example.com hostname which is not on the allow list → at body.MessageBody.`]
     );
   });
 });

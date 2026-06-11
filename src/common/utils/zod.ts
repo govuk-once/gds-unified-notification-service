@@ -19,3 +19,7 @@ export const groupValidation = async <T, U extends z.ZodRawShape>(data: T[], sch
 
   return [data, valid, invalid] as const;
 };
+
+export const errorFormatter = (error: z.ZodError) => [
+  ...error.issues.map((issue) => `${issue.message} → at ${issue.path.join('.')}.`),
+];

@@ -38,11 +38,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedResponse'
+                $ref: '#/components/schemas/UnauthorizedError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
   /notifications/{notificationID}:
     get:
@@ -69,23 +71,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Notification'
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedResponse'
-
+                $ref: '#/components/schemas/UnauthorizedError'
         '404':
-          description: Notification not found
+          description: Not Found Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundResponse'
+                $ref: '#/components/schemas/NotFoundError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+
     delete:
       summary: Deletes notification by ID
       operationId: deleteNotificationByID
@@ -105,23 +115,30 @@ paths:
       responses:
         '204':
           description: Notification deleted (No content)
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedResponse'
-
+                $ref: '#/components/schemas/UnauthorizedError'
         '404':
-          description: Notification not found
+          description: Not Found Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundResponse'
+                $ref: '#/components/schemas/NotFoundError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
   /notifications/{notificationID}/status:
     patch:
@@ -152,22 +169,30 @@ paths:
       responses:
         '202':
           description: Update accepted
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedResponse'
+                $ref: '#/components/schemas/UnauthorizedError'
         '404':
-          description: Notification not found
+          description: Not Found Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundResponse'
+                $ref: '#/components/schemas/NotFoundError'
         '500':
-          description: Internal server error
-        default:
-          description: Unexpected error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
 
 components:
   securitySchemes:
@@ -206,7 +231,6 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
-
     Status:
       type: string
       enum:
@@ -214,14 +238,32 @@ components:
         - READ
         - MARKED_AS_UNREAD
 
-    NotFoundResponse:
+    BaseError:
       type: object
       properties:
-        message:
+        Status:
+          type: integer
+        HttpError:
           type: string
+        Errors:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            type: string
 
-    UnauthorizedResponse:
-      type: object
-      properties:
-        message:
-          type: string
+    BadRequestError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    UnauthorizedError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    ExpectationFailedError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+    InternalServerError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'

@@ -3,6 +3,7 @@ import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
+import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
@@ -112,7 +113,7 @@ export abstract class QueueHandler<InputType, OutputType> {
 
         if (eventToOperationMap[notificationTitle] === this.operationId) {
           this.observability.logger.warn(`Simulating an error for operation ${this.operationId}`);
-          throw new Error(`Simulating an error!`);
+          throw new SimulatedError([`Simulating an error!`]);
         }
       }
 
@@ -125,6 +126,7 @@ export abstract class QueueHandler<InputType, OutputType> {
   }
 
   public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
-    throw new Error('Not Implemented');
+    this.observability.logger.error(`No implementation found for operation ${this.operationId}`);
+    throw new ServiceMisconfigurationError();
   }
 }

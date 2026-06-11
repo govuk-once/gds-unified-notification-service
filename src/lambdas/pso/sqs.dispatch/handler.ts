@@ -9,6 +9,7 @@ import {
   iocGetNotificationService,
   iocGetObservabilityService,
 } from '@common/ioc';
+import { RateLimitingError } from '@common/models/Errors/TooManyRequestsError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -99,7 +100,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
         )
       ).exceeded
     ) {
-      throw new Error(`Stopping processing from continuing as rate limit has been exceeded`);
+      throw new RateLimitingError([`Stopping processing from continuing as rate limit has been exceeded`]);
     }
 
     // Prepare request
@@ -142,7 +143,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
     await this.analyticsService.publishEvent(
       identifiableRecord,
       NotificationStateEnum.DISPATCHING_FAILED,
-      this.observability.utilities.formatError(error)
+      this.observability.formatError(error)
     );
   }
 

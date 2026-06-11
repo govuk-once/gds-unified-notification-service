@@ -7,12 +7,13 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsService, ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -57,6 +58,7 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.info('Received request', { event });
     this.observability.logger.debug('Received request', {
       path: event.path,
       notificationID: event.pathParameters?.notificationID,
@@ -65,12 +67,7 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       requestId: context.awsRequestId,
     });
 
-    const isValidApiKey = await this.validateApiKey(event);
-
-    if (!isValidApiKey) {
-      this.observability.logger.debug('Invalid api key - returning 401');
-      throw new httpErrors.Unauthorized();
-    }
+    await this.validateApiKey(event);
 
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
@@ -78,21 +75,21 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     // Handle missing path param
     if (notificationID == undefined) {
-      this.observability.logger.debug('Notification Id has not been provided - returning 400');
-      throw new httpErrors.BadRequest();
+      this.observability.logger.debug('NotificationID has not been provided - returning 400');
+      throw new BadRequestError(['NotificationID has not been provided']);
     }
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('Push Id has not been provided - returning 400');
-      throw new httpErrors.BadRequest();
+      this.observability.logger.debug('PushID has not been provided - returning 400');
+      throw new BadRequestError(['PushID has not been provided']);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
       this.observability.logger.debug('Notification does not exists - returning 404');
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
@@ -101,7 +98,7 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
         userOnNotification: notification.ExternalUserID,
         queryingUser: externalUserID,
       });
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     // Trigger marking as hidden

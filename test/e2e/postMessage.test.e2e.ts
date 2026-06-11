@@ -102,10 +102,12 @@ describe('Post /send', () => {
     const result = psoAPI.post('/send');
 
     // Assert
-    await expect(result).rejects.toMatchObject(BadRequestAxiosError());
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(['Invalid input: expected array, received null → at .'])
+    );
   });
 
-  test('it returns 202 when the message has no departmentID (DepartmentID is now optional).', async ({ psoAPI }) => {
+  test('it returns 400 when the message has no departmentID.', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoDepartmentID = [
       {
@@ -120,11 +122,12 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = await psoAPI.post('/send', messagesWithNoDepartmentID);
+    const result = psoAPI.post('/send', messagesWithNoDepartmentID);
 
     // Assert
-    expect(result.status).toBe(202);
-    expect(result.data).toEqual([{ NotificationID: notificationID }]);
+    await expect(result).rejects.toMatchObject(
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.DepartmentID.'])
+    );
   });
 
   test('it returns 400 when the message has no userID.', async ({ psoAPI }) => {
@@ -146,7 +149,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError('Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].UserID')
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.UserID.'])
     );
   });
 
@@ -169,9 +172,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationTitle'
-      )
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationTitle.'])
     );
   });
 
@@ -194,9 +195,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n✖ Invalid input: expected string, received undefined\n  → at [0].NotificationBody'
-      )
+      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationBody.'])
     );
   });
 
@@ -220,9 +219,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(
-        'Bad Request: \n\n https://example.com is using example.com hostname which is not on the allow list.'
-      )
+      BadRequestAxiosError(['https://example.com is using example.com hostname which is not on the allow list'])
     );
   });
 
@@ -246,7 +243,7 @@ describe('Post /send', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError('Bad Request: \n\n Message body contains markdown elements which are not valid: code_block')
+      BadRequestAxiosError(['Message body contains markdown elements which are not valid: code_block'])
     );
   });
 });

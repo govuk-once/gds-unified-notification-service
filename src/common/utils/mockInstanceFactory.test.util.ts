@@ -13,7 +13,6 @@ import {
   DispatchQueueService,
   NotificationService,
   ObservabilityService,
-  ObservabilityUtilities,
   ProcessingQueueService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
@@ -29,13 +28,11 @@ export const observabilitySpies = (): Mocked<ObservabilityService> => {
   const loggerMock = new Logger() as Mocked<Logger>;
   const metricsMocks = new Metrics() as Mocked<Metrics>;
   const tracerMocks = new Tracer() as Mocked<Tracer>;
-  const utilities = new ObservabilityUtilities();
 
   const observabilityMock = new ObservabilityService(
     loggerMock,
     metricsMocks,
-    tracerMocks,
-    utilities
+    tracerMocks
   ) as Mocked<ObservabilityService>;
 
   return observabilityMock;

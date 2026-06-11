@@ -2,6 +2,7 @@ import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
+import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { QueueEvent } from '@common/operations';
 import { CircuitBreakerOpenError, MetricsLabels } from '@common/services';
 import { NotificationAdapterResult } from '@common/services/interfaces';
@@ -202,27 +203,25 @@ describe('Dispatch QueueHandler', () => {
     const result = handler(mockFailOnTriggerEvent, mockContext);
 
     // Assert
-    await expect(result).rejects.toThrow(new Error('Simulating an error!'));
+    await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
   });
 
   it.each([
-    [`true`, `false`],
-    [`false`, `true`],
+    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [`true`, `false`, `Service is disabled due to parameter config/dispatch/enabled being set to false`],
   ])(
-    'should obey SSM Enabled flags Common: %s Dispatch: %s',
-    async (commonEnabled: string, dispatchEnabled: string) => {
+    'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
+    async (commonEnabled: string, dispatchEnabled: string, expectErrorMessage: string) => {
       // Arrange
       mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      if (dispatchEnabled == `false`) {
-        mockParameterStore[BoolParameters.Config.Dispatch.Enabled] = dispatchEnabled;
-      }
+      mockParameterStore[BoolParameters.Config.Dispatch.Enabled] = dispatchEnabled;
 
-      // Act & Assert
-      await expect(handler(mockEvent, mockContext)).rejects.toThrow(
-        new Error(
-          `Function disabled due to config/common/enabled or config/dispatch/enabled SSM param being toggled off`
-        )
-      );
+      // Act
+      const result = handler(mockEvent, mockContext);
+
+      // Assert
+      await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
     }
   );
 
@@ -380,10 +379,10 @@ describe('Dispatch QueueHandler', () => {
         OrganisationID: mockEvent.Records[0].body.OrganisationID,
       },
       'DISPATCHING_FAILED',
-      `✖ Invalid input: expected string, received undefined
-  → at body.NotificationTitle
-✖ Invalid input: expected string, received undefined
-  → at body.NotificationBody`
+      [
+        `Invalid input: expected string, received undefined → at body.NotificationTitle.`,
+        `Invalid input: expected string, received undefined → at body.NotificationBody.`,
+      ]
     );
   });
 

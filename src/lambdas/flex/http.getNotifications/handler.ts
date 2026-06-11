@@ -6,6 +6,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -16,7 +17,6 @@ import {
 } from '@project/lambdas/interfaces/IFlexNotification';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -66,19 +66,15 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     });
 
     // Authorize
-    const isValidApiKey = await this.validateApiKey(event);
-    if (!isValidApiKey) {
-      this.observability.logger.debug('Invalid api key - returning 401');
-      throw new httpErrors.Unauthorized();
-    }
+    await this.validateApiKey(event);
 
     // Extract details
     const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('Push Id has not been provided - returning 400');
-      throw new httpErrors.BadRequest();
+      this.observability.logger.debug('PushID has not been provided - returning 400');
+      throw new BadRequestError(['PushID has not been provided.']);
     }
 
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({

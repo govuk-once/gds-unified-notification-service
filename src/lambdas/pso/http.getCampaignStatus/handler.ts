@@ -6,10 +6,11 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { CampaignsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.any();
@@ -49,9 +50,10 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
+
     const organisationID = event.requestContext.authorizer?.Organization as string;
     if (!organisationID) {
-      throw new httpErrors.BadRequest();
+      throw new BadRequestError(['Missing DepartmentID']);
     }
 
     const departmentID = event.queryStringParameters?.departmentID;
@@ -60,7 +62,7 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
     // If it doesn't exist - 404
     if (campaign == null) {
-      throw new httpErrors.NotFound();
+      throw new NotFoundError();
     }
 
     const compositeSegments = campaign.CompositeID.split('/');
