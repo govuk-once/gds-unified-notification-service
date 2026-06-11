@@ -38,12 +38,6 @@ beforeAll(async () => {
       );
     }
 
-      flexUrl = 'flex.development.notifications.once.service.gov.uk';
-    } else {
-      psoUrl = `uns-${env}-pso.development.notifications.once.service.gov.uk`;
-      flexUrl = `uns-${env}-flex.development.notifications.once.service.gov.uk`;
-    }
-
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
     const client = new SSMClient({ region: 'eu-west-2' });
 
