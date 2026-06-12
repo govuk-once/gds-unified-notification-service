@@ -4,20 +4,20 @@
   "author": "",
   "type": "module",
   "scripts": {
-    "build": "bun scripts/build.ts",
+    "build": "tsx scripts/build.ts",
     "build:validate": "tsc",
     "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact --quiet",
     "commit": "cz",
     "development:sandbox:release": "npm run build && npm run cdk:deploy",
-    "development:sandbox:setup": "bun scripts/developer-sandbox-setup.ts",
+    "development:sandbox:setup": "tsx scripts/developer-sandbox-setup.ts",
     "cdk": "cd infrastructure/cdk && cdk",
     "cdk:diff": "npm run cdk -- diff",
     "cdk:synth": "npm run cdk -- synth",
     "cdk:deploy": "npm run cdk -- deploy --require-approval never && npm run cdk:postdeploy:ssm",
-    "cdk:postdeploy:ssm": "bun --cwd infrastructure/cdk cdk.postdeploy.ssm.ts",
+    "cdk:postdeploy:ssm": "tsx --cwd infrastructure/cdk cdk.postdeploy.ssm.ts",
     "lint:fix": "npx prettier . --write && npx eslint . --fix",
     "lint": "npx prettier . --check && npx eslint .",
-    "pre-commit": "VITEST_SILENT=true bun scripts/pre-commit.ts",
+    "pre-commit": "VITEST_SILENT=true tsx scripts/pre-commit.ts",
     "prepare": "husky",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage  --project unit",
@@ -25,22 +25,21 @@
     "test": "vitest",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
-    "upgrade": "ncu -u -d 'npm run test' && npm audit --omit dev"
+    "upgrade": "ncu -u -d 'npm run test:unit' && npm audit --omit dev",
+    "upgrade:diff": "ncu -x @eslint/js -x eslint-plugin-markdownlint -x eslint-plugin-prettier"
   },
   "devDependencies": {
-    "@aws-sdk/client-api-gateway": "^3.1030.0",
     "@aws-sdk/client-kms": "^3.1030.0",
     "@aws-sdk/client-s3": "^3.1030.0",
     "@aws-sdk/client-sqs": "^3.1030.0",
     "@aws-sdk/client-sts": "^3.1030.0",
-    "@commitlint/cli": "^20.2.0",
-    "@commitlint/config-angular": "^20.2.0",
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-angular": "^21.0.2",
     "@eslint/js": "^9.39.1",
     "@inquirer/prompts": "^8.0.2",
     "@semantic-release/exec": "^7.1.0",
     "@types/archiver": "^7.0.0",
     "@types/aws-lambda": "^8.10.159",
-    "@types/bun": "^1.3.4",
     "@types/http-errors": "^2.0.5",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.0.3",
@@ -48,49 +47,46 @@
     "@typescript-eslint/parser": "^8.48.1",
     "@vitest/coverage-v8": "^4.1.4",
     "@vitest/eslint-plugin": "^1.6.17",
-    "aws-cdk": "^2.1118.2",
+    "aws-cdk": "^2.1126.0",
     "aws-cdk-lib": "^2.250.0",
     "aws-sdk-client-mock": "^4.1.0",
     "aws-sdk-client-mock-vitest": "^7.0.1",
-    "bun": "^1.3.4",
-    "commitizen": "^4.2.4",
-    "cz-conventional-changelog": "^3.3.0",
     "dotenv": "^17.4.2",
     "esbuild": "^0.27.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-markdownlint": "^0.6.0",
     "eslint-plugin-prettier": "^5.5.4",
-    "globals": "^16.5.0",
+    "globals": "^17.6.0",
     "husky": "^9.1.7",
-    "jiti": "^2.6.1",
-    "msw": "^2.12.7",
+    "jiti": "^2.7.0",
+    "msw": "^2.14.6",
     "node-forge": "^1.4.0",
+    "npm": "^11.17.0",
     "npm-check-updates": "^21.0.1",
     "once-platform-constructs": "^1.2.0",
     "prettier": "3.7.4",
-    "semantic-release": "^25.0.2",
+    "semantic-release": "^25.0.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1",
     "vitest": "^4.1.4"
   },
   "dependencies": {
-    "@aws-lambda-powertools/batch": "^2.32.0",
-    "@aws-lambda-powertools/jmespath": "^2.29.0",
-    "@aws-lambda-powertools/logger": "^2.29.0",
-    "@aws-lambda-powertools/metrics": "^2.29.0",
-    "@aws-lambda-powertools/parameters": "^2.29.0",
-    "@aws-lambda-powertools/parser": "^2.29.0",
-    "@aws-lambda-powertools/tracer": "^2.29.0",
-    "@aws-lambda-powertools/validation": "^2.29.0",
-    "@aws-sdk/client-api-gateway": "^3.1030.0",
-    "@aws-sdk/client-dynamodb": "^3.964.0",
-    "@aws-sdk/client-secrets-manager": "^3.1014.0",
-    "@aws-sdk/client-ssm": "^3.956.0",
-    "@aws-sdk/credential-providers": "^3.965.0",
-    "@aws-sdk/hash-node": "^3.370.0",
-    "@aws-sdk/signature-v4": "^3.370.0",
+    "@aws-lambda-powertools/batch": "^2.33.1",
+    "@aws-lambda-powertools/jmespath": "^2.33.1",
+    "@aws-lambda-powertools/logger": "^2.33.1",
+    "@aws-lambda-powertools/metrics": "^2.33.1",
+    "@aws-lambda-powertools/parameters": "^2.33.1",
+    "@aws-lambda-powertools/parser": "^2.33.1",
+    "@aws-lambda-powertools/tracer": "^2.33.1",
+    "@aws-lambda-powertools/validation": "^2.33.1",
+    "@aws-sdk/client-dynamodb": "^3.1067.0",
+    "@aws-sdk/client-secrets-manager": "^3.1067.0",
+    "@aws-sdk/client-ssm": "^3.1067.0",
+    "@aws-sdk/credential-providers": "^3.1067.0",
+    "@aws-sdk/hash-node": "^3.374.0",
+    "@aws-sdk/signature-v4": "^3.374.0",
     "@aws-sdk/util-dynamodb": "^3.968.0",
     "@aws-sdk/util-format-url": "^3.965.0",
     "@middy/core": "^6.4.5",
@@ -100,27 +96,35 @@
     "@middy/http-json-body-parser": "^6.4.5",
     "@middy/http-urlencode-body-parser": "^6.4.5",
     "@middy/secrets-manager": "^6.4.5",
+    "@smithy/protocol-http": "^5.4.6",
     "aws4-axios": "^3.4.0",
-    "axios": "^1.15.0",
+    "axios": "1.17",
     "http-errors": "^2.0.1",
-    "markdown-it": "^14.1.0",
-    "redis": "^5.10.0",
+    "markdown-it": "^14.2.0",
+    "redis": "^6.0.0",
     "reflect-metadata": "^0.2.2",
-    "uuid": "^13.0.0",
-    "zod": "^4.1.13"
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog",
-      "disableScopeLowerCase": true
-    }
+    "uuid": "^14.0.0",
+    "zod": "^4.4.3"
   },
   "overrides": {
-    "commitizen": {
-      "tmp": "^0.2.5"
+    "semantic-release": {
+      "@semantic-release/npm": "^13.1.5"
     },
-    "cz-conventional-changelog": {
-      "tmp": "^0.2.5"
+    "@semantic-release/npm": {
+      "@actions/core": "3.0.1",
+      "picomatch": "4.0.4",
+      "ip-address": "10.2.0"
+    },
+    "aws-cdk-lib": {
+      "table": {
+        "ajv": "^8.2.0"
+      }
+    },
+    "vite": {
+      "rollup": "npm:@rollup/wasm-node"
     }
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.61.1"
   }
 }

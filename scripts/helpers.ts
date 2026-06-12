@@ -1,3 +1,6 @@
+import { spawn } from 'child_process';
+import type { Readable } from 'stream';
+
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 // Terminal colours
@@ -11,12 +14,12 @@ export class Colors {
   static red = (t: string) => '\x1b[31m' + t + this.normal;
 }
 
-// Utility which adds specified prefix to process output while
-export async function pipeOutput(stream: ReadableStream<Uint8Array>, prefix: string) {
+// Utility which adds specified prefix to process output
+export async function pipeOutput(stream: Readable, prefix: string) {
   const decoder = new TextDecoder();
   for await (const chunk of stream) {
-    for (const log of decoder
-      .decode(chunk)
+    const decodedChunk = typeof chunk === 'string' ? chunk : decoder.decode(chunk as NodeJS.AllowSharedBufferSource);
+    for (const log of decodedChunk
       .split('\n')
       .map((e) => e.trimEnd())
       .filter((e) => e.length > 0)) {
@@ -26,16 +29,20 @@ export async function pipeOutput(stream: ReadableStream<Uint8Array>, prefix: str
 }
 
 // Runs command as a promise, piping output through to the main process
-export function execute(prefix: string, command: string[]) {
+export function execute(prefix: string | undefined, command: string[]): Promise<[string | undefined, number, number]> {
   const start = Date.now();
-  const proc = Bun.spawn(command, {
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
+  const [cmd, ...args] = command;
+  const proc = spawn(cmd, args);
 
-  pipeOutput(proc.stdout, `[${prefix}]`.split(process.cwd()).join(`./`));
-  pipeOutput(proc.stderr, `[${prefix}]`.split(process.cwd()).join(`./`));
-  return proc.exited.then((exitCode) => [prefix, exitCode, Date.now() - start] as [string, number, number]);
+  const formattedPrefix = (prefix ? `[${prefix}]` : '').split(process.cwd()).join(`./`);
+
+  if (proc.stdout) pipeOutput(proc.stdout, formattedPrefix);
+  if (proc.stderr) pipeOutput(proc.stderr, formattedPrefix);
+
+  return new Promise((resolve) => {
+    proc.on('close', (exitCode) => resolve([prefix, exitCode ?? 0, Date.now() - start]));
+    proc.on('error', () => resolve([prefix, 1, Date.now() - start]));
+  });
 }
 
 // Helper FN to simplify promise handling, and avoid nested try catches

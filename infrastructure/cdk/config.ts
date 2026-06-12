@@ -1,9 +1,9 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib/core';
 import dotenv from 'dotenv';
-import { camelCase } from 'infrastructure/cdk/utils/camelCase';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { camelCase } from './utils/camelCase';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {

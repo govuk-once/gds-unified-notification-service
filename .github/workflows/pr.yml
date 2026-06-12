@@ -48,7 +48,7 @@ jobs:
         run: npm run lint
 
       # Testing
-      - name: 🧪 Run Unit tests
+      - name: 🧪 Run Unit tests & report coverage
         id: unittests
         run: |
           echo "Test results:" > coverage.md

@@ -1,10 +1,9 @@
-import { Glob } from 'bun';
 import esbuild from 'esbuild';
-import { existsSync, rmSync } from 'fs';
+import { existsSync, globSync, rmSync } from 'fs';
 import { basename, dirname, join, relative, resolve } from 'path';
 import { Colors, execute } from 'scripts/helpers';
 
-const ROOT = dirname(import.meta.dir);
+const ROOT = dirname(import.meta.dirname);
 const OUT_DIR = resolve(ROOT, 'dist');
 
 // Remove previous build artifacts
@@ -18,11 +17,11 @@ const buildHandlers = async (dir: string) => {
   try {
     const namespace = basename(dir);
     const entryPoints = [
-      ...new Glob('**/*.ts').scanSync({
+      ...globSync('**/*.ts', {
         cwd: dir,
-        absolute: true,
       }),
     ]
+      .map((relative) => join(dir, relative))
       .filter((name) => name.endsWith('test.unit.ts') == false)
       .sort();
 
