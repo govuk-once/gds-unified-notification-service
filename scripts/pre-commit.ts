@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
 import { Colors, execute } from 'scripts/helpers';
 
 // Pre commit tasks with labels
@@ -17,7 +15,7 @@ Promise.all(Object.entries(tasks).map(([label, cmd]) => execute(label, cmd.split
     const message = `${code == 0 ? Colors.green('✔') : Colors.red('✘')} ${prefix}`;
     console.log(`${message.padEnd(48, ' ')} - ${duration}ms`);
     if (code !== 0) {
-      console.log(`To diagnose: ${tasks[prefix]}\n`);
+      console.log(`To diagnose: ${tasks[prefix ?? '']}\n`);
     }
   }
 

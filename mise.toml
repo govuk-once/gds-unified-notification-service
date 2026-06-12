@@ -3,7 +3,6 @@ idiomatic_version_file_enable_tools = ['node']
 
 [tools]
 checkov = "latest"
-bun = "latest"
 
 [shell_alias]
 "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
