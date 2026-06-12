@@ -18,6 +18,7 @@ describe('Get /status/campaign/{campaignID}', () => {
       MessageBody: 'Open Notification Centre to read your notifications',
       NotificationTitle: 'You have a new Notification',
       NotificationBody: 'Here is the Notification body.',
+      OrganisationID: 'ORG01',
     },
   ];
 

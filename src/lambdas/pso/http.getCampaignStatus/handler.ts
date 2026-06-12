@@ -29,6 +29,23 @@ const responseBodySchema = z.object({
   }),
 });
 
+/**
+ * Sample event received by Lambda from API Gateway
+ {
+  "pathParameters": {
+    "campaignID": "CAM_ID"
+  },
+  "queryStringParameters": {
+    "departmentID": "DEP01"
+  },
+  "requestContext": {
+    "authorizer": {
+      "Organization": "ORG01"
+    },
+    "requestId": "requestID-test"
+  }
+ **/
+
 export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getCampaignStatus';
   public requestBodySchema = requestBodySchema;

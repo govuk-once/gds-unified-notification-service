@@ -10,6 +10,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
@@ -23,7 +24,6 @@ import {
 import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
-import httpErrors from 'http-errors';
 import z from 'zod';
 
 const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
@@ -44,7 +44,8 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
   },
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000
+    "requestTimeEpoch": 1428582896000,
+    "authorizer": {."Organization": "ORG01" }
   }
 }
 * Sample post body:
@@ -88,7 +89,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
 
     if (!organisationID) {
-      throw new httpErrors.BadRequest('Organisation could be not be resolved from the client certificate.');
+      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
     }
 
     const messages = event.body.map((body) => ({

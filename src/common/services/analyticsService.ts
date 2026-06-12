@@ -1,11 +1,11 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import type { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsQueueService, MetricsLabels, ObservabilityService, prefixEvent } from '@common/services';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 
 export type AnalyticsEventFromIMessage = Pick<
-  IMessage,
+  IIdentifiableMessage,
   'DepartmentID' | 'OrganisationID' | 'NotificationID' | 'CampaignID'
 > & {
   APIGWExtendedID?: string;

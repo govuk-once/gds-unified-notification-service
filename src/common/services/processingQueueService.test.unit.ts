@@ -39,6 +39,7 @@ describe('ProcessingQueueService', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new medical driving license',
     NotificationBody: 'The DVLA has issued you a new license.',
+    OrganisationID: 'ORD01',
   };
 
   beforeEach(async () => {
@@ -153,6 +154,7 @@ describe('ProcessingQueueService', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
+        OrganisationID: 'ORD01',
       };
       const mockMessageBody_1 = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
@@ -162,6 +164,7 @@ describe('ProcessingQueueService', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'You have a new medical driving license',
         NotificationBody: 'The DVLA has issued you a new license.',
+        OrganisationID: 'ORD01',
       };
 
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({
