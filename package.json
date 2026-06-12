@@ -96,6 +96,7 @@
     "@middy/http-json-body-parser": "^6.4.5",
     "@middy/http-urlencode-body-parser": "^6.4.5",
     "@middy/secrets-manager": "^6.4.5",
+    "@smithy/protocol-http": "^5.4.6",
     "aws4-axios": "^3.4.0",
     "axios": "1.17",
     "http-errors": "^2.0.1",
@@ -118,6 +119,9 @@
       "table": {
         "ajv": "^8.2.0"
       }
+    },
+    "vite": {
+      "rollup": "npm:@rollup/wasm-node"
     }
   },
   "optionalDependencies": {
