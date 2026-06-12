@@ -8,7 +8,7 @@ const tasks = {
 };
 
 // Execute all tasks in parallel then add extra logs
-Promise.all(Object.entries(tasks).map(([label, cmd]) => execute(label, cmd.split(' ')))).then((task) => {
+await Promise.all(Object.entries(tasks).map(([label, cmd]) => execute(label, cmd.split(' ')))).then((task) => {
   // Log summary
   console.log('\nSummary:');
   for (const [prefix, code, duration] of task) {
@@ -20,10 +20,10 @@ Promise.all(Object.entries(tasks).map(([label, cmd]) => execute(label, cmd.split
   }
 
   // Log final results
-  if (task.every(([_, exitCode]) => exitCode == 0)) {
+  if (task.every(([, exitCode]) => exitCode == 0)) {
     console.log(`\nAll tasks passed ${Colors.green(`✔`)}`);
   }
-  if (task.some(([_, exitCode]) => exitCode !== 0)) {
+  if (task.some(([, exitCode]) => exitCode !== 0)) {
     console.log(Colors.red(`\nSome tasks failed ✘`));
     process.exit(1);
   }
