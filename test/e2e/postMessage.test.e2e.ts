@@ -14,6 +14,7 @@ describe('Post /send', () => {
     messageRequest = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -75,6 +76,7 @@ describe('Post /send', () => {
     const messageWithoutFormat = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -112,6 +114,7 @@ describe('Post /send', () => {
     const messagesWithNoDepartmentID = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         UserID: 'testExternalUserID',
         NotificationTitle: 'End 2 End Test',
@@ -135,6 +138,7 @@ describe('Post /send', () => {
     const messagesWithNoUserID = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         NotificationTitle: 'End 2 End Test',
@@ -158,6 +162,7 @@ describe('Post /send', () => {
     const messagesWithNoNotificationTitle = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -181,6 +186,7 @@ describe('Post /send', () => {
     const messagesWithNoNotificationBody = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -204,6 +210,7 @@ describe('Post /send', () => {
     const messagesWithInvalidMarkdown: IMessage[] = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -228,6 +235,7 @@ describe('Post /send', () => {
     const messagesWithInvalidMarkdown: IMessage[] = [
       {
         NotificationID: notificationID,
+        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',

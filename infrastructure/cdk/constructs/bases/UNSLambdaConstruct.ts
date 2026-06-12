@@ -66,6 +66,7 @@ export class UNSLambdaConstruct extends Construct {
     if (actions && actions.length > 0 && resources && resources.length > 0) {
       this.role.attachInlinePolicy(
         new Policy(this, this.config.utils.constructNamingHelper(`iam`, `policy`, `to`, id), {
+          policyName: this.config.utils.namingHelper(`iam`, `policy`, `to`, id),
           statements: [
             new PolicyStatement({
               actions: actions,
@@ -97,8 +98,8 @@ export class UNSLambdaConstruct extends Construct {
     });
 
     // Define role
-    this.role = new Role(this, constructNamingHelper(`iamr`, props.serviceName, ...props.name), {
-      roleName: namingHelper(`iamr`, props.serviceName, ...props.name),
+    this.role = new Role(this, constructNamingHelper(`role`, props.serviceName, ...props.name), {
+      roleName: namingHelper(`role`, props.serviceName, ...props.name),
       assumedBy: new ServicePrincipal(`lambda.amazonaws.com`, { region: stack.env.region }),
     });
 

@@ -51,6 +51,7 @@ describe('Dispatch QueueHandler', () => {
     CampaignID: 'CAM_ID',
     NotificationTitle: 'Boom',
     NotificationBody: 'psst',
+    OrganisationID: 'ORG01',
   };
 
   const mockMessageBody_2: IProcessedMessage = {
@@ -62,6 +63,7 @@ describe('Dispatch QueueHandler', () => {
     MessageTitle: '',
     MessageBody: '',
     ExternalUserID: 'test_2',
+    OrganisationID: 'ORG01',
   };
 
   const mockEvent: QueueEvent<IProcessedMessage> = {
@@ -108,6 +110,7 @@ describe('Dispatch QueueHandler', () => {
           DepartmentID: 'invalid-id',
           ExternalUserID: 'test',
           CampaignID: 'invalid-id',
+          OrganisationID: 'ORG01',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -124,6 +127,7 @@ describe('Dispatch QueueHandler', () => {
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           CampaignID: 'invalid-id',
+          OrganisationID: 'ORG01',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -140,10 +144,9 @@ describe('Dispatch QueueHandler', () => {
       {
         ...mockEvent.Records[0],
         body: {
-          // Set DepartmentID to undefined on purpose
+          NotificationID: 'invalid-notification-id',
           UserID: 'invalid-id',
           ExternalUserID: 'test',
-          DepartmentID: undefined,
           NotificationTitle: 'Boom',
           NotificationBody: 'psst',
         },
@@ -238,6 +241,7 @@ describe('Dispatch QueueHandler', () => {
         NotificationID: mockMessageBody_1.NotificationID,
         UserID: mockMessageBody_1.UserID,
         CampaignID: mockMessageBody_1.CampaignID,
+        OrganisationID: mockMessageBody_1.OrganisationID,
       },
       'DISPATCHING'
     );
@@ -283,6 +287,7 @@ describe('Dispatch QueueHandler', () => {
         UserID: mockMessageBody_1.UserID,
         CampaignID: mockMessageBody_1.CampaignID,
         DispatchedDateTime: date.toISOString(),
+        OrganisationID: mockMessageBody_1.OrganisationID,
       },
       { resetExpirationDate: true }
     );
@@ -308,6 +313,7 @@ describe('Dispatch QueueHandler', () => {
         NotificationID: mockEvent.Records[0].body.NotificationID,
         CampaignID: mockEvent.Records[0].body.CampaignID,
         UserID: mockEvent.Records[0].body.UserID,
+        OrganisationID: mockEvent.Records[0].body.OrganisationID,
       },
       'DISPATCHED'
     );
@@ -370,6 +376,7 @@ describe('Dispatch QueueHandler', () => {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
         UserID: mockFailedEvent.Records[0].body.UserID,
         CampaignID: mockFailedEvent.Records[0].body.CampaignID,
+        OrganisationID: mockEvent.Records[0].body.OrganisationID,
       },
       'DISPATCHING_FAILED',
       [
@@ -401,7 +408,7 @@ describe('Dispatch QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
   });
 
-  it('should return an error and log when a message has no NotificationID or DepartmentID', async () => {
+  it('should return an error and log when a message has an invalid NotificationID', async () => {
     // Act
     const result = handler(mockUnidentifiableEvent, mockContext);
 
@@ -409,16 +416,10 @@ describe('Dispatch QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-      {
-        error: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
-        raw: {
-          DepartmentID: undefined,
-          ExternalUserID: 'test',
-          NotificationBody: 'psst',
-          NotificationTitle: 'Boom',
-          UserID: 'invalid-id',
-        },
-      }
+      expect.objectContaining({
+        error: expect.stringContaining('body.NotificationID'),
+        raw: mockUnidentifiableEvent.Records[0].body,
+      })
     );
   });
 

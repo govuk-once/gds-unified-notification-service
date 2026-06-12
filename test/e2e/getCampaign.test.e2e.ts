@@ -18,6 +18,7 @@ describe('Get /status/campaign/{campaignID}', () => {
       MessageBody: 'Open Notification Centre to read your notifications',
       NotificationTitle: 'You have a new Notification',
       NotificationBody: 'Here is the Notification body.',
+      OrganisationID: 'ORG01',
     },
   ];
 
@@ -30,7 +31,7 @@ describe('Get /status/campaign/{campaignID}', () => {
     });
 
     // Act
-    const result = await psoAPI.get(`/status/campaign/${campaignID}`);
+    const result = await psoAPI.get(`/status/campaign/${campaignID}?departmentID=${departmentID}`);
 
     // Assert
     expect(result.status).toBe(200);

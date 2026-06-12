@@ -38,11 +38,13 @@ describe('analyticsService', () => {
         NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
         DepartmentID: 'Dev',
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        OrganisationID: 'ORD01',
       },
       {
         NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80g',
         DepartmentID: 'Dev',
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+        OrganisationID: 'ORD01',
       },
     ];
 
@@ -52,12 +54,14 @@ describe('analyticsService', () => {
         DepartmentID: 'Dev',
         CampaignID: 'CAMP01',
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        OrganisationID: 'ORD01',
       },
       {
         NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80i',
         DepartmentID: 'Dev',
         CampaignID: 'CAMP01',
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+        OrganisationID: 'ORD01',
       },
     ];
 
@@ -85,6 +89,8 @@ describe('analyticsService', () => {
           APIGWExtendedID: mockAnalyticsEvents[0].APIGWExtendedID,
           EventDateTime: date.toISOString(),
           Event: 'VALIDATED',
+          CampaignID: mockAnalyticsEvents[0].CampaignID,
+          OrganisationID: mockAnalyticsEvents[0].OrganisationID,
         },
         {
           EventID: mockEventID_2,
@@ -93,6 +99,8 @@ describe('analyticsService', () => {
           APIGWExtendedID: mockAnalyticsEvents[1].APIGWExtendedID,
           EventDateTime: date.toISOString(),
           Event: 'VALIDATED',
+          CampaignID: mockAnalyticsEvents[1].CampaignID,
+          OrganisationID: mockAnalyticsEvents[1].OrganisationID,
         },
       ]);
     });
@@ -119,6 +127,7 @@ describe('analyticsService', () => {
           APIGWExtendedID: mockAnalyticsWithCampaignEvents[0].APIGWExtendedID,
           EventDateTime: date.toISOString(),
           Event: 'VALIDATED',
+          OrganisationID: mockAnalyticsWithCampaignEvents[0].OrganisationID,
         },
         {
           EventID: mockEventID_2,
@@ -128,6 +137,7 @@ describe('analyticsService', () => {
           CampaignID: mockAnalyticsWithCampaignEvents[1].CampaignID,
           EventDateTime: date.toISOString(),
           Event: 'VALIDATED',
+          OrganisationID: mockAnalyticsWithCampaignEvents[1].OrganisationID,
         },
       ]);
     });
@@ -158,6 +168,7 @@ describe('analyticsService', () => {
       NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
       DepartmentID: 'Dev',
       APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      OrganisationID: 'ORD01',
     };
 
     const mockAnalyticsWithCampaignIDEvent: AnalyticsEventFromIMessage = {
@@ -165,6 +176,7 @@ describe('analyticsService', () => {
       DepartmentID: 'Dev',
       CampaignID: 'CAMP01',
       APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      OrganisationID: 'ORD01',
     };
 
     const mockEventID = 'b7e239f7-b354-4fe6-8aaf-04eba8331f6a';
@@ -188,6 +200,7 @@ describe('analyticsService', () => {
         APIGWExtendedID: mockAnalyticsEvent.APIGWExtendedID,
         EventDateTime: date.toISOString(),
         Event: 'VALIDATED',
+        OrganisationID: mockAnalyticsEvent.OrganisationID,
       });
     });
 
@@ -211,6 +224,7 @@ describe('analyticsService', () => {
         APIGWExtendedID: mockAnalyticsWithCampaignIDEvent.APIGWExtendedID,
         EventDateTime: date.toISOString(),
         Event: 'VALIDATED',
+        OrganisationID: mockAnalyticsWithCampaignIDEvent.OrganisationID,
       });
     });
 
@@ -233,6 +247,7 @@ describe('analyticsService', () => {
       DepartmentID: 'Dev',
       CampaignID: 'CAMP01',
       APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+      OrganisationID: 'ORD01',
     };
 
     const mockEventID = 'b7e239f7-b354-4fe6-8aaf-04eba8331f6a';
@@ -257,6 +272,7 @@ describe('analyticsService', () => {
         APIGWExtendedID: mockMessage.APIGWExtendedID,
         EventDateTime: date.toISOString(),
         Event: 'VALIDATED',
+        OrganisationID: mockMessage.OrganisationID,
       });
     });
   });

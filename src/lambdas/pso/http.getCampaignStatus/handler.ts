@@ -29,6 +29,23 @@ const responseBodySchema = z.object({
   }),
 });
 
+/**
+ * Sample event received by Lambda from API Gateway
+ {
+  "pathParameters": {
+    "campaignID": "CAM_ID"
+  },
+  "queryStringParameters": {
+    "departmentID": "DEP01"
+  },
+  "requestContext": {
+    "authorizer": {
+      "Organization": "ORG01"
+    },
+    "requestId": "requestID-test"
+  }
+ **/
+
 export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getCampaignStatus';
   public requestBodySchema = requestBodySchema;
@@ -50,22 +67,28 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
-    const departmentID = event.requestContext.authorizer?.Organization as string;
-    if (!departmentID) {
+
+    const organisationID = event.requestContext.authorizer?.Organization as string;
+    if (!organisationID) {
       throw new BadRequestError(['Missing DepartmentID']);
     }
 
-    const compositeID = `${departmentID}/${campaignID}`;
+    const departmentID = event.queryStringParameters?.departmentID;
+
+    const compositeID = CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID);
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
     // If it doesn't exist - 404
     if (campaign == null) {
       throw new NotFoundError();
     }
 
+    const compositeSegments = campaign.CompositeID.split('/');
+    const campaignId = compositeSegments[compositeSegments.length - 1];
+
     return {
       body: {
-        CampaignID: campaign.CompositeID.split('/')[1],
-        DepartmentID: campaign.CompositeID.split('/')[0],
+        CampaignID: campaignId,
+        DepartmentID: compositeSegments.length >= 3 ? compositeSegments[1] : compositeSegments[0],
         ProcessingSummary: {
           RECEIVED: (campaign.VALIDATED ?? 0) + (campaign.VALIDATED_API_CALL ?? 0),
           PROCESSED: campaign.PROCESSED ?? 0,

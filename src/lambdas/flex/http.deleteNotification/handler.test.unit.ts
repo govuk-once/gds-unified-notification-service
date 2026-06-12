@@ -42,6 +42,7 @@ describe('DeleteNotification Handler', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
+    OrganisationID: 'ORG01',
     Events: [
       {
         EventID: '00000000-0000-0000-0000-a04ff992fcc3',
