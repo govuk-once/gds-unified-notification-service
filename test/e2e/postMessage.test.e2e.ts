@@ -7,14 +7,13 @@ import { expect } from 'vitest';
 
 describe('Post /send', () => {
   let notificationID: string;
-  let messageRequest: IMessage[];
+  let messageRequest: Omit<IMessage, 'OrganisationID'>[];
 
   beforeEach(() => {
     notificationID = uuid();
     messageRequest = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -76,7 +75,6 @@ describe('Post /send', () => {
     const messageWithoutFormat = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -109,12 +107,11 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 400 when the message has no departmentID.', async ({ psoAPI }) => {
+  test('it returns 202 when the message has no departmentID.', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoDepartmentID = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         UserID: 'testExternalUserID',
         NotificationTitle: 'End 2 End Test',
@@ -125,12 +122,11 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithNoDepartmentID);
+    const result = await psoAPI.post('/send', messagesWithNoDepartmentID);
 
     // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.DepartmentID.'])
-    );
+    expect(result.status).toBe(202);
+    expect(result.data).toEqual([{ NotificationID: notificationID }]);
   });
 
   test('it returns 400 when the message has no userID.', async ({ psoAPI }) => {
@@ -138,7 +134,6 @@ describe('Post /send', () => {
     const messagesWithNoUserID = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         NotificationTitle: 'End 2 End Test',
@@ -162,7 +157,6 @@ describe('Post /send', () => {
     const messagesWithNoNotificationTitle = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -186,7 +180,6 @@ describe('Post /send', () => {
     const messagesWithNoNotificationBody = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -207,10 +200,9 @@ describe('Post /send', () => {
 
   test('it returns 400 when the message has invalid url in markdown.', async ({ psoAPI }) => {
     // Arrange
-    const messagesWithInvalidMarkdown: IMessage[] = [
+    const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
@@ -232,10 +224,9 @@ describe('Post /send', () => {
 
   test('it returns 400 when the message has invalid markdown.', async ({ psoAPI }) => {
     // Arrange
-    const messagesWithInvalidMarkdown: IMessage[] = [
+    const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
       {
         NotificationID: notificationID,
-        OrganisationID: 'ORG01',
         CampaignID: 'testCampaignID',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
