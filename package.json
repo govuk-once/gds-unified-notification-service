@@ -59,6 +59,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^17.6.0",
     "husky": "^9.1.7",
+    "jiti": "^2.7.0",
     "msw": "^2.14.6",
     "node-forge": "^1.4.0",
     "npm": "^11.17.0",
@@ -106,12 +107,17 @@
   },
   "overrides": {
     "semantic-release": {
-      "@semantic-release/npm": "13.1.5"
+      "@semantic-release/npm": "^13.1.5"
     },
     "@semantic-release/npm": {
       "@actions/core": "3.0.1",
       "picomatch": "4.0.4",
       "ip-address": "10.2.0"
+    },
+    "aws-cdk-lib": {
+      "table": {
+        "ajv": "^8.2.0"
+      }
     }
   }
 }
