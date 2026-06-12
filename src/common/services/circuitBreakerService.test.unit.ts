@@ -53,7 +53,7 @@ describe('CircuitBreakerService', () => {
     });
 
     it('should return the stored state', async () => {
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(CircuitBreakerStateEnum.OPEN);
       const state = await service.getState();
       expect(state).toBe('OPEN');
     });
@@ -186,7 +186,7 @@ describe('CircuitBreakerService', () => {
     });
 
     it('should transition HALF_OPEN → CLOSED on success', async () => {
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(CircuitBreakerStateEnum.HALF_OPEN as CircuitBreakerStateEnum);
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(CircuitBreakerStateEnum.HALF_OPEN);
 
       await service.recordSuccess();
 

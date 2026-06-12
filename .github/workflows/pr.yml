@@ -51,7 +51,6 @@ jobs:
       - name: 🧪 Run Unit tests & report coverage
         id: unittests
         run: |
-          npm run test:coverage 
           echo "Test results:" > coverage.md
           echo '```' >> coverage.md
           (npm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md) || echo "Failed to meet the criteria"
