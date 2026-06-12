@@ -160,7 +160,7 @@ describe('GetCampaignStatus Handler', () => {
     expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 
-  it('should return 400 if department ID is missing', async () => {
+  it('should return 400 if organisation is missing', async () => {
     // Arrange
     mockEvent.requestContext.authorizer = undefined;
 
@@ -174,5 +174,36 @@ describe('GetCampaignStatus Handler', () => {
       HttpError: 'BadRequest',
       Errors: ['Missing DepartmentID'],
     });
+  });
+
+  it('should look up org/department/campaign key when departmentID query param is provided', async () => {
+    // Arrange
+    const organisationID = 'ORG01';
+    const departmentID = 'DEPO1';
+    mockEvent.requestContext.authorizer = { Organization: organisationID };
+    mockEvent.queryStringParameters = { departmentID };
+
+    const threePartRecord = {
+      ...mockCampaignRecord,
+      CompositeID: `${organisationID}/${departmentID}/${mockCampaignID}`,
+    };
+    serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(threePartRecord);
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.campaignsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
+      `${organisationID}/${departmentID}/${mockCampaignID}`
+    );
+
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body) as {
+      CampaignID: string;
+      DepartmentID: string;
+    };
+
+    expect(body.CampaignID).toBe(mockCampaignID);
+    expect(body.DepartmentID).toBe(mockDepartmentID);
   });
 });

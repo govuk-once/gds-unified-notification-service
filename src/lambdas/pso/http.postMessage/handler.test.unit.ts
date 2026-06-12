@@ -67,6 +67,7 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        authorizer: { Organization: 'ORG01' },
       },
     } as unknown as EventType;
 
@@ -98,7 +99,60 @@ describe('PostMessage Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([mockMessageBody]);
+    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
+      { ...mockMessageBody, OrganisationID: 'ORG01' },
+    ]);
+  });
+
+  it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
+    // Arrange
+    const organisationID = 'ORG01';
+    const authorizedEvent = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: { Organization: organisationID },
+      },
+    } as unknown as EventType;
+
+    // Act
+    await handler(authorizedEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
+      { ...mockMessageBody, OrganisationID: organisationID },
+    ]);
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
+      [
+        {
+          ...mockMessageBody,
+          OrganisationID: organisationID,
+          APIGWExtendedID: authorizedEvent.requestContext.requestId,
+        },
+      ],
+      NotificationStateEnum.VALIDATED_API_CALL
+    );
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      expect.objectContaining({ OrganisationID: organisationID }),
+    ]);
+  });
+
+  it('should return 400 when mTLS certificate does not resolve an organsation', async () => {
+    // Arrange
+    const noAuthorizedEvent = {
+      ...mockEvent,
+      requestContext: {
+        requestTimeEpoch: 1428582896000,
+        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      },
+    } as unknown as EventType;
+
+    // Act
+    const result = await handler(noAuthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).not.toHaveBeenCalled();
   });
 
   it('should make a record of notifications messages', async () => {
@@ -114,6 +168,7 @@ describe('PostMessage Handler', () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         ...mockMessageBody,
+        OrganisationID: 'ORG01',
         APIGWExtendedID: mockEvent.requestContext.requestId,
         ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
@@ -128,7 +183,7 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      [{ ...mockMessageBody, APIGWExtendedID: mockEvent.requestContext.requestId }],
+      [{ ...mockMessageBody, OrganisationID: 'ORG01', APIGWExtendedID: mockEvent.requestContext.requestId }],
       NotificationStateEnum.VALIDATED_API_CALL
     );
   });

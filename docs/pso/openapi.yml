@@ -168,14 +168,13 @@ components:
     MessageRequest:
       type: object
       required:
-        - DepartmentID
         - UserID
         - NotificationTitle
         - NotificationBody
       properties:
         DepartmentID:
           type: string
-          description: ID of department sending notification
+          description: (Optional) ID of department sending notification
         NotificationID:
           type: string
           description: ID of the notification to be used for idempotency & analytics, ID will be dynamically generated if one has not been supplied

@@ -54,6 +54,7 @@ describe('Processing QueueHandler', () => {
     NotificationBody: "You've got a message in the message centre",
     MessageTitle: 'Hi there',
     MessageBody: 'MOCK_LONG_MESSAGE',
+    OrganisationID: 'ORG01',
   };
 
   const mockMessageBody_2: IMessage = {
@@ -65,6 +66,7 @@ describe('Processing QueueHandler', () => {
     MessageTitle: 'Hi there',
     MessageBody:
       'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+    OrganisationID: 'ORG01',
   };
 
   const mockEvent: QueueEvent<IMessage> = {
@@ -109,6 +111,7 @@ describe('Processing QueueHandler', () => {
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
           CampaignID: 'invalid-id',
+          OrganisationID: 'ORG01',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -128,6 +131,7 @@ describe('Processing QueueHandler', () => {
           NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
           UserID: 'invalid-id',
           DepartmentID: 'invalid-id',
+          OrganisationID: 'ORG01',
           // Missed out on purpose NotificationTitle, NotificationBody
         },
       },
@@ -140,8 +144,8 @@ describe('Processing QueueHandler', () => {
         ...mockEvent.Records[0],
         body: {
           // Set DepartmentID to undefined on purpose
+          NotificationID: 'invalid-notification-id',
           UserID: 'invalid-id',
-          DepartmentID: undefined,
           NotificationTitle: 'Boom',
           NotificationBody: 'psst',
         },
@@ -229,6 +233,7 @@ describe('Processing QueueHandler', () => {
         NotificationID: mockMessageBody_1.NotificationID,
         UserID: mockMessageBody_1.UserID,
         CampaignID: mockMessageBody_1.CampaignID,
+        OrganisationID: mockMessageBody_1.OrganisationID,
       },
       NotificationStateEnum.PROCESSING
     );
@@ -239,6 +244,7 @@ describe('Processing QueueHandler', () => {
         NotificationID: mockMessageBody_1.NotificationID,
         UserID: mockMessageBody_1.UserID,
         CampaignID: mockMessageBody_1.CampaignID,
+        OrganisationID: mockMessageBody_1.OrganisationID,
       },
       NotificationStateEnum.PROCESSED
     );
@@ -280,6 +286,7 @@ describe('Processing QueueHandler', () => {
       UserID: mockMessageBody_1.UserID,
       ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: mockMessageBody_1.CampaignID,
+      OrganisationID: mockMessageBody_1.OrganisationID,
     });
   });
 
@@ -298,6 +305,7 @@ describe('Processing QueueHandler', () => {
       UserID: mockMessageBody_1.UserID,
       ExternalUserID: mockMessageBody_1.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: mockMessageBody_1.CampaignID,
+      OrganisationID: mockMessageBody_1.OrganisationID,
     });
     expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
       DepartmentID: mockMessageBody_2.DepartmentID,
@@ -309,6 +317,7 @@ describe('Processing QueueHandler', () => {
       UserID: mockMessageBody_2.UserID,
       ExternalUserID: mockMessageBody_2.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: mockMessageBody_2.CampaignID,
+      OrganisationID: mockMessageBody_2.OrganisationID,
     });
   });
 
@@ -349,6 +358,7 @@ describe('Processing QueueHandler', () => {
         NotificationID: mockFailedEvent.Records[0].body.NotificationID,
         DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
         UserID: mockFailedEvent.Records[0].body.UserID,
+        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
       },
       NotificationStateEnum.PROCESSING_FAILED,
       [
@@ -367,7 +377,7 @@ describe('Processing QueueHandler', () => {
     expect(serviceMocks.analyticsServiceMock.publishEvent).not.toHaveBeenCalled();
   });
 
-  it('should log when a message has no NotificationID or DepartmentID', async () => {
+  it('should log when a message has an invalid NotificationID', async () => {
     // Act
     const result = handler(mockUnidentifiableEvent, mockContext);
 
@@ -375,10 +385,10 @@ describe('Processing QueueHandler', () => {
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
-      {
-        error: '✖ Invalid input: expected string, received undefined\n  → at body.DepartmentID',
+      expect.objectContaining({
+        error: expect.stringContaining('body.NotificationID'),
         raw: mockUnidentifiableEvent.Records[0].body,
-      }
+      })
     );
   });
 
@@ -400,6 +410,7 @@ describe('Processing QueueHandler', () => {
         DepartmentID: mockEvent.Records[0].body.DepartmentID,
         UserID: mockEvent.Records[0].body.UserID,
         CampaignID: mockEvent.Records[0].body.CampaignID,
+        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
       },
     });
   });
@@ -422,6 +433,7 @@ describe('Processing QueueHandler', () => {
         DepartmentID: mockEvent.Records[0].body.DepartmentID,
         UserID: mockEvent.Records[0].body.UserID,
         CampaignID: mockEvent.Records[0].body.CampaignID,
+        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
       },
     });
   });

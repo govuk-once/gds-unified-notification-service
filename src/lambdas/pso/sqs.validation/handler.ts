@@ -81,8 +81,15 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     const data = await this.validateRecord(record);
     const message = data.body;
 
+    if (!message.OrganisationID) {
+      throw new Error(
+        `OrganisationID is missing from ${message.NotificationID}. It must be stamped from the mTLS certificate.`
+      );
+    }
+
     await this.notificationsRepository.createRecord({
       ...message,
+      OrganisationID: message.OrganisationID,
       ReceivedDateTime: data.attributes.ApproximateFirstReceiveTimestamp,
       ValidatedDateTime: new Date().toISOString(),
       Events: [],

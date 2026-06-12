@@ -69,11 +69,10 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
     // Increments campaign
     if (entry.CampaignID) {
       this.observability.logger.info(`Increment CampaignID: ${entry.CampaignID}`);
-      await this.campaigns.incrementCampaigns(entry.CampaignID, entry.DepartmentID, entry.Event);
+      await this.campaigns.incrementCampaigns(entry.CampaignID, entry.OrganisationID, entry.DepartmentID, entry.Event);
     }
 
-    // For each updated row - also update the redis cache
-    const cacheKey = `/${entry.DepartmentID}/${entry.NotificationID}/Status`;
+    const cacheKey = `/${entry.DepartmentID ?? entry.OrganisationID}/${entry.NotificationID}/Status`;
     await this.cache.store(cacheKey, entry.Event);
     this.observability.logger.info(`Updating Elasticache with notification status`, {
       NotificationID: entry.NotificationID,

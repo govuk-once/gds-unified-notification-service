@@ -75,6 +75,7 @@ describe('getNotifications Handler', () => {
       },
     ],
     DispatchedDateTime: '2026-02-13',
+    OrganisationID: 'ORG01',
   };
 
   const mockResponse: IFlexNotification = {

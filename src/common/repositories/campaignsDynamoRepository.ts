@@ -17,8 +17,19 @@ export class CampaignsDynamoRepository extends DynamodbRepository<ICampaignRecor
     return this;
   }
 
-  public async incrementCampaigns(campaignID: string, departmentID: string, event: NotificationStateEnum) {
-    const record: ICampaignRecord = { CompositeID: `${departmentID}/${campaignID}` };
+  public static buildCompositeID(organisationID?: string, departmentID?: string, campaignID?: string): string {
+    return [organisationID, departmentID, campaignID].filter(Boolean).join('/');
+  }
+
+  public async incrementCampaigns(
+    campaignID: string,
+    organisationID: string | undefined,
+    departmentID: string | undefined,
+    event: NotificationStateEnum
+  ) {
+    const record: ICampaignRecord = {
+      CompositeID: CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID),
+    };
     return await this.incrementRecord(record, event);
   }
 }
