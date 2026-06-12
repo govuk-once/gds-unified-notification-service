@@ -51,7 +51,6 @@
     "aws-cdk-lib": "^2.250.0",
     "aws-sdk-client-mock": "^4.1.0",
     "aws-sdk-client-mock-vitest": "^7.0.1",
-    "cz-conventional-changelog": "^3.3.0",
     "dotenv": "^17.4.2",
     "esbuild": "^0.27.1",
     "eslint": "^9.39.1",
@@ -62,6 +61,7 @@
     "husky": "^9.1.7",
     "msw": "^2.14.6",
     "node-forge": "^1.4.0",
+    "npm": "^11.17.0",
     "npm-check-updates": "^21.0.1",
     "once-platform-constructs": "^1.2.0",
     "prettier": "3.7.4",
@@ -103,5 +103,15 @@
     "reflect-metadata": "^0.2.2",
     "uuid": "^14.0.0",
     "zod": "^4.4.3"
+  },
+  "overrides": {
+    "semantic-release": {
+      "@semantic-release/npm": "13.1.5"
+    },
+    "@semantic-release/npm": {
+      "@actions/core": "3.0.1",
+      "picomatch": "4.0.4",
+      "ip-address": "10.2.0"
+    }
   }
 }
