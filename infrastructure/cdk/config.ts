@@ -40,6 +40,12 @@ export const fromSSMJSON = async <T>(key: string, fallbackToSerialize?: T) => {
   return JSON.parse((await fromSSM(key, JSON.stringify(fallbackToSerialize))) as string) as T;
 };
 
+if (process.env.env == undefined) {
+  throw new Error(
+    'No explicit environment defined, set `env` environment in the CICD or via npm run development:sandbox:setup'
+  );
+}
+
 // Infer values from env variables
 const project = 'uns';
 const env = process.env.env ?? 'dev';
@@ -51,7 +57,7 @@ const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
-
+const exportResourcesForDevSandboxUse = env == 'dev';
 // Setup importable config object
 export const config = {
   // Metadata
@@ -75,6 +81,7 @@ export const config = {
   isMainEnv,
   debugMode,
   debuggableFlexApiGateway,
+  exportResourcesForDevSandboxUse,
 
   // mTLS config
   mtls,
@@ -101,6 +108,16 @@ export const config = {
     zones: (process.env.availability_zones ?? `a,b,c`).split(`,`),
   },
 
+  // Only used in env environment to avoid resource duplication
+  sandbox: {
+    shared: {
+      ca: await fromSSM(`/shared/mtls/truststore`, ''),
+      revocationTable: await fromSSM(`/shared/mtls/revocation/tableArn`, ''),
+      revocationAttributes: await fromSSMJSON<Record<string, string>>(`/shared/mtls/revocation/attributes`, {}),
+    },
+  },
+
+  // Helper functions
   utils: {
     constructNamingHelper: (...args: string[]) => camelCase(...args),
     namingHelper: (...args: string[]) => [config.project, config.env, ...args].join('-').toLowerCase(),

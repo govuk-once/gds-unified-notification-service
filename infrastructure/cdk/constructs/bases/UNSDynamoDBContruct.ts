@@ -111,19 +111,20 @@ export class UNSDynamoDb extends Construct {
       expirationDurationInSeconds: props.ttlDurationInSeconds,
     };
 
-    // Helper closure to assemble permission objects
-    const createPermissionMapping = (read: boolean, scan: boolean, write: boolean): TablePermission => ({
-      arn: this.table.tableArn,
+    // Populate exposed IAM helper shapes
+    this.permissions = {
+      readOnlyById: UNSDynamoDb.createPermissionMapping(this.table.tableArn, true, false, false),
+      readOnly: UNSDynamoDb.createPermissionMapping(this.table.tableArn, true, true, false),
+      readAndWrite: UNSDynamoDb.createPermissionMapping(this.table.tableArn, true, true, true),
+    };
+  }
+
+  static createPermissionMapping(arn: string, read: boolean, scan: boolean, write: boolean): TablePermission {
+    return {
+      arn,
       read,
       write,
       scan,
-    });
-
-    // Populate exposed IAM helper shapes
-    this.permissions = {
-      readOnlyById: createPermissionMapping(true, false, false),
-      readOnly: createPermissionMapping(true, true, false),
-      readAndWrite: createPermissionMapping(true, true, true),
     };
   }
 }

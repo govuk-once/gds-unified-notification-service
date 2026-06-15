@@ -21,7 +21,23 @@ export class UNSStack extends Stack {
 
     const common = new UNSCommon(this, config);
     const mtls = new UNSMTLSCommon(this, config, common);
-    this.pso = new UNSPSOResource(this, config, { refs: common, mtlsRefs: mtls });
+    this.pso = new UNSPSOResource(this, config, {
+      refs: common,
+      mtls: {
+        truststorePath: mtls.truststorePath,
+        dependencies: [mtls.truststoreUpload],
+        // Main environments generate their own CA cert, dev environments pull it via exported values
+        ...(config.isMainEnv
+          ? {
+              revocationTableArn: mtls.revocationTable!.table.tableArn,
+              revocationTableAttributes: mtls.revocationTable!.attributes,
+            }
+          : {
+              revocationTableArn: config.sandbox.shared.revocationTable!,
+              revocationTableAttributes: config.sandbox.shared.revocationAttributes,
+            }),
+      },
+    });
     this.flex = new UNSFlexResource(this, config, common);
 
     // Note: tags should propagate downwards automatically from there
