@@ -42,7 +42,7 @@ export class UNSPSOResource extends Construct {
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
-    service: Dashboard  ;
+    service: Dashboard;
   };
 
   constructor(
