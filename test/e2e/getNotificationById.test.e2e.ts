@@ -6,7 +6,7 @@ import { v4 as uuid } from 'uuid';
 
 describe('Get /status/{notificationID}', () => {
   let notificationID: string;
-  let messageRequest: IMessage[];
+  let messageRequest: Omit<IMessage, 'OrganisationID'>[];
 
   beforeEach(() => {
     notificationID = uuid();
@@ -20,7 +20,6 @@ describe('Get /status/{notificationID}', () => {
         MessageBody: 'Open Notification Centre to read your notifications',
         NotificationTitle: 'This message is an end to end test.',
         NotificationBody: 'Here is the Notification body.',
-        OrganisationID: 'ORG01',
       },
     ];
   });
