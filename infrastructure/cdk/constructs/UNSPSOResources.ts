@@ -5,12 +5,12 @@ import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
+import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBContruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
-import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
@@ -44,17 +44,23 @@ export class UNSPSOResource extends Construct {
     utilization: UNSPSOUtilization;
     service: Dashboard;
   };
+
   constructor(
     scope: Construct,
     config: EnvVars,
     props: {
       refs: UNSCommon;
-      mtlsRefs: UNSMTLSCommon;
+      mtls: {
+        revocationTableArn: string;
+        revocationTableAttributes: object;
+        truststorePath: string;
+        dependencies: Construct[];
+      };
     }
   ) {
     super(scope, 'pso');
 
-    const { refs, mtlsRefs } = props;
+    const { refs } = props;
 
     //// =====================================================
     // SQS Queues
@@ -117,7 +123,7 @@ export class UNSPSOResource extends Construct {
       iam: {
         ssmNamespaces: [config.namespace],
         dynamodb: {
-          revocationTable: mtlsRefs.revocationTable.permissions.readOnlyById,
+          revocationTable: UNSDynamoDb.createPermissionMapping(props.mtls.revocationTableArn, true, false, false),
         },
       },
     });
@@ -295,7 +301,7 @@ export class UNSPSOResource extends Construct {
       description: `API Gateway for PSOs`,
       domain: 'pso',
       mtls: {
-        truststore: mtlsRefs.truststorePath,
+        truststore: props.mtls.truststorePath,
       },
       resources: {
         kms: refs.kms,
@@ -308,7 +314,9 @@ export class UNSPSOResource extends Construct {
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, this.lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, this.lambdas.http.postMessage.integration);
 
-    this.gateway.node.addDependency(mtlsRefs.truststoreUpload);
+    for (const dependency of props.mtls.dependencies ?? []) {
+      this.gateway.node.addDependency(dependency);
+    }
 
     //// =====================================================
     // Xray Dashboards
@@ -346,7 +354,7 @@ export class UNSPSOResource extends Construct {
     SSMFromObject(Stack.of(this), config, {
       // DynamoDB Tables
       // mTLS refs
-      'table/mtls/attributes': mtlsRefs.revocationTable.attributes,
+      'table/mtls/attributes': props.mtls.revocationTableAttributes,
 
       // SQS Qeueue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,

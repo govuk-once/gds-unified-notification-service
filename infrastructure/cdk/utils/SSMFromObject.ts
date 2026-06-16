@@ -6,13 +6,16 @@ import { EnvVars } from 'infrastructure/cdk/config';
 export const SSMFromObject = <T extends Record<string, string | undefined | object>>(
   construct: Construct,
   config: EnvVars,
-  values: T
+  values: T,
+  props?: {
+    omitNamespace?: boolean;
+  }
 ) => {
   const parameters = {} as Record<keyof T, StringParameter>;
   for (const [key, value] of Object.entries(values)) {
     // Create param
     const param = new StringParameter(construct, config.utils.constructNamingHelper(`ssm`, key), {
-      parameterName: `/${config.utils.namingHelper()}/${key}`,
+      parameterName: props?.omitNamespace ? `/${key}` : `/${config.utils.namingHelper()}/${key}`,
       stringValue: typeof value == 'string' ? value : Stack.of(construct).toJsonString(value),
       simpleName: false,
     });

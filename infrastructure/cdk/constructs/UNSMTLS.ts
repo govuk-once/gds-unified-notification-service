@@ -14,32 +14,19 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { v4 } from 'uuid';
 
 export class UNSMTLSCommon extends Construct {
-  public readonly certificateAuthority: UNSCertificateAuthorityConstruct;
-  public readonly revocationTable: UNSDynamoDb;
-  public readonly truststoreUpload: CustomResource;
   public readonly truststorePath: string;
+  public readonly truststoreUpload: CustomResource;
+
+  public readonly revocationTable?: UNSDynamoDb;
+  public readonly certificateAuthority?: UNSCertificateAuthorityConstruct;
 
   constructor(scope: Construct, config: EnvVars, common: UNSCommon) {
     const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, 'mtls');
-
-    //// =====================================================
-    // DynamoDB Tables
-    //// =====================================================
-    this.revocationTable = new UNSDynamoDb(this, config, {
-      name: ['certificates'],
-      partitionKey: 'Id',
-      partitionKeyType: AttributeType.STRING,
-
-      pointInTimeRecovery: true,
-
-      resources: {
-        kms: common.kms,
-      },
-    });
 
     //// =====================================================
     // S3 Buckets
@@ -66,15 +53,93 @@ export class UNSMTLSCommon extends Construct {
       ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
     ]);
 
-    //// =====================================================
-    // Certficate authority
-    //// =====================================================
-    this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
-      certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
-      // Main env certs are valid 10 years, sandbox roll sunday to sunday
-      certificateValidityEndDate: config.isMainEnv ? new Date('2036-01-01') : config.utils.nextSunday(),
-      certificateValidityStartDate: config.isMainEnv ? undefined : config.utils.lastSunday(),
-    });
+    // Note: only main environments create & manage certificates - sandbox environments
+    if (config.isMainEnv) {
+      //// =====================================================
+      // DynamoDB Tables
+      //// =====================================================
+      this.revocationTable = new UNSDynamoDb(this, config, {
+        name: ['certificates'],
+        partitionKey: 'Id',
+        partitionKeyType: AttributeType.STRING,
+
+        pointInTimeRecovery: true,
+
+        resources: {
+          kms: common.kms,
+        },
+      });
+
+      //// =====================================================
+      // Certficate authority
+      //// =====================================================
+      this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
+        certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
+        // Main env certs are valid 10 years, sandbox roll sunday to sunday
+        certificateValidityEndDate: config.isMainEnv ? new Date('2036-01-01') : config.utils.nextSunday(),
+        certificateValidityStartDate: config.isMainEnv ? undefined : config.utils.lastSunday(),
+      });
+
+      //// =====================================================
+      // Client certificate generation
+      //// =====================================================
+      const csrProvider = new UNSClientCertificateGeneratorConstruct(this, config, { kms: common.kms });
+      common.kms.grantEncryptDecrypt(csrProvider.fn);
+
+      const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.revocationTable, {
+        kms: common.kms,
+      });
+      common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
+
+      const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: common.kms });
+      common.kms.grantEncryptDecrypt(smWriterProvider.fn);
+
+      for (const certificateDetails of getConsumers(config.env, config)) {
+        const certificate = new UNSClientCertificateConstruct(
+          this,
+          certificateDetails.id,
+          config,
+          // Add references & providers
+          {
+            encryptionKey: common.kms,
+            certificateAuthorityArn: this.certificateAuthority.certificateAuthority.attrArn,
+            csrProvider,
+            dynamoDBWriterProvider,
+            smWriterProvider,
+          },
+          // Add certificate settings
+          {
+            certificateId: certificateDetails.id,
+            startDate: certificateDetails.startDate,
+            expirationDate: certificateDetails.expirationDate,
+            subject: {
+              commonName: certificateDetails.commonName,
+              organization: certificateDetails.organization,
+              organizationalUnit: certificateDetails.organizationalUnit,
+            },
+          }
+        );
+        certificate.node.addDependency(this.certificateAuthority.certificate);
+        certificate.node.addDependency(this.certificateAuthority.certificateActivation);
+        certificate.node.addDependency(this.certificateAuthority.certificateAuthority);
+      }
+
+      // Export shared values for the dev sandbox purposes
+      if (config.exportResourcesForDevSandboxUse) {
+        SSMFromObject(
+          this,
+          config,
+          {
+            'shared/mtls/truststore': this.certificateAuthority.certificate.attrCertificate,
+            'shared/mtls/revocation/tableArn': this.revocationTable.table.tableArn,
+            'shared/mtls/revocation/attributes': this.revocationTable.attributes,
+          },
+          { omitNamespace: true }
+        );
+      }
+    }
+
+    // Create truststore entry regardless - for main environments, this uploads created certificate directly, for dev environemnts it pulls shared value from SSM
 
     // ApiGateway tends to 'reserve' truststore file forever, and cannot share it with other api gateways
     // In order to support future mTLS cert sharing between dev & sandbox environment
@@ -85,52 +150,10 @@ export class UNSMTLSCommon extends Construct {
     }).use(this, {
       bucket: truststoreBucket.bucketName,
       key: `truststore.${uuid}.pem`,
-      source: this.certificateAuthority.certificate.attrCertificate,
+      source: this.certificateAuthority
+        ? this.certificateAuthority.certificate.attrCertificate
+        : config.sandbox.shared.ca!,
     });
     this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
-
-    //// =====================================================
-    // Client certificate generation
-    //// =====================================================
-    const csrProvider = new UNSClientCertificateGeneratorConstruct(this, config, { kms: common.kms });
-    common.kms.grantEncryptDecrypt(csrProvider.fn);
-
-    const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.revocationTable, {
-      kms: common.kms,
-    });
-    common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
-
-    const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: common.kms });
-    common.kms.grantEncryptDecrypt(smWriterProvider.fn);
-
-    for (const certificateDetails of getConsumers(config.env, config)) {
-      const certificate = new UNSClientCertificateConstruct(
-        this,
-        certificateDetails.id,
-        config,
-        // Add references & providers
-        {
-          encryptionKey: common.kms,
-          certificateAuthorityArn: this.certificateAuthority.certificateAuthority.attrArn,
-          csrProvider,
-          dynamoDBWriterProvider,
-          smWriterProvider,
-        },
-        // Add certificate settings
-        {
-          certificateId: certificateDetails.id,
-          startDate: certificateDetails.startDate,
-          expirationDate: certificateDetails.expirationDate,
-          subject: {
-            commonName: certificateDetails.commonName,
-            organization: certificateDetails.organization,
-            organizationalUnit: certificateDetails.organizationalUnit,
-          },
-        }
-      );
-      certificate.node.addDependency(this.certificateAuthority.certificate);
-      certificate.node.addDependency(this.certificateAuthority.certificateActivation);
-      certificate.node.addDependency(this.certificateAuthority.certificateAuthority);
-    }
   }
 }

@@ -232,7 +232,7 @@ export class UNSLambdaConstruct extends Construct {
     ]);
   }
 
-  static baseFactory(serviceName: string, signingConfig: CodeSigningConfig, kind: 'http' | 'sqs' = 'http') {
+  static baseFactory(serviceName: string, kind: 'http' | 'sqs', signingConfig: CodeSigningConfig) {
     return (operationId: string) => ({
       serviceName,
       name: [operationId],
@@ -242,9 +242,9 @@ export class UNSLambdaConstruct extends Construct {
   }
 
   static baseSQSFactory(serviceName: string, signingConfig: CodeSigningConfig) {
-    return UNSLambdaConstruct.baseFactory(serviceName, signingConfig, 'sqs');
+    return UNSLambdaConstruct.baseFactory(serviceName, 'sqs', signingConfig);
   }
   static baseHTTPFactory(serviceName: string, signingConfig: CodeSigningConfig) {
-    return UNSLambdaConstruct.baseFactory(serviceName, signingConfig, 'http');
+    return UNSLambdaConstruct.baseFactory(serviceName, 'http', signingConfig);
   }
 }
