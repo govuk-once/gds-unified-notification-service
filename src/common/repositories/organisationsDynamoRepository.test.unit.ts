@@ -115,6 +115,17 @@ describe('OrganisationsDynamoRepository', () => {
       expect(result).toEqual([mockOrganisationRecord, mockOrganisationRecord_02]);
     });
 
+    it('should return organisation records for all successful get records and filter out any errors', async () => {
+      // Arrange
+      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord).mockRejectedValueOnce(new Error("AWS Failure."));
+
+      // Act
+      const result = await instance.getOrganisations([mockMessageRecord, mockMessageRecord_02]);
+
+      // Assert
+      expect(result).toEqual([mockOrganisationRecord]);
+    });
+
     it('should not return an empty array if no organisation is found for a notification', async () => {
       // Arrange
       instance.getRecord = vi.fn().mockResolvedValueOnce(null);

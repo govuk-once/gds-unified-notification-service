@@ -210,6 +210,7 @@ components:
         - NotificationBody
         - NotificationTitle
         - DispatchedDateTime
+        - Metadata
       properties:
         NotificationID:
           type: string

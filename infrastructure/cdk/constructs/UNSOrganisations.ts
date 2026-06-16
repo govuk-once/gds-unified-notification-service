@@ -30,7 +30,7 @@ export class UNSOrganisationsCommon extends Construct {
     });
 
     //// =====================================================
-    // Add organisation for certificate
+    // Add organisation per entry in org metadata
     //// =====================================================
     const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.organisationsTable, {
       kms: common.kms,
