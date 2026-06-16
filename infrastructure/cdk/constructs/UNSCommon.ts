@@ -7,7 +7,7 @@ import { Platform, SigningProfile } from 'aws-cdk-lib/aws-signer';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBContruct';
+import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSElasticacheConstruct } from 'infrastructure/cdk/constructs/bases/UNSElasticacheConstruct';
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
@@ -139,7 +139,6 @@ export class UNSCommon extends Construct {
     //// =====================================================
     // ElastiCache (Valkey Serverless)
     //// =====================================================
-
     this.elasticache = new UNSElasticacheConstruct(this, config, {
       name: ['cache'],
       vpc: this.vpc,
@@ -171,7 +170,7 @@ export class UNSCommon extends Construct {
       'table/inbound/attributes': this.dynamodb.messages.attributes,
       'table/campaigns/attributes': this.dynamodb.campaigns.attributes,
 
-      // Quees
+      // Queues
       'queue/analytics/url': this.queues.analytics.queue.queueUrl,
 
       // Elasticache

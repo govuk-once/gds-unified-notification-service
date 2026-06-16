@@ -231,6 +231,20 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
+        Metadata:
+          type: object
+          required:
+            - Sender
+          properties:
+            Sender:
+              type: object
+              required:
+                - DisplayName
+              properties:
+                DisplayName:
+                  type: string
+                  description: Human readable identifier for the organisation that send the notification
+
     Status:
       type: string
       enum:

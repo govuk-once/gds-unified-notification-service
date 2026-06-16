@@ -4,6 +4,7 @@ import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSFlexResource extends Construct {
@@ -18,12 +19,22 @@ export class UNSFlexResource extends Construct {
       deleteNotification: UNSLambdaConstruct;
     };
   };
+
   public readonly dashboards: {
     service: Dashboard;
   };
-  constructor(scope: Construct, config: EnvVars, refs: UNSCommon) {
+
+  constructor(
+    scope: Construct,
+    config: EnvVars,
+    props: {
+      refs: UNSCommon;
+      organisationsRef: UNSOrganisationsCommon;
+    }
+  ) {
     super(scope, 'flex');
 
+    const { refs, organisationsRef } = props;
     //// =====================================================
     // Lambdas
     //// =====================================================
@@ -43,6 +54,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnly,
+          organisations: organisationsRef.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -58,6 +70,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
+          organisations: organisationsRef.organisationsTable.permissions.readOnly,
         },
       },
     });

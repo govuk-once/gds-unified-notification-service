@@ -15,6 +15,10 @@ export interface UNSCustomResourceConstructProps {
   kms: Key;
 }
 
+export interface UNSCustomResourceConstructAdditionalProps {
+  name?: string[];
+}
+
 export class UNSCustomResourceConstruct<
   InputType extends {
     [key: string]: unknown;
@@ -62,22 +66,22 @@ export class UNSCustomResourceConstruct<
     // Checkov skips for construct lambdas
     applyCheckovSkipsRecursive(this, [
       ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
       ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
       ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
     ]);
     applyCheckovSkipsRecursive(this.provider.onEventHandler, [
       ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
       ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
       ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
     ]);
   }
 
-  public use(caller: Construct, props: InputType) {
+  public use(caller: Construct, props: InputType, additionalProps?: UNSCustomResourceConstructAdditionalProps) {
     const customResource = new cdk.CustomResource(
       caller,
-      this.config.utils.constructNamingHelper(`cdk-custom`, ...this.props.name),
+      this.config.utils.constructNamingHelper(`cdk-custom`, ...this.props.name, ...(additionalProps?.name ?? [])),
       {
         serviceToken: this.provider.serviceToken,
         properties: props,
@@ -87,7 +91,7 @@ export class UNSCustomResourceConstruct<
     // Checkov skips for construct lambdas
     applyCheckovSkipsRecursive(this, [
       ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
       ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
       ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
     ]);
