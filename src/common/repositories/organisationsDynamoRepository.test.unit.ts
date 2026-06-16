@@ -1,5 +1,4 @@
-import { DynamoDB, GetItemCommand } from '@aws-sdk/client-dynamodb';
-import { marshall } from '@aws-sdk/util-dynamodb';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -26,6 +25,41 @@ describe('OrganisationsDynamoRepository', () => {
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
+
+  const mockOrganisationID = 'ORG01';
+  const mockOrganisationRecord: IOrganisationRecord = {
+    OrganisationID: mockOrganisationID,
+    DisplayName: 'ORG',
+  };
+
+  const mockMessageRecord: IMessageRecord = {
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+    UserID: 'UserID',
+    MessageTitle: 'You have a new Message',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    NotificationTitle: 'You have a new medical driving license',
+    NotificationBody: 'The DVLA has issued you a new license.',
+    ReceivedDateTime: '202601021513',
+    Events: [],
+    OrganisationID: mockOrganisationID,
+  };
+
+  const mockOrganisationID_02 = 'ORG02';
+  const mockOrganisationRecord_02: IOrganisationRecord = {
+    OrganisationID: mockOrganisationID_02,
+    DisplayName: 'OTHER_ORG',
+  };
+  const mockMessageRecord_02: IMessageRecord = {
+    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
+    UserID: 'UserID',
+    MessageTitle: 'You have a new Message',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    NotificationTitle: 'You have a new medical driving license',
+    NotificationBody: 'The DVLA has issued you a new license.',
+    ReceivedDateTime: '202601021513',
+    Events: [],
+    OrganisationID: 'ORG02',
+  };
 
   beforeEach(async () => {
     // Reset all mock
@@ -61,105 +95,29 @@ describe('OrganisationsDynamoRepository', () => {
   describe('GetOrganisations', () => {
     it('should return an organisation record for a notification', async () => {
       // Arrange
-      const mockOrganisationID = 'ORG01';
-      const mockRecord_01: IOrganisationRecord = {
-        OrganisationID: mockOrganisationID,
-        DisplayName: 'ORG',
-      };
-
-      const mockMessageRecord: IMessageRecord = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-        Events: [],
-        OrganisationID: mockOrganisationID,
-      };
-
-      dynamoMock.on(GetItemCommand).resolvesOnce({
-        Item: marshall(mockRecord_01),
-      });
+      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord)
 
       // Act
       const result = await instance.getOrganisations([mockMessageRecord]);
 
       // Assert
-      expect(result).toEqual([mockRecord_01]);
+      expect(result).toEqual([mockOrganisationRecord]);
     });
 
     it('should return an organisation record for multiple notifications', async () => {
       // Arrange
-      const mockOrganisationID_01 = 'ORG01';
-      const mockOrganisationID_02 = 'ORG02';
-      const mockRecord_01: IOrganisationRecord = {
-        OrganisationID: mockOrganisationID_01,
-        DisplayName: 'ORG',
-      };
-      const mockRecord_02: IOrganisationRecord = {
-        OrganisationID: mockOrganisationID_02,
-        DisplayName: 'OTHER_ORG',
-      };
-
-      const mockMessageRecord_01: IMessageRecord = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-        Events: [],
-        OrganisationID: 'ORG01',
-      };
-      const mockMessageRecord_02: IMessageRecord = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-        Events: [],
-        OrganisationID: 'ORG02',
-      };
-
-      dynamoMock
-        .on(GetItemCommand)
-        .resolvesOnce({
-          Item: marshall(mockRecord_01),
-        })
-        .resolvesOnce({
-          Item: marshall(mockRecord_02),
-        });
+      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord).mockResolvedValueOnce(mockOrganisationRecord_02);
 
       // Act
-      const result = await instance.getOrganisations([mockMessageRecord_01, mockMessageRecord_02]);
+      const result = await instance.getOrganisations([mockMessageRecord, mockMessageRecord_02]);
 
       // Assert
-      expect(result).toEqual([mockRecord_01, mockRecord_02]);
+      expect(result).toEqual([mockOrganisationRecord, mockOrganisationRecord_02]);
     });
 
     it('should not return an empty array if no organisation is found for a notification', async () => {
       // Arrange
-      const mockOrganisationID = 'ORG01';
-      const mockMessageRecord: IMessageRecord = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-        Events: [],
-        OrganisationID: mockOrganisationID,
-      };
-
-      dynamoMock.on(GetItemCommand).resolvesOnce({
-        Item: undefined,
-      });
+      instance.getRecord = vi.fn().mockResolvedValueOnce(null);
 
       // Act
       const result = await instance.getOrganisations([mockMessageRecord]);
