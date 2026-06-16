@@ -4,7 +4,9 @@ import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources';
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
+import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
+
 export class UNSStack extends Stack {
   public readonly pso: UNSPSOResource;
   public readonly flex: UNSFlexResource;
@@ -21,6 +23,7 @@ export class UNSStack extends Stack {
 
     const common = new UNSCommon(this, config);
     const mtls = new UNSMTLSCommon(this, config, common);
+    const organisations = new UNSOrganisationsCommon(this, config, common);
     this.pso = new UNSPSOResource(this, config, {
       refs: common,
       mtls: {
@@ -38,7 +41,7 @@ export class UNSStack extends Stack {
             }),
       },
     });
-    this.flex = new UNSFlexResource(this, config, common);
+    this.flex = new UNSFlexResource(this, config, { refs: common, organisationsRef: organisations });
 
     // Note: tags should propagate downwards automatically from there
     // Some resources i.e. Elasticache fail when those tags are updated

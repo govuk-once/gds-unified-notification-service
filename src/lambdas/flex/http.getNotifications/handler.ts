@@ -3,13 +3,14 @@ import {
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
+  iocGetOrganisationsDynamoRepository,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { NotificationsDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   IFlexNotificationSchema,
@@ -43,6 +44,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   public responseBodySchema = responseBodySchema;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
+  public organisationsDynamoRepository: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -77,10 +79,14 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       throw new BadRequestError(['PushID has not been provided.']);
     }
 
+    // Get notifications of user from dynamoDB
     const notifications = await this.notificationsDynamoRepository.getRecords<IMessageRecord>({
       field: 'ExternalUserID',
       value: externalUserID,
     });
+
+    // Get display name for organisations from the organisation ID
+    const organisations = await this.organisationsDynamoRepository.getOrganisations(notifications);
 
     this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
     const responseBody = notifications
@@ -91,14 +97,15 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         }
         return true;
       })
-      .map((n) => IMessageRecordToIFlexNotification(n))
+      .map((n) => IMessageRecordToIFlexNotification(n, organisations, this.observability))
+      .filter((n) => n !== undefined)
       .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
       .sort((a, b) => {
         // Sort by dispatch time, most recent first
         if (a.DispatchedDateTime && b.DispatchedDateTime) {
           return new Date(b.DispatchedDateTime).getTime() - new Date(a.DispatchedDateTime).getTime();
         }
-        // If one of the records doesnt have a dispatch time - move it to the back
+        // If one of the records doesn't have a dispatch time - move it to the back
         return a.DispatchedDateTime ? -1 : 1;
       });
 
@@ -111,4 +118,5 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
 export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
+  organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
 })).handler();

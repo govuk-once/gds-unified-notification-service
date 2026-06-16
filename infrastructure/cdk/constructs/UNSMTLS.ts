@@ -6,7 +6,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCertificateAuthorityConstruct } from 'infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct';
 import { UNSClientCertificateConstruct } from 'infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct';
-import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBContruct';
+import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSClientCertificateGeneratorConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSClientCertificateGeneratorConstruct';
 import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
 import { UNSs3ObjectConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSs3ObjectConstruct';

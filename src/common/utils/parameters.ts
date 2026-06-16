@@ -67,6 +67,9 @@ export const StringParameters = {
     Campaigns: {
       Attributes: 'table/campaigns/attributes',
     },
+    Organisations: {
+      Attributes: 'table/organisations/attributes',
+    },
   },
   Dispatch: {
     OneSignal: {
