@@ -125,6 +125,8 @@ export class UNSPSOResource extends Construct {
         dynamodb: {
           revocationTable: UNSDynamoDb.createPermissionMapping(props.mtls.revocationTableArn, true, false, false),
         },
+        // Sandbox use case: Allow authorizer to use decrypt on mtls tables
+        kms: config.isMainEnv ? [] : [config.sandbox.shared.kms],
       },
     });
 

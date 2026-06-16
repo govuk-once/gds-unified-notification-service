@@ -133,6 +133,7 @@ export class UNSMTLSCommon extends Construct {
             'shared/mtls/truststore': this.certificateAuthority.certificate.attrCertificate,
             'shared/mtls/revocation/tableArn': this.revocationTable.table.tableArn,
             'shared/mtls/revocation/attributes': this.revocationTable.attributes,
+            'shared/mtls/kmsArn': common.kms.keyArn,
           },
           { omitNamespace: true }
         );
