@@ -114,7 +114,7 @@ export const config = {
       ca: await fromSSM(`/shared/mtls/truststore`, ''),
       revocationTable: await fromSSM(`/shared/mtls/revocation/tableArn`, ''),
       revocationAttributes: await fromSSMJSON<Record<string, string>>(`/shared/mtls/revocation/attributes`, {}),
-      kms: await fromSSM(`/shared/mtls/kmsArn`, ''),
+      kms: (await fromSSM(`/shared/mtls/kmsArn`, '')) as string,
     },
   },
 
