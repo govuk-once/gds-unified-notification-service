@@ -5,7 +5,7 @@ import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
-import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBContruct';
+import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
