@@ -71,7 +71,7 @@ alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)
 alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
 alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
 alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
-alias 'aws:reauthnpm'='aws codeartifact login --tool pnpm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
+alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
 ```
 
 First one authenticates your shell session with the sandbox aws account, second one opens the AWS console with a pre-authenticated session within the correct account.
