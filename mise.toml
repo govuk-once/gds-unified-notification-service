@@ -3,10 +3,11 @@ idiomatic_version_file_enable_tools = ['node']
 
 [tools]
 checkov = "latest"
+pnpm = "latest"
 
 [shell_alias]
 "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
 "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
 "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
 "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
-"aws:reauthnpm"='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
+"aws:reauthnpm"='aws codeartifact login --tool pnpm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'

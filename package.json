@@ -8,24 +8,24 @@
     "build:validate": "tsc",
     "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact --quiet",
     "commit": "cz",
-    "development:sandbox:release": "npm run build && npm run cdk:deploy",
+    "development:sandbox:release": "pnpm build && pnpm cdk:deploy",
     "development:sandbox:setup": "tsx scripts/developer-sandbox-setup.ts",
     "cdk": "cd infrastructure/cdk && cdk",
-    "cdk:diff": "npm run cdk -- diff",
-    "cdk:synth": "npm run cdk -- synth",
-    "cdk:deploy": "npm run cdk -- deploy --require-approval never && npm run cdk:postdeploy:ssm",
+    "cdk:diff": "pnpm cdk diff",
+    "cdk:synth": "pnpm cdk synth",
+    "cdk:deploy": "pnpm cdk deploy --require-approval never && pnpm cdk:postdeploy:ssm",
     "cdk:postdeploy:ssm": "cd infrastructure/cdk && tsx cdk.postdeploy.ssm.ts",
     "lint:fix": "eslint . --fix",
     "lint": "eslint . --stats",
     "pre-commit": "VITEST_SILENT=true tsx scripts/pre-commit.ts",
     "prepare": "husky",
     "semantic:release": "semantic-release",
-    "test:coverage": "vitest run --coverage  --project unit",
+    "test:coverage": "vitest run --coverage --project unit",
     "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage --project unit",
     "test": "vitest",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
-    "upgrade": "ncu -u -d 'npm run test:unit' && npm audit --omit dev",
+    "upgrade": "ncu -u -d 'pnpm run test:unit' && pnpm audit --omit dev",
     "upgrade:diff": "ncu -x @eslint/js -x eslint-plugin-markdownlint -x eslint-plugin-prettier"
   },
   "devDependencies": {
@@ -106,25 +106,18 @@
     "uuid": "^14.0.0",
     "zod": "^4.4.3"
   },
-  "overrides": {
-    "semantic-release": {
-      "@semantic-release/npm": "^13.1.5"
-    },
-    "@semantic-release/npm": {
-      "@actions/core": "3.0.1",
-      "picomatch": "4.0.4",
-      "ip-address": "10.2.0"
-    },
-    "aws-cdk-lib": {
-      "table": {
-        "ajv": "^8.2.0"
-      }
-    },
-    "vite": {
-      "rollup": "npm:@rollup/wasm-node"
-    }
-  },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.61.1"
+  },
+  "packageManager": "pnpm@10.26.0",
+  "pnpm": {
+    "overrides": {
+      "semantic-release>@semantic-release/npm": "^13.1.5",
+      "@semantic-release/npm>@actions/core": "3.0.1",
+      "@semantic-release/npm>picomatch": "4.0.4",
+      "@semantic-release/npm>ip-address": "10.2.0",
+      "table>ajv": "^8.2.0",
+      "vite>rollup": "npm:@rollup/wasm-node"
+    }
   }
 }

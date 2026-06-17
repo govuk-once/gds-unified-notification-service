@@ -1,4 +1,4 @@
-// This script is to be executed via npm run development:sandbox:setup
+// This script is to be executed via pnpm development:sandbox:setup
 // Generates environment ID based on email signing the commits (git config -- set user.email) by default (directly configurable options available below)
 // Saves generated config into infrastructure/cdk/.env
 // If AWS environment variables are present
@@ -6,13 +6,13 @@
 //
 // Usage:
 //   Developer sandbox setup
-//     npm run development:sandbox:setup
+//     pnpm development:sandbox:setup
 //
 //   Changing to your colleagues dev environment (pair coding, debugging etc.)
-//     AS_DEVELOPER={their_email} npm run development:sandbox:setup
+//     AS_DEVELOPER={their_email} pnpm development:sandbox:setup
 //
 //   Changing to environment (i.e. dev, staging etc)
-//     AS_ENVIRONMENT={dev} npm run development:sandbox:setup
+//     AS_ENVIRONMENT={dev} pnpm development:sandbox:setup
 //
 //   Note: This generator should only be used for setting bucket configuration.
 import { GetParameterCommand, GetParametersByPathCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
@@ -37,7 +37,7 @@ if (
 const [stsClient, ssmClient] = [new STSClient(), new SSMClient()] as const;
 
 export const getConfig = () => {
-  // Allow running `AS_ENVIRONMENT=dev npm run development:sandbox:setup` to repoint local TF to non sandbox setups
+  // Allow running `AS_ENVIRONMENT=dev pnpm development:sandbox:setup` to repoint local TF to non sandbox setups
   if (process.env.AS_ENVIRONMENT !== undefined) {
     return {
       label: `For ${process.env.AS_ENVIRONMENT}`,
@@ -112,7 +112,7 @@ export const importSSMNamespace = async (env: string, label: string, namespaces:
         const [dev, sandbox] = [getParameterResult.Parameter?.Value, getParameterSandboxResult.Parameter?.Value];
         if (getParameterSandboxResult.Parameter?.Value == undefined) {
           console.log(
-            `Parameter has not been initialized yet, please run npm run development:sandbox:release to deploy your environment first then come back to this flow.`
+            `Parameter has not been initialized yet, please run pnpm development:sandbox:release to deploy your environment first then come back to this flow.`
           );
           continue;
         }
@@ -147,7 +147,7 @@ export const importSSMNamespace = async (env: string, label: string, namespaces:
         console.error(`Fetching error for ${param}: ${getParameterError?.message}`);
         console.error(`Fetching error for ${sandboxParamName}: ${getParameterSandboxError?.message}`);
         console.error(
-          `Failed to fetch params from dev & sandbox environments - make sure to perform initial release of your sandbox (npm run development:sandbox:release)`
+          `Failed to fetch params from dev & sandbox environments - make sure to perform initial release of your sandbox (pnpm development:sandbox:release)`
         );
       }
     }
@@ -202,8 +202,8 @@ use_mtls=true`,
       [
         ``,
         `Setup completed, now you can run: `,
-        ` - npm run cdk:diff       - to preview CDK changes before applying`,
-        ` - npm run cdk:deploy     - to apply CDK changes & release your environment`,
+        ` - pnpm cdk:diff       - to preview CDK changes before applying`,
+        ` - pnpm cdk:deploy     - to apply CDK changes & release your environment`,
       ].join('\n')
     );
   } catch (e) {

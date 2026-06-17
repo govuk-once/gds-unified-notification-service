@@ -7,7 +7,7 @@ This service is ran with AWS using serverless architecture.
 
 ### Built With
 
-- Node.js v22.21.1 (LTS) & NPM v11.6
+- Node.js v22.21.1 (LTS) & pnpm v10.26.0
 - Checkov v3.2.490
 - AWS CDK
 
@@ -35,7 +35,7 @@ tfenv use
 4. Install dependencies:
 
 ```sh
-npm install
+pnpm install
 ```
 
 5. Initialize CDK - relies on gds-cli being already configured
@@ -44,7 +44,7 @@ This guided wizard will create a tfstate bucket within AWS based on your develop
 
 ```sh
 eval $(gds-cli aws once-notifications-development-admin -e)
-npm run development:sandbox:setup
+pnpm run development:sandbox:setup
 ```
 
 6. Recommended - Install checkov - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
@@ -52,7 +52,7 @@ npm run development:sandbox:setup
 ```sh
 brew install checkov
 # Pre-configured aliases
-npm run checkov
+pnpm run checkov
 ```
 
 Note: If you are using mise-en-place, you can skip brew install step.
@@ -71,13 +71,13 @@ alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)
 alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
 alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
 alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
-alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
+alias 'aws:reauthnpm'='aws codeartifact login --tool pnpm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
 ```
 
 First one authenticates your shell session with the sandbox aws account, second one opens the AWS console with a pre-authenticated session within the correct account.
 
 ```sh
-npm run development:sandbox:setup
+pnpm run development:sandbox:setup
 ```
 
 This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/cdk/.env` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
@@ -86,8 +86,8 @@ Also, if mTLS is enables, it pulls mTLS certificates and domain name into the re
 After the initial setup is completed, another 2 commands can be used to release to sandbox
 
 ```sh
-npm run development:sandbox:release
-npm run development:sandbox:release:plan
+pnpm run development:sandbox:release
+pnpm run development:sandbox:release:plan
 ```
 
 Both versions will convert TS bundles into JS, and execute CDK.
@@ -99,11 +99,11 @@ Within this project there are multiple ways of triggering tests, there are also 
 
 ```sh
 # Standard unit tests
-npm run test
+pnpm run test
 # Unit tests reporting coverage
-npm run test:coverage
+pnpm run test:coverage
 # End to end tests
-npm run test:e2e
+pnpm run test:e2e
 
 # Additional env vars can also be supplied:
 ## Surpress console output
@@ -114,7 +114,7 @@ VITEST_DISABLE_MSW=true
 VITEST_DETAILED_COVERAGE=true
 
 ## Sample usage
-VITEST_DETAILED_COVERAGE=true VITEST_SILENT=true npm run test:coverage
+VITEST_DETAILED_COVERAGE=true VITEST_SILENT=true pnpm run test:coverage
 ```
 
 We also have some additional flags that can adjust the way
@@ -149,10 +149,10 @@ This repository is automatically updating the following API pages on release to 
 In order to keep dependencies up to date & ensure the platform maintains high level of security, a minor utility is available via:
 
 ```sh
-npm run upgrade
+pnpm run upgrade
 ```
 
-It will iteratively perform dependency updates, after each update it will execute unit tests to ensure there's no regressions. Following that it will also trigger `npm audit` which performs a scan of dependecies against known list of vulnerabilities.
+It will iteratively perform dependency updates, after each update it will execute unit tests to ensure there's no regressions. Following that it will also trigger `pnpm audit` which performs a scan of dependecies against known list of vulnerabilities.
 
 ## Contact
 
