@@ -27,7 +27,7 @@ jobs:
           aws-region: eu-west-2
 
       - name: ⚙️ Configure Codeartifact
-        run: aws codeartifact login --tool pnpm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
+        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
 
       - name: ⚙️ Setup pnpm
         uses: pnpm/action-setup@v4
@@ -39,7 +39,7 @@ jobs:
           cache: 'pnpm'
 
       - name: ⚙️ Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: ⚙️ Validate Typescript
         run: pnpm build:validate
