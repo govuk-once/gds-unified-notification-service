@@ -3,7 +3,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { NotificationsDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
@@ -170,6 +170,13 @@ export const iocGetCampaignsDynamoRepository = ioc(
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new CampaignsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetOrganisationsDynamoRepository = ioc(
+  'OrganisationsDynamoRepository',
+  Mode.TIMEBOUND_SINGLETON,
+  async () =>
+    await new OrganisationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations

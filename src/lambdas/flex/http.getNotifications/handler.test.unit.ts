@@ -1,9 +1,10 @@
-import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
+import { IOrganisationRecord } from '@project/lambdas/interfaces/IOrganisationRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -32,12 +33,14 @@ describe('getNotifications Handler', () => {
 
   const notificationId = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
   const externalUserID = `abc-cdef-ghi`;
+  const organisationID = 'ORG01';
+  const displayName = 'ORG';
 
   const mockReceivedEvent: IAnalytics = {
     EventID: '00000000-0000-0000-0000-a04ff992fcc3',
     NotificationID: notificationId,
     DepartmentID: 'abc',
-    Event: NotificationDispatchedStateEnum.RECEIVED,
+    Event: NotificationStateEnum.RECEIVED,
     EventDateTime: new Date().toISOString(),
     EventReason: '',
     APIGWExtendedID: 'Test',
@@ -47,7 +50,7 @@ describe('getNotifications Handler', () => {
     EventID: '00000000-0000-0000-0000-a04ff992fcc3',
     NotificationID: notificationId,
     DepartmentID: 'abc',
-    Event: NotificationDispatchedStateEnum.HIDDEN,
+    Event: NotificationStateEnum.HIDDEN,
     EventDateTime: new Date().toISOString(),
     EventReason: '',
     APIGWExtendedID: 'Test',
@@ -67,14 +70,14 @@ describe('getNotifications Handler', () => {
         EventID: '00000000-0000-0000-0000-a04ff992fcc3',
         NotificationID: notificationId,
         DepartmentID: 'abc',
-        Event: NotificationDispatchedStateEnum.RECEIVED,
+        Event: NotificationStateEnum.RECEIVED,
         EventDateTime: new Date().toISOString(),
         EventReason: '',
         APIGWExtendedID: 'Test',
       },
     ],
     DispatchedDateTime: '2026-02-13',
-    OrganisationID: 'ORG01',
+    OrganisationID: organisationID,
   };
 
   const mockResponse: IFlexNotification = {
@@ -84,7 +87,17 @@ describe('getNotifications Handler', () => {
     NotificationBody: 'Here is the Notification body.',
     NotificationID: notificationId,
     NotificationTitle: 'You have a new Notification',
-    Status: NotificationDispatchedStateEnum.RECEIVED,
+    Status: NotificationStateEnum.RECEIVED,
+    Metadata: {
+      Sender: {
+        DisplayName: displayName,
+      },
+    },
+  };
+
+  const mockOrganisationRecord: IOrganisationRecord = {
+    OrganisationID: organisationID,
+    DisplayName: displayName,
   };
 
   beforeEach(() => {
@@ -114,12 +127,14 @@ describe('getNotifications Handler', () => {
 
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      organisationsDynamoRepository: Promise.resolve(serviceMocks.organisationsDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([mockDbRecord]);
+    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([mockOrganisationRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -213,6 +228,22 @@ describe('getNotifications Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([]);
+  });
+
+  it('should exclude notifications where the organisation DisplayName was not retrieved from dynamoDB and log the issue', async () => {
+    // Arrange
+    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValueOnce([]);
+
+    // Act
+    const result = await handler(mockAuthorizedEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([]);
+    expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
+      'No organisation matches the DepartmentID in the notification.',
+      { OrganisationID: mockDbRecord.OrganisationID }
+    );
   });
 
   it('should return 400 when externalUserID/pushID is undefined', async () => {

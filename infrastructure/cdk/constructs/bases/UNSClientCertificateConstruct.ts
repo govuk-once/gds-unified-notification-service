@@ -90,15 +90,20 @@ export class UNSClientCertificateConstruct extends Construct {
     });
 
     // Create a revocation record
-    refs.dynamoDBWriterProvider.createRecord(this, 'Id', {
-      IdToSerializeToSha256: this.certificate.attrCertificate,
-      Arn: this.certificate.attrArn,
-      StartDate: props.startDate,
-      EndDate: props.expirationDate,
-      Organization: props.subject.organization,
-      OrganizationalUnit: props.subject.organizationalUnit,
-      CommonName: props.subject.commonName,
-      Revoked: false,
-    });
+    refs.dynamoDBWriterProvider.createRecord(
+      this,
+      'Id',
+      {
+        IdToSerializeToSha256: this.certificate.attrCertificate,
+        Arn: this.certificate.attrArn,
+        StartDate: props.startDate,
+        EndDate: props.expirationDate,
+        Organization: props.subject.organization,
+        OrganizationalUnit: props.subject.organizationalUnit,
+        CommonName: props.subject.commonName,
+        Revoked: false,
+      },
+      'row'
+    );
   }
 }

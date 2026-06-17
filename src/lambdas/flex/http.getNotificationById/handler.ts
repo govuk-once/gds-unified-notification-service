@@ -3,6 +3,7 @@ import {
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
+  iocGetOrganisationsDynamoRepository,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
@@ -10,7 +11,7 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
-import { NotificationsDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   IFlexNotificationSchema,
@@ -45,6 +46,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public responseBodySchema = IFlexNotificationSchema;
 
   public notificationsDynamoRepository: NotificationsDynamoRepository;
+  public organisationsDynamoRepository: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -106,9 +108,17 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new NotFoundError();
     }
 
-    // If message is marked as hidden - return 404
-    const notificationResponse = IMessageRecordToIFlexNotification(notification);
+    // Get display name for organisations from the organisation ID
+    const organisations = await this.organisationsDynamoRepository.getOrganisations([notification]);
+    const notificationResponse = IMessageRecordToIFlexNotification(notification, organisations, this.observability);
 
+    // If no organisation record matches the organisation - return 404
+    if (!notificationResponse) {
+      this.observability.logger.debug('Notification failed parsing to flex notification - returning 404');
+      throw new NotFoundError();
+    }
+
+    // If message is marked as hidden - return 404
     if (notificationResponse.Status == NotificationDispatchedStateEnum.HIDDEN) {
       this.observability.logger.debug('Notification has been marked as hidden - returning 404');
       throw new NotFoundError();
@@ -125,4 +135,5 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
 export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
+  organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
 })).handler();

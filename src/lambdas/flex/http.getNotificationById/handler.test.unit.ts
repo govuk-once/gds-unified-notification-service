@@ -3,6 +3,7 @@ import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFact
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
+import { IOrganisationRecord } from '@project/lambdas/interfaces/IOrganisationRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -20,18 +21,63 @@ describe('GetNotificationById Handler', () => {
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
 
+  let mockEvent: EventType;
+  let mockUnauthorizedEvent: EventType;
+  let mockInternalServerError: EventType;
+
   const mockContext = {
     functionName: 'getFlexNotificationById',
     awsRequestId: '12345',
   } as unknown as Context;
 
-  let mockInternalServerError: EventType;
-  let mockEvent: EventType;
-
-  let mockDbRecord: IMessageRecord;
-  let mockResponse: IFlexNotification;
   const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;
   const externalUserID = `abc-cdef-ghi`;
+  const organisationID = 'ORG01';
+  const displayName = 'ORG';
+
+  const mockDbRecord: IMessageRecord = {
+    NotificationID: notificationID,
+    DepartmentID: 'DEP01',
+    UserID: 'UserID',
+    MessageTitle: 'You have a new Message',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    NotificationTitle: 'You have a new Notification',
+    NotificationBody: 'Here is the Notification body.',
+    ExternalUserID: externalUserID,
+    OrganisationID: 'ORG01',
+    Events: [
+      {
+        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+        NotificationID: notificationID,
+        DepartmentID: 'abc',
+        Event: NotificationStateEnum.RECEIVED,
+        EventDateTime: new Date().toISOString(),
+        EventReason: '',
+        APIGWExtendedID: 'Test',
+      },
+    ],
+    DispatchedDateTime: '2026-02-13',
+  };
+
+  const mockResponse: IFlexNotification = {
+    DispatchedDateTime: '2026-02-13',
+    MessageBody: 'Open Notification Centre to read your notifications',
+    MessageTitle: 'You have a new Message',
+    NotificationBody: 'Here is the Notification body.',
+    NotificationID: notificationID,
+    NotificationTitle: 'You have a new Notification',
+    Status: NotificationStateEnum.RECEIVED,
+    Metadata: {
+      Sender: {
+        DisplayName: displayName,
+      },
+    },
+  };
+
+  const mockOrganisationRecord: IOrganisationRecord = {
+    OrganisationID: organisationID,
+    DisplayName: displayName,
+  };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -55,49 +101,16 @@ describe('GetNotificationById Handler', () => {
 
     mockInternalServerError = null as unknown as EventType;
 
-    // Reset db object
-    mockDbRecord = {
-      NotificationID: notificationID,
-      DepartmentID: 'DEP01',
-      UserID: 'UserID',
-      MessageTitle: 'You have a new Message',
-      MessageBody: 'Open Notification Centre to read your notifications',
-      NotificationTitle: 'You have a new Notification',
-      NotificationBody: 'Here is the Notification body.',
-      ExternalUserID: externalUserID,
-      OrganisationID: 'ORG01',
-      Events: [
-        {
-          EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-          NotificationID: notificationID,
-          DepartmentID: 'abc',
-          Event: NotificationStateEnum.RECEIVED,
-          EventDateTime: new Date().toISOString(),
-          EventReason: '',
-          APIGWExtendedID: 'Test',
-        },
-      ],
-      DispatchedDateTime: '2026-02-13',
-    };
-
-    // Reset expected response
-    mockResponse = {
-      DispatchedDateTime: '2026-02-13',
-      MessageBody: 'Open Notification Centre to read your notifications',
-      MessageTitle: 'You have a new Message',
-      NotificationBody: 'Here is the Notification body.',
-      NotificationID: notificationID,
-      NotificationTitle: 'You have a new Notification',
-      Status: NotificationStateEnum.RECEIVED,
-    };
-
     instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      organisationsDynamoRepository: Promise.resolve(serviceMocks.organisationsDynamoRepositoryMock),
     }));
 
     handler = instance.handler();
 
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([mockOrganisationRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -106,9 +119,6 @@ describe('GetNotificationById Handler', () => {
   });
 
   it('should return 200 with status ok when valid API key is provided', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockEvent, mockContext);
 
@@ -120,9 +130,6 @@ describe('GetNotificationById Handler', () => {
   });
 
   it('should return 200 with status ok and return a notification', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockEvent, mockContext);
 
@@ -133,7 +140,6 @@ describe('GetNotificationById Handler', () => {
 
   it('should return 200 with status ok and return a notification - using pushID query parameter', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     mockEvent.queryStringParameters = {
       pushID: mockEvent.queryStringParameters.externalUserID,
     };
@@ -147,9 +153,6 @@ describe('GetNotificationById Handler', () => {
   });
 
   it('should get notification from getRecord call', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     await handler(mockEvent, mockContext);
 
@@ -160,9 +163,6 @@ describe('GetNotificationById Handler', () => {
   });
 
   it('should handle errors when calling API key with status internal server error', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
     // Act
     const result = await handler(mockInternalServerError, mockContext);
 
@@ -184,7 +184,6 @@ describe('GetNotificationById Handler', () => {
 
   it('should return 404 for expired notification notification from getRecord call', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue({
       ...mockDbRecord,
       ExpirationDateTime: new Date(0).toISOString(),
@@ -197,9 +196,23 @@ describe('GetNotificationById Handler', () => {
     expect(result.statusCode).toEqual(404);
   });
 
+  it('should return 404 where the organisation DisplayName was not retrieved from dynamoDB and log the issue', async () => {
+    // Arrange
+    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValueOnce([]);
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(404);
+    expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
+      'No organisation matches the DepartmentID in the notification.',
+      { OrganisationID: mockDbRecord.OrganisationID }
+    );
+  });
+
   it('should return 400 when externalUserID/pushID is undefined', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
     mockEvent.queryStringParameters = {};
 
@@ -212,7 +225,6 @@ describe('GetNotificationById Handler', () => {
 
   it('should return 400 when pushId is an empty string', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
     mockEvent.queryStringParameters = {
       pushID: '',
@@ -224,9 +236,9 @@ describe('GetNotificationById Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(400);
   });
+
   it('should return 400 when externalUserID is an empty string', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
     mockEvent.queryStringParameters = {
       externalUserID: '',

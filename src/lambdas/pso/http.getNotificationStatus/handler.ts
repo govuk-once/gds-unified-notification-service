@@ -39,7 +39,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     // Fetch notification
     const notification = await this.notificationsDynamoRepository.getRecord(_event.pathParameters.notificationID ?? '');
 
-    // If it doesnt exist - 404
+    // If it doesn't exist - 404
     if (notification == null) {
       throw new NotFoundError();
     }
