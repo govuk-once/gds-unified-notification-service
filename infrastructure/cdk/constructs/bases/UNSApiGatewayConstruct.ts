@@ -424,7 +424,7 @@ export class UNSAPIGatewayGateway extends Construct {
             },
             quota: {
               limit: allowance?.quota?.limit ?? props.usagePlanDefaults.quota.limit,
-              period: Period.MONTH,
+              period: Period.DAY,
             },
           }
         );
