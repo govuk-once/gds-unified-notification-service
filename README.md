@@ -152,8 +152,6 @@ In order to keep dependencies up to date & ensure the platform maintains high le
 pnpm run upgrade
 ```
 
-It will iteratively perform dependency updates, after each update it will execute unit tests to ensure there's no regressions. Following that it will also trigger `pnpm audit` which performs a scan of dependecies against known list of vulnerabilities.
-
 ## Contact
 
 Solution Architect: Nathaniel Greenwood
