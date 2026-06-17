@@ -65,9 +65,6 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
       requestId: context.awsRequestId,
     });
 
-    // Authorize
-    await this.validateApiKey(event);
-
     // Extract details
     const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
 

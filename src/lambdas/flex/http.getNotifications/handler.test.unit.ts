@@ -27,7 +27,6 @@ describe('getNotifications Handler', () => {
   } as unknown as Context;
 
   let mockAuthorizedEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
@@ -111,13 +110,6 @@ describe('getNotifications Handler', () => {
       },
     };
 
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockBadApiKey',
-      },
-    };
-
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -184,22 +176,6 @@ describe('getNotifications Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([]);
-  });
-
-  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-  });
-
-  it('should fetch API key from config service', async () => {
-    // Act
-    await handler(mockAuthorizedEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
   });
 
   it('should handle errors when calling API key with status internal server error', async () => {

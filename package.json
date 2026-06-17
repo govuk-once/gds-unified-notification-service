@@ -9,6 +9,7 @@
     "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact --quiet",
     "commit": "cz",
     "development:sandbox:release": "npm run build && npm run cdk:deploy",
+    "development:sandbox:plan": "npm run build && npm run cdk:diff",
     "development:sandbox:setup": "tsx scripts/developer-sandbox-setup.ts",
     "cdk": "cd infrastructure/cdk && cdk",
     "cdk:diff": "npm run cdk -- diff",
@@ -29,6 +30,7 @@
     "upgrade:diff": "ncu -x @eslint/js -x eslint-plugin-markdownlint -x eslint-plugin-prettier"
   },
   "devDependencies": {
+    "@aws-sdk/client-api-gateway": "^3.1030.0",
     "@aws-sdk/client-kms": "^3.1030.0",
     "@aws-sdk/client-s3": "^3.1030.0",
     "@aws-sdk/client-sqs": "^3.1030.0",

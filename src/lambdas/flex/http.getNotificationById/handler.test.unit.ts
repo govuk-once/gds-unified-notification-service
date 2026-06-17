@@ -25,7 +25,6 @@ describe('GetNotificationById Handler', () => {
     awsRequestId: '12345',
   } as unknown as Context;
 
-  let mockUnauthorizedEvent: EventType;
   let mockInternalServerError: EventType;
   let mockEvent: EventType;
 
@@ -53,16 +52,6 @@ describe('GetNotificationById Handler', () => {
         externalUserID: externalUserID,
       },
     } as unknown as EventType;
-
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockBadApiKey',
-      },
-      queryStringParameters: {
-        externalUserID: externalUserID,
-      },
-    };
 
     mockInternalServerError = null as unknown as EventType;
 
@@ -170,17 +159,6 @@ describe('GetNotificationById Handler', () => {
     );
   });
 
-  it('should fetch API key from config service', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
-  });
-
   it('should handle errors when calling API key with status internal server error', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
@@ -202,17 +180,6 @@ describe('GetNotificationById Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(500);
-  });
-
-  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
   });
 
   it('should return 404 for expired notification notification from getRecord call', async () => {

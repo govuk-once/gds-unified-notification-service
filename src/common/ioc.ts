@@ -85,6 +85,7 @@ export const iocGetLogger = ioc(
             `app_id`,
             `Authorization`,
             `x-api-key`,
+            `apiKey`,
           ].includes(key)
         ) {
           return `******`;

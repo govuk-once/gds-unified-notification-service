@@ -74,9 +74,6 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
       requestId: context.awsRequestId,
     });
 
-    // Authorize
-    await this.validateApiKey(event);
-
     // Validate
     const notificationID = event.pathParameters?.notificationID;
     const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
