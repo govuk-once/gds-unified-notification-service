@@ -2,6 +2,7 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
@@ -114,6 +115,13 @@ export const iocGetObservabilityService = ioc(
   () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer())
 );
 
+// AWS Clients
+export const iocGetCloudWatchLogsClient = ioc(
+  'CloudWatchLogsClient',
+  Mode.SINGLETON,
+  () => new CloudWatchLogsClient
+);
+
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
   'ConfigurationService',
@@ -207,7 +215,8 @@ export const iocGetBqAnalyticsExportService = ioc(
     await new BqAnalyticsExportService(
       iocGetObservabilityService(),
       iocGetConfigurationService(),
-      iocGetCacheService()
+      iocGetCacheService(),
+      iocGetCloudWatchLogsClient()
     ).initialize()
 );
 

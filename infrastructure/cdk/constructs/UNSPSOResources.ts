@@ -126,7 +126,6 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // S3 Buckets
     // //// =====================================================
-    // TODO: Should this be a construct?
     const bqAnalyticsExportBucket = new s3.Bucket(this, constructNamingHelper(`bq-analytics-export`, ` bucket`), {
       bucketName: namingHelper(`bq-analytics-export`),
       // Encryption at rest (Uses Amazon S3-managed keys / SSE-S3)
@@ -144,16 +143,15 @@ export class UNSPSOResource extends Construct {
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
+
+      lifecycleRules: [{
+        enabled: true,
+        expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+      }]
     });
     applyCheckovSkips(bqAnalyticsExportBucket, [
       ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
     ]);
-
-    bqAnalyticsExportBucket.addLifecycleRule({
-      id: constructNamingHelper(`bq-analytics-export`, ` bucket-lifecycle-rule`),
-      enabled: true,
-      expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
-    });
 
     bqAnalyticsExportBucket.addToResourcePolicy(new PolicyStatement({
       sid: 'AllowCloudWatchLogsGetAcl',
@@ -169,11 +167,11 @@ export class UNSPSOResource extends Construct {
       principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
       actions: ['s3:PutObject'],
       resources: [bqAnalyticsExportBucket.arnForObjects('*')],
-      conditions: {
-        StringEquals: {
-          's3:x-amz-acl': 'bucket-owner-full-control',
-        },
-      },
+      // conditions: {
+      //   StringEquals: {
+      //     's3:x-amz-acl': 'bucket-owner-full-control',
+      //   },
+      // },
     }));
 
     //// =====================================================
@@ -385,7 +383,7 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // TODO: Could this be moved in lambda construct
     new Rule(this, config.utils.namingHelper(`scheduler`, this.lambdas.schedule.bqAnalyticsExport.props.serviceName), {
-      schedule: Schedule.cron({ minute: "0", hour: "*" }),
+      schedule: Schedule.cron({ minute: "30", hour: "*" }),
       targets: [new LambdaFunction(bqAnalyticsExport.fn)]
     });
 

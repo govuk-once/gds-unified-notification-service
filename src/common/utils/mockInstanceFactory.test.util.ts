@@ -20,7 +20,6 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
-import { BqAnalyticsExportService } from '@common/services/bqAnalyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { Mocked } from 'vitest';
@@ -42,6 +41,24 @@ export const observabilitySpies = (): Mocked<ObservabilityService> => {
   ) as Mocked<ObservabilityService>;
 
   return observabilityMock;
+};
+
+// TODO: Add to test files when refactoring in NOT-292
+// AWS client mocks
+export interface AwsClientMocks {
+  cloudWatchLogsClientMock: Mocked<CloudWatchLogsClient>
+}
+
+/*
+  Generates a mocked instance of AWS clients.
+  Provides pre-spied AWS client for unit testing.
+*/
+export const awsClientSpies = (): AwsClientMocks => {
+  const cloudWatchLogsClientMock = new CloudWatchLogsClient() as Mocked<CloudWatchLogsClient>;
+
+  return {
+    cloudWatchLogsClientMock
+  };
 };
 
 // Service and Repository Mocks
@@ -111,11 +128,12 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     smConfigurationServiceMock
   ) as Mocked<ProcessingService>;
-  const bqAnalyticsExportServiceMock = new BqAnalyticsExportService(
-    observabilityMock,
-    configurationServiceMock,
-    cacheServiceMock,
-  ) as Mocked<BqAnalyticsExportService>;
+  // TODO: Add when refactoring in NOT-292
+  // const bqAnalyticsExportServiceMock = new BqAnalyticsExportService(
+  //   observabilityMock,
+  //   configurationServiceMock,
+  //   cacheServiceMock,
+  // ) as Mocked<BqAnalyticsExportService>;
 
   return {
     // Queue
@@ -136,6 +154,5 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     circuitBreakerServiceMock,
     contentValidationServiceMock,
     processingServiceMock,
-    bqAnalyticsExportServiceMock,
   };
 };

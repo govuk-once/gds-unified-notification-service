@@ -9,7 +9,6 @@ import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
 
 export class BqAnalyticsExportService {
   private logGroupName: string;
-  private client: CloudWatchLogsClient
 
   private readonly logStreamCacheKeyPrefix = `bqAnalyticsExportService/LogStream`;
 
@@ -17,13 +16,11 @@ export class BqAnalyticsExportService {
     private readonly observability: ObservabilityService,
     private readonly config: ConfigurationService,
     private readonly cache: CacheService,
+    private readonly client: CloudWatchLogsClient,
   ) {}
-
 
   public async initialize() {
     this.logGroupName = await this.config.getParameter(StringParameters.BigQuery.LogGroup.Name);
-
-    this.client = new CloudWatchLogsClient()
     this.observability.tracer.captureAWSv3Client(this.client);
 
     return this;
@@ -83,13 +80,13 @@ export class BqAnalyticsExportService {
 
   public async logStreamToS3Bucket(timestamp: string) {
     const exportBucketName = await this.config.getParameter(StringParameters.BigQuery.Bucket.Name);
-    const logStreamName = timestamp.split(':').shift() ?? '';
 
-    if (!logStreamName) {
-      this.observability.logger.error('Timestamp string is not in a datetime format', { timestamp })
+    // Determines the log stream name off the timestamp from event bridge
+    if (Number.isNaN(Date.parse(timestamp))) {
+      this.observability.logger.error("Timestamp used is not a valid datetime format.", { timestamp })
       throw new ParsingFailedError()
     }
-
+    const logStreamName = timestamp.split(':').shift();
     const time = new Date(timestamp).getTime();
 
     // Export analytics from log group to s3 bucket
@@ -97,8 +94,8 @@ export class BqAnalyticsExportService {
       taskName: `bq-analytics-export-${logStreamName}`,
       logGroupName: this.logGroupName,
       logStreamNamePrefix: logStreamName,
-      // TODO: Should I add more of a buffer?
-      from: time - 60 * 60 * 1000,
+      // Gives a 2 hours buffer window - however shouldn't fall outside the log stream window
+      from: time - 2 * 60 * 60 * 1000,
       to: time,
       destination: exportBucketName,
       destinationPrefix: logStreamName,
