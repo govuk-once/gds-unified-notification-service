@@ -1,4 +1,3 @@
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
@@ -25,7 +24,6 @@ describe('DeleteNotification Handler', () => {
     awsRequestId: '12345',
   } as unknown as Context;
 
-  let mockUnauthorizedEvent: EventType;
   let mockBadRequestEvent: EventType;
   let mockEvent: EventType;
   let mockMissingIdEvent: EventType;
@@ -75,13 +73,6 @@ describe('DeleteNotification Handler', () => {
         externalUserID,
       },
     } as unknown as EventType;
-
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockBadApiKey',
-      },
-    };
 
     mockMissingIdEvent = {
       ...mockEvent,
@@ -233,36 +224,5 @@ describe('DeleteNotification Handler', () => {
       HttpError: 'NotFound',
       Errors: [],
     });
-  });
-
-  it('should handle errors when calling API key is not found in the request header', async () => {
-    // Act
-    const result = await handler(mockBadRequestEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
-  });
-
-  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
-  });
-
-  it('return internal server error when config servers throws an error', async () => {
-    // Arrange
-    const error = new ServiceMisconfigurationError();
-    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
-
-    // Act
-    const result = await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(500);
-    expect(JSON.parse(result.body)).toEqual({ Status: 500, HttpError: 'InternalServerError', Errors: [] });
   });
 });

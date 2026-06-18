@@ -8,6 +8,7 @@ import {
   IAuthorizer,
   Integration,
   LogGroupLogDestination,
+  Period,
   RestApi,
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
@@ -26,20 +27,37 @@ import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
+type UsageAllowance = {
+  // Values are per second
+  throttle: {
+    rateLimit: number;
+    burstLimit: number;
+  };
+  // Values per month
+  quota: {
+    limit: number;
+  };
+};
+
 export interface UNSAPIGatewayGatewayProps {
   readonly name: string[];
   readonly description: string;
   readonly type: 'MTLS' | 'PRIVATE' | 'PUBLIC';
   readonly domain?: string;
   readonly authorizer?: IAuthorizer;
+  readonly usagePlanDefaults?: UsageAllowance;
+  readonly usagePlans?: Record<string, { allowance?: Partial<UsageAllowance> }>;
+
   readonly mtls?: {
     readonly truststore: string;
   };
+
   readonly resources: {
     readonly mtlsTruststoreUrl?: string;
     readonly vpce?: string[];
     readonly kms: IKey;
   };
+
   readonly integrations?: Record<
     string,
     {
@@ -49,6 +67,7 @@ export interface UNSAPIGatewayGatewayProps {
       readonly authorizer?: IAuthorizer;
     }
   >;
+
   readonly iam?: {
     readonly allowOnlyFromKnownSources?: {
       readonly awsAccountID: string;
@@ -168,6 +187,8 @@ export class UNSAPIGatewayGateway extends Construct {
       authorizer: authorizer ?? this.props.authorizer,
       // Otherwise: Use IAM authorization if we are a private API gateway
       authorizationType: this.props.iam?.allowOnlyFromKnownSources ? AuthorizationType.IAM : undefined,
+      // If usage plan defaults are in place - all endpoints require an API key
+      apiKeyRequired: this.props.usagePlanDefaults !== undefined,
     });
 
     applyCheckovSkips(registeredEndpoints, [
@@ -285,15 +306,6 @@ export class UNSAPIGatewayGateway extends Construct {
   constructPrivatePolicies(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
     // Add VPC endpoint resource policy if configuration is provided
     if (props.iam?.allowOnlyFromKnownSources) {
-      // // // this.restApi.addToResourcePolicy(
-      // // //   new PolicyStatement({
-      // // //     principals: [new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID)],
-      // // //     actions: ['execute-api:Invoke'],
-      // // //     resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
-      // // //     effect: Effect.ALLOW,
-      // // //   })
-      // // // );
-
       this.restApi.addToResourcePolicy(
         new PolicyStatement({
           effect: Effect.DENY,
@@ -397,6 +409,39 @@ export class UNSAPIGatewayGateway extends Construct {
     // Register all HTTP methods & integrations that have been added as props
     for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
       this.addIntegration(operationId, path, method, integration, authorizer);
+    }
+
+    if (props.usagePlanDefaults) {
+      // Create usage plans & API Keys
+      for (const [id, { allowance }] of Object.entries(this.props.usagePlans ?? {})) {
+        const usagePlan = this.restApi.addUsagePlan(
+          config.utils.constructNamingHelper(...this.props.name, 'usage-plan', id),
+          {
+            name: config.utils.namingHelper(...this.props.name, 'usage-plan', id),
+            throttle: {
+              rateLimit: allowance?.throttle?.rateLimit ?? props.usagePlanDefaults.throttle.rateLimit,
+              burstLimit: allowance?.throttle?.burstLimit ?? props.usagePlanDefaults.throttle.rateLimit,
+            },
+            quota: {
+              limit: allowance?.quota?.limit ?? props.usagePlanDefaults.quota.limit,
+              period: Period.DAY,
+            },
+          }
+        );
+
+        const apiKey = this.restApi.addApiKey(
+          config.utils.constructNamingHelper(...this.props.name, 'api-key', id).replace('-', ''),
+          {
+            apiKeyName: config.utils.namingHelper(...this.props.name, 'api-key', id),
+          }
+        );
+        usagePlan.addApiKey(apiKey);
+
+        // Link the Usage Plan to the API Stage and API Key
+        usagePlan.addApiStage({
+          stage: this.restApi.deploymentStage,
+        });
+      }
     }
 
     // Construct relevant sub resources

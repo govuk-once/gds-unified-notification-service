@@ -80,14 +80,6 @@ describe('PatchNotification Handler', () => {
       },
     } as unknown as EventType;
 
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockBadApiKey',
-        'content-type': 'application/json',
-      },
-    };
-
     mockMissingIdEvent = {
       ...mockEvent,
       pathParameters: {},
@@ -170,18 +162,6 @@ describe('PatchNotification Handler', () => {
     });
   });
 
-  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
-  });
-
   it('should log and return 400 when notificationID is missing', async () => {
     // Arrange
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
@@ -199,29 +179,6 @@ describe('PatchNotification Handler', () => {
       HttpError: 'BadRequest',
       Errors: ['NotificationID has not been provided'],
     });
-  });
-
-  it('should return 401 with status unauthorized and should return', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
-    expect(JSON.parse(result.body)).toEqual({ Status: 401, HttpError: 'Unauthorized', Errors: [] });
-  });
-
-  it('should fetch API key from config service', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-
-    // Act
-    await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
   });
 
   it('should return 404 when notifications does not exist', async () => {

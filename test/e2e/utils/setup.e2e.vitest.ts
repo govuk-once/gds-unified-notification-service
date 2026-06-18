@@ -1,12 +1,11 @@
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
+import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import dotenv from 'dotenv';
 import https from 'node:https';
 import { test as baseTest } from 'vitest';
-
-dotenv.config();
+import { config } from '../../../infrastructure/cdk/config';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -14,8 +13,15 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
 
-const psoUrl = process.env.AWS_PSO_CUSTOM_DOMAIN_NAME;
-const flexUrl = process.env.AWS_FLEX_CUSTOM_DOMAIN_NAME;
+const domainName = (name: string) => {
+  const rootDomain = config.ssm.hostedZoneName;
+  const subdomain = name ? (config.isMainEnv ? name : config.utils.namingHelper(name)) : null;
+  return `${subdomain}.${rootDomain}`;
+};
+const psoUrl = domainName(`pso`);
+const flexUrl = domainName(`flex`);
+let flexApiKey = '';
+let psoApiKey = '';
 
 let httpsAgent: https.Agent;
 
@@ -39,23 +45,79 @@ beforeAll(async () => {
     }
 
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
-    const client = new SSMClient({ region: 'eu-west-2' });
+    const smClient = new SecretsManagerClient({ region: 'eu-west-2' });
 
-    const inputCert = { Name: '/e2e/pso/mtls/cert', WithDecryption: true };
-    const inputKey = { Name: '/e2e/pso/mtls/key', WithDecryption: true };
-    const [cert, key] = await Promise.all([
-      client.send(new GetParameterCommand(inputCert)),
-      client.send(new GetParameterCommand(inputKey)),
-    ]);
+    // Fetch dev certificates
+    const secrets = await smClient.send(
+      new ListSecretsCommand({
+        Filters: [
+          {
+            Key: 'name',
+            Values: [`uns-dev/tls/UNS`],
+          },
+        ],
+      })
+    );
 
-    if (!cert.Parameter || !key.Parameter) {
+    if (secrets.SecretList?.length !== 2) {
+      throw new Error(`Fetching certs from SM returned too many results, expected 2`);
+    }
+
+    const result = (
+      await Promise.all(
+        (secrets.SecretList ?? [])
+          .map((entry) => entry.Name!)
+          .map((SecretId) =>
+            smClient
+              .send(
+                new GetSecretValueCommand({
+                  SecretId,
+                })
+              )
+              .then((result) => ({ [SecretId.split('/').pop()!.split('-').pop()!]: result.SecretString }))
+          )
+      )
+    ).reduce((a, b) => ({ ...a, ...b }), {}) as { crt: string; key: string };
+    const { crt, key } = result;
+
+    if (!crt || !key) {
       throw new Error('mTLS certificates were not returned from parameter store.');
+    }
+
+    // Fetch API Keys from usage plans on the fly
+    const apiGwClient = new APIGatewayClient({ region: 'eu-west-2' });
+    for (const key of ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? []).filter((key) =>
+      key.name?.includes(config.prefix)
+    )) {
+      const value = await apiGwClient.send(
+        new GetApiKeyCommand({
+          apiKey: key.id,
+          includeValue: true,
+        })
+      );
+
+      // UNS is the org name attached to dev consumer definition
+      if (value && value.value && key.name?.includes('pso') && key.name?.includes('uns')) {
+        psoApiKey = value.value!;
+      }
+
+      // Our e2e tests are hitting flex api
+      if (value && value.value && key.name?.includes('flex') && key.name?.includes('e2e')) {
+        flexApiKey = value.value!;
+      }
+    }
+
+    if (psoApiKey == '') {
+      throw new Error('Failed to retrieve API Token for PSO');
+    }
+    if (flexApiKey == '') {
+      throw new Error('Failed to retrieve API Token for FLEX');
     }
 
     // Creates a https agent for mTLS using imported credentials
     httpsAgent = new https.Agent({
-      cert: `${cert.Parameter?.Value}`,
-      key: `${key.Parameter?.Value}`,
+      cert: crt,
+      key: key,
     });
 
     if (!httpsAgent) {
@@ -94,6 +156,9 @@ export const test = baseTest
       baseURL: `https://${psoUrl}`,
       timeout: 60000,
       httpsAgent,
+      headers: {
+        'x-api-key': psoApiKey,
+      },
     });
 
     axiosInstanceSanitizer(instance);
@@ -105,6 +170,9 @@ export const test = baseTest
       baseURL: `https://${flexUrl}`,
       timeout: 60000,
       httpsAgent,
+      headers: {
+        'x-api-key': flexApiKey,
+      },
     });
 
     axiosInstanceSanitizer(instance);

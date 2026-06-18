@@ -7,8 +7,14 @@ import { camelCase } from './utils/camelCase';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
-  console.log(`Loading: ${join('./.env')}`);
+  console.log(`Loading from within infrastructure/cdk: ${join('./.env')}`);
   dotenv.config({ path: join('./.env') });
+}
+
+// If this file is loaded from project root - i.e. via vitest
+if (existsSync('./infrastructure/cdk/.env')) {
+  console.log(`Loading from root project dir: ${join('./infrastructure/cdk/.env')}`);
+  dotenv.config({ path: join('infrastructure/cdk/.env') });
 }
 
 export const unremoveableEnvironments = ['dev', 'stg', 'prod'];

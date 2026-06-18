@@ -99,16 +99,6 @@ describe('GetNotificationById Handler', () => {
       },
     } as unknown as EventType;
 
-    mockUnauthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockBadApiKey',
-      },
-      queryStringParameters: {
-        externalUserID: externalUserID,
-      },
-    };
-
     mockInternalServerError = null as unknown as EventType;
 
     instance = new GetFlexNotificationById(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -172,14 +162,6 @@ describe('GetNotificationById Handler', () => {
     );
   });
 
-  it('should fetch API key from config service', async () => {
-    // Act
-    await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith('api/flex/apiKey');
-  });
-
   it('should handle errors when calling API key with status internal server error', async () => {
     // Act
     const result = await handler(mockInternalServerError, mockContext);
@@ -198,14 +180,6 @@ describe('GetNotificationById Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(500);
-  });
-
-  it('should return 401 with status unauthorized when invalid API key is provided', async () => {
-    // Act
-    const result = await handler(mockUnauthorizedEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(401);
   });
 
   it('should return 404 for expired notification notification from getRecord call', async () => {

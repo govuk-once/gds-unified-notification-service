@@ -11,6 +11,7 @@ import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueC
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
@@ -310,6 +311,20 @@ export class UNSPSOResource extends Construct {
       },
       authorizer: authorizer,
       type: 'PUBLIC',
+
+      // Initial implementation - create consumers for every
+      usagePlanDefaults: {
+        throttle: {
+          rateLimit: 500,
+          burstLimit: 1000,
+        },
+        quota: {
+          limit: 20000,
+        },
+      },
+      usagePlans: getConsumers(config.env, config)
+        .map((consumer) => ({ [consumer.organization]: {} }))
+        .reduce((a, b) => ({ ...a, ...b })),
     })
       .GET(`getHealthcheck`, `/status`, this.lambdas.http.getHealthcheck.integration)
       .GET(`getNotificationStatus`, `/status/{notificationID}`, this.lambdas.http.getNotificationStatus.integration)

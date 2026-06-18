@@ -67,8 +67,6 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       requestId: context.awsRequestId,
     });
 
-    await this.validateApiKey(event);
-
     // Extract details
     const notificationID = event.pathParameters?.notificationID;
     const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
