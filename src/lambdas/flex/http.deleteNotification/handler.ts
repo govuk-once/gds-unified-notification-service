@@ -58,7 +58,6 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request', { event });
     this.observability.logger.debug('Received request', {
       path: event.path,
       notificationID: event.pathParameters?.notificationID,

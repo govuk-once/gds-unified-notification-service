@@ -21,6 +21,14 @@ export const StringParameters = {
       ApiKey: 'api/flex/apiKey',
     },
   },
+  BigQuery: {
+    LogGroup: {
+      Name: 'bigquery/analytics/loggroup/name'
+    },
+    Bucket: {
+      Name: 'bigquery/analytics/bucket/name'
+    }
+  },
   Config: {
     Cache: {
       Host: 'config/common/cache/host',

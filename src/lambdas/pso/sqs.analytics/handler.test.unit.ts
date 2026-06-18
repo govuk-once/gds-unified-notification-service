@@ -83,21 +83,17 @@ describe('Analytics QueueHandler', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
     // Mocking successful completion of service functions
     serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
     serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns.mockResolvedValue(undefined);
+    serviceMocks.bqAnalyticsExportServiceMock.logAnalytics.mockResolvedValue(undefined);
 
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
       notifications: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       campaigns: Promise.resolve(serviceMocks.campaignsDynamoRepositoryMock),
+      bqAnalyticsExportService: Promise.resolve(serviceMocks.bqAnalyticsExportServiceMock),
     }));
     handler = instance.handler();
 
@@ -161,6 +157,15 @@ describe('Analytics QueueHandler', () => {
       '/DEP1/7351e7c8-7314-4d2b-a590-4f053c6ef80f/Status',
       NotificationStateEnum.UNKNOWN
     );
+  });
+
+  it('should export processed analytics to cloudwatch', async () => {
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.bqAnalyticsExportServiceMock.logAnalytics).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.bqAnalyticsExportServiceMock.logAnalytics).toHaveBeenCalledWith(validAnalytics);
   });
 
   it('should increment campaign if a campaignID is provided in the analytics', async () => {

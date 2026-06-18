@@ -1,6 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
+  iocGetBqAnalyticsExportService,
   iocGetCacheService,
   iocGetCampaignsDynamoRepository,
   iocGetConfigurationService,
@@ -9,7 +10,7 @@ import {
 } from '@common/ioc';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
-import { CacheService, MetricsLabels, ObservabilityService } from '@common/services';
+import { CacheService, MetricsLabels, ObservabilityService, BqAnalyticsExportService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { SQSRecord } from 'aws-lambda';
@@ -48,6 +49,7 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
   public campaigns: CampaignsDynamoRepository;
+  public bqAnalyticsExportService: BqAnalyticsExportService;
 
   constructor(
     protected config: ConfigurationService,
@@ -60,21 +62,34 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate record and extract analytics event entry
+    this.observability.logger.debug('Validating record as type analytics record.');
     const analyticsRecord = await this.validateRecord(record);
     const entry = analyticsRecord.body;
 
     // Update notification object with status event
+    this.observability.logger.debug('Adding analytics event to notification record.', {
+      NotificationID: entry.NotificationID,
+      Status: entry.Event,
+    });
     await this.notifications.addEvent(entry);
+
+    // Export event to big query export log group
+    this.observability.logger.debug('Adding analytics event to big query log group', {
+      NotificationID: entry.NotificationID,
+      Status: entry.Event,
+    });
+    await this.bqAnalyticsExportService.logAnalytics(entry);
 
     // Increments campaign
     if (entry.CampaignID) {
-      this.observability.logger.info(`Increment CampaignID: ${entry.CampaignID}`);
+      this.observability.logger.debug(`Incrementing CampaignID`, { CampaignID: entry.CampaignID });
       await this.campaigns.incrementCampaigns(entry.CampaignID, entry.OrganisationID, entry.DepartmentID, entry.Event);
     }
 
+    // Updates Elasticache with notification status
     const cacheKey = `/${entry.DepartmentID ?? entry.OrganisationID}/${entry.NotificationID}/Status`;
     await this.cache.store(cacheKey, entry.Event);
-    this.observability.logger.info(`Updating Elasticache with notification status`, {
+    this.observability.logger.debug(`Updating Elasticache with notification status`, {
       NotificationID: entry.NotificationID,
       Status: entry.Event,
     });
@@ -99,4 +114,5 @@ export const handler = new Analytics(iocGetConfigurationService(), iocGetObserva
   cache: iocGetCacheService().connect(),
   notifications: iocGetNotificationDynamoRepository(),
   campaigns: iocGetCampaignsDynamoRepository(),
+  bqAnalyticsExportService: iocGetBqAnalyticsExportService(),
 })).handler();

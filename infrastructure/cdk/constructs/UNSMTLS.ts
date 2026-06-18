@@ -71,7 +71,7 @@ export class UNSMTLSCommon extends Construct {
       });
 
       //// =====================================================
-      // Certficate authority
+      // Certificate authority
       //// =====================================================
       this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
         certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',

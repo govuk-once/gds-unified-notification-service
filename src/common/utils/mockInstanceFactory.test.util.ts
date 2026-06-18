@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import {
   CampaignsDynamoRepository,
   NotificationsDynamoRepository,
@@ -19,6 +20,7 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
+import { BqAnalyticsExportService } from '@common/services/bqAnalyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { Mocked } from 'vitest';
@@ -109,6 +111,11 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     smConfigurationServiceMock
   ) as Mocked<ProcessingService>;
+  const bqAnalyticsExportServiceMock = new BqAnalyticsExportService(
+    observabilityMock,
+    configurationServiceMock,
+    cacheServiceMock,
+  ) as Mocked<BqAnalyticsExportService>;
 
   return {
     // Queue
@@ -129,5 +136,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     circuitBreakerServiceMock,
     contentValidationServiceMock,
     processingServiceMock,
+    bqAnalyticsExportServiceMock,
   };
 };

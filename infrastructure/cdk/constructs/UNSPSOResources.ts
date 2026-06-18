@@ -2,6 +2,9 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
+import { LambdaFunction } from "aws-cdk-lib/aws-events-targets";
+import { Rule, Schedule } from "aws-cdk-lib/aws-events"
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
@@ -14,6 +17,9 @@ import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { PolicyStatement, Effect, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -37,9 +43,11 @@ export class UNSPSOResource extends Construct {
       dispatch: UNSLambdaConstruct;
       analytics: UNSLambdaConstruct;
     };
+    schedule: {
+      bqAnalyticsExport: UNSLambdaConstruct
+    }
   };
   public readonly gateway: UNSAPIGatewayGateway;
-
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -59,6 +67,7 @@ export class UNSPSOResource extends Construct {
       };
     }
   ) {
+    const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, 'pso');
 
     const { refs } = props;
@@ -104,12 +113,76 @@ export class UNSPSOResource extends Construct {
       }),
     };
 
+    // //// =====================================================
+    // // Log Groups
+    // //// =====================================================
+    const bqAnalyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `bq-analytics-export`), {
+      logGroupName: `/aws/export/${namingHelper('bq-analytics-export')}`,
+      retention: RetentionDays.ONE_MONTH,
+      encryptionKey: refs.kms,
+      removalPolicy: config.removalPolicy,
+    });
+
+    // //// =====================================================
+    // // S3 Buckets
+    // //// =====================================================
+    // TODO: Should this be a construct?
+    const bqAnalyticsExportBucket = new s3.Bucket(this, constructNamingHelper(`bq-analytics-export`, ` bucket`), {
+      bucketName: namingHelper(`bq-analytics-export`),
+      // Encryption at rest (Uses Amazon S3-managed keys / SSE-S3)
+      encryption: s3.BucketEncryption.S3_MANAGED,
+
+      // Make it strictly private by blocking all public access
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+
+      // Security best practice: Enforce TLS/HTTPS for data in transit
+      enforceSSL: true,
+
+      // Enable versioning
+      versioned: true,
+
+      // Teardown lifecycle configuration (Change to RETAIN for production data)
+      removalPolicy: config.removalPolicy,
+      autoDeleteObjects: !config.isMainEnv,
+    });
+    applyCheckovSkips(bqAnalyticsExportBucket, [
+      ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
+    ]);
+
+    bqAnalyticsExportBucket.addLifecycleRule({
+      id: constructNamingHelper(`bq-analytics-export`, ` bucket-lifecycle-rule`),
+      enabled: true,
+      expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+    });
+
+    bqAnalyticsExportBucket.addToResourcePolicy(new PolicyStatement({
+      sid: 'AllowCloudWatchLogsGetAcl',
+      effect: Effect.ALLOW,
+      principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+      actions: ['s3:GetBucketAcl'],
+      resources: [bqAnalyticsExportBucket.bucketArn],
+    }))
+
+    bqAnalyticsExportBucket.addToResourcePolicy(new PolicyStatement({
+      sid: 'AllowCloudWatchLogsPutObject',
+      effect: Effect.ALLOW,
+      principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+      actions: ['s3:PutObject'],
+      resources: [bqAnalyticsExportBucket.arnForObjects('*')],
+      conditions: {
+        StringEquals: {
+          's3:x-amz-acl': 'bucket-owner-full-control',
+        },
+      },
+    }));
+
     //// =====================================================
     // Lambdas
     //// =====================================================
 
     const baseHTTP = UNSLambdaConstruct.baseHTTPFactory(this.serviceName, refs.codeSigning);
     const baseSQS = UNSLambdaConstruct.baseSQSFactory(this.serviceName, refs.codeSigning);
+    const baseSchedule = UNSLambdaConstruct.baseScheduleFactory(this.serviceName, refs.codeSigning);
     const basePrivateVPC = {
       ref: refs.vpc.vpc,
       securityGroups: [refs.vpc.securityGroups.privateEgress],
@@ -265,9 +338,26 @@ export class UNSPSOResource extends Construct {
           campaigns: refs.dynamodb.campaigns.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
+        cloudwatch: [bqAnalyticsExportLogGroup.logGroupArn],
       },
       triggers: {
         queues: [this.queues.analytics.queue],
+      },
+    });
+
+    const bqAnalyticsExport = new UNSLambdaConstruct(this, config, {
+      ...baseSchedule(`bqAnalyticsExport`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+        dlq: this.queues.analytics.dlq, // Does it need dlq
+        vpc: basePrivateVPC,  // Does it need to be in VPC
+      },
+      iam: {
+        ssmNamespaces: [config.namespace],
+        cloudwatch: [bqAnalyticsExportLogGroup.logGroupArn],
+        cloudwatchExport: [bqAnalyticsExportLogGroup.logGroupArn],
+        s3: [bqAnalyticsExportBucket.bucketArn]
       },
     });
 
@@ -285,10 +375,22 @@ export class UNSPSOResource extends Construct {
         dispatch,
         analytics,
       },
+      schedule: {
+        bqAnalyticsExport
+      }
     };
 
     //// =====================================================
-    // Lambdas
+    // Scheduler
+    //// =====================================================
+    // TODO: Could this be moved in lambda construct
+    new Rule(this, config.utils.namingHelper(`scheduler`, this.lambdas.schedule.bqAnalyticsExport.props.serviceName), {
+      schedule: Schedule.cron({ minute: "0", hour: "*" }),
+      targets: [new LambdaFunction(bqAnalyticsExport.fn)]
+    });
+
+    //// =====================================================
+    // API Gateway
     //// =====================================================
 
     // Define authorizer
@@ -373,9 +475,13 @@ export class UNSPSOResource extends Construct {
       // mTLS refs
       'table/mtls/attributes': props.mtls.revocationTableAttributes,
 
-      // SQS Qeueue refs
+      // SQS Queue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,
       'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
-    });
+
+      // BigQuery Analytics export
+      'bigquery/analytics/loggroup/name': bqAnalyticsExportLogGroup.logGroupName,
+      'bigquery/analytics/bucket/name': bqAnalyticsExportBucket.bucketName,
+    })
   }
 }

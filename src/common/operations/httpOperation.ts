@@ -14,7 +14,7 @@ import {
   serializeBodyToJson,
 } from '@common/middlewares';
 import { httpErrorHandlerMiddleware } from '@common/middlewares/httpErrorHandlerMiddleware';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { NotImplementedError } from '@common/models/Errors/InternalServerError';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
@@ -47,12 +47,15 @@ export abstract class APIHandler<
     }
   }
 
+
   public implementation(
-    event: ITypedRequestEvent<InferredInputSchema>,
-    context: Context
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _event: ITypedRequestEvent<InferredInputSchema>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _context: Context
   ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
     this.observability.logger.error(`No implementation found for operation ${this.operationId}`);
-    throw new ServiceMisconfigurationError();
+    throw new NotImplementedError();
   }
 
   /**

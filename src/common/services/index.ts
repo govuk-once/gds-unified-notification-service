@@ -1,6 +1,7 @@
 export * from './adapters';
 export * from './analyticsQueueService';
 export * from './analyticsService';
+export * from './bqAnalyticsExportService';
 export * from './cacheService';
 export * from './circuitBreakerService';
 export * from './configurationService';

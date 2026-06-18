@@ -50,6 +50,9 @@ export interface UNSLambdaConstructProps {
     readonly kms?: string[];
     readonly dynamodb?: Record<string, { arn: string; scan: boolean; read: boolean; write: boolean }>;
     readonly elasticache?: string[];
+    readonly cloudwatch?: string[];
+    readonly cloudwatchExport?: string[]
+    readonly s3?: string[],
   };
 }
 
@@ -104,7 +107,10 @@ export class UNSLambdaConstruct extends Construct {
     });
 
     // Allow writing to CW
-    this.addPermissionsToRole(`cwlogs`, ['logs:CreateLogStream', 'logs:PutLogEvents'], [this.logGroup.logGroupArn]);
+    this.addPermissionsToRole(`cwlogs`, ['logs:CreateLogStream', 'logs:PutLogEvents'], [this.logGroup.logGroupArn, ...this.props.iam?.cloudwatch ?? []]);
+
+    // Allow export of CW
+    this.addPermissionsToRole(`cwlogsExport`, ['logs:CreateExportTask'], this.props.iam?.cloudwatchExport ?? []);
 
     // Allow use of STS Assume Role
     this.addPermissionsToRole(`roleAssumption`, ['sts:AssumeRole'], props.iam?.assumeableRolesArns);
@@ -152,6 +158,9 @@ export class UNSLambdaConstruct extends Construct {
 
     // Allow connecting to ElastiCache
     this.addPermissionsToRole(`elasticache`, ['elasticache:Connect'], props.iam?.elasticache);
+
+    // Allow write to s3 bucket
+    this.addPermissionsToRole(`s3bucket`, ['s3:PutObject'], props.iam?.s3);
 
     for (const managedPolicy of [
       // Common roles
@@ -227,12 +236,12 @@ export class UNSLambdaConstruct extends Construct {
     // Apply Checkov standard exclusion overrides
     applyCheckovSkips(this.fn, [
       ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
       ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
     ]);
   }
 
-  static baseFactory(serviceName: string, kind: 'http' | 'sqs', signingConfig: CodeSigningConfig) {
+  static baseFactory(serviceName: string, kind: 'http' | 'sqs' | 'schedule', signingConfig: CodeSigningConfig) {
     return (operationId: string) => ({
       serviceName,
       name: [operationId],
@@ -246,5 +255,8 @@ export class UNSLambdaConstruct extends Construct {
   }
   static baseHTTPFactory(serviceName: string, signingConfig: CodeSigningConfig) {
     return UNSLambdaConstruct.baseFactory(serviceName, 'http', signingConfig);
+  }
+  static baseScheduleFactory(serviceName: string, signingConfig: CodeSigningConfig) {
+    return UNSLambdaConstruct.baseFactory(serviceName, 'schedule', signingConfig);
   }
 }

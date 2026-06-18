@@ -19,6 +19,7 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
+import { BqAnalyticsExportService } from '@common/services/bqAnalyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { InMemoryTTLCache } from '@common/utils';
@@ -197,6 +198,17 @@ export const iocGetAnalyticsQueue = ioc(
   'AnalyticsQueueService',
   Mode.SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetBqAnalyticsExportService = ioc(
+  'BqAnalyticsExportService',
+  Mode.SINGLETON,
+  async () =>
+    await new BqAnalyticsExportService(
+      iocGetObservabilityService(),
+      iocGetConfigurationService(),
+      iocGetCacheService()
+    ).initialize()
 );
 
 export const iocGetAnalyticsService = ioc(
