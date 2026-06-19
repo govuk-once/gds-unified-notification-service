@@ -42,14 +42,14 @@ jobs:
         run: pnpm install
 
       - name: ⚙️ Validate Typescript
-        run: pnpm build:validate
+        run: pnpm run build:validate
 
       - name: 🔨 Build bundles
-        run: pnpm build
+        run: pnpm run build
 
       # Formatting
       - name: 📝 Run Lint
-        run: pnpm lint
+        run: pnpm run lint
 
       # Testing
       - name: 🧪 Run Unit tests & report coverage
@@ -81,7 +81,7 @@ jobs:
       - name: 🏗️ CDK Synth
         if: success() || failure() # Until TF Migration is completed
         run: |
-          env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm cdk:synth
+          env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
         if: success() || failure()

@@ -57,14 +57,14 @@ jobs:
           cache: pnpm
 
       - name: ⚙️ Install Dependencies
-        run: pnpm install
+        run: pnpm run install
 
       # Build & release
       - name: 🔨 Build bundles
-        run: pnpm build
+        run: pnpm run build
 
       - name: 🏗️ CDK Deploy
-        run: pnpm cdk:deploy
+        run: pnpm run cdk:deploy
         env:
           region: ${{ vars.AWS_REGION }}
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'

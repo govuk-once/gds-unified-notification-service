@@ -1,0 +1,7 @@
+overrides:
+  "semantic-release>@semantic-release/npm": "^13.1.5"
+  "@semantic-release/npm>@actions/core": "3.0.1"
+  "@semantic-release/npm>picomatch": "4.0.4"
+  "@semantic-release/npm>ip-address": "10.2.0"
+  "table>ajv": "^8.2.0"
+  "vite>rollup": "npm:@rollup/wasm-node"
