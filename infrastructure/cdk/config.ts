@@ -1,4 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib/core';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
@@ -123,9 +124,28 @@ export const config = {
     zones: (process.env.availability_zones ?? `a,b,c`).split(`,`),
   },
 
-  // Only used in env environment to avoid resource duplication
+  // Only used in sandbox environments to avoid resource duplication
   sandbox: {
     shared: {
+      vpc: await fromSSMJSON<{
+        vpcId: string;
+        vpcCidr: string;
+        availabilityZones: string[];
+        publicSubnetIds: string[];
+        publicSubnetRouteTableIds: string[];
+        privateSubnetIds: string[];
+        privateSubnetRouteTableIds: string[];
+        isolatedSubnetIds: string[];
+        isolatedSubnetRouteTableIds: string[];
+        // SG
+        privateEgressSecurityGroup: string;
+        privateIsolatedSecurityGroup: string;
+        // Endpoints
+        interfaceEndpoints: [string, InterfaceVpcEndpointAttributes][];
+        gatewayEndpoints: [string, string][];
+      } | null>(`/shared/vpc`, null),
+
+      // mTLS
       ca: await fromSSM(`/shared/mtls/truststore`, ''),
       revocationTable: await fromSSM(`/shared/mtls/revocation/tableArn`, ''),
       revocationAttributes: await fromSSMJSON<Record<string, string>>(`/shared/mtls/revocation/attributes`, {}),
@@ -142,6 +162,7 @@ export const config = {
         .namingHelper(...args)
         .split('-')
         .join('_'),
+
     // Rolling week to week dates - used for short term mtls certs
     lastSunday: () => {
       const lastSunday = new Date();
