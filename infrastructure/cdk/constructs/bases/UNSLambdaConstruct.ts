@@ -54,8 +54,8 @@ export interface UNSLambdaConstructProps {
     readonly dynamodb?: Record<string, { arn: string; scan: boolean; read: boolean; write: boolean }>;
     readonly elasticache?: string[];
     readonly cloudwatch?: string[];
-    readonly cloudwatchExport?: string[]
-    readonly s3?: string[],
+    readonly cloudwatchExport?: string[];
+    readonly s3?: string[];
   };
 }
 

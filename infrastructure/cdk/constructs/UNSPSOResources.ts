@@ -2,8 +2,7 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
-import { CronOptions, Schedule } from 'aws-cdk-lib/aws-events';
-import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
@@ -19,6 +18,7 @@ import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { PolicyStatement, Effect, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { Schedule } from 'aws-cdk-lib/aws-events';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -125,24 +125,14 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // S3 Buckets
     // //// =====================================================
-    const bqAnalyticsExportBucket = new s3.Bucket(this, constructNamingHelper(`bq-analytics-export`, ` bucket`), {
+    const bqAnalyticsExportBucket = new Bucket(this, constructNamingHelper(`bq-analytics-export`, ` bucket`), {
       bucketName: namingHelper(`bq-analytics-export`),
-      // Encryption at rest (Uses Amazon S3-managed keys / SSE-S3)
-      encryption: s3.BucketEncryption.S3_MANAGED,
-
-      // Make it strictly private by blocking all public access
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-
-      // Security best practice: Enforce TLS/HTTPS for data in transit
+      encryption: BucketEncryption.S3_MANAGED,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
-
-      // Enable versioning
       versioned: true,
-
-      // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
-
       lifecycleRules: [{
         enabled: true,
         expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
@@ -166,11 +156,6 @@ export class UNSPSOResource extends Construct {
       principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
       actions: ['s3:PutObject'],
       resources: [bqAnalyticsExportBucket.arnForObjects('*')],
-      // conditions: {
-      //   StringEquals: {
-      //     's3:x-amz-acl': 'bucket-owner-full-control',
-      //   },
-      // },
     }));
 
     //// =====================================================
@@ -347,8 +332,7 @@ export class UNSPSOResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
-        dlq: this.queues.analytics.dlq, // Does it need dlq
-        vpc: basePrivateVPC,  // Does it need to be in VPC
+        dlq: this.queues.analytics.dlq,
       },
       iam: {
         ssmNamespaces: [config.namespace],
