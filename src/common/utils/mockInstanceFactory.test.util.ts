@@ -129,11 +129,11 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     smConfigurationServiceMock
   ) as Mocked<ProcessingService>;
   // TODO: Add when refactoring in NOT-292
-  // const bqAnalyticsExportServiceMock = new BqAnalyticsExportService(
+  // const analyticsExportServiceMock = new AnalyticsExportService(
   //   observabilityMock,
   //   configurationServiceMock,
   //   cacheServiceMock,
-  // ) as Mocked<BqAnalyticsExportService>;
+  // ) as Mocked<AnalyticsExportService>;
 
   return {
     // Queue

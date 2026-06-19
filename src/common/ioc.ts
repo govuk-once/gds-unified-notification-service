@@ -8,19 +8,19 @@ import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@c
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
-  AnalyticsQueueService,
-  AnalyticsService,
-  CacheService,
-  CircuitBreakerService,
-  ConfigurationService,
-  ContentValidationService,
-  DispatchQueueService,
-  KnownMetrics,
-  NotificationService,
-  ObservabilityService,
-  ProcessingQueueService,
+    AnalyticsQueueService,
+    AnalyticsService,
+    CacheService,
+    CircuitBreakerService,
+    ConfigurationService,
+    ContentValidationService,
+    DispatchQueueService,
+    KnownMetrics,
+    NotificationService,
+    ObservabilityService,
+    ProcessingQueueService,
 } from '@common/services';
-import { BqAnalyticsExportService } from '@common/services/bqAnalyticsExportService';
+import { AnalyticsExportService } from '@common/services/analyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { InMemoryTTLCache } from '@common/utils';
@@ -116,11 +116,7 @@ export const iocGetObservabilityService = ioc(
 );
 
 // AWS Clients
-export const iocGetCloudWatchLogsClient = ioc(
-  'CloudWatchLogsClient',
-  Mode.SINGLETON,
-  () => new CloudWatchLogsClient
-);
+export const iocGetCloudWatchLogsClient = ioc('CloudWatchLogsClient', Mode.SINGLETON, () => new CloudWatchLogsClient());
 
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
@@ -208,11 +204,11 @@ export const iocGetAnalyticsQueue = ioc(
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
-export const iocGetBqAnalyticsExportService = ioc(
-  'BqAnalyticsExportService',
+export const iocGetAnalyticsExportService = ioc(
+  'AnalyticsExportService',
   Mode.SINGLETON,
   async () =>
-    await new BqAnalyticsExportService(
+    await new AnalyticsExportService(
       iocGetObservabilityService(),
       iocGetConfigurationService(),
       iocGetCacheService(),

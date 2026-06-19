@@ -7,10 +7,10 @@ import { ObservabilityService } from "@common/services/observabilityService";
 import { StringParameters } from "@common/utils";
 import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
 
-export class BqAnalyticsExportService {
+export class AnalyticsExportService {
   private logGroupName: string;
 
-  private readonly logStreamCacheKeyPrefix = `bqAnalyticsExportService/LogStream`;
+  private readonly logStreamCacheKeyPrefix = `analyticsExportService/LogStream`;
 
   constructor(
     private readonly observability: ObservabilityService,
@@ -20,13 +20,14 @@ export class BqAnalyticsExportService {
   ) {}
 
   public async initialize() {
-    this.logGroupName = await this.config.getParameter(StringParameters.BigQuery.LogGroup.Name);
+    this.logGroupName = await this.config.getParameter(StringParameters.AnalyticsExport.LogGroup.Name);
     this.observability.tracer.captureAWSv3Client(this.client);
 
     return this;
   }
 
   private async getLogStreamName() {
+    // Create a new log stream if one doesn't exist
     const logStreamName = new Date().toISOString().split(':').shift() ?? '';
 
     return await this.cache.get(`${this.logStreamCacheKeyPrefix}:${logStreamName}`, { factory: async (): Promise<string> => {
@@ -56,7 +57,6 @@ export class BqAnalyticsExportService {
   }
 
   public async logAnalytics(analytics: IAnalytics) {
-    // Create a new log stream if analytics is on a new hour
     const logStreamName = await this.getLogStreamName()
     const log = IAnalyticsToIAnalyticsLog(analytics);
 
@@ -73,13 +73,13 @@ export class BqAnalyticsExportService {
     };
     const command = new PutLogEventsCommand(input);
 
-    this.observability.logger.debug(`Adding analytics to BigQuery export log group`, { LogStream: logStreamName, ...log });
+    this.observability.logger.debug(`Adding analytics to export log group`, { LogStream: logStreamName, ...log });
     await this.client.send(command);
     this.observability.logger.debug(`Analytics to log group was successful`, { LogStream: logStreamName });
   }
 
   public async logStreamToS3Bucket(timestamp: string) {
-    const exportBucketName = await this.config.getParameter(StringParameters.BigQuery.Bucket.Name);
+    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
 
     // Determines the log stream name off the timestamp from event bridge
     if (Number.isNaN(Date.parse(timestamp))) {
@@ -91,7 +91,7 @@ export class BqAnalyticsExportService {
 
     // Export analytics from log group to s3 bucket
     const input: CreateExportTaskCommandInput = {
-      taskName: `bq-analytics-export-${logStreamName}`,
+      taskName: `analytics-export-${logStreamName}`,
       logGroupName: this.logGroupName,
       logStreamNamePrefix: logStreamName,
       // Gives a 2 hours buffer window - however shouldn't fall outside the log stream window

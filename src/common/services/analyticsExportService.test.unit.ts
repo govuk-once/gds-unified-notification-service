@@ -1,11 +1,14 @@
-import { ParsingFailedError } from "@common/models/Errors/InternalServerError";
-import { NotificationStateEnum } from "@common/models/NotificationStateEnum";
-import { BqAnalyticsExportService } from "@common/services/bqAnalyticsExportService";
-import { IAnalyticsLog } from "@common/services/interfaces/analyticsLog";
-import { StringParameters } from "@common/utils";
-import { mockDefaultConfig, mockGetParameterImplementation } from "@common/utils/mockConfigurationImplementation.test.util";
-import { awsClientSpies, observabilitySpies, ServiceSpies } from "@common/utils/mockInstanceFactory.test.util";
-import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
+import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { AnalyticsExportService } from '@common/services/analyticsExportService';
+import { IAnalyticsLog } from '@common/services/interfaces/analyticsLog';
+import { StringParameters } from '@common/utils';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -14,8 +17,8 @@ vi.mock('@aws-sdk/client-cloudwatch-logs', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/cacheService', { spy: true });
 
-describe('BqAnalyticsExportService', () => {
-  let instance: BqAnalyticsExportService;
+describe('AnalyticsExportService', () => {
+  let instance: AnalyticsExportService;
 
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
@@ -45,7 +48,7 @@ describe('BqAnalyticsExportService', () => {
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
     CampaignID: 'CAM_ID',
     EventStatus: NotificationStateEnum.RECEIVED,
-  }
+  };
 
   beforeEach(async () => {
     // Reset all mock
@@ -56,15 +59,17 @@ describe('BqAnalyticsExportService', () => {
     mockParameterStore = mockDefaultConfig();
 
     // Mock successful response from external services
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
     // Mock successful response from the client
     awsClientMocks.cloudWatchLogsClientMock.send.mockResolvedValue(undefined);
 
-    instance = new BqAnalyticsExportService(
-      observabilityMock, 
-      serviceMocks.configurationServiceMock, 
-      serviceMocks.cacheServiceMock, 
+    instance = new AnalyticsExportService(
+      observabilityMock,
+      serviceMocks.configurationServiceMock,
+      serviceMocks.cacheServiceMock,
       awsClientMocks.cloudWatchLogsClientMock
     );
     await instance.initialize();
@@ -84,17 +89,20 @@ describe('BqAnalyticsExportService', () => {
       await instance.logAnalytics(mockAnalytics);
 
       // Assert
-      expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(expect.objectContaining({
-        input: {
-          logGroupName: mockParameterStore[StringParameters.BigQuery.LogGroup.Name],
-          logStreamName: logStreamName,
-          logEvents: [
-            {
-              timestamp: date.getTime(),
-              message: JSON.stringify(mockAnalyticsLog),
-            },
-          ],
-      }}));
+      expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: {
+            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logStreamName: logStreamName,
+            logEvents: [
+              {
+                timestamp: date.getTime(),
+                message: JSON.stringify(mockAnalyticsLog),
+              },
+            ],
+          },
+        })
+      );
     });
   });
 
@@ -110,24 +118,27 @@ describe('BqAnalyticsExportService', () => {
       await instance.logStreamToS3Bucket(date.toISOString());
 
       // Assert
-      expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(expect.objectContaining({
-        input: {
-        taskName: `bq-analytics-export-${logStreamName}`,
-        logGroupName: mockParameterStore[StringParameters.BigQuery.LogGroup.Name],
-        logStreamNamePrefix: logStreamName,
-        from: date.getTime() - 2 * 60 * 60 * 1000,
-        to: date.getTime(),
-        destination: mockParameterStore[StringParameters.BigQuery.Bucket.Name],
-        destinationPrefix: logStreamName,
-      }}));
-    })
+      expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: {
+            taskName: `analytics-export-${logStreamName}`,
+            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logStreamNamePrefix: logStreamName,
+            from: date.getTime() - 2 * 60 * 60 * 1000,
+            to: date.getTime(),
+            destination: mockParameterStore[StringParameters.AnalyticsExport.Bucket.Name],
+            destinationPrefix: logStreamName,
+          },
+        })
+      );
+    });
 
     it('should throw an error if called with a string that is not a timestamp.', async () => {
       // Act
-      const result = instance.logStreamToS3Bucket("time");
+      const result = instance.logStreamToS3Bucket('time');
 
       // Assert
-      await expect(result).rejects.toThrow(ParsingFailedError)
-    })
-  })
-})
+      await expect(result).rejects.toThrow(ParsingFailedError);
+    });
+  });
+});

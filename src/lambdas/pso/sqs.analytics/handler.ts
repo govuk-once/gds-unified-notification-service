@@ -1,7 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
-  iocGetBqAnalyticsExportService,
+  iocGetAnalyticsExportService,
   iocGetCacheService,
   iocGetCampaignsDynamoRepository,
   iocGetConfigurationService,
@@ -10,7 +10,7 @@ import {
 } from '@common/ioc';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
-import { CacheService, MetricsLabels, ObservabilityService, BqAnalyticsExportService } from '@common/services';
+import { AnalyticsExportService, CacheService, MetricsLabels, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { SQSRecord } from 'aws-lambda';
@@ -49,7 +49,7 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
   public cache: CacheService;
   public notifications: NotificationsDynamoRepository;
   public campaigns: CampaignsDynamoRepository;
-  public bqAnalyticsExportService: BqAnalyticsExportService;
+  public analyticsExportService: AnalyticsExportService;
 
   constructor(
     protected config: ConfigurationService,
@@ -73,12 +73,12 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
     });
     await this.notifications.addEvent(entry);
 
-    // Export event to big query export log group
-    this.observability.logger.debug('Adding analytics event to big query log group', {
+    // Export event to log group
+    this.observability.logger.debug('Adding analytics event to log group', {
       NotificationID: entry.NotificationID,
       Status: entry.Event,
     });
-    await this.bqAnalyticsExportService.logAnalytics(entry);
+    await this.analyticsExportService.logAnalytics(entry);
 
     // Increments campaign
     if (entry.CampaignID) {
@@ -114,5 +114,5 @@ export const handler = new Analytics(iocGetConfigurationService(), iocGetObserva
   cache: iocGetCacheService().connect(),
   notifications: iocGetNotificationDynamoRepository(),
   campaigns: iocGetCampaignsDynamoRepository(),
-  bqAnalyticsExportService: iocGetBqAnalyticsExportService(),
+  analyticsExportService: iocGetAnalyticsExportService(),
 })).handler();

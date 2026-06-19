@@ -43,7 +43,7 @@ export class UNSPSOResource extends Construct {
       analytics: UNSLambdaConstruct;
     };
     schedule: {
-      bqAnalyticsExport: UNSLambdaConstruct
+      analyticsExport: UNSLambdaConstruct
     }
   };
   public readonly gateway: UNSAPIGatewayGateway;
@@ -69,6 +69,7 @@ export class UNSPSOResource extends Construct {
     const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, 'pso');
 
+    const stack = Stack.of(this);
     const { refs } = props;
 
     //// =====================================================
@@ -115,8 +116,8 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
-    const bqAnalyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `bq-analytics-export`), {
-      logGroupName: `/aws/export/${namingHelper('bq-analytics-export')}`,
+    const analyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
+      logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
       retention: RetentionDays.ONE_MONTH,
       encryptionKey: refs.kms,
       removalPolicy: config.removalPolicy,
@@ -125,8 +126,8 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // S3 Buckets
     // //// =====================================================
-    const bqAnalyticsExportBucket = new Bucket(this, constructNamingHelper(`bq-analytics-export`, ` bucket`), {
-      bucketName: namingHelper(`bq-analytics-export`),
+    const analyticsExportBucket = new Bucket(this, constructNamingHelper(`analytics-export`, ` bucket`), {
+      bucketName: namingHelper(`analytics-export`),
       encryption: BucketEncryption.S3_MANAGED,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
@@ -138,24 +139,49 @@ export class UNSPSOResource extends Construct {
         expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
       }]
     });
-    applyCheckovSkips(bqAnalyticsExportBucket, [
+    applyCheckovSkips(analyticsExportBucket, [
       ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
     ]);
 
-    bqAnalyticsExportBucket.addToResourcePolicy(new PolicyStatement({
+    analyticsExportBucket.addToResourcePolicy(new PolicyStatement({
       sid: 'AllowCloudWatchLogsGetAcl',
       effect: Effect.ALLOW,
       principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
       actions: ['s3:GetBucketAcl'],
-      resources: [bqAnalyticsExportBucket.bucketArn],
+      resources: [analyticsExportBucket.bucketArn],
+      conditions: {
+        StringEquals: {
+          'aws:SourceAccount': [
+            stack.account,
+          ]
+        },
+        ArnLike: {
+          'aws:SourceArn': [
+            `arn:aws:logs:eu-west-2:${stack.account}:log-group:*`,
+          ]
+        }
+      }
     }))
 
-    bqAnalyticsExportBucket.addToResourcePolicy(new PolicyStatement({
+    analyticsExportBucket.addToResourcePolicy(new PolicyStatement({
       sid: 'AllowCloudWatchLogsPutObject',
       effect: Effect.ALLOW,
       principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
       actions: ['s3:PutObject'],
-      resources: [bqAnalyticsExportBucket.arnForObjects('*')],
+      resources: [analyticsExportBucket.arnForObjects('*')],
+      conditions: {
+        StringEquals: {
+          's3:x-amz-acl': 'bucket-owner-full-control',
+          'aws:SourceAccount': [
+            stack.account,
+          ]
+        },
+        ArnLike: {
+          'aws:SourceArn': [
+            `arn:aws:logs:eu-west-2:${stack.account}:log-group:*`,
+          ]
+        }
+      }
     }));
 
     //// =====================================================
@@ -320,15 +346,15 @@ export class UNSPSOResource extends Construct {
           campaigns: refs.dynamodb.campaigns.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
-        cloudwatch: [bqAnalyticsExportLogGroup.logGroupArn],
+        cloudwatch: [analyticsExportLogGroup.logGroupArn],
       },
       triggers: {
         queues: [this.queues.analytics.queue],
       },
     });
 
-    const bqAnalyticsExport = new UNSLambdaConstruct(this, config, {
-      ...baseSchedule(`bqAnalyticsExport`),
+    const analyticsExport = new UNSLambdaConstruct(this, config, {
+      ...baseSchedule(`analyticsExport`),
       environment: {},
       resources: {
         kms: refs.kms,
@@ -336,9 +362,9 @@ export class UNSPSOResource extends Construct {
       },
       iam: {
         ssmNamespaces: [config.namespace],
-        cloudwatch: [bqAnalyticsExportLogGroup.logGroupArn],
-        cloudwatchExport: [bqAnalyticsExportLogGroup.logGroupArn],
-        s3: [bqAnalyticsExportBucket.bucketArn]
+        cloudwatch: [analyticsExportLogGroup.logGroupArn],
+        cloudwatchExport: [analyticsExportLogGroup.logGroupArn],
+        s3: [analyticsExportBucket.bucketArn]
       },
       triggers: {
         schedule: [Schedule.cron({ minute: "30", hour: "*" })]
@@ -360,7 +386,7 @@ export class UNSPSOResource extends Construct {
         analytics,
       },
       schedule: {
-        bqAnalyticsExport
+        analyticsExport
       }
     };
 
@@ -445,7 +471,7 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     // SSM Setup values - PSO
-    SSMFromObject(Stack.of(this), config, {
+    SSMFromObject(stack, config, {
       // DynamoDB Tables
       // mTLS refs
       'table/mtls/attributes': props.mtls.revocationTableAttributes,
@@ -455,8 +481,8 @@ export class UNSPSOResource extends Construct {
       'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export
-      'bigquery/analytics/loggroup/name': bqAnalyticsExportLogGroup.logGroupName,
-      'bigquery/analytics/bucket/name': bqAnalyticsExportBucket.bucketName,
+      'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
+      'analytics/export/bucket/name': analyticsExportBucket.bucketName,
     })
   }
 }

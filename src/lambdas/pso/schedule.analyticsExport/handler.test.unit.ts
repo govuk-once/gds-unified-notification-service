@@ -1,10 +1,10 @@
-import { BqAnalyticsExportService } from '@common/services';
+import { AnalyticsExportService } from '@common/services';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { BqAnalyticsExport } from '@project/lambdas/pso/schedule.bqAnalyticsExport/handler';
+import { AnalyticsExport } from '@project/lambdas/pso/schedule.analyticsExport/handler';
 import { Context, ScheduledEvent } from 'aws-lambda';
 import { Mocked } from 'vitest';
 
@@ -15,22 +15,22 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('BqAnalyticsExport Handler', () => {
+describe('AnalyticsExport Handler', () => {
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const clientMocks = awsClientSpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
 
   // TODO: Refactor this into service mock when implementing NOT-298
-  const bqAnalyticsExportServiceMock = new BqAnalyticsExportService(
+  const analyticsExportServiceMock = new AnalyticsExportService(
     observabilityMocks,
     serviceMocks.configurationServiceMock,
     serviceMocks.cacheServiceMock,
     clientMocks.cloudWatchLogsClientMock
-  ) as Mocked<BqAnalyticsExportService>;
+  ) as Mocked<AnalyticsExportService>;
 
-  let instance: BqAnalyticsExport;
-  let handler: ReturnType<typeof BqAnalyticsExport.prototype.handler>;
+  let instance: AnalyticsExport;
+  let handler: ReturnType<typeof AnalyticsExport.prototype.handler>;
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -47,7 +47,7 @@ describe('BqAnalyticsExport Handler', () => {
 
   // Mock AWS Lambda Context
   const mockContext = {
-    functionName: 'bqAnalyticsExport',
+    functionName: 'analyticsExport',
     awsRequestId: '12345',
   } as unknown as Context;
 
@@ -61,29 +61,25 @@ describe('BqAnalyticsExport Handler', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    bqAnalyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined)
+    analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
 
     // Mocking retrieving store apiKey
-    instance = new BqAnalyticsExport(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks,
-      () => ({
-        bqAnalyticsExportService: Promise.resolve(bqAnalyticsExportServiceMock)
-      })
-    );
+    instance = new AnalyticsExport(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsExportService: Promise.resolve(analyticsExportServiceMock),
+    }));
     handler = instance.handler();
   });
 
   it('should have the correct operationId', () => {
     // Assert
-    expect(instance.operationId).toBe('bqAnalyticsExport');
+    expect(instance.operationId).toBe('analyticsExport');
   });
 
-  it('should call bqAnalyticsExportService.logStreamToS3Bucket with the time', async () => {
+  it('should call analyticsExportService.logStreamToS3Bucket with the time', async () => {
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(bqAnalyticsExportServiceMock.logStreamToS3Bucket).toHaveBeenCalledWith(mockEvent.time);
+    expect(analyticsExportServiceMock.logStreamToS3Bucket).toHaveBeenCalledWith(mockEvent.time);
   });
 });

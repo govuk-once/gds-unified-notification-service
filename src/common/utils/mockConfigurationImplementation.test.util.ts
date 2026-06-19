@@ -14,8 +14,8 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
-    [StringParameters.BigQuery.LogGroup.Name]: 'mockLogGroupName',
-    [StringParameters.BigQuery.Bucket.Name]: 'mockBucketName',
+    [StringParameters.AnalyticsExport.LogGroup.Name]: 'mockLogGroupName',
+    [StringParameters.AnalyticsExport.Bucket.Name]: 'mockBucketName',
     // Content filtering
     [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
     [StringParameters.Content.Allowed.UrlHostnames]: '*.gov.uk',
