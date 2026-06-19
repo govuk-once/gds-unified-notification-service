@@ -143,7 +143,7 @@ export const config = {
         // Endpoints
         interfaceEndpoints: [string, InterfaceVpcEndpointAttributes][];
         gatewayEndpoints: [string, string][];
-      } | null>(`/shared/vpc`, null),
+      } | null>(`/shared/vpc-disabled`, null),
 
       // mTLS
       ca: await fromSSM(`/shared/mtls/truststore`, ''),
