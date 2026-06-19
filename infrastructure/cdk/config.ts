@@ -7,12 +7,22 @@ import { camelCase } from './utils/camelCase';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
-  console.log(`Loading: ${join('./.env')}`);
+  console.log(`Loading from within infrastructure/cdk: ${join('./.env')}`);
   dotenv.config({ path: join('./.env') });
 }
 
-export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
+// If this file is loaded from project root - i.e. via vitest
+if (existsSync('./infrastructure/cdk/.env')) {
+  console.log(`Loading from root project dir: ${join('./infrastructure/cdk/.env')}`);
+  dotenv.config({ path: join('infrastructure/cdk/.env') });
+}
 
+export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
+export const environmentLabels: Record<string, string> = {
+  dev: 'development',
+  stg: 'staging',
+  prod: 'production',
+};
 export const fromSSM = async (key: string, fallback?: string | null) => {
   const useFallback = (value: string | undefined) => {
     if (value === undefined && fallback === undefined) {
@@ -51,7 +61,7 @@ const project = 'uns';
 const env = process.env.env ?? 'dev';
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`;
-const version = process.env.code_version ?? 'manual';
+const version = process.env.code_version ?? `sandbox@${new Date().toISOString()}`;
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
@@ -68,9 +78,14 @@ export const config = {
   version,
   namespace,
   defaultTags: () => ({
-    project: config.project,
-    env: config.env,
-    managedBy: 'CDK',
+    // Applying https://gdsgovukagents.atlassian.net/wiki/spaces/GOP/pages/81461354/AWS+Resource+Tagging+Standard
+    Service: config.project,
+    Environment: environmentLabels[config.env] ?? 'sandbox',
+    Owner: 'govuk-once-uns-dl@digital.cabinet-office.gov.uk',
+    Source: 'https://github.com/govuk-once/gds-unified-notification-service',
+    CostCentre: 'ONCE-001',
+    ManagedBy: 'CDK',
+    Version: config.version,
   }),
 
   // Delete / retain policy - main environment resources should avoid deletion

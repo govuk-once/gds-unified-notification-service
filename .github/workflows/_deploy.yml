@@ -76,5 +76,4 @@ jobs:
       - name: 🧪 E2E Testing
         run: VITEST_SILENT=true pnpm test:e2e
         env:
-          AWS_PSO_CUSTOM_DOMAIN_NAME: ${{ vars.AWS_PSO_CUSTOM_DOMAIN_NAME }}
-          AWS_FLEX_CUSTOM_DOMAIN_NAME: ${{ vars.AWS_FLEX_CUSTOM_DOMAIN_NAME }}
+          env: '${{ vars.ENVIRONMENT_SHORTHAND }}'

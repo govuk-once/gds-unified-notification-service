@@ -121,14 +121,27 @@ export class UNSFlexResource extends Construct {
     //// =====================================================
 
     if (config.debuggableFlexApiGateway) {
+      // This API Gateway is only available in dev & sandbox environments
       this.publicGateway = new UNSAPIGatewayGateway(this, config, {
         name: [`flex`],
-        description: `API Gateway for flex (Public - to be depracated soon)`,
+        description: `API Gateway for flex (Dev testing only)`,
         domain: 'flex',
         resources: {
           kms: refs.kms,
         },
         type: 'PUBLIC',
+        usagePlanDefaults: {
+          quota: {
+            limit: 100000,
+          },
+          throttle: {
+            rateLimit: 100,
+            burstLimit: 200,
+          },
+        },
+        usagePlans: {
+          e2e: {},
+        },
       });
     }
 
@@ -149,6 +162,18 @@ export class UNSFlexResource extends Construct {
               },
             }
           : {},
+      usagePlanDefaults: {
+        quota: {
+          limit: 100000,
+        },
+        throttle: {
+          rateLimit: 100,
+          burstLimit: 200,
+        },
+      },
+      usagePlans: {
+        flex: {},
+      },
     });
 
     for (const gateway of [this.publicGateway, this.gateway].filter((gateway) => gateway !== undefined)) {

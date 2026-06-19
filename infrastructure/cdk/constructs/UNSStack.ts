@@ -11,10 +11,8 @@ export class UNSStack extends Stack {
   public readonly pso: UNSPSOResource;
   public readonly flex: UNSFlexResource;
 
-  public readonly metadata: Construct;
-  public readonly metadataEntries: CfnOutput[];
   constructor(
-    scope: Construct,
+    protected scope: Construct,
     protected id: string,
     protected props: StackProps,
     protected config: EnvVars
@@ -43,26 +41,29 @@ export class UNSStack extends Stack {
     });
     this.flex = new UNSFlexResource(this, config, { refs: common, organisationsRef: organisations });
 
-    // Note: tags should propagate downwards automatically from there
-    // Some resources i.e. Elasticache fail when those tags are updated
+    this.applyTags(this, config);
+  }
+
+  public applyTags(scope: Construct, config: EnvVars) {
+    // Certain resource types do not consistently respond when updated regularly with new tags
+    // (i.e. code version)
+    const problematicResourceTypes = [
+      `AWS::ElastiCache::User`,
+      `AWS::ElastiCache::UserGroup`,
+      `AWS::ElastiCache::ServerlessCache`,
+    ];
+    // Apply all tags to all rescources - except the problematic ones
     for (const [key, value] of Object.entries({
       ...config.defaultTags(),
     })) {
-      Tags.of(scope).add(key, value, {
-        // ElastiCache resources struggle with tags & reject version updates
-        excludeResourceTypes: [
-          `AWS::ElastiCache::User`,
-          `AWS::ElastiCache::UserGroup`,
-          `AWS::ElastiCache::ServerlessCache`,
-        ],
-      });
+      Tags.of(scope).add(key, value, { excludeResourceTypes: problematicResourceTypes });
     }
 
-    // Also add metadata as outputs for traceability
-    this.metadata = new Construct(this, `metadata`);
-    this.metadataEntries = Object.entries({ ...config.defaultTags(), version: config.version }).map(
+    // Also add metadata as outputs to the cloudformation stack itself for improved traceability
+    const metadata = new Construct(this, `metadata`);
+    Object.entries({ ...config.defaultTags() }).map(
       ([key, value]) =>
-        new CfnOutput(this.metadata, key, {
+        new CfnOutput(metadata, key, {
           description: `Build metadata - ${key}`,
           value: value,
         })
