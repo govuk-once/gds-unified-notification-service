@@ -26,7 +26,7 @@ export const StringParameters = {
       Name: 'analytics/export/loggroup/name'
     },
     Bucket: {
-      Name: 'analytics/export//bucket/name'
+      Name: 'analytics/export/bucket/name'
     }
   },
   Config: {
