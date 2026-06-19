@@ -41,7 +41,7 @@ jobs:
           cache: 'pnpm'
 
       - name: ⚙️ Install Dependencies
-        run: pnpm install
+        run: pnpm ci
 
       # Generate coverage
       - name: 🧪 Run Unit tests

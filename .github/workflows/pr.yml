@@ -39,7 +39,7 @@ jobs:
           cache: 'pnpm'
 
       - name: ⚙️ Install Dependencies
-        run: pnpm install
+        run: pnpm ci
 
       - name: ⚙️ Validate Typescript
         run: pnpm run build:validate

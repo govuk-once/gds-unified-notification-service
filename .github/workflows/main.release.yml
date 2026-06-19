@@ -41,7 +41,7 @@ jobs:
           node-version-file: '.node-version'
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm ci
 
       - name: Run Semantic Release
         id: release
