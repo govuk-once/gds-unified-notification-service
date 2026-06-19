@@ -2,9 +2,13 @@ import { CfnResource, Stack } from 'aws-cdk-lib';
 import {
   GatewayVpcEndpoint,
   GatewayVpcEndpointAwsService,
+  IGatewayVpcEndpoint,
+  IInterfaceVpcEndpoint,
   InterfaceVpcEndpoint,
   InterfaceVpcEndpointAwsService,
   IpAddresses,
+  ISecurityGroup,
+  IVpc,
   Peer,
   Port,
   SecurityGroup,
@@ -14,6 +18,7 @@ import {
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
   readonly name: string[];
@@ -30,15 +35,15 @@ export class UNSVpcConstruct<
   >,
   GatewayEndpoints extends Record<string, GatewayVpcEndpointAwsService> = Record<string, GatewayVpcEndpointAwsService>,
 > extends Construct {
-  public readonly vpc: Vpc;
+  public readonly vpc: IVpc;
 
   public readonly securityGroups: {
-    readonly privateEgress: SecurityGroup;
-    readonly privateIsolated: SecurityGroup;
+    readonly privateEgress: ISecurityGroup;
+    readonly privateIsolated: ISecurityGroup;
   };
 
-  public readonly interfaceEndpoints: { [K in keyof InterfaceEndpoints]: InterfaceVpcEndpoint };
-  public readonly gatewayEndpoints: { [K in keyof GatewayEndpoints]: GatewayVpcEndpoint };
+  public readonly interfaceEndpoints: { [K in keyof InterfaceEndpoints]: IInterfaceVpcEndpoint };
+  public readonly gatewayEndpoints: { [K in keyof GatewayEndpoints]: IGatewayVpcEndpoint };
 
   constructor(scope: Construct, config: EnvVars, props: UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints>) {
     const { namingHelper, constructNamingHelper } = config.utils;
@@ -47,6 +52,16 @@ export class UNSVpcConstruct<
     const stack = Stack.of(this);
 
     const availabilityZones = props.zones.map((zone) => `${stack.env.region}${zone}`);
+
+    // Use imports if we're in sandbox env instead of creating infrastructure
+    if (config.isMainEnv == false && config.sandbox.shared.vpc !== null) {
+      const imported = this.imports(config.sandbox.shared.vpc);
+      this.vpc = imported.vpc;
+      this.securityGroups = imported.securityGroups;
+      this.interfaceEndpoints = imported.interfaceEndpoints;
+      this.gatewayEndpoints = imported.gatewayEndpoints;
+      return;
+    }
 
     // Initialize the VPC
     this.vpc = new Vpc(this, `vpc`, {
@@ -90,7 +105,7 @@ export class UNSVpcConstruct<
     this.securityGroups = { privateEgress, privateIsolated };
 
     // Attach Interface VPC Endpoints
-    const interfaceEndpointsMap = {} as Record<string, InterfaceVpcEndpoint>;
+    const interfaceEndpointsMap = {} as Record<string, IInterfaceVpcEndpoint>;
     for (const key in props.interfaceEndpoints ?? {}) {
       const service = (props.interfaceEndpoints as Record<string, InterfaceVpcEndpointAwsService>)[key];
       const endpoint = this.vpc.addInterfaceEndpoint(`interface-${service.shortName}`, {
@@ -130,6 +145,97 @@ export class UNSVpcConstruct<
         ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
         ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
       ]);
+    }
+
+    // Define exports for sandbox environment
+    this.exports(config);
+  }
+
+  imports(imported: NonNullable<EnvVars['sandbox']['shared']['vpc']>) {
+    const vpc: UNSVpcConstruct['vpc'] = Vpc.fromVpcAttributes(this, `vpc-imported`, {
+      vpcId: imported.vpcId,
+      vpcCidrBlock: imported.vpcCidr,
+      availabilityZones: imported.availabilityZones,
+      publicSubnetIds: imported.publicSubnetIds,
+      publicSubnetRouteTableIds: imported.publicSubnetRouteTableIds,
+      privateSubnetIds: imported.privateSubnetIds,
+      privateSubnetRouteTableIds: imported.privateSubnetRouteTableIds,
+      isolatedSubnetIds: imported.isolatedSubnetIds,
+      isolatedSubnetRouteTableIds: imported.isolatedSubnetRouteTableIds,
+    });
+    const securityGroups: UNSVpcConstruct['securityGroups'] = {
+      privateEgress: SecurityGroup.fromSecurityGroupId(
+        this,
+        'sg-private-imported',
+        imported.privateEgressSecurityGroup
+      ),
+      privateIsolated: SecurityGroup.fromSecurityGroupId(
+        this,
+        'sg-isolated-imported',
+        imported.privateEgressSecurityGroup
+      ),
+    };
+    const interfaceEndpoints = {} as Record<string, IInterfaceVpcEndpoint>;
+
+    for (const [key, value] of imported.interfaceEndpoints) {
+      interfaceEndpoints[key] = InterfaceVpcEndpoint.fromInterfaceVpcEndpointAttributes(
+        this,
+        `${key}-interface-imported`,
+        value
+      );
+    }
+    const gatewayEndpoints = {} as Record<string, IGatewayVpcEndpoint>;
+    for (const [key, value] of imported.gatewayEndpoints) {
+      gatewayEndpoints[key] = GatewayVpcEndpoint.fromGatewayVpcEndpointId(this, `${key}-gateway-imported`, value);
+    }
+
+    return {
+      vpc,
+      securityGroups,
+      interfaceEndpoints: interfaceEndpoints as (typeof this)['interfaceEndpoints'],
+      gatewayEndpoints: gatewayEndpoints as (typeof this)['gatewayEndpoints'],
+    };
+  }
+  exports(config: EnvVars) {
+    // Export details of the vpc - so sandbox environments can join in instead of creating their own
+    if (config.exportResourcesForDevSandboxUse) {
+      const vpcConfig: typeof config.sandbox.shared.vpc = {
+        // VPC
+        vpcId: this.vpc.vpcId,
+        vpcCidr: this.vpc.vpcCidrBlock,
+        availabilityZones: this.vpc.availabilityZones,
+        publicSubnetIds: this.vpc.publicSubnets.map((s) => s.subnetId),
+        publicSubnetRouteTableIds: this.vpc.publicSubnets.map((s) => s.routeTable.routeTableId),
+        privateSubnetIds: this.vpc.privateSubnets.map((s) => s.subnetId),
+        privateSubnetRouteTableIds: this.vpc.privateSubnets.map((s) => s.routeTable.routeTableId),
+        isolatedSubnetIds: this.vpc.isolatedSubnets.map((s) => s.subnetId),
+        isolatedSubnetRouteTableIds: this.vpc.isolatedSubnets.map((s) => s.routeTable.routeTableId),
+
+        // Security groups
+        privateEgressSecurityGroup: this.securityGroups.privateEgress.securityGroupId,
+        privateIsolatedSecurityGroup: this.securityGroups.privateIsolated.securityGroupId,
+
+        // Endpoints
+        interfaceEndpoints: Object.entries(this.interfaceEndpoints).map(([key, value]) => [
+          key,
+          {
+            port: 443,
+            vpcEndpointId: value.vpcEndpointId,
+            securityGroups: [],
+          },
+        ]),
+        gatewayEndpoints: Object.entries(this.gatewayEndpoints).map(([key, value]) => [key, value.vpcEndpointId]),
+      };
+
+      SSMFromObject(
+        this,
+        config,
+        {
+          'shared/vpc': vpcConfig,
+        },
+        { omitNamespace: true }
+      );
+      return;
     }
   }
 }
