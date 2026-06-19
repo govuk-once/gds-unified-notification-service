@@ -1,6 +1,8 @@
 import { Duration, Stack } from 'aws-cdk-lib';
 import { LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { ISecurityGroup, ISubnet, IVpc } from 'aws-cdk-lib/aws-ec2';
+import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import {
@@ -41,6 +43,7 @@ export interface UNSLambdaConstructProps {
   };
   readonly triggers?: {
     readonly queues?: Queue[];
+    readonly schedule?: Schedule[];
   };
   readonly iam?: {
     readonly assumeableRolesArns?: string[];
@@ -232,6 +235,16 @@ export class UNSLambdaConstruct extends Construct {
     });
 
     this.integration = new LambdaIntegration(this.fn);
+
+    //// =====================================================
+    // Scheduler
+    //// =====================================================
+    for (const s of (props?.triggers?.schedule ?? [])) {
+      new Rule(this, config.utils.namingHelper(`scheduler`, this.props.serviceName), {
+        schedule: s,
+        targets: [new LambdaFunction(this.fn)]
+      })
+    }
 
     // Apply Checkov standard exclusion overrides
     applyCheckovSkips(this.fn, [

@@ -2,8 +2,7 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
-import { LambdaFunction } from "aws-cdk-lib/aws-events-targets";
-import { Rule, Schedule } from "aws-cdk-lib/aws-events"
+import { CronOptions, Schedule } from 'aws-cdk-lib/aws-events';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -357,6 +356,9 @@ export class UNSPSOResource extends Construct {
         cloudwatchExport: [bqAnalyticsExportLogGroup.logGroupArn],
         s3: [bqAnalyticsExportBucket.bucketArn]
       },
+      triggers: {
+        schedule: [Schedule.cron({ minute: "30", hour: "*" })]
+      },
     });
 
     this.lambdas = {
@@ -377,15 +379,6 @@ export class UNSPSOResource extends Construct {
         bqAnalyticsExport
       }
     };
-
-    //// =====================================================
-    // Scheduler
-    //// =====================================================
-    // TODO: Could this be moved in lambda construct
-    new Rule(this, config.utils.namingHelper(`scheduler`, this.lambdas.schedule.bqAnalyticsExport.props.serviceName), {
-      schedule: Schedule.cron({ minute: "30", hour: "*" }),
-      targets: [new LambdaFunction(bqAnalyticsExport.fn)]
-    });
 
     //// =====================================================
     // API Gateway
