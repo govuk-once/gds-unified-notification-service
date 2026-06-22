@@ -44,6 +44,7 @@ describe('getNotifications Handler', () => {
     EventDateTime: new Date().toISOString(),
     EventReason: '',
     APIGWExtendedID: 'Test',
+    OrganisationID: 'ORG_ID'
   };
 
   const mockHiddenEvent: IAnalytics = {
@@ -54,6 +55,7 @@ describe('getNotifications Handler', () => {
     EventDateTime: new Date().toISOString(),
     EventReason: '',
     APIGWExtendedID: 'Test',
+    OrganisationID: 'ORG_ID'
   };
 
   const mockDbRecord: IMessageRecord = {
@@ -74,6 +76,7 @@ describe('getNotifications Handler', () => {
         EventDateTime: new Date().toISOString(),
         EventReason: '',
         APIGWExtendedID: 'Test',
+        OrganisationID: 'ORG_ID'
       },
     ],
     DispatchedDateTime: '2026-02-13',

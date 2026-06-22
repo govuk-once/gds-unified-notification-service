@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import {
   CampaignsDynamoRepository,
   NotificationsDynamoRepository,
@@ -40,6 +41,24 @@ export const observabilitySpies = (): Mocked<ObservabilityService> => {
   ) as Mocked<ObservabilityService>;
 
   return observabilityMock;
+};
+
+// TODO: Add to test files when refactoring in NOT-292
+// AWS client mocks
+export interface AwsClientMocks {
+  cloudWatchLogsClientMock: Mocked<CloudWatchLogsClient>
+}
+
+/*
+  Generates a mocked instance of AWS clients.
+  Provides pre-spied AWS client for unit testing.
+*/
+export const awsClientSpies = (): AwsClientMocks => {
+  const cloudWatchLogsClientMock = new CloudWatchLogsClient() as Mocked<CloudWatchLogsClient>;
+
+  return {
+    cloudWatchLogsClientMock
+  };
 };
 
 // Service and Repository Mocks
@@ -109,6 +128,12 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     smConfigurationServiceMock
   ) as Mocked<ProcessingService>;
+  // TODO: Add when refactoring in NOT-292
+  // const analyticsExportServiceMock = new AnalyticsExportService(
+  //   observabilityMock,
+  //   configurationServiceMock,
+  //   cacheServiceMock,
+  // ) as Mocked<AnalyticsExportService>;
 
   return {
     // Queue

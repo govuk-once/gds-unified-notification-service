@@ -2,23 +2,25 @@ import { search } from '@aws-lambda-powertools/jmespath';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
-  AnalyticsQueueService,
-  AnalyticsService,
-  CacheService,
-  CircuitBreakerService,
-  ConfigurationService,
-  ContentValidationService,
-  DispatchQueueService,
-  KnownMetrics,
-  NotificationService,
-  ObservabilityService,
-  ProcessingQueueService,
+    AnalyticsQueueService,
+    AnalyticsService,
+    CacheService,
+    CircuitBreakerService,
+    ConfigurationService,
+    ContentValidationService,
+    DispatchQueueService,
+    KnownMetrics,
+    NotificationService,
+    ObservabilityService,
+    ProcessingQueueService,
 } from '@common/services';
+import { AnalyticsExportService } from '@common/services/analyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { InMemoryTTLCache } from '@common/utils';
@@ -113,6 +115,9 @@ export const iocGetObservabilityService = ioc(
   () => new ObservabilityService(iocGetLogger(), iocGetMetrics() as KnownMetrics, iocGetTracer())
 );
 
+// AWS Clients
+export const iocGetCloudWatchLogsClient = ioc('CloudWatchLogsClient', Mode.SINGLETON, () => new CloudWatchLogsClient());
+
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
   'ConfigurationService',
@@ -197,6 +202,18 @@ export const iocGetAnalyticsQueue = ioc(
   'AnalyticsQueueService',
   Mode.SINGLETON,
   async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetAnalyticsExportService = ioc(
+  'AnalyticsExportService',
+  Mode.SINGLETON,
+  async () =>
+    await new AnalyticsExportService(
+      iocGetObservabilityService(),
+      iocGetConfigurationService(),
+      iocGetCacheService(),
+      iocGetCloudWatchLogsClient()
+    ).initialize()
 );
 
 export const iocGetAnalyticsService = ioc(

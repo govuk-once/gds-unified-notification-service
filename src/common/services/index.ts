@@ -1,4 +1,5 @@
 export * from './adapters';
+export * from './analyticsExportService';
 export * from './analyticsQueueService';
 export * from './analyticsService';
 export * from './cacheService';
@@ -11,3 +12,4 @@ export * from './observabilityService';
 export * from './processingQueueService';
 export * from './processingService';
 export * from './queueService';
+

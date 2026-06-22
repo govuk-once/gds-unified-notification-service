@@ -21,6 +21,14 @@ export const StringParameters = {
       ApiKey: 'api/flex/apiKey',
     },
   },
+  AnalyticsExport: {
+    LogGroup: {
+      Name: 'analytics/export/loggroup/name'
+    },
+    Bucket: {
+      Name: 'analytics/export/bucket/name'
+    }
+  },
   Config: {
     Cache: {
       Host: 'config/common/cache/host',

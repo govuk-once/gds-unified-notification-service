@@ -1,7 +1,7 @@
 import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
 import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
+    mockDefaultConfig,
+    mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { NumericParameters } from '@common/utils/parameters';

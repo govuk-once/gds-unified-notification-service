@@ -83,6 +83,7 @@
     "@aws-lambda-powertools/parser": "^2.33.1",
     "@aws-lambda-powertools/tracer": "^2.33.1",
     "@aws-lambda-powertools/validation": "^2.33.1",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1071.0",
     "@aws-sdk/client-dynamodb": "^3.1067.0",
     "@aws-sdk/client-secrets-manager": "^3.1067.0",
     "@aws-sdk/client-ssm": "^3.1067.0",
