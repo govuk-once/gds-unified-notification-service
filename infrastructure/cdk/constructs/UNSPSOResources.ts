@@ -4,6 +4,7 @@ import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Effect, FederatedPrincipal, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
+import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
@@ -17,6 +18,10 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { PolicyStatement, Effect, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { Schedule } from 'aws-cdk-lib/aws-events';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -40,9 +45,11 @@ export class UNSPSOResource extends Construct {
       dispatch: UNSLambdaConstruct;
       analytics: UNSLambdaConstruct;
     };
+    schedule: {
+      analyticsExport: UNSLambdaConstruct
+    }
   };
   public readonly gateway: UNSAPIGatewayGateway;
-
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -108,6 +115,15 @@ export class UNSPSOResource extends Construct {
         },
       }),
     };
+    // //// =====================================================
+    // // Log Groups
+    // //// =====================================================
+    const analyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
+      logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
+      retention: RetentionDays.ONE_MONTH,
+      encryptionKey: refs.kms,
+      removalPolicy: config.removalPolicy,
+    });
 
     // //// =====================================================
     // // S3 Buckets
@@ -195,6 +211,7 @@ export class UNSPSOResource extends Construct {
 
     const baseHTTP = UNSLambdaConstruct.baseHTTPFactory(this.serviceName, refs.codeSigning);
     const baseSQS = UNSLambdaConstruct.baseSQSFactory(this.serviceName, refs.codeSigning);
+    const baseSchedule = UNSLambdaConstruct.baseScheduleFactory(this.serviceName, refs.codeSigning);
     const basePrivateVPC = {
       ref: refs.vpc.vpc,
       securityGroups: [refs.vpc.securityGroups.privateEgress],
@@ -350,9 +367,28 @@ export class UNSPSOResource extends Construct {
           campaigns: refs.dynamodb.campaigns.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
+        cloudwatch: [analyticsExportLogGroup.logGroupArn],
       },
       triggers: {
         queues: [this.queues.analytics.queue],
+      },
+    });
+
+    const analyticsExport = new UNSLambdaConstruct(this, config, {
+      ...baseSchedule(`analyticsExport`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+        dlq: this.queues.analytics.dlq,
+      },
+      iam: {
+        ssmNamespaces: [config.namespace],
+        cloudwatch: [analyticsExportLogGroup.logGroupArn],
+        cloudwatchExport: [analyticsExportLogGroup.logGroupArn],
+        s3: [analyticsExportBucket.bucketArn]
+      },
+      triggers: {
+        schedule: [Schedule.cron({ minute: "30", hour: "*" })]
       },
     });
 
@@ -370,10 +406,13 @@ export class UNSPSOResource extends Construct {
         dispatch,
         analytics,
       },
+      schedule: {
+        analyticsExport
+      }
     };
 
     //// =====================================================
-    // Lambdas
+    // API Gateway
     //// =====================================================
 
     // Define authorizer
@@ -453,14 +492,18 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     // SSM Setup values - PSO
-    SSMFromObject(Stack.of(this), config, {
+    SSMFromObject(stack, config, {
       // DynamoDB Tables
       // mTLS refs
       'table/mtls/attributes': props.mtls.revocationTableAttributes,
 
-      // SQS Qeueue refs
+      // SQS Queue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,
       'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
-    });
+
+      // BigQuery Analytics export
+      'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
+      'analytics/export/bucket/name': analyticsExportBucket.bucketName,
+    })
   }
 }

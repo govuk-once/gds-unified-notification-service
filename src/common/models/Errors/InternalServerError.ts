@@ -10,4 +10,8 @@ export class InternalServerError extends BaseError {
 
 export class ServiceMisconfigurationError extends InternalServerError {}
 
+export class NotImplementedError extends InternalServerError {}
+
+export class ParsingFailedError extends InternalServerError {}
+
 export class SimulatedError extends InternalServerError {}

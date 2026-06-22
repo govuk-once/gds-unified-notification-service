@@ -54,6 +54,7 @@ describe('GetNotificationById Handler', () => {
         EventDateTime: new Date().toISOString(),
         EventReason: '',
         APIGWExtendedID: 'Test',
+        OrganisationID: 'ORG_ID'
       },
     ],
     DispatchedDateTime: '2026-02-13',
