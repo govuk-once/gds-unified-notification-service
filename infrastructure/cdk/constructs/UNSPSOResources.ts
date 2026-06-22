@@ -1,6 +1,8 @@
 import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
+import { Effect, FederatedPrincipal, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -12,6 +14,7 @@ import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow'
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
+import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
@@ -59,8 +62,10 @@ export class UNSPSOResource extends Construct {
       };
     }
   ) {
+    const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, 'pso');
 
+    const stack = Stack.of(this);
     const { refs } = props;
 
     //// =====================================================
@@ -103,6 +108,86 @@ export class UNSPSOResource extends Construct {
         },
       }),
     };
+
+    // //// =====================================================
+    // // S3 Buckets
+    // //// =====================================================
+    const analyticsExportBucket = new Bucket(this, constructNamingHelper(`analytics-export`, ` bucket`), {
+      bucketName: namingHelper(`analytics-export`),
+      encryption: BucketEncryption.S3_MANAGED,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: true,
+      removalPolicy: config.removalPolicy,
+      autoDeleteObjects: !config.isMainEnv,
+      lifecycleRules: [{
+        enabled: true,
+        expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+      }]
+    });
+    applyCheckovSkips(analyticsExportBucket, [
+      ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
+    ]);
+
+    analyticsExportBucket.addToResourcePolicy(new PolicyStatement({
+      sid: 'AllowCloudWatchLogsGetAcl',
+      effect: Effect.ALLOW,
+      principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+      actions: ['s3:GetBucketAcl'],
+      resources: [analyticsExportBucket.bucketArn],
+      conditions: {
+        StringEquals: {
+          'aws:SourceAccount': [
+            stack.account,
+          ]
+        },
+        ArnLike: {
+          'aws:SourceArn': [
+            `arn:aws:logs:eu-west-2:${stack.account}:log-group:*`,
+          ]
+        }
+      }
+    }))
+
+    analyticsExportBucket.addToResourcePolicy(new PolicyStatement({
+      sid: 'AllowCloudWatchLogsPutObject',
+      effect: Effect.ALLOW,
+      principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+      actions: ['s3:PutObject'],
+      resources: [analyticsExportBucket.arnForObjects('*')],
+      conditions: {
+        StringEquals: {
+          's3:x-amz-acl': 'bucket-owner-full-control',
+          'aws:SourceAccount': [
+            stack.account,
+          ]
+        },
+        ArnLike: {
+          'aws:SourceArn': [
+            `arn:aws:logs:eu-west-2:${stack.account}:log-group:*`,
+          ]
+        }
+      }
+    }));
+
+    const bqExportRole = new Role(this, namingHelper(), {
+      roleName: 'BigQueryExportRole',
+      assumedBy: new FederatedPrincipal("accounts.google.com")
+    })
+
+    bqExportRole.addToPolicy(new PolicyStatement({
+      sid: 'AllowBigQueryS3ReadOnlyAccess',
+      effect: Effect.ALLOW,
+      actions: [
+        's3:GetBucketLocation',
+        's3:ListBucket',
+        's3:GetObject'
+      ],
+      resources: [
+        analyticsExportBucket.bucketArn, 
+        analyticsExportBucket.arnForObjects('*')
+      ],
+    }));
 
     //// =====================================================
     // Lambdas
