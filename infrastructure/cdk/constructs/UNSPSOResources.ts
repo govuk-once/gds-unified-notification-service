@@ -2,9 +2,9 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Effect, FederatedPrincipal, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
@@ -18,9 +18,6 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { PolicyStatement, Effect, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 
 export class UNSPSOResource extends Construct {
@@ -115,6 +112,7 @@ export class UNSPSOResource extends Construct {
         },
       }),
     };
+    
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
