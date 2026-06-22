@@ -88,7 +88,7 @@
     "@aws-sdk/credential-providers": "^3.1063.0",
     "@aws-sdk/util-dynamodb": "^3.968.0",
     "@aws-sdk/util-format-url": "^3.965.0",
-    "@middy/core": "^7.6.8",
+    "@middy/core": "^7.6.7",
     "@middy/http-error-handler": "^6.4.5",
     "@middy/http-event-normalizer": "^6.4.5",
     "@middy/http-header-normalizer": "^6.4.5",
