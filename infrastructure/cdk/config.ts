@@ -1,6 +1,6 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
-import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib/core';
+import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -53,7 +53,7 @@ export const fromSSMJSON = async <T>(key: string, fallbackToSerialize?: T) => {
 
 if (process.env.env == undefined) {
   throw new Error(
-    'No explicit environment defined, set `env` environment in the CICD or via npm run development:sandbox:setup'
+    'No explicit environment defined, set `env` environment in the CICD or via pnpm run development:sandbox:setup'
   );
 }
 
@@ -143,7 +143,7 @@ export const config = {
         // Endpoints
         interfaceEndpoints: [string, InterfaceVpcEndpointAttributes][];
         gatewayEndpoints: [string, string][];
-      } | null>(`/shared/vpc`, null),
+      } | null>(`/shared/vpc-disabled`, null),
 
       // mTLS
       ca: await fromSSM(`/shared/mtls/truststore`, ''),

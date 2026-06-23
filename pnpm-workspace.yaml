@@ -1,0 +1,21 @@
+## PNPM Configuration
+
+# Defines what linker should be used for installing Node packages
+nodeLinker: hoisted
+
+# Defines the minimum number of minutes that must pass after a version is published before pnpm will install it
+minimumReleaseAge: 20160 # 14 days in minutes
+
+# Instruct pnpm to override any dependency in the dependency graph, including peer dependencies
+overrides:
+  "semantic-release>@semantic-release/npm": "^13.1.5"
+  "@semantic-release/npm>@actions/core": "3.0.1"
+  "@semantic-release/npm>picomatch": "4.0.4"
+  "@semantic-release/npm>ip-address": "10.2.0"
+  "table>ajv": "^8.2.0"
+  "vite>rollup": "npm:@rollup/wasm-node"
+
+# A map of package matchers to explicitly allow (true) or disallow (false) script execution
+allowBuilds:
+  esbuild: true
+  msw: false

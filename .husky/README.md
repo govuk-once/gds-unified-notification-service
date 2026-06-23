@@ -15,7 +15,7 @@ These hooks run automatically before each commit, allowing us to catch and fix e
 Pre-commit hooks can also be triggered directly via:
 
 ```sh
-npm run pre-commit
+pnpm run pre-commit
 ```
 
 This is the same command as the one triggered by husky in [./pre-commit](./pre-commit)

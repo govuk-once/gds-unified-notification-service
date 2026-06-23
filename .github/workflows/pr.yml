@@ -29,23 +29,27 @@ jobs:
       - name: ⚙️ Configure Codeartifact
         run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
 
+      - name: ⚙️ Setup pnpm
+        uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6.0.5
+
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: '.node-version'
+          cache: 'pnpm'
 
       - name: ⚙️ Install Dependencies
-        run: npm ci
+        run: pnpm ci
 
       - name: ⚙️ Validate Typescript
-        run: npm run build:validate
+        run: pnpm run build:validate
 
       - name: 🔨 Build bundles
-        run: npm run build
+        run: pnpm run build
 
       # Formatting
       - name: 📝 Run Lint
-        run: npm run lint
+        run: pnpm run lint
 
       # Testing
       - name: 🧪 Run Unit tests & report coverage
@@ -53,7 +57,7 @@ jobs:
         run: |
           echo "Test results:" > coverage.md
           echo '```' >> coverage.md
-          (npm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md) || echo "Failed to meet the criteria"
+          (pnpm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md) || echo "Failed to meet the criteria"
           echo '```' >> coverage.md
           content="${content//'%'/'%25'}"
           content="${content//$'\n'/'%0A'}"
@@ -77,7 +81,7 @@ jobs:
       - name: 🏗️ CDK Synth
         if: success() || failure() # Until TF Migration is completed
         run: |
-          env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" npm run cdk:synth
+          env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
         if: success() || failure()

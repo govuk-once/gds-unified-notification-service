@@ -1,7 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
-import { Hash } from '@aws-sdk/hash-node';
-import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { Hash } from '@smithy/hash-node';
+import { SignatureV4 } from '@smithy/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
