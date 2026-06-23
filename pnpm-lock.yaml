@@ -40,6 +40,9 @@ importers:
       '@aws-lambda-powertools/validation':
         specifier: ^2.33.1
         version: 2.33.1
+      '@aws-sdk/client-cloudwatch-logs':
+        specifier: ^3.1063.0
+        version: 3.1064.0
       '@aws-sdk/client-secrets-manager':
         specifier: ^3.1063.0
         version: 3.1064.0
@@ -376,6 +379,10 @@ packages:
 
   '@aws-sdk/client-api-gateway@3.1064.0':
     resolution: {integrity: sha512-zxE7XlGE5vLtMyOdwUgBZBF3czuekT1Zb+mVutwbKnlCz453y4CSkqnBEWuANixZvheJTXd4DYYevg5vx7I/LA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-cloudwatch-logs@3.1064.0':
+    resolution: {integrity: sha512-RuOWAvQWlfa+q4KCPnICnlum8O5vfKlnmqpI8xkqSx2uSFDs2aVm4VEU6Gztr40sGls2IhiG26jgYPpFS5hC7Q==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-cognito-identity@3.1064.0':
@@ -3952,6 +3959,19 @@ snapshots:
       '@aws-sdk/core': 3.974.19
       '@aws-sdk/credential-provider-node': 3.972.53
       '@aws-sdk/middleware-sdk-api-gateway': 3.972.17
+      '@aws-sdk/types': 3.973.12
+      '@smithy/core': 3.24.6
+      '@smithy/fetch-http-handler': 5.4.6
+      '@smithy/node-http-handler': 4.7.7
+      '@smithy/types': 4.14.3
+      tslib: 2.8.1
+
+  '@aws-sdk/client-cloudwatch-logs@3.1064.0':
+    dependencies:
+      '@aws-crypto/sha256-browser': 5.2.0
+      '@aws-crypto/sha256-js': 5.2.0
+      '@aws-sdk/core': 3.974.19
+      '@aws-sdk/credential-provider-node': 3.972.53
       '@aws-sdk/types': 3.973.12
       '@smithy/core': 3.24.6
       '@smithy/fetch-http-handler': 5.4.6
