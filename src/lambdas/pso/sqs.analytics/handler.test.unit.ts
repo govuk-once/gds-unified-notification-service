@@ -1,15 +1,16 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
+import { AnalyticsExportService } from '@common/services';
 import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
+    mockDefaultConfig,
+    mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/pso/sqs.analytics/handler';
 import { Context } from 'aws-lambda';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, Mocked, vi } from 'vitest';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -20,7 +21,16 @@ vi.mock('@common/repositories', { spy: true });
 describe('Analytics QueueHandler', () => {
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
+  const clientMocks = awsClientSpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
+
+  // TODO: Refactor this into service mock when implementing NOT-298
+  const analyticsExportServiceMock = new AnalyticsExportService(
+    observabilityMocks,
+    serviceMocks.configurationServiceMock,
+    serviceMocks.cacheServiceMock,
+    clientMocks.cloudWatchLogsClientMock
+  ) as Mocked<AnalyticsExportService>;
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -83,21 +93,17 @@ describe('Analytics QueueHandler', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
     // Mocking successful completion of service functions
     serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
     serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns.mockResolvedValue(undefined);
+    analyticsExportServiceMock.logAnalytics.mockResolvedValue(undefined);
 
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),
       notifications: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       campaigns: Promise.resolve(serviceMocks.campaignsDynamoRepositoryMock),
+      analyticsExportService: Promise.resolve(analyticsExportServiceMock),
     }));
     handler = instance.handler();
 
@@ -161,6 +167,15 @@ describe('Analytics QueueHandler', () => {
       '/DEP1/7351e7c8-7314-4d2b-a590-4f053c6ef80f/Status',
       NotificationStateEnum.UNKNOWN
     );
+  });
+
+  it('should export processed analytics to cloudwatch', async () => {
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(analyticsExportServiceMock.logAnalytics).toHaveBeenCalledTimes(1);
+    expect(analyticsExportServiceMock.logAnalytics).toHaveBeenCalledWith(validAnalytics);
   });
 
   it('should increment campaign if a campaignID is provided in the analytics', async () => {

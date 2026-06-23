@@ -75,6 +75,7 @@ export class CacheService {
     key: string,
     options?: {
       factory?: () => Promise<T> | T;
+      ttlSeconds?: number
     }
   ): Promise<T | undefined> {
     const value = await this.cache.get(key);
@@ -86,6 +87,10 @@ export class CacheService {
     // Fallback on storage if
     if (value == undefined && options?.factory !== undefined) {
       await this.store(key, await options.factory());
+
+      if (options?.ttlSeconds) {
+        await this.cache.expire(key, options?.ttlSeconds);
+      }
       return await this.get<T>(key);
     }
     return undefined;
