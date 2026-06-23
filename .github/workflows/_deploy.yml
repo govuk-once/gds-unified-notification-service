@@ -57,7 +57,7 @@ jobs:
           cache: pnpm
 
       - name: ⚙️ Install Dependencies
-        run: pnpm run install
+        run: pnpm ci
 
       # Build & release
       - name: 🔨 Build bundles
