@@ -2,9 +2,9 @@ import { Colors, execute } from 'scripts/helpers';
 
 // Pre commit tasks with labels
 const tasks = {
-  [Colors.yellow('TS Check')]: 'npm run build:validate',
-  [Colors.cyan('Unit Tests')]: 'npm run test:unit',
-  [Colors.green('Linting')]: 'npm run lint',
+  [Colors.yellow('TS Check')]: 'pnpm run build:validate',
+  [Colors.cyan('Unit Tests')]: 'pnpm run test:unit',
+  [Colors.green('Linting')]: 'pnpm run lint',
 };
 
 // Execute all tasks in parallel then add extra logs

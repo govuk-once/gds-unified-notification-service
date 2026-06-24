@@ -31,7 +31,7 @@ sequenceDiagram
 
 - Setup Node.js: This step sets up the Node.js environment for the repository.
 
-- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager).
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by pnpm (Node Package Manager).
 
 - Validate Typescript: This step runs a TypeScript validation process to check for errors or warnings in the TypeScript code. This ensures that the code is syntactically correct and free of type-related issues.
 
@@ -78,7 +78,7 @@ sequenceDiagram
 
 - Setup Node.js: This step sets up the Node.js environment for the repository for the semantic release.
 
-- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager) for the semantic release.
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by pnpm (Node Package Manager) for the semantic release.
 
 - Run Semantic Release: Determines the next semantic version number based on the commit messages and tags the release with the version.
 
@@ -92,9 +92,9 @@ sequenceDiagram
 
 - Setup Node.js: This step sets up the Node.js environment for the repository for the deployment.
 
-- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager) for the deployment.
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by pnpm (Node Package Manager) for the deployment.
 
-- Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager) for the deployment.
+- Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by pnpm (Node Package Manager) for the deployment.
 
 </details>
 
@@ -129,9 +129,9 @@ sequenceDiagram
 
 - Setup Node.js: This step sets up the Node.js environment for the repository.
 
-- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager).
+- Install Dependencies: This step installs any dependencies required by the code in the repository, such as package.json files managed by pnpm (Node Package Manager).
 
-- Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by npm (Node Package Manager).
+- Build bundles: This step installs any dependencies required by the code in the repository, such as package.json files managed by pnpm (Node Package Manager).
 
 - Deploy CDK: Trigger
 

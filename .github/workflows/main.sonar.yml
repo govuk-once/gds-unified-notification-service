@@ -31,18 +31,22 @@ jobs:
       - name: ⚙️ Configure Codeartifact
         run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
 
+      - name: ⚙️ Setup pnpm
+        uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6.0.5
+
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: '.node-version'
+          cache: 'pnpm'
 
       - name: ⚙️ Install Dependencies
-        run: npm ci
+        run: pnpm ci
 
       # Generate coverage
       - name: 🧪 Run Unit tests
         id: unittests
-        run: npm run test:coverage || echo "Failed to meet the criteria"
+        run: pnpm run test:coverage || echo "Failed to meet the criteria"
 
       # Perform scan
       - name: 🕵🏻 Run SonarQube Scan

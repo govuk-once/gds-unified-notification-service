@@ -1,4 +1,4 @@
-import { CfnOutput, Stack, StackProps, Tags } from 'aws-cdk-lib/core';
+import { CfnOutput, Stack, StackProps, Tags } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
