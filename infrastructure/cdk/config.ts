@@ -1,6 +1,6 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib';
+import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -143,7 +143,7 @@ export const config = {
         // Endpoints
         interfaceEndpoints: [string, InterfaceVpcEndpointAttributes][];
         gatewayEndpoints: [string, string][];
-      } | null>(`/shared/vpc-disabled`, null),
+      } | null>(`/shared/vpc`, null),
 
       // mTLS
       ca: await fromSSM(`/shared/mtls/truststore`, ''),

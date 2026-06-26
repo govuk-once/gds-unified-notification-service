@@ -1,8 +1,8 @@
 import { CloudWatchLogsClient, CloudWatchLogsServiceException, CreateExportTaskCommand, CreateExportTaskCommandInput, CreateLogStreamCommand, PutLogEventsCommand, PutLogEventsCommandInput } from "@aws-sdk/client-cloudwatch-logs";
+import { InvalidCharacterError } from "@common/models/Errors/BadRequestError";
 import { ParsingFailedError } from "@common/models/Errors/InternalServerError";
 import { CacheService } from "@common/services/cacheService";
 import { ConfigurationService } from "@common/services/configurationService";
-import { IAnalyticsToIAnalyticsLog } from "@common/services/interfaces/analyticsLog";
 import { ObservabilityService } from "@common/services/observabilityService";
 import { StringParameters } from "@common/utils";
 import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
@@ -40,7 +40,7 @@ export class AnalyticsExportService {
         this.observability.logger.debug(`Creating new log stream`, { logStreamName });
         const command = new CreateLogStreamCommand(input);
         await this.client.send(command);
-
+        this.observability.logger.debug(`New log stream was created`, { logStreamName });
       } catch (error) {
         if (error instanceof CloudWatchLogsServiceException && error.name === 'ResourceAlreadyExistsException') {
           this.observability.logger.debug(`Log stream already exists`, { logStreamName });
@@ -57,8 +57,9 @@ export class AnalyticsExportService {
   }
 
   public async logAnalytics(analytics: IAnalytics) {
+    this.observability.logger.debug(`Adding analytics to Cloudwatch log group`, { analytics });
     const logStreamName = await this.getLogStreamName()
-    const log = IAnalyticsToIAnalyticsLog(analytics);
+    const log = this.analyticsToCsvLog(analytics);
 
     // Push analytics to log group and stream
     const input: PutLogEventsCommandInput = {
@@ -67,18 +68,19 @@ export class AnalyticsExportService {
       logEvents: [
         {
           timestamp: Date.now(),
-          message: JSON.stringify(log),
+          message: log,
         },
       ],
     };
     const command = new PutLogEventsCommand(input);
 
-    this.observability.logger.debug(`Adding analytics to export log group`, { LogStream: logStreamName, ...log });
+    this.observability.logger.debug(`Adding analytics in csv format to log group`, { LogStream: logStreamName, log });
     await this.client.send(command);
-    this.observability.logger.debug(`Analytics to log group was successful`, { LogStream: logStreamName });
+    this.observability.logger.debug(`Analytics was successful added to log group`, { LogStream: logStreamName });
   }
 
   public async logStreamToS3Bucket(timestamp: string) {
+    this.observability.logger.debug(`Exporting log group to s3 bucket`, { timestamp });
     const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
 
     // Determines the log stream name off the timestamp from event bridge
@@ -102,8 +104,30 @@ export class AnalyticsExportService {
     };
     const command = new CreateExportTaskCommand(input);
 
-    this.observability.logger.debug(`Exporting log stream to s3 bucket`, { LogStream: logStreamName, s3Bucket: exportBucketName });
+    this.observability.logger.debug(`Started export of log stream to s3 bucket`, { LogStream: logStreamName, s3Bucket: exportBucketName });
     await this.client.send(command);
     this.observability.logger.debug(`Export of log stream to s3 bucket was successful`, { LogStream: logStreamName, s3Bucket: exportBucketName });
+  }
+
+  private analyticsToCsvLog(analytics: IAnalytics): string {
+    this.observability.logger.debug(`Converting analytics to csv format`, { analytics });
+    for (const [key, value] of Object.entries(analytics)) {
+      if (value.includes(`,`) || value.includes(`"`)) {
+        const errorMsg = `Analytics contains invalid char , or " for csv format.`
+        this.observability.logger.warn(errorMsg, { field: key, analytics});
+        throw new InvalidCharacterError([errorMsg]);
+      }
+    }
+
+    return [
+      "",
+      analytics.EventID,
+      analytics.EventDateTime,
+      analytics.OrganisationID,
+      analytics.DepartmentID,
+      analytics.NotificationID,
+      analytics.CampaignID,
+      analytics.Event,
+    ].join(",")
   }
 }

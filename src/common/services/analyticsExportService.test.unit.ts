@@ -1,7 +1,7 @@
+import { InvalidCharacterError } from '@common/models/Errors/BadRequestError';
 import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsExportService } from '@common/services/analyticsExportService';
-import { IAnalyticsLog } from '@common/services/interfaces/analyticsLog';
 import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -40,15 +40,16 @@ describe('AnalyticsExportService', () => {
     EventReason: 'testing',
   };
 
-  const mockAnalyticsLog: IAnalyticsLog = {
-    EventID: '123',
-    EventTimestamp: '2026-01-22T00:00:01Z',
-    OrganisationID: 'ORG01',
-    DepartmentID: 'DEP1',
-    NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
-    CampaignID: 'CAM_ID',
-    EventStatus: NotificationStateEnum.RECEIVED,
-  };
+  const mockCsv = [
+    "",
+    '123',
+    '2026-01-22T00:00:01Z',
+    'ORG01',
+    'DEP1',
+    '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
+    'CAM_ID',
+    NotificationStateEnum.RECEIVED,
+  ].join(',');
 
   beforeEach(async () => {
     // Reset all mock
@@ -97,12 +98,60 @@ describe('AnalyticsExportService', () => {
             logEvents: [
               {
                 timestamp: date.getTime(),
-                message: JSON.stringify(mockAnalyticsLog),
+                message: mockCsv,
               },
             ],
           },
         })
       );
+    });
+
+    it('should throw an error if an analytics object contain an invalid char , .', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date(2026, 1, 1, 12, 30, 0);
+      vi.setSystemTime(date);
+      const logStreamName = date.toISOString().split(':').shift() ?? '';
+
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
+      mockAnalytics.CampaignID = 'invalid-camp,'
+
+      // Act
+      const result = instance.logAnalytics(mockAnalytics);
+
+      // Assert
+      await expect(result).rejects.toThrow(new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.']))
+      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+        'Analytics contains invalid char , or " for csv format.', 
+        { 
+          field: 'CampaignID', 
+          analytics: mockAnalytics
+        }
+      )
+    });
+
+  it('should throw an error if an analytics object contain an invalid char " .', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date(2026, 1, 1, 12, 30, 0);
+      vi.setSystemTime(date);
+      const logStreamName = date.toISOString().split(':').shift() ?? '';
+
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
+      mockAnalytics.CampaignID = 'invalid-camp"'
+
+      // Act
+      const result = instance.logAnalytics(mockAnalytics);
+
+      // Assert
+      await expect(result).rejects.toThrow(new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.']))
+      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+        'Analytics contains invalid char , or " for csv format.', 
+        { 
+          field: 'CampaignID', 
+          analytics: mockAnalytics
+        }
+      )
     });
   });
 

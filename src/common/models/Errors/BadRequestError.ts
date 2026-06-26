@@ -13,3 +13,5 @@ export class ContentValidationError extends BadRequestError {}
 export class UnidentifiableRecordError extends BadRequestError {}
 
 export class SerializationError extends BadRequestError {}
+
+export class InvalidCharacterError extends BadRequestError {}
