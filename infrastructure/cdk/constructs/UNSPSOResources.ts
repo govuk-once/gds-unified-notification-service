@@ -194,7 +194,7 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
 
     const bqExportUser = new User(this, namingHelper('bigquery-export', 'user'), {
-      userName: 'BigQueryExportUser',
+      userName: namingHelper('bigquery-export', 'user'),
     });
     const bqExportAccessKey = new CfnAccessKey(this, namingHelper('bigquery-export', 'access-key'), {
       userName: bqExportUser.userName,
