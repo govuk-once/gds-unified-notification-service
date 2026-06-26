@@ -2,7 +2,6 @@ import { CloudWatchLogsClient, CloudWatchLogsServiceException, CreateExportTaskC
 import { ParsingFailedError } from "@common/models/Errors/InternalServerError";
 import { CacheService } from "@common/services/cacheService";
 import { ConfigurationService } from "@common/services/configurationService";
-import { IAnalyticsToIAnalyticsLog } from "@common/services/interfaces/analyticsLog";
 import { ObservabilityService } from "@common/services/observabilityService";
 import { StringParameters } from "@common/utils";
 import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
@@ -58,7 +57,7 @@ export class AnalyticsExportService {
 
   public async logAnalytics(analytics: IAnalytics) {
     const logStreamName = await this.getLogStreamName()
-    const log = IAnalyticsToIAnalyticsLog(analytics);
+    const log = this.AnalyticsToCsvLog(analytics);
 
     // Push analytics to log group and stream
     const input: PutLogEventsCommandInput = {
@@ -67,13 +66,13 @@ export class AnalyticsExportService {
       logEvents: [
         {
           timestamp: Date.now(),
-          message: JSON.stringify(log),
+          message: log,
         },
       ],
     };
     const command = new PutLogEventsCommand(input);
 
-    this.observability.logger.debug(`Adding analytics to export log group`, { LogStream: logStreamName, ...log });
+    this.observability.logger.debug(`Adding analytics to export log group`, { LogStream: logStreamName, log });
     await this.client.send(command);
     this.observability.logger.debug(`Analytics to log group was successful`, { LogStream: logStreamName });
   }
@@ -105,5 +104,18 @@ export class AnalyticsExportService {
     this.observability.logger.debug(`Exporting log stream to s3 bucket`, { LogStream: logStreamName, s3Bucket: exportBucketName });
     await this.client.send(command);
     this.observability.logger.debug(`Export of log stream to s3 bucket was successful`, { LogStream: logStreamName, s3Bucket: exportBucketName });
+  }
+
+  private AnalyticsToCsvLog(analytics: IAnalytics): string {
+    return [
+      "",
+      analytics.EventID,
+      analytics.EventDateTime,
+      analytics.OrganisationID,
+      analytics.DepartmentID,
+      analytics.NotificationID,
+      analytics.CampaignID,
+      analytics.Event,
+    ].join(",")
   }
 }

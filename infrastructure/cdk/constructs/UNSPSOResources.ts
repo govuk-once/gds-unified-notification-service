@@ -1,7 +1,7 @@
 import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
-import { Effect, FederatedPrincipal, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
@@ -19,6 +19,8 @@ import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 import { Schedule } from 'aws-cdk-lib/aws-events';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -75,6 +77,7 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // SQS Queues
     //// =====================================================
+
     this.queues = {
       analytics: refs.queues.analytics,
       //
@@ -116,6 +119,7 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
+
     const analyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
       logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
       retention: RetentionDays.ONE_MONTH,
@@ -126,6 +130,7 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // S3 Buckets
     // //// =====================================================
+
     const analyticsExportBucket = new Bucket(this, constructNamingHelper(`analytics-export`, ` bucket`), {
       bucketName: namingHelper(`analytics-export`),
       encryption: BucketEncryption.S3_MANAGED,
@@ -184,21 +189,34 @@ export class UNSPSOResource extends Construct {
       }
     }));
 
-    const bqExportRole = new Role(this, namingHelper(), {
-      roleName: 'BigQueryExportRole',
-      assumedBy: new FederatedPrincipal("accounts.google.com")
-    })
+    // //// =====================================================
+    // // Users
+    // //// =====================================================
 
-    bqExportRole.addToPolicy(new PolicyStatement({
-      sid: 'AllowBigQueryS3ReadOnlyAccess',
+    const bqExportUser = new User(this, namingHelper('bigquery-export', 'user'), {
+      userName: 'BigQueryExportUser',
+    });
+    const bqExportAccessKey = new CfnAccessKey(this, namingHelper('bigquery-export', 'access-key'), {
+      userName: bqExportUser.userName,
+    });
+
+    bqExportUser.addToPolicy(new PolicyStatement({
+      sid: 'AllowBigQueryS3ListBucket',
       effect: Effect.ALLOW,
       actions: [
-        's3:GetBucketLocation',
         's3:ListBucket',
+      ],
+      resources: [
+        analyticsExportBucket.bucketArn,
+      ],
+    }));
+    bqExportUser.addToPolicy(new PolicyStatement({
+      sid: 'AllowBigQueryS3GetObject',
+      effect: Effect.ALLOW,
+      actions: [
         's3:GetObject'
       ],
       resources: [
-        analyticsExportBucket.bucketArn, 
         analyticsExportBucket.arnForObjects('*')
       ],
     }));
@@ -460,6 +478,7 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // Xray Dashboards
     //// =====================================================
+
     this.dashboards = {
       utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
         pso: this,
@@ -503,5 +522,35 @@ export class UNSPSOResource extends Construct {
       'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
       'analytics/export/bucket/name': analyticsExportBucket.bucketName,
     })
+
+    //// =====================================================
+    // Secret Manager 
+    //// =====================================================
+
+    const smWriterProvider = new UNSSMWriterProvider(this, config, {
+      kms: refs.kms
+    })
+
+    const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
+      secretName: `${config.prefix}/bigquery/export/key/id`,
+      description: 'Access key for big query export user to gain access to s3 bucket',
+      encryptionKey: refs.kms
+    })
+    bqExportAccessKeyId.grantWrite(smWriterProvider.fn);
+    smWriterProvider.use(this, {
+      secretArn: bqExportAccessKeyId.secretArn,
+      secretValue: bqExportAccessKey.ref
+    }, { name: ['KeyId'] });
+
+    const bqExportAccessKeySecret = new Secret(this, namingHelper('bigquery-export', 'key-secret'), {
+      secretName: `${config.prefix}/bigquery/export/key/secret`,
+      description: 'Access secret for big query export user to gain access to s3 bucket',
+      encryptionKey: refs.kms
+    });
+    bqExportAccessKeySecret.grantWrite(smWriterProvider.fn);
+    smWriterProvider.use(this, {
+      secretArn: bqExportAccessKeySecret.secretArn,
+      secretValue: bqExportAccessKey.attrSecretAccessKey
+    }, { name: ['KeySecret'] });
   }
 }
