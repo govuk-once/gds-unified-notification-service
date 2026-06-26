@@ -12,6 +12,7 @@ import { UNSElasticacheConstruct } from 'infrastructure/cdk/constructs/bases/UNS
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
+import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 const interfaceEndpoints = {

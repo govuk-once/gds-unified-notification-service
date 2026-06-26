@@ -91,7 +91,7 @@ export class UNSMTLSCommon extends Construct {
       });
       common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
 
-      const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: common.kms });
+      const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: common.kms, names: [`cert-sm-writer`]});
       common.kms.grantEncryptDecrypt(smWriterProvider.fn);
 
       for (const certificateDetails of getConsumers(config.env, config)) {
