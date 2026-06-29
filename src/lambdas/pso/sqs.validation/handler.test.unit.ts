@@ -1,7 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import { ContentValidationError } from '@common/models/Errors/BadRequestError';
 import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
