@@ -29,11 +29,11 @@ describe('Post /send', () => {
     psoAPI,
   }) => {
     // Act
-    const result = await psoAPI.post('/send', messageRequest);
+    const result = await psoAPI.post({ path: '/send', body: messageRequest });
 
     // Assert
     expect(result.status).toBe(202);
-    expect(result.data).toEqual([
+    expect(result.body).toEqual([
       {
         NotificationID: notificationID,
       },
@@ -42,7 +42,7 @@ describe('Post /send', () => {
 
   test('if notification is successfully validated, processed, dispatched.', async ({ psoAPI }) => {
     // Act
-    const result = await psoAPI.post('/send', messageRequest);
+    const result = await psoAPI.post({ path: '/send', body: messageRequest });
 
     // Assert
     expect(result.status).toBe(202);
@@ -72,7 +72,7 @@ describe('Post /send', () => {
 
   test('returns 202 when message is valid markdown', async ({ psoAPI }) => {
     // Arrange
-    const messageWithoutFormat = [
+    const body = [
       {
         NotificationID: notificationID,
         CampaignID: 'testCampaignID',
@@ -86,11 +86,11 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = await psoAPI.post('/send', messageWithoutFormat);
+    const result = await psoAPI.post({ path: '/send', body });
 
     // Assert
     expect(result.status).toBe(202);
-    expect(result.data).toEqual([
+    expect(result.body).toEqual([
       {
         NotificationID: notificationID,
       },
@@ -99,7 +99,7 @@ describe('Post /send', () => {
 
   test('it returns 400 when the request has no body.', async ({ psoAPI }) => {
     // Act
-    const result = psoAPI.post('/send');
+    const result = psoAPI.post({ path: '/send' });
 
     // Assert
     await expect(result).rejects.toMatchObject(
@@ -122,11 +122,11 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = await psoAPI.post('/send', messagesWithNoDepartmentID);
+    const result = await psoAPI.post({ path: '/send', body: messagesWithNoDepartmentID });
 
     // Assert
     expect(result.status).toBe(202);
-    expect(result.data).toEqual([{ NotificationID: notificationID }]);
+    expect(result.body).toEqual([{ NotificationID: notificationID }]);
   });
 
   test('it returns 400 when the message has no userID.', async ({ psoAPI }) => {
@@ -144,7 +144,7 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithNoUserID);
+    const result = psoAPI.post({ path: '/send', body: messagesWithNoUserID });
 
     // Assert
     await expect(result).rejects.toMatchObject(
@@ -167,7 +167,7 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithNoNotificationTitle);
+    const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationTitle });
 
     // Assert
     await expect(result).rejects.toMatchObject(
@@ -190,7 +190,7 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithNoNotificationBody);
+    const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationBody });
 
     // Assert
     await expect(result).rejects.toMatchObject(
@@ -214,7 +214,7 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithInvalidMarkdown);
+    const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
 
     // Assert
     await expect(result).rejects.toMatchObject(
@@ -238,7 +238,7 @@ describe('Post /send', () => {
     ];
 
     // Act
-    const result = psoAPI.post('/send', messagesWithInvalidMarkdown);
+    const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
 
     // Assert
     await expect(result).rejects.toMatchObject(

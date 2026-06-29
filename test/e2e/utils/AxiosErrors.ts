@@ -1,29 +1,13 @@
-import { AxiosError } from 'axios';
-
-export const NotFoundAxiosError = (errors?: string[]) => {
+export const HttpErrorExpectFactory = (code: number, label: string) => (errors?: string[]) => {
   return {
-    constructor: AxiosError,
-    response: {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data: expect.objectContaining({
-        Status: 404,
-        HttpError: 'NotFound',
-        Errors: errors ?? [],
-      }),
-    },
+    status: code,
+    body: JSON.stringify({
+      Status: code,
+      HttpError: label,
+      Errors: errors ?? [],
+    }),
   };
 };
 
-export const BadRequestAxiosError = (errors?: string[]) => {
-  return {
-    constructor: AxiosError,
-    response: {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data: expect.objectContaining({
-        Status: 400,
-        HttpError: 'BadRequest',
-        Errors: errors ?? [],
-      }),
-    },
-  };
-};
+export const NotFoundAxiosError = HttpErrorExpectFactory(404, 'NotFound');
+export const BadRequestAxiosError = HttpErrorExpectFactory(400, 'BadRequest');

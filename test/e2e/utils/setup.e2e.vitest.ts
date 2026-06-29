@@ -1,11 +1,12 @@
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { FetchService } from '@common/services/FetchService';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
-import axios, { AxiosError, AxiosInstance } from 'axios';
-import https from 'node:https';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
+
+import { Agent } from 'undici';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -23,7 +24,7 @@ const flexUrl = domainName(`flex`);
 let flexApiKey = '';
 let psoApiKey = '';
 
-let httpsAgent: https.Agent;
+let httpsAgent: Agent;
 
 beforeAll(async () => {
   try {
@@ -115,9 +116,12 @@ beforeAll(async () => {
     }
 
     // Creates a https agent for mTLS using imported credentials
-    httpsAgent = new https.Agent({
-      cert: crt,
-      key: key,
+    httpsAgent = new Agent({
+      connect: {
+        cert: crt,
+        key: key,
+        rejectUnauthorized: false,
+      },
     });
 
     if (!httpsAgent) {
@@ -129,60 +133,34 @@ beforeAll(async () => {
   }
 });
 
-// Sanitizer for axios error objects to prevent config or request data from being logged
-const axiosInstanceSanitizer = (instance: AxiosInstance) => {
-  instance.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (axios.isAxiosError(error)) {
-        delete error.config;
-        delete error.request;
-        if (error.response) {
-          delete (error.response as Partial<AxiosError>).config;
-          delete (error.response as Partial<AxiosError>).request;
-        }
-      }
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-      return Promise.reject(error);
-    }
-  );
-};
-
 // Add clients to test implementation for e2d
 export const test = baseTest
   // Creates an axios client for PSO requests
   .extend('psoAPI', ({}) => {
-    const instance = axios.create({
-      baseURL: `https://${psoUrl}`,
-      timeout: 60000,
-      httpsAgent,
-      headers: {
+    return new FetchService({
+      baseUrl: `https://${psoUrl}`,
+      defaultHeaders: {
         'x-api-key': psoApiKey,
       },
+      defaultTimeout: 60000,
+      agent: httpsAgent,
     });
-
-    axiosInstanceSanitizer(instance);
-    return instance;
   })
-  // Creates an axios client for FLEX requests
   .extend('flexAPI', ({}) => {
-    const instance = axios.create({
-      baseURL: `https://${flexUrl}`,
-      timeout: 60000,
-      httpsAgent,
-      headers: {
+    return new FetchService({
+      baseUrl: `https://${flexUrl}`,
+      defaultHeaders: {
         'x-api-key': flexApiKey,
       },
+      defaultTimeout: 60000,
+      agent: httpsAgent,
     });
-
-    axiosInstanceSanitizer(instance);
-    return instance;
   });
 
-export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string) => {
-  const result = await psoAPI.get(`/status/${notificationID}`);
-  console.log(`Status for notification ${notificationID}:`, result.data);
-  expect(result.data).toEqual(
+export const checkStatus = async (psoAPI: FetchService, notificationID: string) => {
+  const result = await psoAPI.get({ path: `/status/${notificationID}` });
+  console.log(`Status for notification ${notificationID}:`, result.body);
+  expect(result.body).toEqual(
     expect.toBeOneOf([
       expect.arrayContaining(
         [
@@ -202,7 +180,7 @@ export const checkStatus = async (psoAPI: AxiosInstance, notificationID: string)
       ),
     ])
   );
-  const status = result.data as INotificationStatus[];
+  const status = result.body as INotificationStatus[];
   expect(status).toBeDefined();
   return status;
 };

@@ -1,5 +1,5 @@
 // Unbound methods are allowed as that's how vi.mocked works
-import { BadGatewayError } from '@common/models/Errors/BadGatewayError';
+import { BadGatewayError } from '@common/models/Errors';
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
 import { EnumParameters, StringParameters } from '@common/utils';
 import {
@@ -134,8 +134,10 @@ describe('NotificationService', () => {
 
       // Assert
       expect(postSpy).toHaveBeenCalledWith(
-        '/notifications?c=push',
-        expect.objectContaining({ data: { deeplink: 'govuk://notifications?id=test01' } })
+        expect.objectContaining({
+          body: expect.objectContaining({ data: { deeplink: 'govuk://notifications?id=test01' } }),
+          path: '/notifications?c=push',
+        })
       );
     });
 
@@ -150,7 +152,7 @@ describe('NotificationService', () => {
       const result = instance.send(mockRequest);
 
       // Assert
-      await expect(result).rejects.toThrow(new BadGatewayError(['Request failed with status code 400']));
+      await expect(result).rejects.toThrow(new BadGatewayError(['API [POST] /notifications?c=push Failed with 400']));
       expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
         NotificationID: mockRequest.NotificationID,
       });
@@ -162,14 +164,10 @@ describe('NotificationService', () => {
         {
           NotificationID: mockRequest.NotificationID,
           error: {
-            message: 'Request failed with status code 400',
-            name: 'AxiosError',
-            response: {
-              errors: [
-                'Request is malformed: Failed to parse app_id from request',
-                'Failed to parse app_id from request (app_id is present but malformed)',
-              ],
-            },
+            message: 'API [POST] /notifications?c=push Failed with 400',
+            name: 'Error',
+            response:
+              '{"errors":["Request is malformed: Failed to parse app_id from request","Failed to parse app_id from request (app_id is present but malformed)"]}',
             status: 400,
           },
         }

@@ -11,9 +11,9 @@ This service is ran with AWS using serverless architecture.
 - Checkov v3.2.490
 - AWS CDK
 
-Recommending use of [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm), [tfenv](https://github.com/tfutils/tfenv)
+Recommending using [Mise-en-place](https://mise.jdx.dev/getting-started.html) [configuration](./mise.toml) defines all of the dependencies and utilities needed for development.
 
-[Mise-en-place](https://mise.jdx.dev/getting-started.html) [configuration](./mise.toml) is set up to install the above too.
+[fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm) should work too as [./node-version](./.node-version) file defined the version
 
 ## Installation
 
@@ -28,8 +28,7 @@ git clone git@github.com:govuk-once/gds-unified-notification-service.git
 3. Enable relevant utils
 
 ```sh
-fnm use # or nvm use
-tfenv use
+fnm use # or nvm use  # or mise install
 ```
 
 4. Install dependencies:
@@ -50,7 +49,7 @@ pnpm run  development:sandbox:setup
 6. Recommended - Install checkov - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
 
 ```sh
-brew install checkov
+brew install checkov # not needed if using mise
 # Pre-configured aliases
 pnpm run  checkov
 ```
