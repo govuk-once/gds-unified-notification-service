@@ -1,6 +1,7 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SQSClient } from '@aws-sdk/client-sqs';
+import { ContentValidationError } from '@common/models/Errors/BadRequestError';
 import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
@@ -109,7 +110,7 @@ describe('Validation QueueHandler', () => {
     ],
   } as unknown as QueueEvent<IMessage>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
@@ -124,13 +125,12 @@ describe('Validation QueueHandler', () => {
     serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
-    await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Validation(
       serviceMocks.configurationServiceMock,
       observabilityMocks,
-      serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
         notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })
