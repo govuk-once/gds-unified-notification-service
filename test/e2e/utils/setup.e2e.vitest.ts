@@ -143,7 +143,9 @@ export const test = baseTest
         'x-api-key': psoApiKey,
       },
       defaultTimeout: 60000,
-      agent: httpsAgent,
+      fetchOptions: {
+        dispatcher: httpsAgent as unknown as never,
+      },
     });
   })
   .extend('flexAPI', ({}) => {
@@ -153,7 +155,6 @@ export const test = baseTest
         'x-api-key': flexApiKey,
       },
       defaultTimeout: 60000,
-      agent: httpsAgent,
     });
   });
 

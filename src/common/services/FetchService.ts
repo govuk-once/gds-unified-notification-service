@@ -1,5 +1,3 @@
-import { Agent, fetch as undiciFetch } from 'undici';
-
 export interface FetchResponse<T = unknown> {
   status: number;
   headers: Headers;
@@ -38,7 +36,7 @@ export const isFetchResponseError = (item: unknown): item is FetchErrorResponse<
 };
 
 export type FetchInputParameter = Parameters<typeof fetch>[0];
-export type FetchOptionsParameter = Parameters<typeof fetch>[1] & { dispatcher?: Agent };
+export type FetchOptionsParameter = Parameters<typeof fetch>[1];
 
 export class FetchService {
   constructor(
@@ -46,16 +44,11 @@ export class FetchService {
       baseUrl: string;
       defaultHeaders?: Record<string, string>;
       defaultTimeout?: number;
-      agent?: Agent;
+      fetchOptions?: FetchOptionsParameter;
     }
   ) {}
 
   async fetch(input: FetchInputParameter, init?: FetchOptionsParameter): Promise<Response> {
-    // If dispatcher is present, use undici as it support mtls agent
-    if (init?.dispatcher) {
-      return await (undiciFetch as typeof fetch)(input, init);
-    }
-    // // otherwise use standard fetch
     return await fetch(input, init);
   }
 
@@ -77,12 +70,12 @@ export class FetchService {
     let response: Response;
     try {
       response = await this.fetch(url, {
+        ...(this.props.fetchOptions ?? {}),
         method,
         headers: requestHeaders,
         body: body && requestHeaders['Content-Type'] == 'application/json' ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(timeout),
-        ...(this.props.agent ? { dispatcher: this.props.agent } : {}),
-      } as FetchOptionsParameter);
+      });
     } catch (error) {
       if (error instanceof Error && error.name === 'TimeoutError') {
         throw new Error(`API request timmed out after ${timeout}ms`);
