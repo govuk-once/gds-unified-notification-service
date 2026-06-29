@@ -36,6 +36,7 @@ export const MetricsLabels = {
 
   CURRENT_RATE: 'CURRENT_RATE',
   CURRENT_RATE_LIMIT: 'CURRENT_RATE_LIMIT',
+  RATE_LIMITING_ENFORCED: 'RATE_LIMITING_ENFORCED',
 
   DISPATCHING_ATTEMPTS: 'DISPATCHING_ATTEMPTS',
   DISPATCH_DURATION: 'DISPATCH_DURATION',
@@ -63,9 +64,6 @@ export const MetricsLabels = {
   QUEUE_DISPATCH_PUBLISHED_FAILED: 'QUEUE_DISPATCH_PUBLISHED_FAILED',
   QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY: 'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
   QUEUE_PROCESSING_PUBLISHED_FAILED: 'QUEUE_PROCESSING_PUBLISHED_FAILED',
-
-  RATE_LIMITING: 'RATE_LIMITING',
-  RATE_LIMITING_ENFORCED: 'RATE_LIMITING_ENFORCED',
 } as const;
 
 // Coverts all metrics for analytics events into a metric that uses the units count
@@ -95,6 +93,7 @@ export const MetricsLabelsUnits = {
 
   [MetricsLabels.CURRENT_RATE]: MetricUnit.Count,
   [MetricsLabels.CURRENT_RATE_LIMIT]: MetricUnit.Count,
+  [MetricsLabels.RATE_LIMITING_ENFORCED]: MetricUnit.NoUnit,
 
   [MetricsLabels.DISPATCHING_ATTEMPTS]: MetricUnit.Count,
   [MetricsLabels.DISPATCH_DURATION]: MetricUnit.Milliseconds,
@@ -122,9 +121,6 @@ export const MetricsLabelsUnits = {
   [MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED]: MetricUnit.Count,
   [MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY]: MetricUnit.Count,
   [MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED]: MetricUnit.Count,
-
-  [MetricsLabels.RATE_LIMITING]: MetricUnit.Count,
-  [MetricsLabels.RATE_LIMITING_ENFORCED]: MetricUnit.NoUnit,
 } as const;
 
 export type KnownMetrics = Omit<Metrics, 'addMetric'> & {

@@ -22,14 +22,19 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
     return this;
   }
 
-  public addPublishingResultMetric(success: boolean, count: number) {
-    if (success) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.QUEUE_DISPATCH_PUBLISHED_SUCCESSFULLY,
-        MetricUnit.Count,
-        count
-      );
-    }
-    this.observability.metrics.addMetric(MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED, MetricUnit.Count, count);
+  public addPublishingSuccessMetric(count: number) {
+    this.observability.metrics.addMetric(
+      MetricsLabels.QUEUE_DISPATCH_PUBLISHED_SUCCESSFULLY,
+      MetricUnit.Count,
+      count
+    );
+  }
+
+  public addPublishingFailedMetric(count: number) {
+    this.observability.metrics.addMetric(
+      MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED,
+      MetricUnit.Count,
+      count
+    );
   }
 }

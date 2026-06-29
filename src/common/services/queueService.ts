@@ -37,7 +37,9 @@ export abstract class QueueService<InputType> {
     return this.queueName;
   }
 
-  public abstract addPublishingResultMetric(success: boolean, count: number): void;
+  public abstract addPublishingSuccessMetric(count: number): void
+
+  public abstract addPublishingFailedMetric(count: number): void
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
     this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`, {
@@ -53,12 +55,12 @@ export abstract class QueueService<InputType> {
       const response = await this.client.send(command);
 
       this.observability.logger.info('Successfully published message ID', { messageId: response.MessageId });
-      this.addPublishingResultMetric(true, 1);
+      this.addPublishingSuccessMetric(1);
     } catch (error) {
       this.observability.logger.error('Error publishing to SQS', {
         error: this.observability.formatError(error),
       });
-      this.addPublishingResultMetric(false, 1);
+      this.addPublishingFailedMetric(1);
       throw error;
     }
   }
@@ -86,11 +88,11 @@ export abstract class QueueService<InputType> {
         this.observability.logger.info('Successfully published messages', {
           successfulMessageCount: response.Successful.length,
         });
-        this.addPublishingResultMetric(false, response.Successful.length);
+        this.addPublishingSuccessMetric(response.Successful.length);
       }
       if (response.Failed) {
         this.observability.logger.error('Failed to publish messages', { failedMessageCount: response.Failed.length });
-        this.addPublishingResultMetric(false, response.Failed.length);
+        this.addPublishingFailedMetric(response.Failed.length);
       }
     } catch (error) {
       this.observability.logger.error('Error publishing to SQS', {

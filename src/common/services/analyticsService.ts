@@ -17,17 +17,6 @@ export class AnalyticsService {
     public queue: AnalyticsQueueService
   ) {}
 
-  public addPublishingResultMetric(success: boolean, count: number) {
-    if (success) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_SUCCESSFULLY,
-        MetricUnit.Count,
-        count
-      );
-    }
-    this.observability.metrics.addMetric(MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED, MetricUnit.Count, count);
-  }
-
   private addAnalyticsEventMetricCount(status: NotificationStateEnum, value: number) {
     // Adds a metric to count all analytics events triggered
     const analyticsEventMetricLabel = MetricsLabels[prefixEvent(status) as keyof typeof MetricsLabels];
