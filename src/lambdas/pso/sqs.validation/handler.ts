@@ -71,7 +71,6 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     protected observability: ObservabilityService,
     asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
-    console.log(asyncDependencies)
     super(config, observability);
     this.injectDependencies(asyncDependencies);
   }
