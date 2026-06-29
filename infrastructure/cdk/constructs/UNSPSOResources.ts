@@ -526,10 +526,7 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // Secret Manager 
     //// =====================================================
-
-    const smWriterProvider = new UNSSMWriterProvider(this, config, {
-      kms: refs.kms
-    })
+    const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: refs.kms, names: [`bq-sm-writer`]});
 
     const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
       secretName: `${config.prefix}/bigquery/export/key/id`,
