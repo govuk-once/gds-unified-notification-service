@@ -160,7 +160,6 @@ export const test = baseTest
 
 export const checkStatus = async (psoAPI: FetchService, notificationID: string) => {
   const result = await psoAPI.get({ path: `/status/${notificationID}` });
-  console.log(`Status for notification ${notificationID}:`, result.body);
   expect(result.body).toEqual(
     expect.toBeOneOf([
       expect.arrayContaining(
