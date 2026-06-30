@@ -64,7 +64,7 @@ jobs:
         run: pnpm run build
 
       - name: 🏗️ CDK Plan
-        run: pnpm run cdk:plan
+        run: pnpm run cdk:diff
         env:
           region: ${{ vars.AWS_REGION }}
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
