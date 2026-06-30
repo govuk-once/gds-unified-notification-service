@@ -1,7 +1,7 @@
 import { InvalidCharacterError } from '@common/models/Errors/BadRequestError';
 import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { AnalyticsExportService } from '@common/services/analyticsExportService';
+import { AnalyticsExportService, AnalyticsLog } from '@common/services/analyticsExportService';
 import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -38,6 +38,16 @@ describe('AnalyticsExportService', () => {
     EventDateTime: '2026-01-22T00:00:01Z',
     APIGWExtendedID: 'testExample',
     EventReason: JSON.stringify(['testing']),
+  };
+
+  const mockAnalyticsLog: AnalyticsLog = {
+    EventID: '123',
+    DepartmentID: 'DEP1',
+    OrganisationID: 'ORG01',
+    NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
+    CampaignID: 'CAM_ID',
+    EventStatus: NotificationStateEnum.RECEIVED,
+    EventTimestamp: '2026-01-22T00:00:01Z',
   };
 
   const mockCsv = [
@@ -106,6 +116,47 @@ describe('AnalyticsExportService', () => {
       );
     });
 
+    it('should handle optional values when converting to csv.', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date(2026, 1, 1, 12, 30, 0);
+      vi.setSystemTime(date);
+      const logStreamName = date.toISOString().split(':').shift() ?? '';
+
+      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
+
+      const mockAnalyticsNoDepID = { ...mockAnalytics, DepartmentID: undefined};
+      const mockCsvNoDepID = [
+        "",
+        '123',
+        '2026-01-22T00:00:01Z',
+        'ORG01',
+        undefined,
+        '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
+        'CAM_ID',
+        NotificationStateEnum.RECEIVED,
+      ].join(',');
+
+      // Act
+      await instance.logAnalytics(mockAnalyticsNoDepID);
+
+      // Assert
+      expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: {
+            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logStreamName: logStreamName,
+            logEvents: [
+              {
+                timestamp: date.getTime(),
+                message: mockCsvNoDepID,
+              },
+            ],
+          },
+        })
+      );
+    });
+
     it('should throw an error if an analytics object contain an invalid char , .', async () => {
       // Arrange
       vi.useFakeTimers();
@@ -114,10 +165,11 @@ describe('AnalyticsExportService', () => {
       const logStreamName = date.toISOString().split(':').shift() ?? '';
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
-      mockAnalytics.CampaignID = 'invalid-camp,'
+      const mockInvalidAnalytics = {...mockAnalytics, CampaignID: 'invalid-camp,'};
+      const mockInvalidAnalyticsLog = {...mockAnalyticsLog, CampaignID: 'invalid-camp,'};
 
       // Act
-      const result = instance.logAnalytics(mockAnalytics);
+      const result = instance.logAnalytics(mockInvalidAnalytics);
 
       // Assert
       await expect(result).rejects.toThrow(new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.']))
@@ -125,7 +177,7 @@ describe('AnalyticsExportService', () => {
         'Analytics contains invalid char , or " for csv format.', 
         { 
           field: 'CampaignID', 
-          analytics: mockAnalytics
+          analyticsLog: mockInvalidAnalyticsLog
         }
       )
     });
@@ -138,10 +190,11 @@ describe('AnalyticsExportService', () => {
       const logStreamName = date.toISOString().split(':').shift() ?? '';
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
-      mockAnalytics.CampaignID = 'invalid-camp"'
+      const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp"' };
+      const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp"'};
 
       // Act
-      const result = instance.logAnalytics(mockAnalytics);
+      const result = instance.logAnalytics(mockInvalidAnalytics);
 
       // Assert
       await expect(result).rejects.toThrow(new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.']))
@@ -149,7 +202,7 @@ describe('AnalyticsExportService', () => {
         'Analytics contains invalid char , or " for csv format.', 
         { 
           field: 'CampaignID', 
-          analytics: mockAnalytics
+          analyticsLog: mockInvalidAnalyticsLog
         }
       )
     });

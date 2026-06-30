@@ -7,8 +7,8 @@ import { ObservabilityService } from "@common/services/observabilityService";
 import { StringParameters } from "@common/utils";
 import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
 
-interface AnalyticsLog {
-  EventId: string,
+export interface AnalyticsLog {
+  EventID: string,
   EventTimestamp: string,
   OrganisationID: string,
   DepartmentID?: string,
@@ -122,8 +122,8 @@ export class AnalyticsExportService {
   private analyticsToCsvLog(analytics: IAnalytics): string {
     this.observability.logger.debug(`Converting analytics to csv format`, { analytics });
 
-    const analyticsLogs: AnalyticsLog = {
-      EventId: analytics.EventID,
+    const analyticsLog: AnalyticsLog = {
+      EventID: analytics.EventID,
       EventTimestamp: analytics.EventDateTime,
       OrganisationID: analytics.OrganisationID,
       DepartmentID: analytics.DepartmentID,
@@ -132,23 +132,18 @@ export class AnalyticsExportService {
       EventStatus: analytics.Event,
     }
 
-    for (const [key, value] of Object.entries(analyticsLogs)) {
-      if ((value as string).includes(`,`) || (value as string).includes(`"`)) {
+    for (const [key, value] of Object.entries(analyticsLog)) {
+      if (value && ((value as string).includes(`,`) || (value as string).includes(`"`))) {
         const errorMsg = `Analytics contains invalid char , or " for csv format.`
-        this.observability.logger.warn(errorMsg, { field: key, analytics});
+        this.observability.logger.warn(errorMsg, { field: key, analyticsLog});
         throw new InvalidCharacterError([errorMsg]);
       }
     }
 
     return [
       "",
-      analytics.EventID,
-      analytics.EventDateTime,
-      analytics.OrganisationID,
-      analytics.DepartmentID,
-      analytics.NotificationID,
-      analytics.CampaignID,
-      analytics.Event,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      ...Object.values(analyticsLog)
     ].join(",")
   }
 }
