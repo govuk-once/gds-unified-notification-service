@@ -7,6 +7,16 @@ import { ObservabilityService } from "@common/services/observabilityService";
 import { StringParameters } from "@common/utils";
 import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
 
+interface AnalyticsLog {
+  EventId: string,
+  EventTimestamp: string,
+  OrganisationID: string,
+  DepartmentID?: string,
+  NotificationID: string,
+  CampaignID?: string,
+  EventStatus: string,
+}
+
 export class AnalyticsExportService {
   private logGroupName: string;
 
@@ -111,8 +121,19 @@ export class AnalyticsExportService {
 
   private analyticsToCsvLog(analytics: IAnalytics): string {
     this.observability.logger.debug(`Converting analytics to csv format`, { analytics });
-    for (const [key, value] of Object.entries(analytics)) {
-      if (value.includes(`,`) || value.includes(`"`)) {
+
+    const analyticsLogs: AnalyticsLog = {
+      EventId: analytics.EventID,
+      EventTimestamp: analytics.EventDateTime,
+      OrganisationID: analytics.OrganisationID,
+      DepartmentID: analytics.DepartmentID,
+      NotificationID: analytics.NotificationID,
+      CampaignID: analytics.CampaignID,
+      EventStatus: analytics.Event,
+    }
+
+    for (const [key, value] of Object.entries(analyticsLogs)) {
+      if ((value as string).includes(`,`) || (value as string).includes(`"`)) {
         const errorMsg = `Analytics contains invalid char , or " for csv format.`
         this.observability.logger.warn(errorMsg, { field: key, analytics});
         throw new InvalidCharacterError([errorMsg]);

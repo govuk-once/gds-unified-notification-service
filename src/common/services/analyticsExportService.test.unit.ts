@@ -37,7 +37,7 @@ describe('AnalyticsExportService', () => {
     Event: NotificationStateEnum.RECEIVED,
     EventDateTime: '2026-01-22T00:00:01Z',
     APIGWExtendedID: 'testExample',
-    EventReason: 'testing',
+    EventReason: JSON.stringify(['testing']),
   };
 
   const mockCsv = [
