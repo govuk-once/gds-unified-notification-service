@@ -1,4 +1,4 @@
-import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
+import { NotFoundAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
@@ -23,18 +23,18 @@ describe('Get /status/campaign/{campaignID}', () => {
 
   test('returns 200 and a campaign status object when called with a campaignID that exits.', async ({ psoAPI }) => {
     // Arrange
-    await psoAPI.post('/send', mockMessageWithCampaign);
+    await psoAPI.post({ path: '/send', body: mockMessageWithCampaign });
     await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
       timeout: 30000,
       interval: 2000,
     });
 
     // Act
-    const result = await psoAPI.get(`/status/campaign/${campaignID}?departmentID=${departmentID}`);
+    const result = await psoAPI.get({ path: `/status/campaign/${campaignID}?departmentID=${departmentID}` });
 
     // Assert
     expect(result.status).toBe(200);
-    expect(result.data).toEqual({
+    expect(result.body).toEqual({
       CampaignID: campaignID,
       DepartmentID: departmentID,
       ProcessingSummary: {
@@ -55,7 +55,7 @@ describe('Get /status/campaign/{campaignID}', () => {
     const invalidCampaignID = 'invalidCampaignID';
 
     // Act
-    const result = psoAPI.get(`/status/campaign/${invalidCampaignID}`);
+    const result = psoAPI.get({ path: `/status/campaign/${invalidCampaignID}` });
 
     // Assert
     await expect(result).rejects.toMatchObject(NotFoundAxiosError());

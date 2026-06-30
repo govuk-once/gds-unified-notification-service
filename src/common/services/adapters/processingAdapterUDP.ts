@@ -1,15 +1,15 @@
 import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
-import * as axios from 'axios';
 import z from 'zod';
 
-import { ProcessingAdapterError } from '@common/models/Errors/BadGatewayError';
+import { ProcessingAdapterError } from '@common/models/Errors';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NoLinkingIdFound } from '@common/models/Errors/NotFoundError';
+import { FetchService, isFetchResponseError } from '@common/services/FetchService';
+import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
-import { aws4Interceptor } from 'aws4-axios';
 
 const UDPConfigSchema = z.object({
   apiAccountId: z.string(),
@@ -20,7 +20,7 @@ const UDPConfigSchema = z.object({
 });
 
 export class ProcessingAdapterUDP implements ProcessingAdapter {
-  public client: axios.Axios;
+  public client: FetchService;
   public udpConfig: z.infer<typeof UDPConfigSchema>;
 
   constructor(
@@ -47,24 +47,18 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
       // Fetch config from UDPs AWS Acc
       this.udpConfig = await this.smConfig.getParameterAsType(config, UDPConfigSchema, true);
-
-      // Create HTTP client
-      this.client = axios.default.create({
-        baseURL: this.udpConfig.apiUrl,
-        headers: {
+      this.client = new FetchSigV4Service({
+        baseUrl: this.udpConfig.apiUrl,
+        defaultHeaders: {
           'x-api-key': this.udpConfig.apiKey,
         },
-      });
-
-      // Add SigV4 signer
-      const interceptor = aws4Interceptor({
-        options: {
+        credentials: {
           region: this.udpConfig.region,
-          assumeRoleArn: this.udpConfig.consumerRoleArn,
+          roleArn: this.udpConfig.consumerRoleArn,
           service: 'execute-api',
+          externalId: 'UNS',
         },
       });
-      this.client.interceptors.request.use(interceptor);
     }
   }
 
@@ -75,13 +69,15 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
     try {
       // /v1/{resourcePath+} - notifications is resource namespace that was assigned to us by flex
-      const result = await this.client.get(`/v1/notifications`, {
+      const result = await this.client.get({
+        // TODO: Figure out nicer way of passing that in to support multiple PSO's in the future
+        path: `/v1/notifications`,
         headers: {
-          // TODO: Figure out nicer way of passing that in to support multiple PSO's in the future
           'requesting-service': 'dvla',
           'requesting-service-user-id': request.userID,
         },
       });
+
       const data = z
         .object({
           data: z.object({
@@ -92,7 +88,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
             notificationId: z.string().optional(),
           }),
         })
-        .parse(result.data);
+        .parse(result.body);
 
       return {
         request,
@@ -104,25 +100,26 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
   }
 
   private errorHandler(request: ProcessingAdapterRequest, error: unknown): never {
-    if (axios.isAxiosError(error)) {
-      this.observability.logger.error(`Axios Error data`, {
+    this.observability.logger.error(`Processing adapter error`, { error });
+
+    if (isFetchResponseError(error)) {
+      this.observability.logger.error(`API Error data`, {
         NotificationID: request.userID,
         error: {
           name: error.name,
           status: error.status,
           message: error.message,
-          response: error.response?.data,
+          response: error.body,
         },
       });
 
-      if (error.response?.status === 404) {
+      if (error.status === 404) {
         throw new NoLinkingIdFound([`User ${request.userID} does not exist in UDP service`]);
       }
 
       throw new ProcessingAdapterError([error.message]);
-    } else {
-      this.observability.logger.error(`Non-axios Error`, { error });
-      throw error;
     }
+    this.observability.logger.error(`Non-api Error`, { error });
+    throw error;
   }
 }
