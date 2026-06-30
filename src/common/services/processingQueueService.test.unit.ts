@@ -1,5 +1,7 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
+import { MetricsLabels } from '@common/services/observabilityService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils';
 import {
@@ -79,7 +81,7 @@ describe('ProcessingQueueService', () => {
   });
 
   describe('publishMessage', () => {
-    it('should send a message when given the message params.', async () => {
+    it('should send a message when given the message params and adds a metric.', async () => {
       // Arrange
       sqsMock.on(SendMessageCommand).resolvesOnce({
         MessageId: 'message-1',
@@ -98,9 +100,14 @@ describe('ProcessingQueueService', () => {
           MessageBody: JSON.stringify(mockMessageBody),
         })
       );
+      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+        MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
+        MetricUnit.Count,
+        1
+      )
     });
 
-    it('should throw an error and log when the send message command fails', async () => {
+    it('should throw an error and log when the send message command fails and adds a metric', async () => {
       // Arrange
       const error = new Error('SQS Error');
       sqsMock.on(SendMessageCommand).rejectsOnce(error);
@@ -111,11 +118,16 @@ describe('ProcessingQueueService', () => {
       // Assert
       await expect(result).rejects.toThrow(error);
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+        MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
+        MetricUnit.Count,
+        1
+      )
     });
   });
 
   describe('publishBatchMessage', () => {
-    it('should send a batch of messages when given the message params.', async () => {
+    it('should send a batch of messages when given the message params and adds a metric.', async () => {
       // Arrange
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
@@ -142,9 +154,14 @@ describe('ProcessingQueueService', () => {
       expect(observabilityMock.logger.info).toHaveBeenCalledWith('Successfully published messages', {
         successfulMessageCount: 1,
       });
+      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+        MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
+        MetricUnit.Count,
+        1
+      )
     });
 
-    it('should send a batch of messages and log any that were failed to be sent.', async () => {
+    it('should send a batch of messages, logs any that were failed to be sent, and adds a metric.', async () => {
       // Arrange
       const mockMessageBody_0 = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
@@ -194,6 +211,11 @@ describe('ProcessingQueueService', () => {
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages', {
         failedMessageCount: 1,
       });
+      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+        MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
+        MetricUnit.Count,
+        1
+      )
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {

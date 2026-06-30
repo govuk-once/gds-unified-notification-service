@@ -21,14 +21,15 @@ export class AnalyticsQueueService extends QueueService<unknown> {
     return this;
   }
 
-  public addPublishingResultMetric(success: boolean, count: number) {
-    if (success) {
-      this.observability.metrics.addMetric(
-        MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_SUCCESSFULLY,
-        MetricUnit.Count,
-        count
-      );
-    }
+  public addPublishingSuccessMetric(count: number) {
+    this.observability.metrics.addMetric(
+      MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_SUCCESSFULLY,
+      MetricUnit.Count,
+      count
+    );
+  }
+
+  public addPublishingFailedMetric(count: number): void {
     this.observability.metrics.addMetric(MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED, MetricUnit.Count, count);
   }
 }

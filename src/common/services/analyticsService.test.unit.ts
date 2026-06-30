@@ -23,7 +23,6 @@ describe('analyticsService', () => {
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    serviceMocks.analyticsQueueServiceMock.addPublishingResultMetric = vi.fn().mockResolvedValue(undefined);
     serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
 
