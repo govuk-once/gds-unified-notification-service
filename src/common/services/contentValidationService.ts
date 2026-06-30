@@ -1,6 +1,5 @@
 import { ContentValidationError } from '@common/models/Errors/BadRequestError';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
 
@@ -45,21 +44,35 @@ export class ContentValidationService {
 
   constructor(
     protected observability: ObservabilityService,
-    protected config: ConfigurationService
+    protected config: ConfigurationService,
+    private readonly protocols: string[],
+    private readonly hostnames: string[],
   ) {}
 
   private createError(content: string) {
     return new ContentValidationError([content]);
   }
 
-  public async validateUrls(input: string | undefined) {
+  public validate(input: string | undefined): string {
+    // Does not validate if undefined or empty string
+    if (input === undefined || input.trim() === '') {
+      throw this.createError('Message body is undefined or empty string.');
+    }
+
+    const tokens = this.parser.parse(input, {});
+
+    this.observability.logger.info('Validating message body for allowed markdown.');
+    for (const token of tokens) {
+      this.validateMarkdown(token);
+    }
+
+    return input;
+  }
+
+  private validateUrls(input: string | undefined) {
     if (input == undefined || input == '') {
       return input;
     }
-
-    // Fetch configuration
-    const protocols = (await this.config.getParameter(StringParameters.Content.Allowed.Protocols)).split(',');
-    const hostnames = (await this.config.getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',');
 
     // Split string by whitespace
     const segments = input.split(/(\s+)/);
@@ -74,15 +87,15 @@ export class ContentValidationService {
         continue;
       }
       // Validate protocol is on the list
-      if (protocols.includes(url.protocol) == false) {
+      if (this.protocols.includes(url.protocol) == false) {
         throw this.createError(
-          `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${protocols.join(',')}`
+          `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${this.protocols.join(',')}`
         );
       }
 
       // Validate hostnames for https protocols
       if (url.protocol == 'https:') {
-        const validHostname = hostnames
+        const validHostname = this.hostnames
           .map((hostname) => {
             // If hostname starts with *, strip it - then check if URLs hostname ends with it
             if (hostname.startsWith('*')) {
@@ -101,23 +114,7 @@ export class ContentValidationService {
     return input;
   }
 
-  public async validate(input: string | undefined): Promise<string> {
-    // Does not validate if undefined or empty string
-    if (input === undefined || input.trim() === '') {
-      throw this.createError('Message body is undefined or empty string.');
-    }
-
-    const tokens = this.parser.parse(input, {});
-
-    this.observability.logger.info('Validating message body for allowed markdown.');
-    for (const token of tokens) {
-      await this.validateMarkdown(token);
-    }
-
-    return input;
-  }
-
-  private async validateMarkdown(token: Token): Promise<void> {
+  private validateMarkdown(token: Token) {
     // Validate the token type against the allowed list
     if (!ALLOWED_TOKEN_TYPES_MARKDOWN.has(token.type)) {
       throw this.createError(`Message body contains markdown elements which are not valid: ${token.type}`);
@@ -132,18 +129,18 @@ export class ContentValidationService {
         throw this.createError('Failed markdown validation as url is empty.');
       }
 
-      await this.validateUrls(url);
+      this.validateUrls(url);
     }
 
     // Handle raw URLs
     if (token.type === 'text' && token.content) {
-      await this.validateUrls(token.content);
+      this.validateUrls(token.content);
     }
 
     // Recursively check children
     if (token.children && token.children.length > 0) {
       for (const child of token.children) {
-        await this.validateMarkdown(child);
+        this.validateMarkdown(child);
       }
     }
   }

@@ -75,9 +75,9 @@ describe('PostMessage Handler', () => {
     instance = new PostMessage(
       serviceMocks.configurationServiceMock,
       observabilityMocks,
-      serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
         notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })

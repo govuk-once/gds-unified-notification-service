@@ -28,10 +28,11 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
   protected enableConfig: string;
   protected requestBodySchema: ZodType<z.infer<InputSchema> & BaseFields>;
 
+  public contentValidationService: ContentValidationService | undefined;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    protected contentValidationService?: ContentValidationService
   ) {
     super(observability);
   }
@@ -109,10 +110,10 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
     // Added strict validation and contents validation to schema if content validation service is provided
     const contentValidationService = this.contentValidationService;
     const schema = contentValidationService
-      ? baseSchema.strict().superRefine(async (data, ctx) => {
+      ? baseSchema.strict().superRefine((data, ctx) => {
           if (data.body?.MessageBody) {
             try {
-              await contentValidationService.validate(data.body.MessageBody);
+              contentValidationService.validate(data.body.MessageBody);
             } catch (e) {
               if (e instanceof ContentValidationError) {
                 ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['body', 'MessageBody'] });

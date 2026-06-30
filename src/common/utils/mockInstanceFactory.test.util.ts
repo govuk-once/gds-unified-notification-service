@@ -121,7 +121,9 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   ) as Mocked<CircuitBreakerService>;
   const contentValidationServiceMock = new ContentValidationService(
     observabilityMock,
-    configurationServiceMock
+    configurationServiceMock,
+    ['govuk:','https:'],
+    ['*.gov.uk']
   ) as Mocked<ContentValidationService>;
   const processingServiceMock = new ProcessingService(
     observabilityMock,

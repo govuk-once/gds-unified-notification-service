@@ -69,10 +69,9 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    protected contentValidationService: ContentValidationService,
     asyncDependencies?: () => HandlerDependencies<Validation>
   ) {
-    super(config, observability, contentValidationService);
+    super(config, observability);
     this.injectDependencies(asyncDependencies);
   }
 
@@ -130,9 +129,9 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
 export const handler = new Validation(
   iocGetConfigurationService(),
   iocGetObservabilityService(),
-  iocGetContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
+    contentValidationService: iocGetContentValidationService(),
     notificationsRepository: iocGetNotificationDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })
