@@ -31,6 +31,14 @@ export class FetchErrorResponse<T = unknown> extends Error {
     this.body = props?.body;
   }
 }
+
+export class FetchTimeoutError extends Error {
+  constructor(timeout: number) {
+    super(`API request timed out after ${timeout}ms`);
+    this.name = 'FetchTimeoutError';
+  }
+}
+
 export const isFetchResponseError = (item: unknown): item is FetchErrorResponse<undefined> => {
   return item !== null && typeof item === 'object' && 'errorType' in item && item['errorType'] == 'FetchErrorResponse';
 };
@@ -78,7 +86,7 @@ export class FetchService {
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'TimeoutError') {
-        throw new Error(`API request timmed out after ${timeout}ms`);
+        throw new FetchTimeoutError(timeout);
       }
       throw error;
     }

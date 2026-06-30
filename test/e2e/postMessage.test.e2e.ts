@@ -1,6 +1,6 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { BadRequestAxiosError } from '@test/e2e/utils/AxiosErrors';
+import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
