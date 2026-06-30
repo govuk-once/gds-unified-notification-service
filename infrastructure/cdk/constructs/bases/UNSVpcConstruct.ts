@@ -173,6 +173,14 @@ export class UNSVpcConstruct<
       ruleAction: Action.ALLOW,
     });
 
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-in'), {
+      ruleNumber: 110,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.tcpPortRange(49152, 65535),
+      direction: TrafficDirection.INGRESS,
+      ruleAction: Action.ALLOW,
+    });
+
     networkAcl.addEntry(namingHelper('network-acl', 'deny-all-other-in'), {
       ruleNumber: 200,
       cidr: AclCidr.anyIpv4(),
@@ -191,9 +199,17 @@ export class UNSVpcConstruct<
     });
 
     networkAcl.addEntry(namingHelper('network-acl', 'allow-redis-out'), {
-      ruleNumber: 101,
+      ruleNumber: 110,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.tcpPort(6378),
+      direction: TrafficDirection.EGRESS,
+      ruleAction: Action.ALLOW,
+    });
+
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-out'), {
+      ruleNumber: 120,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.tcpPortRange(49152, 65535),
       direction: TrafficDirection.EGRESS,
       ruleAction: Action.ALLOW,
     });
