@@ -1,6 +1,7 @@
 // Unbound methods are allowed as that's how vi.mocked works
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';
+import * as awsCredentialsProvider from '@aws-sdk/credential-providers';
 import { ProcessingAdapterUDP, ProcessingAdapterVoid, ProcessingService } from '@common/services';
 import { ProcessingAdapterRequest } from '@common/services/interfaces';
 import { EnumParameters, StringParameters } from '@common/utils';
@@ -10,6 +11,24 @@ import {
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { mockClient } from 'aws-sdk-client-mock';
+import { Mocked } from 'vitest';
+
+vi.mock(import('@smithy/signature-v4'), () => {
+  const SignatureV4 = vi.fn(
+    class {
+      sign = vi.fn().mockResolvedValue({
+        headers: {
+          Authorization: 'abc123',
+          'X-Amz-Date': '20180116T0000000Z',
+          'X-Amz-Security-Token': 'cde456',
+          'X-Amz-Content-Sha256': 'fgh789',
+          host: 'aws',
+        },
+      });
+    }
+  );
+  return { SignatureV4 } as unknown as typeof import('@smithy/signature-v4');
+});
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -17,6 +36,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/smConfigurationService', { spy: true });
 vi.mock('@common/adapters/processingAdapterUDP', { spy: true });
+vi.mock('@aws-sdk/credential-providers', { spy: true });
 
 describe('ProcessingService', () => {
   const smMock = mockClient(SecretsManagerClient);
@@ -30,6 +50,19 @@ describe('ProcessingService', () => {
     },
   });
 
+  const awsCredentialsProviderSpy = awsCredentialsProvider as Mocked<typeof awsCredentialsProvider>;
+  awsCredentialsProviderSpy.fromTemporaryCredentials.mockImplementation(
+    () =>
+      ({
+        sign: () => ({}),
+      }) as unknown as ReturnType<(typeof awsCredentialsProvider)['fromTemporaryCredentials']>
+  );
+  awsCredentialsProviderSpy.fromNodeProviderChain.mockImplementation(
+    () =>
+      ({
+        sign: () => ({}),
+      }) as unknown as ReturnType<(typeof awsCredentialsProvider)['fromNodeProviderChain']>
+  );
   let instance: ProcessingService;
 
   // Initialize the mock service and repository layers

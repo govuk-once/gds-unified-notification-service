@@ -1,6 +1,6 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { NotFoundAxiosError } from '@test/e2e/utils/AxiosErrors';
+import { NotFoundAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 
@@ -26,18 +26,18 @@ describe('Get /status/{notificationID}', () => {
 
   test('returns 200 and a list of notifications statuses.', async ({ psoAPI }) => {
     // Arrange
-    await psoAPI.post('/send', messageRequest);
+    await psoAPI.post({ path: '/send', body: messageRequest });
     await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
       timeout: 30000,
       interval: 2000,
     });
 
     // Act
-    const result = await psoAPI.get(`/status/${notificationID}`);
+    const result = await psoAPI.get({ path: `/status/${notificationID}` });
 
     // Assert
     expect(result.status).toBe(200);
-    expect(result.data).toEqual(
+    expect(result.body).toEqual(
       expect.arrayContaining(
         [
           NotificationStateEnum.VALIDATED_API_CALL,
@@ -62,7 +62,7 @@ describe('Get /status/{notificationID}', () => {
     const mockInvalidNotificationID = 'invalid-notification-id';
 
     // Act
-    const result = psoAPI.get(`/status/${mockInvalidNotificationID}`);
+    const result = psoAPI.get({ path: `/status/${mockInvalidNotificationID}` });
 
     // Assert
     await expect(result).rejects.toMatchObject(NotFoundAxiosError());
