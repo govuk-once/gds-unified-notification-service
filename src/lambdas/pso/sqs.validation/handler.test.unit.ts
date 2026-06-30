@@ -109,7 +109,7 @@ describe('Validation QueueHandler', () => {
     ],
   } as unknown as QueueEvent<IMessage>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
@@ -124,13 +124,12 @@ describe('Validation QueueHandler', () => {
     serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
-    await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new Validation(
       serviceMocks.configurationServiceMock,
       observabilityMocks,
-      serviceMocks.contentValidationServiceMock,
       () => ({
         analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+        contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
         notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
         processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
       })

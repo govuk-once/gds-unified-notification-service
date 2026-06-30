@@ -34,69 +34,7 @@ describe('ContentValidationService', () => {
     mockParameterStore = mockDefaultConfig();
     configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
 
-    instance = new ContentValidationService(observabilityMock, configurationServiceMock);
-  });
-
-  describe(`validateUrls`, () => {
-    describe(`Valid scenarios`, () => {
-      it.each([
-        [`Message mentioning https://content.gov.uk val`],
-        [`Deeplink to any other part of app govuk://home`],
-        ['Message without a deeplink'],
-        [undefined],
-      ])("Content '%s' should be allowed", async (content: string | undefined) => {
-        // Arrange & Act
-        const result = await instance.validateUrls(content);
-
-        // Assert
-        expect(result).toEqual(content);
-      });
-    });
-
-    describe('Protocol validation', () => {
-      it.each([
-        [
-          `Some message mentioning http://unexpected-website.com amongst other things`,
-          `http://unexpected-website.com is using http: protocol which is not allowed. Allowed protocols: govuk:,https:`,
-        ],
-        [
-          `Example scam message trying to open banking apps bankapp://send`,
-          `bankapp://send is using bankapp: protocol which is not allowed. Allowed protocols: govuk:,https:`,
-        ],
-        [
-          `mailto:name@email.com`,
-          `mailto:name@email.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:`,
-        ],
-      ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
-        // Arrange
-        const exception = expectedError(errorMessage);
-
-        // Act & Assert
-        await expect(instance.validateUrls(content)).rejects.toThrow(exception);
-      });
-
-      describe('Hostname validation', () => {
-        it.each([
-          [
-            `Some message mentioning https://unexpected-website.com amongst other things`,
-            `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list`,
-          ],
-          [
-            `https://www.anothernongovwebsite.net`,
-            `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list`,
-          ],
-        ])('Content %s should error with %s', async (content: string, errorMessage: string) => {
-          // Arrange
-          const exception = expectedError(errorMessage);
-
-          // Act
-          const result = instance.validateUrls(content);
-
-          // Act & Assert
-          await expect(result).rejects.toThrow(exception);
-        });
-      });
-    });
+    instance = new ContentValidationService(observabilityMock, configurationServiceMock, ['govuk:','https:'], ['*.gov.uk']);
   });
 
   describe('validate', () => {
@@ -109,9 +47,12 @@ describe('ContentValidationService', () => {
       ['* Item One\n* Item Two\n* Item Three', 'Bullet lists'],
       ['1. First\n2. Second\n3. Third', 'Numbered lists'],
       ['Click [here](https://content.gov.uk) to visit our site.', 'Links and link text'],
-    ])('Validates message body with valid markdown: %s', async (message: string) => {
+      [`Message mentioning https://content.gov.uk val`, 'Link text'],
+      [`Deeplink to any other part of app govuk://home`, 'Deeplink'],
+      ['Message without a deeplink', 'Without Deeplink'],
+    ])('Validates message body with valid markdown: %s', (message: string) => {
       // Act
-      const result = await instance.validate(message);
+      const result = instance.validate(message);
 
       // Assert
       expect(result).toEqual(message);
@@ -146,16 +87,64 @@ describe('ContentValidationService', () => {
       [`This is ~~crossed out~~ text.`, `Message body contains markdown elements which are not valid: s_open`],
     ])(
       'Rejects message body with invalid markdown: %s\nWith error message: %s',
-      async (messageBody: string, errorMessage: string) => {
+      (messageBody: string, errorMessage: string) => {
         // Arrange
         const exception = expectedError(errorMessage);
 
         // Act
-        const result = instance.validate(messageBody);
+        const result = () => instance.validate(messageBody);
 
-        // Assert
-        await expect(result).rejects.toThrow(exception);
+        // Arrange
+        expect(result).toThrow(exception);
       }
     );
+
+    describe('Protocol validation', () => {
+      it.each([
+        [
+          `Some message mentioning http://unexpected-website.com amongst other things`,
+          `http://unexpected-website.com is using http: protocol which is not allowed. Allowed protocols: govuk:,https:`,
+        ],
+        [
+          `Example scam message trying to open banking apps bankapp://send`,
+          `bankapp://send is using bankapp: protocol which is not allowed. Allowed protocols: govuk:,https:`,
+        ],
+        [
+          `mailto:name@email.com`,
+          `mailto:name@email.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:`,
+        ],
+      ])('Content %s should error with %s', (content: string, errorMessage: string) => {
+        // Arrange
+        const exception = expectedError(errorMessage);
+
+        // Act 
+        const result = () => instance.validate(content)
+
+        // & Assert
+        expect(result).toThrow(exception);
+      });
+
+    describe('Hostname validation', () => {
+      it.each([
+        [
+          `Some message mentioning https://unexpected-website.com amongst other things`,
+          `https://unexpected-website.com is using unexpected-website.com hostname which is not on the allow list`,
+        ],
+        [
+          `https://www.anothernongovwebsite.net`,
+          `https://www.anothernongovwebsite.net is using www.anothernongovwebsite.net hostname which is not on the allow list`,
+        ],
+      ])('Content %s should error with %s', (content: string, errorMessage: string) => {
+        // Arrange
+        const exception = expectedError(errorMessage);
+
+        // Act
+        const result = () => instance.validate(content);
+
+        // Assert
+        expect(result).toThrow(exception);
+      });
+      });
+    });
   });
 });

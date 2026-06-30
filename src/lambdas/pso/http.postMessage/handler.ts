@@ -67,13 +67,13 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   public responseBodySchema = responseBodySchema;
 
   public analyticsService: AnalyticsService;
+  public contentValidationService: ContentValidationService;
   public notificationsDynamoRepository: NotificationsDynamoRepository;
   public processingQueue: ProcessingQueueService;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
-    protected contentValidationService: ContentValidationService,
     dependencies?: () => HandlerDependencies<PostMessage>
   ) {
     super(observability);
@@ -99,7 +99,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
     // Pre-validate all messages & reject request when one of them contains unsupported url
     for (const message of messages) {
-      await this.contentValidationService.validate(message.MessageBody);
+      this.contentValidationService.validate(message.MessageBody);
     }
 
     // Publish analytics & push items to the processing queue
@@ -147,9 +147,9 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 export const handler = new PostMessage(
   iocGetConfigurationService(),
   iocGetObservabilityService(),
-  iocGetContentValidationService(),
   () => ({
     analyticsService: iocGetAnalyticsService(),
+    contentValidationService: iocGetContentValidationService(),
     notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
     processingQueue: iocGetProcessingQueueService(),
   })
