@@ -23,7 +23,7 @@ import {
 import { AnalyticsExportService } from '@common/services/analyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
-import { InMemoryTTLCache } from '@common/utils';
+import { InMemoryTTLCache, StringParameters } from '@common/utils';
 
 enum Mode {
   SINGLETON,
@@ -240,8 +240,10 @@ export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBr
 export const iocGetContentValidationService = ioc(
   'ContentValidationService',
   Mode.SINGLETON,
-  () => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService())
-);
+  async() => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService(),
+    (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.Protocols)).split(','),
+    (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',')
+  ));
 
 // Utility FN simplifying integration of dependencies which depend on config within handler
 export const initializeDependencies = async <ClassInstance extends object, ClassProperty extends keyof ClassInstance>(
