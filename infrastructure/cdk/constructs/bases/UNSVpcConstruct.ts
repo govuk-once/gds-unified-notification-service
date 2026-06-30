@@ -95,7 +95,7 @@ export class UNSVpcConstruct<
     const privateEgress = new SecurityGroup(this, constructNamingHelper('sg', 'private'), {
       vpc: this.vpc,
       description: 'SecurityGroup with allow outbound',
-      allowAllOutbound: true,
+      allowAllOutbound: false,
     });
     privateEgress.addIngressRule(Peer.ipv4(this.vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
     privateEgress.addEgressRule(Peer.ipv4(this.vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
