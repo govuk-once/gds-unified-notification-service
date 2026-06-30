@@ -3,8 +3,10 @@ import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } 
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import z from 'zod';
 
+import { ProcessingAdapterError } from '@common/models/Errors';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { FetchService } from '@common/services/FetchService';
+import { NoLinkingIdFound } from '@common/models/Errors/NotFoundError';
+import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
@@ -99,6 +101,25 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
   private errorHandler(request: ProcessingAdapterRequest, error: unknown): never {
     this.observability.logger.error(`Processing adapter error`, { error });
+
+    if (isFetchResponseError(error)) {
+      this.observability.logger.error(`API Error data`, {
+        NotificationID: request.userID,
+        error: {
+          name: error.name,
+          status: error.status,
+          message: error.message,
+          response: error.body,
+        },
+      });
+
+      if (error.status === 404) {
+        throw new NoLinkingIdFound([`User ${request.userID} does not exist in UDP service`]);
+      }
+
+      throw new ProcessingAdapterError([error.message]);
+    }
+    this.observability.logger.error(`Non-api Error`, { error });
     throw error;
   }
 }
