@@ -166,17 +166,9 @@ export class UNSVpcConstruct<
 
     // Inbound Rules
     networkAcl.addEntry(namingHelper('network-acl', 'allow-https-in'), {
-      ruleNumber: 100,
-      cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPort(443),
-      direction: TrafficDirection.INGRESS,
-      ruleAction: Action.ALLOW,
-    });
-
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-in'), {
       ruleNumber: 110,
       cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPortRange(1024, 65535),
+      traffic: AclTraffic.tcpPort(443),
       direction: TrafficDirection.INGRESS,
       ruleAction: Action.ALLOW,
     });
@@ -190,8 +182,8 @@ export class UNSVpcConstruct<
     });
 
     // Outbound Rules
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-http-out'), {
-      ruleNumber: 100,
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-https-out'), {
+      ruleNumber: 110,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.tcpPort(443),
       direction: TrafficDirection.EGRESS,
@@ -199,17 +191,9 @@ export class UNSVpcConstruct<
     });
 
     networkAcl.addEntry(namingHelper('network-acl', 'allow-redis-out'), {
-      ruleNumber: 110,
+      ruleNumber: 115,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.tcpPort(6378),
-      direction: TrafficDirection.EGRESS,
-      ruleAction: Action.ALLOW,
-    });
-
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-out'), {
-      ruleNumber: 120,
-      cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPortRange(1024, 65535),
       direction: TrafficDirection.EGRESS,
       ruleAction: Action.ALLOW,
     });
