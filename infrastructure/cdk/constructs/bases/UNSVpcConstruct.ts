@@ -190,7 +190,7 @@ export class UNSVpcConstruct<
     });
 
     // Outbound Rules
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-other-out'), {
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-out'), {
       ruleNumber: 100,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.allTraffic(),
