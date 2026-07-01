@@ -95,7 +95,7 @@ export class UNSVpcConstruct<
     const privateEgress = new SecurityGroup(this, constructNamingHelper('sg', 'private'), {
       vpc: this.vpc,
       description: 'SecurityGroup with allow outbound',
-      allowAllOutbound: false,
+      allowAllOutbound: true,
     });
     privateEgress.addIngressRule(Peer.ipv4(this.vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
     privateEgress.addEgressRule(Peer.ipv4(this.vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
@@ -165,45 +165,37 @@ export class UNSVpcConstruct<
     })
 
     // Inbound Rules
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-https-in'), {
-      ruleNumber: 110,
+    networkAcl.addEntry(namingHelper('network-acl', 'deny-ssh-in'), {
+      ruleNumber: 100,
       cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPort(443),
+      traffic: AclTraffic.tcpPort(22),
       direction: TrafficDirection.INGRESS,
-      ruleAction: Action.ALLOW,
+      ruleAction: Action.DENY,
     });
 
-    networkAcl.addEntry(namingHelper('network-acl', 'deny-all-other-in'), {
+    networkAcl.addEntry(namingHelper('network-acl', 'deny-rdp-in'), {
+      ruleNumber: 110,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.tcpPort(3389),
+      direction: TrafficDirection.INGRESS,
+      ruleAction: Action.DENY,
+    });
+
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-other-in'), {
       ruleNumber: 200,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.allTraffic(),
       direction: TrafficDirection.INGRESS,
-      ruleAction: Action.DENY,
+      ruleAction: Action.ALLOW,
     });
 
     // Outbound Rules
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-https-out'), {
-      ruleNumber: 110,
-      cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPort(443),
-      direction: TrafficDirection.EGRESS,
-      ruleAction: Action.ALLOW,
-    });
-
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-redis-out'), {
-      ruleNumber: 115,
-      cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPort(6378),
-      direction: TrafficDirection.EGRESS,
-      ruleAction: Action.ALLOW,
-    });
-
-    networkAcl.addEntry(namingHelper('network-acl', 'deny-all-other-out'), {
-      ruleNumber: 200,
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-other-out'), {
+      ruleNumber: 100,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.allTraffic(),
       direction: TrafficDirection.EGRESS,
-      ruleAction: Action.DENY,
+      ruleAction: Action.ALLOW,
     });
   }
 
