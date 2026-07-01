@@ -158,7 +158,7 @@ export class UNSVpcConstruct<
     // Network ACL
     const networkAcl = new NetworkAcl(this, namingHelper('network-acl'), {
       vpc: this.vpc,
-      networkAclName: namingHelper('network-acl', this.vpc.node.id),
+      networkAclName: namingHelper('network-acl', ...props.name, 'vpc'),
       subnetSelection: {
         subnetGroupName: constructNamingHelper('sn', 'private')
       }
