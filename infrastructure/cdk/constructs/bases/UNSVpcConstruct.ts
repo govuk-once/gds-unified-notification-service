@@ -1,5 +1,8 @@
 import { CfnResource, Stack } from 'aws-cdk-lib';
 import {
+  AclCidr,
+  AclTraffic,
+  Action,
   GatewayVpcEndpoint,
   GatewayVpcEndpointAwsService,
   IGatewayVpcEndpoint,
@@ -9,10 +12,12 @@ import {
   IpAddresses,
   ISecurityGroup,
   IVpc,
+  NetworkAcl,
   Peer,
   Port,
   SecurityGroup,
   SubnetType,
+  TrafficDirection,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
@@ -149,6 +154,49 @@ export class UNSVpcConstruct<
 
     // Define exports for sandbox environment
     this.exports(config);
+
+    // Network ACL
+    const networkAcl = new NetworkAcl(this, namingHelper('network-acl'), {
+      vpc: this.vpc,
+      networkAclName: namingHelper('network-acl', ...props.name, 'vpc'),
+      subnetSelection: {
+        subnetGroupName: constructNamingHelper('sn', 'private')
+      }
+    })
+
+    // Inbound Rules
+    networkAcl.addEntry(namingHelper('network-acl', 'deny-ssh-in'), {
+      ruleNumber: 100,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.tcpPort(22),
+      direction: TrafficDirection.INGRESS,
+      ruleAction: Action.DENY,
+    });
+
+    networkAcl.addEntry(namingHelper('network-acl', 'deny-rdp-in'), {
+      ruleNumber: 110,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.tcpPort(3389),
+      direction: TrafficDirection.INGRESS,
+      ruleAction: Action.DENY,
+    });
+
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-other-in'), {
+      ruleNumber: 200,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.allTraffic(),
+      direction: TrafficDirection.INGRESS,
+      ruleAction: Action.ALLOW,
+    });
+
+    // Outbound Rules
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-out'), {
+      ruleNumber: 100,
+      cidr: AclCidr.anyIpv4(),
+      traffic: AclTraffic.allTraffic(),
+      direction: TrafficDirection.EGRESS,
+      ruleAction: Action.ALLOW,
+    });
   }
 
   imports(imported: NonNullable<EnvVars['sandbox']['shared']['vpc']>) {
