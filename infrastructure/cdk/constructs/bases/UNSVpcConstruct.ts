@@ -176,7 +176,7 @@ export class UNSVpcConstruct<
     networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-in'), {
       ruleNumber: 110,
       cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPortRange(49152, 65535),
+      traffic: AclTraffic.tcpPortRange(1024, 65535),
       direction: TrafficDirection.INGRESS,
       ruleAction: Action.ALLOW,
     });
