@@ -209,7 +209,7 @@ export class UNSVpcConstruct<
     networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-out'), {
       ruleNumber: 120,
       cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.tcpPortRange(49152, 65535),
+      traffic: AclTraffic.tcpPortRange(1024, 65535),
       direction: TrafficDirection.EGRESS,
       ruleAction: Action.ALLOW,
     });
