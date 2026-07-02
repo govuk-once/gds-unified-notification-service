@@ -85,6 +85,7 @@ export class UNSCommon extends Construct {
 
     this.alertTopic = new Topic(this, constructNamingHelper('alerts', 'topic'), {
       topicName: namingHelper('sns', 'topic', 'alerts'),
+      masterKey: this.kms,
     });
 
     if (config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
