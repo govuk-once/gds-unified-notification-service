@@ -4,6 +4,7 @@ import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aw
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { CodeSigningConfig, UntrustedArtifactOnDeployment } from 'aws-cdk-lib/aws-lambda';
 import { Platform, SigningProfile } from 'aws-cdk-lib/aws-signer';
+import { Topic } from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -11,6 +12,7 @@ import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBCons
 import { UNSElasticacheConstruct } from 'infrastructure/cdk/constructs/bases/UNSElasticacheConstruct';
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
+import { UNSSlackAlert } from 'infrastructure/cdk/constructs/bases/UNSSlackIntegration';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
@@ -42,6 +44,9 @@ const gatewayEndpoints = {
 export class UNSCommon extends Construct {
   public readonly kms: kms.Key;
 
+  public readonly slackAlert?: UNSSlackAlert;
+  public readonly alertTopic: Topic;
+
   public readonly codeSigning: CodeSigningConfig;
   public readonly codeSigningProfile: SigningProfile;
 
@@ -59,7 +64,7 @@ export class UNSCommon extends Construct {
   public readonly elasticache: UNSElasticacheConstruct;
 
   constructor(scope: Construct, config: EnvVars) {
-    const { constructNamingHelper } = config.utils;
+    const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, 'common');
 
     //// =====================================================
@@ -73,6 +78,24 @@ export class UNSCommon extends Construct {
         cloudwatch: true,
       },
     }).key;
+
+    //// =====================================================
+    // Alerts - always create alert topic, conditionally create slack alert linked to the topic if workspace & channel ids are present
+    //// =====================================================
+
+    this.alertTopic = new Topic(this, constructNamingHelper('alerts', 'topic'), {
+      topicName: namingHelper('sns', 'topic', 'alerts'),
+    });
+
+    if (config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
+      this.slackAlert = new UNSSlackAlert(this, config, {
+        workspaceId: config.ssm.alerts.workspaceId,
+        channelId: config.ssm.alerts.channelId,
+        name: [`alerts`],
+        kms: this.kms,
+        topics: [this.alertTopic],
+      });
+    }
 
     //// =====================================================
     // Code Signing

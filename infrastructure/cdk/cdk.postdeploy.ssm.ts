@@ -36,6 +36,10 @@ export const configurableParameters = {
   'content/allowed/urlHostnames': '*.gov.uk',
   'notification/deeplinkTemplate': 'govuk://app.gov.uk/notificationcentre/detail?id:{id}',
 
+  // Alert configuration
+  'alerts/slack/workspaceId': 'null',
+  'alerts/slack/channelId': 'null',
+
   // Configurations for FLEX - these values are serialized JSON
   'api/flex/apiKey': 'mockApiKey',
   'flex/account': 'null',
@@ -87,6 +91,7 @@ await (async () => {
       );
       if (putParameterError) {
         console.error(` - Failed to create param`);
+        console.log(putParameterError);
       } else {
         console.log(` - Param created`);
       }
