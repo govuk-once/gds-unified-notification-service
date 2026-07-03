@@ -61,12 +61,11 @@ export class UNSStack extends Stack {
 
     // Also add metadata as outputs to the cloudformation stack itself for improved traceability
     const metadata = new Construct(this, `metadata`);
-    Object.entries({ ...config.defaultTags() }).map(
-      ([key, value]) =>
-        new CfnOutput(metadata, key, {
-          description: `Build metadata - ${key}`,
-          value: value,
-        })
-    );
+    for (const [key, value] of Object.entries({ ...config.defaultTags() })) {
+      new CfnOutput(metadata, key, {
+        description: `Build metadata - ${key}`,
+        value: value,
+      });
+    }
   }
 }
