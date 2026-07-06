@@ -83,7 +83,7 @@ export class UNSCommon extends Construct {
 
     this.codeSigning = new CodeSigningConfig(this, constructNamingHelper(`codesigning`), {
       signingProfiles: [this.codeSigningProfile],
-      untrustedArtifactOnDeployment: UntrustedArtifactOnDeployment.WARN,
+      untrustedArtifactOnDeployment: UntrustedArtifactOnDeployment.ENFORCE,
     });
 
     //// =====================================================

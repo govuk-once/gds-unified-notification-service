@@ -34,6 +34,7 @@ export class UNSOrganisationsCommon extends Construct {
     //// =====================================================
     const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.organisationsTable, {
       kms: common.kms,
+      codeSigningConfig: common.codeSigning,
     });
     common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
 
