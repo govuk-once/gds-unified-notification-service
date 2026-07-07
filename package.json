@@ -7,7 +7,6 @@
     "build": "tsx scripts/build.ts",
     "build:validate": "tsc",
     "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact --quiet",
-    "commit": "cz",
     "development:sandbox:release": "pnpm run build && pnpm run cdk:deploy",
     "development:sandbox:plan": "pnpm run build && pnpm run cdk:diff",
     "development:sandbox:setup": "tsx scripts/developer-sandbox-setup.ts",
