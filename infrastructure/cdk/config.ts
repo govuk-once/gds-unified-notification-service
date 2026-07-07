@@ -117,8 +117,8 @@ export const config = {
       role: await fromSSMJSON<string | null>(`/${namespace}/udp/config/role`, null),
     },
     alerts: {
-      channelId: (await fromSSM(`/${namespace}/alerts/slack/channelId`, null))!,
-      workspaceId: (await fromSSM(`/${namespace}/alerts/slack/workspaceId`, null))!,
+      channelId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/channelId`, null))!,
+      workspaceId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/workspaceId`, null))!,
     },
   },
 

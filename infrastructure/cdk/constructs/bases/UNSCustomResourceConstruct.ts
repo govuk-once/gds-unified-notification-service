@@ -13,6 +13,7 @@ export interface UNSCustomResourceConstructProps {
   tsFn: string;
   modules: string[];
   kms: Key;
+  codeSigningConfig: lambda.CodeSigningConfig;
 }
 
 export interface UNSCustomResourceConstructAdditionalProps {
@@ -45,7 +46,7 @@ export class UNSCustomResourceConstruct<
 
     // Build the Custom Resource Lambda function to execute Key/CSR generation
     this.fn = new nodejs.NodejsFunction(this, 'cdk-constructor-lambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       entry: `./customResourceFns/${props.tsFn}.ts`,
       handler: 'handler',
       timeout: cdk.Duration.seconds(30),
@@ -61,21 +62,15 @@ export class UNSCustomResourceConstruct<
     // Define the Custom Resource Provider lifecycle
     this.provider = new customResources.Provider(this, constructNamingHelper('provider'), {
       onEventHandler: this.fn,
+      logGroup: loggroup,
     });
+    loggroup.grantRead(this.provider.onEventHandler);
+    loggroup.grantWrite(this.provider.onEventHandler);
 
     // Checkov skips for construct lambdas
-    applyCheckovSkipsRecursive(this, [
-      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
-      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
-      ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
-    ]);
-    applyCheckovSkipsRecursive(this.provider.onEventHandler, [
-      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
-      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
-      ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
-    ]);
+    this.applyCheckovSkips(this.fn);
+    this.applyCheckovSkips(this.provider);
+    this.applyCheckovSkips(this.provider.onEventHandler);
   }
 
   public use(caller: Construct, props: InputType, additionalProps?: UNSCustomResourceConstructAdditionalProps) {
@@ -89,13 +84,28 @@ export class UNSCustomResourceConstruct<
     );
 
     // Checkov skips for construct lambdas
-    applyCheckovSkipsRecursive(this, [
-      ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-      ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
-      ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
-      ['CKV_AWS_173', 'No environment variables used - encryption is not needed'],
-    ]);
-
+    this.applyCheckovSkips(customResource);
     return customResource;
+  }
+
+  public applyCheckovSkips(construct: Construct) {
+    applyCheckovSkipsRecursive(construct, [
+      [
+        'CKV_AWS_117',
+        '"Ensure that AWS Lambda function is configured inside a VPC" - Not all lambdas need to be in VPCs by design',
+      ],
+      [
+        'CKV_AWS_116',
+        '"Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)" - Lambda is not used for asynchronous processing',
+      ],
+      [
+        'CKV_AWS_115',
+        '"Ensure that AWS Lambda function is configured for function-level concurrent execution limit" - Default concurrency limit is sufficient',
+      ],
+      [
+        'CKV_AWS_173',
+        '"Check encryption settings for Lambda environment variable" - No environment variables used - encryption is not needed',
+      ],
+    ]);
   }
 }

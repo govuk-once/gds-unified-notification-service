@@ -2,25 +2,25 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
-import { Construct } from 'constructs';
-import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import { Construct } from 'constructs';
 
+import { Schedule } from 'aws-cdk-lib/aws-events';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
+import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
-import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { Schedule } from 'aws-cdk-lib/aws-events';
-import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
-import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -45,8 +45,8 @@ export class UNSPSOResource extends Construct {
       analytics: UNSLambdaConstruct;
     };
     schedule: {
-      analyticsExport: UNSLambdaConstruct
-    }
+      analyticsExport: UNSLambdaConstruct;
+    };
   };
   public readonly gateway: UNSAPIGatewayGateway;
   public readonly dashboards: {
@@ -115,7 +115,7 @@ export class UNSPSOResource extends Construct {
         },
       }),
     };
-    
+
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
@@ -139,55 +139,51 @@ export class UNSPSOResource extends Construct {
       versioned: true,
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
-      lifecycleRules: [{
-        enabled: true,
-        expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
-      }]
+      lifecycleRules: [
+        {
+          enabled: true,
+          expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+        },
+      ],
     });
-    applyCheckovSkips(analyticsExportBucket, [
-      ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
-    ]);
+    applyCheckovSkipsS3Bucket(analyticsExportBucket);
 
-    analyticsExportBucket.addToResourcePolicy(new PolicyStatement({
-      sid: 'AllowCloudWatchLogsGetAcl',
-      effect: Effect.ALLOW,
-      principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
-      actions: ['s3:GetBucketAcl'],
-      resources: [analyticsExportBucket.bucketArn],
-      conditions: {
-        StringEquals: {
-          'aws:SourceAccount': [
-            stack.account,
-          ]
+    analyticsExportBucket.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AllowCloudWatchLogsGetAcl',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+        actions: ['s3:GetBucketAcl'],
+        resources: [analyticsExportBucket.bucketArn],
+        conditions: {
+          StringEquals: {
+            'aws:SourceAccount': [stack.account],
+          },
+          ArnLike: {
+            'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:log-group:*`],
+          },
         },
-        ArnLike: {
-          'aws:SourceArn': [
-            `arn:aws:logs:eu-west-2:${stack.account}:log-group:*`,
-          ]
-        }
-      }
-    }))
+      })
+    );
 
-    analyticsExportBucket.addToResourcePolicy(new PolicyStatement({
-      sid: 'AllowCloudWatchLogsPutObject',
-      effect: Effect.ALLOW,
-      principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
-      actions: ['s3:PutObject'],
-      resources: [analyticsExportBucket.arnForObjects('*')],
-      conditions: {
-        StringEquals: {
-          's3:x-amz-acl': 'bucket-owner-full-control',
-          'aws:SourceAccount': [
-            stack.account,
-          ]
+    analyticsExportBucket.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AllowCloudWatchLogsPutObject',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+        actions: ['s3:PutObject'],
+        resources: [analyticsExportBucket.arnForObjects('*')],
+        conditions: {
+          StringEquals: {
+            's3:x-amz-acl': 'bucket-owner-full-control',
+            'aws:SourceAccount': [stack.account],
+          },
+          ArnLike: {
+            'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:log-group:*`],
+          },
         },
-        ArnLike: {
-          'aws:SourceArn': [
-            `arn:aws:logs:eu-west-2:${stack.account}:log-group:*`,
-          ]
-        }
-      }
-    }));
+      })
+    );
 
     // //// =====================================================
     // // Users
@@ -200,26 +196,28 @@ export class UNSPSOResource extends Construct {
       userName: bqExportUser.userName,
     });
 
-    bqExportUser.addToPolicy(new PolicyStatement({
-      sid: 'AllowBigQueryS3ListBucket',
-      effect: Effect.ALLOW,
-      actions: [
-        's3:ListBucket',
+    bqExportUser.addToPolicy(
+      new PolicyStatement({
+        sid: 'AllowBigQueryS3ListBucket',
+        effect: Effect.ALLOW,
+        actions: ['s3:ListBucket'],
+        resources: [analyticsExportBucket.bucketArn],
+      })
+    );
+    bqExportUser.addToPolicy(
+      new PolicyStatement({
+        sid: 'AllowBigQueryS3GetObject',
+        effect: Effect.ALLOW,
+        actions: ['s3:GetObject'],
+        resources: [analyticsExportBucket.arnForObjects('*')],
+      })
+    );
+    applyCheckovSkipsRecursive(bqExportUser, [
+      [
+        'CKV_AWS_40',
+        '"Ensure IAM policies are attached only to groups or roles (Reducing access management complexity may in-turn reduce opportunity for a principal to inadvertently receive or retain excessive privileges.)" - explicitly scoped to a single bucket in this case for least required privilege',
       ],
-      resources: [
-        analyticsExportBucket.bucketArn,
-      ],
-    }));
-    bqExportUser.addToPolicy(new PolicyStatement({
-      sid: 'AllowBigQueryS3GetObject',
-      effect: Effect.ALLOW,
-      actions: [
-        's3:GetObject'
-      ],
-      resources: [
-        analyticsExportBucket.arnForObjects('*')
-      ],
-    }));
+    ]);
 
     //// =====================================================
     // Lambdas
@@ -401,10 +399,10 @@ export class UNSPSOResource extends Construct {
         ssmNamespaces: [config.namespace],
         cloudwatch: [analyticsExportLogGroup.logGroupArn],
         cloudwatchExport: [analyticsExportLogGroup.logGroupArn],
-        s3: [analyticsExportBucket.bucketArn]
+        s3: [analyticsExportBucket.bucketArn],
       },
       triggers: {
-        schedule: [Schedule.cron({ minute: "30", hour: "*" })]
+        schedule: [Schedule.cron({ minute: '30', hour: '*' })],
       },
     });
 
@@ -423,8 +421,8 @@ export class UNSPSOResource extends Construct {
         analytics,
       },
       schedule: {
-        analyticsExport
-      }
+        analyticsExport,
+      },
     };
 
     //// =====================================================
@@ -503,7 +501,6 @@ export class UNSPSOResource extends Construct {
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
     };
-
     //// =====================================================
     // SSM Values
     //// =====================================================
@@ -521,33 +518,45 @@ export class UNSPSOResource extends Construct {
       // BigQuery Analytics export
       'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
       'analytics/export/bucket/name': analyticsExportBucket.bucketName,
-    })
+    });
 
     //// =====================================================
-    // Secret Manager 
+    // Secret Manager
     //// =====================================================
-    const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: refs.kms, names: [`bq-sm-writer`]});
+    const smWriterProvider = new UNSSMWriterProvider(this, config, {
+      kms: refs.kms,
+      names: [`bq-sm-writer`],
+      codeSigningConfig: refs.codeSigning,
+    });
 
     const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
       secretName: `${config.prefix}/bigquery/export/key/id`,
       description: 'Access key for big query export user to gain access to s3 bucket',
-      encryptionKey: refs.kms
-    })
+      encryptionKey: refs.kms,
+    });
     bqExportAccessKeyId.grantWrite(smWriterProvider.fn);
-    smWriterProvider.use(this, {
-      secretArn: bqExportAccessKeyId.secretArn,
-      secretValue: bqExportAccessKey.ref
-    }, { name: ['KeyId'] });
+    smWriterProvider.use(
+      this,
+      {
+        secretArn: bqExportAccessKeyId.secretArn,
+        secretValue: bqExportAccessKey.ref,
+      },
+      { name: ['KeyId'] }
+    );
 
     const bqExportAccessKeySecret = new Secret(this, namingHelper('bigquery-export', 'key-secret'), {
       secretName: `${config.prefix}/bigquery/export/key/secret`,
       description: 'Access secret for big query export user to gain access to s3 bucket',
-      encryptionKey: refs.kms
+      encryptionKey: refs.kms,
     });
     bqExportAccessKeySecret.grantWrite(smWriterProvider.fn);
-    smWriterProvider.use(this, {
-      secretArn: bqExportAccessKeySecret.secretArn,
-      secretValue: bqExportAccessKey.attrSecretAccessKey
-    }, { name: ['KeySecret'] });
+    smWriterProvider.use(
+      this,
+      {
+        secretArn: bqExportAccessKeySecret.secretArn,
+        secretValue: bqExportAccessKey.attrSecretAccessKey,
+      },
+      { name: ['KeySecret'] }
+    );
   }
 }

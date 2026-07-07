@@ -22,3 +22,46 @@ export function applyCheckovSkipsRecursive(construct: IConstruct, skips: [string
     applyCheckovSkipsRecursive(child, skips);
   }
 }
+
+export function findResource(construct: IConstruct, predicate: (c: IConstruct) => boolean): IConstruct | null {
+  if (predicate(construct)) {
+    return construct;
+  }
+  if (construct.node.children) {
+    for (let i = 0; i < construct.node.children.length; i++) {
+      if (construct.node.children[i].node.id.includes(`ObjectsCustomResourceProvider`)) {
+      }
+      if (predicate(construct.node.children[i])) {
+        return construct.node.children[i];
+      }
+      const result = findResource(construct.node.children[i], predicate);
+      if (result) {
+        return result;
+      }
+    }
+  }
+  return null;
+}
+
+export function applyCheckovSkipsS3Bucket(construct: IConstruct) {
+  return applyCheckovSkipsRecursive(construct, [
+    ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
+
+    [
+      'CKV_AWS_117',
+      '"Ensure that AWS Lambda function is configured inside a VPC" - Not all lambdas need to be in VPCs by design',
+    ],
+    [
+      'CKV_AWS_116',
+      '"Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)" - Lambda is not used for asynchronous processing',
+    ],
+    [
+      'CKV_AWS_115',
+      '"Ensure that AWS Lambda function is configured for function-level concurrent execution limit" - Default concurrency limit is sufficient',
+    ],
+    [
+      'CKV_AWS_173',
+      '"Check encryption settings for Lambda environment variable" - No environment variables used - encryption is not needed',
+    ],
+  ]);
+}

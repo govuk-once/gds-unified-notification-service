@@ -250,6 +250,7 @@ export class UNSAPIGatewayGateway extends Construct {
     const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
       name: config.utils.namingHelper(...props.name, 'waf'),
       scope: 'REGIONAL',
+
       defaultAction: { allow: {} },
       visibilityConfig: {
         metricName: config.utils.namingHelper(...props.name, 'main-metric'),
