@@ -54,7 +54,7 @@ beforeAll(async () => {
         Filters: [
           {
             Key: 'name',
-            Values: [`uns-dev/tls/UNS`],
+            Values: [config.isMainEnv ? `uns-${config.env}/tls/UNS` : `uns-dev/tls/UNS`],
           },
         ],
       })

@@ -13,7 +13,7 @@ import { UNSs3ObjectConstruct } from 'infrastructure/cdk/constructs/customResour
 import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
-import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { v4 } from 'uuid';
 
@@ -49,10 +49,7 @@ export class UNSMTLSCommon extends Construct {
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
     });
-    applyCheckovSkips(truststoreBucket, [
-      ['CKV_AWS_18', 'Access logs may not be necessary for this bucket - as it should covered by cloudtrail'],
-    ]);
-
+    applyCheckovSkipsS3Bucket(truststoreBucket);
     // Note: only main environments create & manage certificates - sandbox environments
     if (config.isMainEnv) {
       //// =====================================================
@@ -83,15 +80,23 @@ export class UNSMTLSCommon extends Construct {
       //// =====================================================
       // Client certificate generation
       //// =====================================================
-      const csrProvider = new UNSClientCertificateGeneratorConstruct(this, config, { kms: common.kms });
+      const csrProvider = new UNSClientCertificateGeneratorConstruct(this, config, {
+        kms: common.kms,
+        codeSigningConfig: common.codeSigning,
+      });
       common.kms.grantEncryptDecrypt(csrProvider.fn);
 
       const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.revocationTable, {
         kms: common.kms,
+        codeSigningConfig: common.codeSigning,
       });
       common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
 
-      const smWriterProvider = new UNSSMWriterProvider(this, config, { kms: common.kms, names: [`cert-sm-writer`]});
+      const smWriterProvider = new UNSSMWriterProvider(this, config, {
+        kms: common.kms,
+        names: [`cert-sm-writer`],
+        codeSigningConfig: common.codeSigning,
+      });
       common.kms.grantEncryptDecrypt(smWriterProvider.fn);
 
       for (const certificateDetails of getConsumers(config.env, config)) {
@@ -148,6 +153,7 @@ export class UNSMTLSCommon extends Construct {
     this.truststoreUpload = new UNSs3ObjectConstruct(this, config, {
       bucket: truststoreBucket,
       kms: common.kms,
+      codeSigningConfig: common.codeSigning,
     }).use(this, {
       bucket: truststoreBucket.bucketName,
       key: `truststore.${uuid}.pem`,

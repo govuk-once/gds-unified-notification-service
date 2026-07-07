@@ -6,6 +6,7 @@ import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources'
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
+import { applyCheckovSkipsS3Bucket, findResource } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export class UNSStack extends Stack {
   public readonly pso: UNSPSOResource;
@@ -42,6 +43,7 @@ export class UNSStack extends Stack {
     this.flex = new UNSFlexResource(this, config, { refs: common, organisationsRef: organisations });
 
     this.applyTags(this, config);
+    this.applyCheckovSkips();
   }
 
   public applyTags(scope: Construct, config: EnvVars) {
@@ -66,6 +68,15 @@ export class UNSStack extends Stack {
         description: `Build metadata - ${key}`,
         value: value,
       });
+    }
+  }
+
+  public applyCheckovSkips() {
+    const autoDeleteLambda = findResource(this, (c) =>
+      c.node.id.includes(`Custom::S3AutoDeleteObjectsCustomResourceProvider`)
+    );
+    if (autoDeleteLambda) {
+      applyCheckovSkipsS3Bucket(autoDeleteLambda);
     }
   }
 }
