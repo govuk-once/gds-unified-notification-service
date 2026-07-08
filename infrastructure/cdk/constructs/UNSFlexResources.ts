@@ -1,7 +1,10 @@
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
+import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
+import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
@@ -213,5 +216,42 @@ export class UNSFlexResource extends Construct {
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
     };
+
+    //// =====================================================
+    // Consumer configuration
+    //// =====================================================
+    const flexConsumerKMS = new UNSKMSConstruct(this, config, {
+      name: ['kms', 'flex', 'consumer'],
+      policies: {
+        root: true,
+        lambdas: true,
+        cloudwatch: true,
+      },
+    });
+    const flexConsumerSecret = new Secret(this, config.utils.namingHelper('flex', 'consumer-secret'), {
+      secretName: `${config.prefix}/flex/consumer`,
+      description: 'Consumer secret for the UNS Service gateway within Flex',
+      encryptionKey: flexConsumerKMS.key,
+    });
+    if (config.ssm.flex.account) {
+      flexConsumerKMS.key.addToResourcePolicy(
+        new PolicyStatement({
+          sid: 'AllowExternalAccountToDecrypt',
+          effect: Effect.ALLOW,
+          principals: [new AccountPrincipal(config.ssm.flex.account)],
+          actions: ['kms:Decrypt', 'kms:DescribeKey'],
+          resources: ['*'],
+        })
+      );
+      flexConsumerSecret.addToResourcePolicy(
+        new PolicyStatement({
+          sid: 'AllowExternalAccountToReadSecret',
+          effect: Effect.ALLOW,
+          principals: [new AccountPrincipal(config.ssm.flex.account)],
+          actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+          resources: ['*'],
+        })
+      );
+    }
   }
 }

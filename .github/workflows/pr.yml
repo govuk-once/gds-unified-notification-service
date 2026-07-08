@@ -80,13 +80,12 @@ jobs:
           recreate: true
 
       # CDK Validation - Explicitly ovewriting AWS env vars so CDK:SYNTH ignores assumed role
-      - name: 🏗️ CDK Synth
-        if: success() || failure() # Until TF Migration is completed
+      - name: 🏗️ CDK Synth (mock env)
         run: |
           env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
-        if: success() || failure()
+        if: success()
         uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd # v12
         with:
           output_format: cli,sarif
