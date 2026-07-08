@@ -7,7 +7,14 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['artifacts', 'coverage', 'dist', 'node_modules', 'infrastructure/cdk/cdk.out']),
+  globalIgnores([
+    'artifacts',
+    'coverage',
+    'dist',
+    'node_modules',
+    'infrastructure/cdk/cdk.out',
+    'docs/swagger-ui-bundle.js',
+  ]),
   tseslint.configs.recommendedTypeChecked,
   vitest.configs.recommended,
   {
