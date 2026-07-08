@@ -1,16 +1,17 @@
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
+import { UNSAPIGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
+import { UNSWaf } from 'infrastructure/cdk/constructs/bases/UNSWafConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSFlexResource extends Construct {
   public readonly serviceName = 'pso';
-  public readonly publicGateway?: UNSAPIGatewayGateway;
-  public readonly gateway: UNSAPIGatewayGateway;
+  public readonly publicGateway?: UNSAPIGateway;
+  public readonly gateway: UNSAPIGateway;
   public readonly lambdas: {
     http: {
       getNotifications: UNSLambdaConstruct;
@@ -23,6 +24,8 @@ export class UNSFlexResource extends Construct {
   public readonly dashboards: {
     service: Dashboard;
   };
+
+  public readonly flexWaf: UNSWaf;
 
   constructor(
     scope: Construct,
@@ -122,7 +125,7 @@ export class UNSFlexResource extends Construct {
 
     if (config.debuggableFlexApiGateway) {
       // This API Gateway is only available in dev & sandbox environments
-      this.publicGateway = new UNSAPIGatewayGateway(this, config, {
+      this.publicGateway = new UNSAPIGateway(this, config, {
         name: [`flex`],
         description: `API Gateway for flex (Dev testing only)`,
         domain: 'flex',
@@ -145,7 +148,7 @@ export class UNSFlexResource extends Construct {
       });
     }
 
-    this.gateway = new UNSAPIGatewayGateway(this, config, {
+    this.gateway = new UNSAPIGateway(this, config, {
       name: [`flex-private`],
       description: `API Gateway for flex (Private)`,
       resources: {
@@ -195,6 +198,18 @@ export class UNSFlexResource extends Construct {
           this.lambdas.http.deleteNotification.integration
         );
     }
+
+    //// =====================================================
+    // WAF
+    //// =====================================================
+    this.flexWaf = new UNSWaf(scope, config, {
+      name: [`flex`],
+      cloudfrontEnabled: false,
+      restApi: this.publicGateway?.restApi,
+      resources: {
+        kms: refs.kms
+      }
+    });
 
     //// =====================================================
     // Xray Dashboards

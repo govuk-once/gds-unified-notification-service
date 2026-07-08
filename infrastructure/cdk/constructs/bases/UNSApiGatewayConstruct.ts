@@ -12,16 +12,18 @@ import {
   RestApi,
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
-import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import { Certificate, ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
+import { AllowedMethods, ViewerProtocolPolicy, CachePolicy, PriceClass, CfnDistribution, Distribution, OriginRequestPolicy, CfnTrustStore } from 'aws-cdk-lib/aws-cloudfront';
+import { HttpOrigin, RestApiOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
-import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
+import { ARecord, HostedZone, IHostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
+import { ApiGateway, CloudFrontTarget } from "aws-cdk-lib/aws-route53-targets";
+import { BlockPublicAccess, Bucket, BucketEncryption, ObjectOwnership } from 'aws-cdk-lib/aws-s3';
+import { CfnProtection } from 'aws-cdk-lib/aws-shield';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -39,7 +41,7 @@ type UsageAllowance = {
   };
 };
 
-export interface UNSAPIGatewayGatewayProps {
+export interface UNSAPIGatewayProps {
   readonly name: string[];
   readonly description: string;
   readonly type: 'MTLS' | 'PRIVATE' | 'PUBLIC';
@@ -47,6 +49,7 @@ export interface UNSAPIGatewayGatewayProps {
   readonly authorizer?: IAuthorizer;
   readonly usagePlanDefaults?: UsageAllowance;
   readonly usagePlans?: Record<string, { allowance?: Partial<UsageAllowance> }>;
+  readonly cloudFrontEnabled?: boolean;
 
   readonly mtls?: {
     readonly truststore: string;
@@ -56,6 +59,7 @@ export interface UNSAPIGatewayGatewayProps {
     readonly mtlsTruststoreUrl?: string;
     readonly vpce?: string[];
     readonly kms: IKey;
+    readonly wafArn?: string
   };
 
   readonly integrations?: Record<
@@ -77,43 +81,53 @@ export interface UNSAPIGatewayGatewayProps {
   };
 }
 
-export class UNSAPIGatewayGateway extends Construct {
+export class UNSAPIGateway extends Construct {
+  public readonly cloudfront: Distribution | undefined;
   public readonly restApi: RestApi;
-  public readonly props: UNSAPIGatewayGatewayProps;
-  public readonly waf: wafv2.CfnWebACL;
+  public readonly props: UNSAPIGatewayProps;
 
   //// =====================================================
   // Domain
   //// =====================================================
-  protected domainConfig(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+  protected domainConfig(config: EnvVars, props: UNSAPIGatewayProps) {
     const { namingHelper } = config.utils;
+
     // Setup custom domain parameters via SSM configurations
     const rootDomain = config.ssm.hostedZoneName;
-    const certificateArn = config.ssm.certificateArnRegional;
+    const mtlsCertificateArn = config.ssm.certificateArnRegional;
+    const cloudfrontCertificateArn = config.ssm.certificateArnCloudfront;
     const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
     const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
 
-    let hostedZone: route53.IHostedZone | null = null;
+    let hostedZone: IHostedZone | null = null;
 
     if (rootDomain !== null) {
-      hostedZone = route53.HostedZone.fromLookup(this, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
+      hostedZone = HostedZone.fromLookup(this, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
         domainName: rootDomain,
         privateZone: false,
       });
     }
 
-    let certificate: acm.ICertificate | null = null;
-    if (certificateArn !== null) {
-      certificate = acm.Certificate.fromCertificateArn(
+    let mtlsCertificate: ICertificate | null = null;
+    if (mtlsCertificateArn !== null) {
+      mtlsCertificate = Certificate.fromCertificateArn(
         this,
-        namingHelper(`restapi`, ...props.name, 'certificate'),
-        certificateArn
-      );
+        namingHelper(`restapi`, ...props.name, 'certificate-mtls'),
+        mtlsCertificateArn
+    )};
+
+    let cloudfrontCertificate: ICertificate | null = null;
+    if (cloudfrontCertificateArn !== null) {
+      cloudfrontCertificate = Certificate.fromCertificateArn(
+        this,
+        namingHelper(`restapi`, ...props.name, 'certificate-cloudfront'),
+        cloudfrontCertificateArn
+      )
     }
 
     // Infer mtls bucket
     const mtlsTruststoreBucket = props.mtls
-      ? s3.Bucket.fromBucketName(
+      ? Bucket.fromBucketName(
           this,
           namingHelper(`restapi`, ...props.name, 'truststoreBucket'),
           props.mtls.truststore.split(`s3://`).join(``).split(`/`).shift()!
@@ -123,10 +137,10 @@ export class UNSAPIGatewayGateway extends Construct {
     // Prepare domain config
     const domainConfig: { domainName?: DomainNameOptions; disableExecuteApiEndpoint: boolean } = {
       domainName:
-        fullDomain && certificate && rootDomain
+        fullDomain && mtlsCertificate && rootDomain
           ? {
               domainName: fullDomain,
-              certificate: certificate,
+              certificate: mtlsCertificate,
               securityPolicy: SecurityPolicy.TLS_1_2,
               endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
               ...(props.mtls && mtlsTruststoreBucket
@@ -139,16 +153,17 @@ export class UNSAPIGatewayGateway extends Construct {
                 : {}),
             }
           : undefined,
-      disableExecuteApiEndpoint: fullDomain && certificate && rootDomain ? true : false,
+      disableExecuteApiEndpoint: !!(fullDomain && mtlsCertificate && rootDomain && !props.cloudFrontEnabled),
     };
 
     return {
       rootDomain,
-      certificateArn,
+      mtlsCertificateArn,
       fullDomain,
       subdomain,
       hostedZone,
-      certificate,
+      mtlsCertificate,
+      cloudfrontCertificate,
       mtlsTruststoreBucket,
       domainConfig,
     };
@@ -156,16 +171,20 @@ export class UNSAPIGatewayGateway extends Construct {
 
   constructRoute53Entries(
     config: EnvVars,
-    props: UNSAPIGatewayGatewayProps,
+    props: UNSAPIGatewayProps,
     fullDomain: string | null,
-    hostedZone: route53.IHostedZone | null
+    hostedZone: IHostedZone | null
   ) {
     // Provision Route 53 A-Record for Custom Domain mappings
     if (fullDomain && hostedZone) {
-      new route53.ARecord(this, config.utils.namingHelper(...props.name, 'domain'), {
+      new ARecord(this, config.utils.namingHelper(...props.name, 'domain'), {
         zone: hostedZone,
         recordName: fullDomain,
-        target: route53.RecordTarget.fromAlias(new route53targets.ApiGateway(this.restApi)),
+        target: this.cloudfront ? RecordTarget.fromAlias(
+          new CloudFrontTarget(this.cloudfront)
+        ) : RecordTarget.fromAlias(
+          new ApiGateway(this.restApi)
+        ),
       });
     }
   }
@@ -173,7 +192,6 @@ export class UNSAPIGatewayGateway extends Construct {
   //// =====================================================
   // Rest API utilities
   //// =====================================================
-
   addIntegration(
     operationId: string,
     path: string,
@@ -224,86 +242,9 @@ export class UNSAPIGatewayGateway extends Construct {
   }
 
   //// =====================================================
-  // Waf
-  //// =====================================================
-  managedRule(ruleProps: { priority: number; name: string; managedRuleName: string; metricName: string }) {
-    return {
-      name: ruleProps.name,
-      priority: ruleProps.priority,
-      statement: {
-        managedRuleGroupStatement: {
-          vendorName: 'AWS',
-          name: ruleProps.managedRuleName,
-        },
-      },
-      overrideAction: { none: {} },
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: ruleProps.metricName,
-        sampledRequestsEnabled: true,
-      },
-    };
-  }
-
-  constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
-    // WAFv2 Protection configuration builder
-    const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
-      name: config.utils.namingHelper(...props.name, 'waf'),
-      scope: 'REGIONAL',
-      defaultAction: { allow: {} },
-      visibilityConfig: {
-        metricName: config.utils.namingHelper(...props.name, 'main-metric'),
-        cloudWatchMetricsEnabled: true,
-        sampledRequestsEnabled: true,
-      },
-      rules: [
-        this.managedRule({
-          priority: 1,
-          managedRuleName: 'AWSManagedRulesCommonRuleSet',
-          metricName: `${config.prefix}-aws-common-rule-set`,
-          name: config.utils.namingHelper(...props.name, 'aws-common-rule-set'),
-        }),
-        this.managedRule({
-          priority: 10,
-          managedRuleName: 'AWSManagedRulesKnownBadInputsRuleSet',
-          metricName: `${config.prefix}-aws-bad-input-rule-metric`,
-          name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
-        }),
-        // This rule while sensible rejects E2E tests from GH Actions
-        // this.managedRule({
-        //   priority: 100,
-        //   managedRuleName: 'AWSManagedRulesAnonymousIpList',
-        //   metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
-        //   name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
-        // }),
-      ],
-    });
-
-    // Associate WAF with API Stage Deployment
-    new wafv2.CfnWebACLAssociation(this, config.utils.namingHelper(...props.name, 'waf-association'), {
-      resourceArn: this.restApi.deploymentStage.stageArn,
-      webAclArn: webAcl.attrArn,
-    });
-
-    const wafLogGroup = new LogGroup(this, config.utils.namingHelper(...props.name, 'waf-log-group'), {
-      logGroupName: `aws-waf-logs-api-gateway-${config.utils.namingHelper(...props.name)}`,
-      retention: RetentionDays.ONE_YEAR,
-      removalPolicy: config.removalPolicy,
-      encryptionKey: props.resources.kms,
-    });
-
-    new wafv2.CfnLoggingConfiguration(this, config.utils.namingHelper(...props.name, 'waf-logging-configuration'), {
-      resourceArn: webAcl.attrArn,
-      logDestinationConfigs: [wafLogGroup.logGroupArn],
-    });
-
-    return webAcl;
-  }
-
-  //// =====================================================
   // VPCe Policies
   //// =====================================================
-  constructPrivatePolicies(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+  constructPrivatePolicies(config: EnvVars, props: UNSAPIGatewayProps) {
     // Add VPC endpoint resource policy if configuration is provided
     if (props.iam?.allowOnlyFromKnownSources) {
       this.restApi.addToResourcePolicy(
@@ -339,13 +280,75 @@ export class UNSAPIGatewayGateway extends Construct {
       );
     }
   }
-  constructor(scope: Construct, config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+
+  //// =====================================================
+  // Cloudfront
+  //// =====================================================
+  constructCloudFrontDistribution(
+    config: EnvVars, 
+    certificate: ICertificate | null, 
+    fullDomain: string | null, 
+  ): Distribution | undefined {
+    const { namingHelper } = config.utils;
+
+    if (!certificate || !fullDomain) {
+      console.log("Tried to create cloudfront when no cloudfront certificate or full domain.", certificate, fullDomain)
+      return undefined
+    }
+
+    // Adds s3 bucket for cloudfront
+    const cloudfrontBucket = new Bucket(this, namingHelper(...this.props.name, 'bucket', 'cloudfront'), {
+      bucketName: namingHelper(`cloudfront-log`, `bucket`),
+      encryption: BucketEncryption.S3_MANAGED,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: true,
+      removalPolicy: config.removalPolicy,
+      autoDeleteObjects: !config.isMainEnv,
+      objectOwnership: ObjectOwnership.OBJECT_WRITER,
+    })
+
+    // Enables CloudFront distribution in front of API Gateway - rest api origin
+    const cloudfront = new Distribution(this, namingHelper(...this.props.name, 'cloudfront'), {
+      comment: this.props.description,
+      defaultBehavior: {
+        origin: new RestApiOrigin(this.restApi),
+        viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+        allowedMethods: AllowedMethods.ALLOW_ALL,
+        cachePolicy: CachePolicy.CACHING_DISABLED,
+        originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+      },
+      domainNames: [fullDomain],
+      priceClass: PriceClass.PRICE_CLASS_100,
+      certificate: certificate,
+      logBucket: cloudfrontBucket,
+      webAclId: this.props.resources.wafArn ?? undefined,
+    });
+
+    // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_cloudfront.CfnDistribution.html
+    const cfnDistribution = cloudfront.node.defaultChild as CfnDistribution;
+    cfnDistribution.addPropertyOverride('DistributionConfig.ViewerMtlsConfig', {
+      Mode: 'passthrough',
+    });
+
+    // Enables AWS shield on CloudFront distribution for None Dev environments
+    if (config.isNonDevEnv) {
+      new CfnProtection(this, namingHelper(...this.props.name, 'cloudfront-shield'), {
+        name: namingHelper(...this.props.name, 'cloudfront-shield'),
+        resourceArn: cloudfront.distributionDomainName,
+      });
+    }
+
+    return cloudfront;
+  }
+
+  constructor(scope: Construct, config: EnvVars, props: UNSAPIGatewayProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
     super(scope, constructNamingHelper(`apigw`, ...props.name));
     this.props = props;
 
     // Extract preconfigured values
-    const { fullDomain, hostedZone, domainConfig } = this.domainConfig(config, props);
+    const { fullDomain, hostedZone, domainConfig, cloudfrontCertificate } = this.domainConfig(config, props);
 
     // Initialize API Gateway RestApi
     const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
@@ -446,7 +449,7 @@ export class UNSAPIGatewayGateway extends Construct {
 
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
-    this.waf = this.constructWAF(config, props);
+    this.cloudfront = props.cloudFrontEnabled ? this.constructCloudFrontDistribution(config, cloudfrontCertificate, fullDomain) : undefined;
     this.constructRoute53Entries(config, props, fullDomain, hostedZone);
 
     // Apply security checkov exceptions

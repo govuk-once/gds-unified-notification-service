@@ -19,6 +19,7 @@ if (existsSync('./infrastructure/cdk/.env')) {
 }
 
 export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
+export const nonDevelopmentEnvironments = ['stg', 'prod'];
 export const environmentLabels: Record<string, string> = {
   dev: 'development',
   stg: 'staging',
@@ -34,7 +35,7 @@ export const fromSSM = async (key: string, fallback?: string | null) => {
   try {
     return useFallback(
       (
-        await new SSMClient().send(
+        await new SSMClient( region === 'us-east-1' ? {region: 'eu-west-2'} : {}).send(
           new GetParameterCommand({
             Name: key,
             WithDecryption: true,
@@ -65,6 +66,7 @@ const prefix = `${project}-${env}`;
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString()}`;
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
+const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
@@ -95,6 +97,7 @@ export const config = {
 
   // Flags
   isMainEnv,
+  isNonDevEnv,
   debugMode,
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
@@ -104,9 +107,16 @@ export const config = {
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc
+    hostedZoneId: (await fromSSM('/infra/dns/hostedzoneid', null))!,
     hostedZoneName: (await fromSSM('/infra/dns/hostedzonename', null))!,
     certificateArnRegional: (await fromSSM('/infra/acm/certificatearnregional', null))!,
+    certificateArnCloudfront: (await fromSSM('/infra/acm/certificatearncloudfront', null))!,
 
+    pso: {
+      api: {
+        id: (await fromSSM(`/${namespace}/pso/api/id`, null))!,
+      }
+    },
     flex: {
       account: await fromSSMJSON<string | null>(`/${namespace}/flex/account`, null),
       vpce: await fromSSMJSON<string[]>(`/${namespace}/flex/vpce`, []),

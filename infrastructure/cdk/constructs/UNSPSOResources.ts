@@ -1,4 +1,4 @@
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration, Fn, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
@@ -7,7 +7,7 @@ import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3'
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
+import { UNSAPIGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
@@ -48,7 +48,7 @@ export class UNSPSOResource extends Construct {
       analyticsExport: UNSLambdaConstruct
     }
   };
-  public readonly gateway: UNSAPIGatewayGateway;
+  public readonly gateway: UNSAPIGateway;
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -77,7 +77,6 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // SQS Queues
     //// =====================================================
-
     this.queues = {
       analytics: refs.queues.analytics,
       //
@@ -119,7 +118,6 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
-
     const analyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
       logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
       retention: RetentionDays.ONE_MONTH,
@@ -130,7 +128,6 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // S3 Buckets
     // //// =====================================================
-
     const analyticsExportBucket = new Bucket(this, constructNamingHelper(`analytics-export`, ` bucket`), {
       bucketName: namingHelper(`analytics-export`),
       encryption: BucketEncryption.S3_MANAGED,
@@ -192,7 +189,6 @@ export class UNSPSOResource extends Construct {
     // //// =====================================================
     // // Users
     // //// =====================================================
-
     const bqExportUser = new User(this, namingHelper('bigquery-export', 'user'), {
       userName: namingHelper('bigquery-export', 'user'),
     });
@@ -224,7 +220,6 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // Lambdas
     //// =====================================================
-
     const baseHTTP = UNSLambdaConstruct.baseHTTPFactory(this.serviceName, refs.codeSigning);
     const baseSQS = UNSLambdaConstruct.baseSQSFactory(this.serviceName, refs.codeSigning);
     const baseSchedule = UNSLambdaConstruct.baseScheduleFactory(this.serviceName, refs.codeSigning);
@@ -430,7 +425,6 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // API Gateway
     //// =====================================================
-
     // Define authorizer
     const authorizer = new RequestAuthorizer(this, config.utils.namingHelper(`mtlsRequestAuthorizer`), {
       identitySources: [IdentitySource.context(`identity.clientCert.clientCertPem`)],
@@ -439,7 +433,7 @@ export class UNSPSOResource extends Construct {
     });
 
     // Define API Gateway
-    this.gateway = new UNSAPIGatewayGateway(this, config, {
+    this.gateway = new UNSAPIGateway(this, config, {
       name: [`pso`],
       description: `API Gateway for PSOs`,
       domain: 'pso',
@@ -448,9 +442,11 @@ export class UNSPSOResource extends Construct {
       },
       resources: {
         kms: refs.kms,
+        wafArn: Fn.getStackOutput(config.utils.namingHelper('global-stack'), config.utils.constructNamingHelper("Pso", "WafArn"), 'us-east-1')
       },
       authorizer: authorizer,
       type: 'PUBLIC',
+      cloudFrontEnabled: true,
 
       // Initial implementation - create consumers for every
       usagePlanDefaults: {
@@ -478,7 +474,6 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // Xray Dashboards
     //// =====================================================
-
     this.dashboards = {
       utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
         pso: this,
@@ -507,9 +502,11 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
     // SSM Values
     //// =====================================================
-
     // SSM Setup values - PSO
     SSMFromObject(stack, config, {
+      // Api Gateway
+      'pso/api/id': this.gateway.restApi.restApiId,
+
       // DynamoDB Tables
       // mTLS refs
       'table/mtls/attributes': props.mtls.revocationTableAttributes,

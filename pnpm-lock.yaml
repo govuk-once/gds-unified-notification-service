@@ -61,6 +61,9 @@ importers:
       '@aws-sdk/util-format-url':
         specifier: ^3.972.21
         version: 3.972.23
+      '@aws-solutions-constructs/aws-cloudfront-apigateway':
+        specifier: ^2.64.0
+        version: 2.64.0(@aws-solutions-constructs/core@2.64.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0))(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)
       '@middy/core':
         specifier: ^7.6.7
         version: 7.6.7
@@ -273,6 +276,13 @@ packages:
     bundledDependencies:
       - jsonschema
       - semver
+
+  '@aws-cdk/integ-tests-alpha@2.150.0-alpha.0':
+    resolution: {integrity: sha512-Drd/FaYwP7XpwxgQUPrvSc/eTaZeuty4oNA8vtHXBTKG3yHyhNgmLtnw4AkCrME5iqiaihHziRFK0vuVKjYFQQ==}
+    engines: {node: '>= 14.15.0'}
+    peerDependencies:
+      aws-cdk-lib: ^2.150.0
+      constructs: ^10.0.0
 
   '@aws-crypto/crc32@5.2.0':
     resolution: {integrity: sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg==}
@@ -515,6 +525,23 @@ packages:
   '@aws-sdk/xml-builder@3.972.30':
     resolution: {integrity: sha512-StElZPEoBquWwNqw1AcfpzEyZqJvFxouG+mpDNYlcH6ZOrqd2CuIryv+8LV8gNHZUOyKyJF3Dq9vxaXEmDR9TQ==}
     engines: {node: '>=20.0.0'}
+
+  '@aws-solutions-constructs/aws-cloudfront-apigateway@2.64.0':
+    resolution: {integrity: sha512-gJsfPwyTwKlmUGW2Lv90/jX3csWD9FzGwuV8WwhjsHUnGzMvGIk73wBT9gLkTKr/5AA+nVOEHF6opTEEkoF+Aw==}
+    peerDependencies:
+      '@aws-solutions-constructs/core': 2.64.0
+      aws-cdk-lib: 2.150.0
+      constructs: ^10.0.0
+
+  '@aws-solutions-constructs/core@2.64.0':
+    resolution: {integrity: sha512-aTtACeSRMwMZn4QrjWoHlqTe7Ydm/LAX8wiLK9lKKF1qsN0Wis1mtlF8Zf1e82udNjzM7TthJbOqsUnQ0nqFCg==}
+    peerDependencies:
+      aws-cdk-lib: 2.150.0
+      constructs: ^10.0.0
+    bundledDependencies:
+      - deepmerge
+      - npmlog
+      - deep-diff
 
   '@aws/lambda-invoke-store@0.2.4':
     resolution: {integrity: sha512-iY8yvjE0y651BixKNPgmv1WrQc+GZ142sb0z4gYnChDDY2YqI4P/jsSopBWrKfAt7LOJAkOXt7rC/hms+WclQQ==}
@@ -3723,6 +3750,11 @@ snapshots:
 
   '@aws-cdk/cloud-assembly-schema@54.3.0': {}
 
+  '@aws-cdk/integ-tests-alpha@2.150.0-alpha.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)':
+    dependencies:
+      aws-cdk-lib: 2.259.0(constructs@10.6.0)
+      constructs: 10.6.0
+
   '@aws-crypto/crc32@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
@@ -4191,6 +4223,19 @@ snapshots:
       '@smithy/types': 4.15.0
       fast-xml-parser: 5.7.3
       tslib: 2.8.1
+
+  '@aws-solutions-constructs/aws-cloudfront-apigateway@2.64.0(@aws-solutions-constructs/core@2.64.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0))(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)':
+    dependencies:
+      '@aws-cdk/integ-tests-alpha': 2.150.0-alpha.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)
+      '@aws-solutions-constructs/core': 2.64.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)
+      aws-cdk-lib: 2.259.0(constructs@10.6.0)
+      constructs: 10.6.0
+
+  '@aws-solutions-constructs/core@2.64.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)':
+    dependencies:
+      '@aws-cdk/integ-tests-alpha': 2.150.0-alpha.0(aws-cdk-lib@2.259.0(constructs@10.6.0))(constructs@10.6.0)
+      aws-cdk-lib: 2.259.0(constructs@10.6.0)
+      constructs: 10.6.0
 
   '@aws/lambda-invoke-store@0.2.4': {}
 
