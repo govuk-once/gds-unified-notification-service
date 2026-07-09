@@ -11,3 +11,14 @@ pnpm = "latest"
 "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
 "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
 "aws:reauthnpm"='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
+[tasks.docs_sri_hash]
+description = "Generates SHA512 of assets used within docs - update the relevant integrity tags within the html files"
+run = '''
+echo "Swagger ui css SRI:"
+openssl dgst -sha512 -binary docs/swagger-ui.css | openssl base64 -A
+echo "\nSwagger ui bundle SRI:"
+openssl dgst -sha512 -binary docs/swagger-ui-bundle.js | openssl base64 -A
+echo ""
+
+'''
+
