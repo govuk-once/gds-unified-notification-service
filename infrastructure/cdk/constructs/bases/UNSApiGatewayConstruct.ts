@@ -13,7 +13,7 @@ import {
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
-import { AllowedMethods, ViewerProtocolPolicy, CachePolicy, PriceClass, CfnDistribution, Distribution, OriginRequestPolicy, CfnTrustStore } from 'aws-cdk-lib/aws-cloudfront';
+import { AllowedMethods, ViewerProtocolPolicy, CachePolicy, PriceClass, CfnDistribution, Distribution, OriginRequestPolicy } from 'aws-cdk-lib/aws-cloudfront';
 import { HttpOrigin, RestApiOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
@@ -98,6 +98,7 @@ export class UNSAPIGateway extends Construct {
     const cloudfrontCertificateArn = config.ssm.certificateArnCloudfront;
     const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
     const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
+    const mtlsDomain = subdomain ? `${subdomain}-mtls.${rootDomain}` : null
 
     let hostedZone: IHostedZone | null = null;
 
@@ -139,7 +140,7 @@ export class UNSAPIGateway extends Construct {
       domainName:
         fullDomain && mtlsCertificate && rootDomain
           ? {
-              domainName: fullDomain,
+              domainName: props.cloudFrontEnabled && mtlsDomain ? mtlsDomain : fullDomain,
               certificate: mtlsCertificate,
               securityPolicy: SecurityPolicy.TLS_1_2,
               endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
@@ -153,7 +154,7 @@ export class UNSAPIGateway extends Construct {
                 : {}),
             }
           : undefined,
-      disableExecuteApiEndpoint: !!(fullDomain && mtlsCertificate && rootDomain && !props.cloudFrontEnabled),
+      disableExecuteApiEndpoint: !!(fullDomain && mtlsCertificate && rootDomain),
     };
 
     return {
@@ -161,6 +162,7 @@ export class UNSAPIGateway extends Construct {
       mtlsCertificateArn,
       fullDomain,
       subdomain,
+      mtlsDomain,
       hostedZone,
       mtlsCertificate,
       cloudfrontCertificate,
@@ -173,11 +175,12 @@ export class UNSAPIGateway extends Construct {
     config: EnvVars,
     props: UNSAPIGatewayProps,
     fullDomain: string | null,
-    hostedZone: IHostedZone | null
+    hostedZone: IHostedZone | null,
+    suffix?: string,
   ) {
     // Provision Route 53 A-Record for Custom Domain mappings
     if (fullDomain && hostedZone) {
-      new ARecord(this, config.utils.namingHelper(...props.name, 'domain'), {
+      new ARecord(this, config.utils.namingHelper(...props.name, suffix ? `domain-${suffix}` : 'domain'), {
         zone: hostedZone,
         recordName: fullDomain,
         target: this.cloudfront ? RecordTarget.fromAlias(
@@ -287,12 +290,13 @@ export class UNSAPIGateway extends Construct {
   constructCloudFrontDistribution(
     config: EnvVars, 
     certificate: ICertificate | null, 
-    fullDomain: string | null, 
+    mtlsDomain: string | null,
+    fullDomain: string | null
   ): Distribution | undefined {
     const { namingHelper } = config.utils;
 
-    if (!certificate || !fullDomain) {
-      console.log("Tried to create cloudfront when no cloudfront certificate or full domain.", certificate, fullDomain)
+    if (!certificate || !mtlsDomain || !fullDomain) {
+      console.log("Tried to create cloudfront when no cloudfront certificate or full domain.", certificate, mtlsDomain, fullDomain)
       return undefined
     }
 
@@ -306,17 +310,17 @@ export class UNSAPIGateway extends Construct {
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
       objectOwnership: ObjectOwnership.OBJECT_WRITER,
-    })
+    });
 
     // Enables CloudFront distribution in front of API Gateway - rest api origin
     const cloudfront = new Distribution(this, namingHelper(...this.props.name, 'cloudfront'), {
       comment: this.props.description,
       defaultBehavior: {
-        origin: new RestApiOrigin(this.restApi),
+        origin: new HttpOrigin(mtlsDomain),
         viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
         allowedMethods: AllowedMethods.ALLOW_ALL,
         cachePolicy: CachePolicy.CACHING_DISABLED,
-        originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        originRequestPolicy: OriginRequestPolicy.ALL_VIEWER,
       },
       domainNames: [fullDomain],
       priceClass: PriceClass.PRICE_CLASS_100,
@@ -348,7 +352,7 @@ export class UNSAPIGateway extends Construct {
     this.props = props;
 
     // Extract preconfigured values
-    const { fullDomain, hostedZone, domainConfig, cloudfrontCertificate } = this.domainConfig(config, props);
+    const { fullDomain, mtlsDomain, hostedZone, domainConfig, cloudfrontCertificate } = this.domainConfig(config, props);
 
     // Initialize API Gateway RestApi
     const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
@@ -449,8 +453,14 @@ export class UNSAPIGateway extends Construct {
 
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
-    this.cloudfront = props.cloudFrontEnabled ? this.constructCloudFrontDistribution(config, cloudfrontCertificate, fullDomain) : undefined;
-    this.constructRoute53Entries(config, props, fullDomain, hostedZone);
+
+    if (props.cloudFrontEnabled) {
+      this.constructRoute53Entries(config, props, mtlsDomain, hostedZone, 'mtls');
+      this.cloudfront = this.constructCloudFrontDistribution(config, cloudfrontCertificate, mtlsDomain, fullDomain);
+      this.constructRoute53Entries(config, props, fullDomain, hostedZone);
+    } else {
+      this.constructRoute53Entries(config, props, fullDomain, hostedZone);
+    }
 
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [
