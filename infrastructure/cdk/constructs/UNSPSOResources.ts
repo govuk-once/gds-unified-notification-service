@@ -51,6 +51,7 @@ export class UNSPSOResource extends Construct {
     };
   };
   public readonly gateway: UNSAPIGatewayGateway;
+  public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -565,7 +566,7 @@ export class UNSPSOResource extends Construct {
     // CloudWatch Alarms 
     //// =====================================================
 
-    new UNSApiGatewayAlarmsConstruct(this, config, {
+    this.apiGatewayAlarms =  new UNSApiGatewayAlarmsConstruct(this, config, {
       restApi: this.gateway.restApi, 
       alertTopic: refs.alertTopic,
       group: this.serviceName,
