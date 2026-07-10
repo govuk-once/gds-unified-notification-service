@@ -465,7 +465,7 @@ export class UNSPSOResource extends Construct {
       },
       usagePlans: getConsumers(config.env, config)
         .map((consumer) => ({ [consumer.organization]: {} }))
-        .reduce((a, b) => ({ ...a, ...b })),
+        .reduce((a, b) => ({ ...a, ...b }), {}),
     })
       .GET(`getHealthcheck`, `/status`, this.lambdas.http.getHealthcheck.integration)
       .GET(`getNotificationStatus`, `/status/{notificationID}`, this.lambdas.http.getNotificationStatus.integration)
