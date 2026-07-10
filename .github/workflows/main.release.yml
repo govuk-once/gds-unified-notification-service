@@ -73,3 +73,12 @@ jobs:
       ENVIRONMENT: staging
       VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
     secrets: inherit
+
+  releaseProduction:
+    needs: [release, releaseToDev]
+    name: Deploy to production
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ENVIRONMENT: production
+      VERSION: ${{needs.release.outputs.semVer}}@${{ github.sha }}
+    secrets: inherit
