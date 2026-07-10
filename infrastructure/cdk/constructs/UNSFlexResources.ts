@@ -15,6 +15,7 @@ export class UNSFlexResource extends Construct {
   public readonly serviceName = 'flex';
   public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
+  public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
   public readonly lambdas: {
     http: {
       getNotifications: UNSLambdaConstruct;
@@ -259,7 +260,7 @@ export class UNSFlexResource extends Construct {
     // CloudWatch Alarms 
     //// =====================================================
     
-    new UNSApiGatewayAlarmsConstruct(this, config, {
+    this.apiGatewayAlarms = new UNSApiGatewayAlarmsConstruct(this, config, {
       restApi: this.gateway.restApi, 
       alertTopic: refs.alertTopic,
       group: this.serviceName,
