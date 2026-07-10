@@ -21,6 +21,8 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
+import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
+
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -558,5 +560,15 @@ export class UNSPSOResource extends Construct {
       },
       { name: ['KeySecret'] }
     );
+
+    //// =====================================================
+    // CloudWatch Alarms 
+    //// =====================================================
+
+    new UNSApiGatewayAlarmsConstruct(this, config, {
+      restApi: this.gateway.restApi, 
+      alertTopic: refs.alertTopic,
+      group: this.serviceName,
+    });
   }
 }

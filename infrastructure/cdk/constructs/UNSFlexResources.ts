@@ -9,9 +9,10 @@ import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambd
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
+import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
 
 export class UNSFlexResource extends Construct {
-  public readonly serviceName = 'pso';
+  public readonly serviceName = 'flex';
   public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
   public readonly lambdas: {
@@ -253,5 +254,15 @@ export class UNSFlexResource extends Construct {
         })
       );
     }
+
+    //// =====================================================
+    // CloudWatch Alarms 
+    //// =====================================================
+    
+    new UNSApiGatewayAlarmsConstruct(this, config, {
+      restApi: this.gateway.restApi, 
+      alertTopic: refs.alertTopic,
+      group: this.serviceName,
+    });
   }
 }
