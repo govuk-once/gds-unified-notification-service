@@ -10,6 +10,10 @@ on:
         description: 'Deploy to Staging'
         type: boolean
         required: true
+      deploy_to_prod: # This will be removed after initial deployment pipeline has been setup
+        description: 'Deploy to Prod'
+        type: boolean
+        required: true
 
 permissions:
   id-token: write
@@ -31,5 +35,14 @@ jobs:
     uses: ./.github/workflows/_deploy.yml
     with:
       ENVIRONMENT: staging
+      VERSION: ${{ github.ref_name }}@${{ github.sha }}
+    secrets: inherit
+
+  releaseProduction:
+    if: ${{ inputs.deploy_to_prod }}
+    name: Deploy to production
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      ENVIRONMENT: production
       VERSION: ${{ github.ref_name }}@${{ github.sha }}
     secrets: inherit
