@@ -67,29 +67,6 @@ jobs:
 
       - name: 🏗️ CDK Deploy
         run: |
-          # Initial deployment failed & we need these to be re-created within CDK Stack
-          aws logs delete-log-group --log-group-name /aws/apigw/uns-prod-flex-private  || echo 'Failed deleting: uns-prod-flex-private ''
-          aws logs delete-log-group --log-group-name /aws/export/uns-prod-analytics-export || echo 'Failed deleting: uns-prod-analytics-export''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-cdk-construct-lambda-csr-generator || echo 'Failed deleting: uns-prod-cdk-construct-lambda-csr-generator''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-cdk-construct-lambda-dynamodb-writer-uns-prod-certificates || echo 'Failed deleting: uns-prod-cdk-construct-lambda-dynamodb-writer-uns-prod-certificates''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-cdk-construct-lambda-dynamodb-writer-uns-prod-organisations || echo 'Failed deleting: uns-prod-cdk-construct-lambda-dynamodb-writer-uns-prod-organisations''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-cdk-construct-lambda-s3-writer || echo 'Failed deleting: uns-prod-cdk-construct-lambda-s3-writer''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-cdk-construct-lambda-sm-writer-bq-sm-writer || echo 'Failed deleting: uns-prod-cdk-construct-lambda-sm-writer-bq-sm-writer''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-cdk-construct-lambda-sm-writer-cert-sm-writer || echo 'Failed deleting: uns-prod-cdk-construct-lambda-sm-writer-cert-sm-writer''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-flex-deletenotification || echo 'Failed deleting: uns-prod-lmdb-flex-deletenotification''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-flex-getnotificationbyid || echo 'Failed deleting: uns-prod-lmdb-flex-getnotificationbyid''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-flex-getnotifications || echo 'Failed deleting: uns-prod-lmdb-flex-getnotifications''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-flex-patchnotification || echo 'Failed deleting: uns-prod-lmdb-flex-patchnotification''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-analytics || echo 'Failed deleting: uns-prod-lmdb-pso-analytics''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-analyticsexport || echo 'Failed deleting: uns-prod-lmdb-pso-analyticsexport''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-dispatch || echo 'Failed deleting: uns-prod-lmdb-pso-dispatch''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-getcampaignstatus || echo 'Failed deleting: uns-prod-lmdb-pso-getcampaignstatus''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-gethealthcheck || echo 'Failed deleting: uns-prod-lmdb-pso-gethealthcheck''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-getnotificationstatus || echo 'Failed deleting: uns-prod-lmdb-pso-getnotificationstatus''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-mtlscertificaterevocationauthorizer || echo 'Failed deleting: uns-prod-lmdb-pso-mtlscertificaterevocationauthorizer''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-postmessage || echo 'Failed deleting: uns-prod-lmdb-pso-postmessage''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-processing || echo 'Failed deleting: uns-prod-lmdb-pso-processing''
-          aws logs delete-log-group --log-group-name /aws/lambda/uns-prod-lmdb-pso-validation || echo 'Failed deleting: uns-prod-lmdb-pso-validation''
           pnpm run cdk:deploy
         env:
           region: ${{ vars.AWS_REGION }}

@@ -13,7 +13,7 @@
     "cdk": "cd infrastructure/cdk && cdk",
     "cdk:diff": "pnpm run cdk diff",
     "cdk:synth": "rm -rf infrastructure/cdk/cdk.out && pnpm run cdk synth",
-    "cdk:deploy": "pnpm run cdk import -y && pnpm run cdk deploy --require-approval never && pnpm run cdk:postdeploy:ssm",
+    "cdk:deploy": "pnpm run cdk deploy --require-approval never --import-existing-resources true && pnpm run cdk:postdeploy:ssm",
     "cdk:postdeploy:ssm": "cd infrastructure/cdk && tsx cdk.postdeploy.ssm.ts",
     "lint:fix": "eslint . --fix",
     "lint": "eslint . --cache --cache-location .eslintcache --concurrency=auto --stats",
