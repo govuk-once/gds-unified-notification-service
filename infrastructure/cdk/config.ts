@@ -160,7 +160,8 @@ export const config = {
   // Helper functions
   utils: {
     constructNamingHelper: (...args: string[]) => camelCase(...args),
-    namingHelper: (...args: string[]) => [config.project, config.env, ...args].join('-').toLowerCase(),
+    namingHelper: (...args: string[]) =>
+      [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', ''),
     namingHelperSnakeCase: (...args: string[]) =>
       config.utils
         .namingHelper(...args)
