@@ -148,6 +148,32 @@ export const test = baseTest
       },
     });
   })
+  .extend('psoAPIWithoutAPIKey', ({}) => {
+    return new FetchService({
+      baseUrl: `https://${psoUrl}`,
+      defaultHeaders: {},
+      defaultTimeout: 60000,
+      fetchOptions: {
+        dispatcher: httpsAgent as unknown as never,
+      },
+    });
+  })
+  .extend('psoAPIWithoutMTLSCert', ({}) => {
+    return new FetchService({
+      baseUrl: `https://${psoUrl}`,
+      defaultHeaders: {
+        'x-api-key': psoApiKey,
+      },
+      defaultTimeout: 60000,
+    });
+  })
+  .extend('psoAPIUsingInsecureProtocol', ({}) => {
+    return new FetchService({
+      baseUrl: `http://${psoUrl}`,
+      defaultHeaders: {},
+      defaultTimeout: 60000,
+    });
+  })
   .extend('flexAPI', ({}) => {
     return new FetchService({
       baseUrl: `https://${flexUrl}`,
@@ -156,7 +182,38 @@ export const test = baseTest
       },
       defaultTimeout: 60000,
     });
-  });
+  })
+  .extend('flexAPIWithoutAPIKey', ({}) => {
+    return new FetchService({
+      baseUrl: `https://${flexUrl}`,
+      defaultHeaders: {},
+      defaultTimeout: 60000,
+    });
+  })
+  .extend('flexAPIUsingInsecureProtocol', ({}) => {
+    return new FetchService({
+      baseUrl: `http://${flexUrl}`,
+      defaultTimeout: 60000,
+      defaultHeaders: {
+        'x-api-key': psoApiKey,
+      },
+      fetchOptions: {
+        dispatcher: httpsAgent as unknown as never,
+      },
+    });
+  })
+  .extend(`mockNotificationID`, () => ({
+    valid: 'd4e04ac4-5696-45b7-8e8c-0060883a84f5',
+    notFound: 'unknown-notification-id',
+  }))
+  .extend('pushID', ({}) => 'abc123')
+  .extend(
+    'validPushID',
+    ({}) =>
+      ({
+        dev: `dNVRHHR-Ik3vzs_QBsIv2WB7nCr-sROc6jIXxOqPRQQ`,
+      })[config.env] ?? 'cde456'
+  );
 
 export const checkStatus = async (psoAPI: FetchService, notificationID: string) => {
   const result = await psoAPI.get({ path: `/status/${notificationID}` });

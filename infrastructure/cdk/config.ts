@@ -1,6 +1,7 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib';
 import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,14 +9,12 @@ import { camelCase } from './utils/camelCase';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
-  console.log(`Loading from within infrastructure/cdk: ${join('./.env')}`);
-  dotenv.config({ path: join('./.env') });
+  dotenv.config({ path: join('./.env'), quiet: true });
 }
 
 // If this file is loaded from project root - i.e. via vitest
 if (existsSync('./infrastructure/cdk/.env')) {
-  console.log(`Loading from root project dir: ${join('./infrastructure/cdk/.env')}`);
-  dotenv.config({ path: join('infrastructure/cdk/.env') });
+  dotenv.config({ path: join('infrastructure/cdk/.env'), quiet: true });
 }
 
 export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
@@ -92,6 +91,7 @@ export const config = {
   // Delete / retain policy - main environment resources should avoid deletion
   removalPolicy: isMainEnv ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
   deletionPolicy: isMainEnv ? CfnDeletionPolicy.RETAIN : CfnDeletionPolicy.DELETE,
+  retention: isMainEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
 
   // Flags
   isMainEnv,
