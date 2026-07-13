@@ -7,7 +7,9 @@ import {
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
+import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { StringParameters } from '@common/utils';
+import { StringSecret } from '@common/utils/secrets';
 
 interface OneSignalPushNotificationResponse {
   id: string;
@@ -31,7 +33,8 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
 
   constructor(
     protected observability: ObservabilityService,
-    protected config: ConfigurationService
+    protected config: ConfigurationService,
+    protected smConfig: SMNamespacedConfigurationService
   ) {}
 
   public async initialize(): Promise<void> {
@@ -41,7 +44,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     }
 
     // Fetch configs
-    this.key = await this.config.getParameter(StringParameters.Dispatch.OneSignal.ApiKey);
+    this.key = await this.smConfig.getParameter(StringSecret.Dispatch.OneSignal.ApiKey);
     this.appId = await this.config.getParameter(StringParameters.Dispatch.OneSignal.AppId);
     this.deeplinkTemplate = await this.config.getParameter(StringParameters.Notification.DeeplinkTemplate);
 

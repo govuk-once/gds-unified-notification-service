@@ -22,6 +22,7 @@ import {
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
+import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -70,6 +71,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   // Config
   const configurationServiceMock = new ConfigurationService(observabilityMock) as Mocked<ConfigurationService>;
   const smConfigurationServiceMock = new SMConfigurationService(observabilityMock) as Mocked<SMConfigurationService>;
+  const smNamespacedConfigurationServiceMock = new SMNamespacedConfigurationService(observabilityMock) as Mocked<SMNamespacedConfigurationService>;
 
   // Queues
   const processingQueueServiceMock = new ProcessingQueueService(
@@ -110,7 +112,8 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   ) as Mocked<AnalyticsService>;
   const notificationServiceMock = new NotificationService(
     observabilityMock,
-    configurationServiceMock
+    configurationServiceMock,
+    smNamespacedConfigurationServiceMock
   ) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
   const circuitBreakerServiceMock = new CircuitBreakerService(
@@ -149,6 +152,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     organisationsDynamoRepositoryMock,
     // Services
     smConfigurationServiceMock,
+    smNamespacedConfigurationServiceMock,
     configurationServiceMock: configurationServiceMock,
     analyticsServiceMock,
     notificationServiceMock,
