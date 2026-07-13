@@ -63,7 +63,9 @@ export class FetchService {
   async request<T = unknown>(options: FetchRequest): Promise<FetchResponse<T>> {
     const { path, method = 'GET', body, headers = {}, timeout = 25000 } = options;
 
-    const normalizedBase = this.props.baseUrl?.replace(/\/+$/, '') ?? '';
+    const normalizedBase = this.props.baseUrl?.endsWith('/')
+      ? this.props.baseUrl?.substring(0, this.props.baseUrl?.length - 1)
+      : (this.props.baseUrl ?? '');
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const url = `${normalizedBase}${normalizedPath}`;
 

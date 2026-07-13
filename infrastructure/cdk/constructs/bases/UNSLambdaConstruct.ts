@@ -16,7 +16,7 @@ import {
 } from 'aws-cdk-lib/aws-lambda';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 
@@ -31,7 +31,6 @@ export interface UNSLambdaConstructProps {
   readonly environment: Record<string, string>;
   readonly runtime?: Runtime;
   readonly memory?: number;
-  readonly logsRetention?: RetentionDays;
   readonly resources: {
     readonly kms: IKey;
     readonly vpc?: {
@@ -98,7 +97,7 @@ export class UNSLambdaConstruct extends Construct {
     // Create log group
     this.logGroup = new LogGroup(this, constructNamingHelper('lg', props.serviceName, ...props.name), {
       logGroupName: `/aws/lambda/${functionName}`,
-      retention: props.logsRetention ?? RetentionDays.ONE_MONTH,
+      retention: config.retention,
       encryptionKey: props.resources.kms,
       removalPolicy: config.removalPolicy,
     });
@@ -110,7 +109,11 @@ export class UNSLambdaConstruct extends Construct {
     });
 
     // Allow writing to CW
-    this.addPermissionsToRole(`cwlogs`, ['logs:CreateLogStream', 'logs:PutLogEvents'], [this.logGroup.logGroupArn, ...this.props.iam?.cloudwatch ?? []]);
+    this.addPermissionsToRole(
+      `cwlogs`,
+      ['logs:CreateLogStream', 'logs:PutLogEvents'],
+      [this.logGroup.logGroupArn, ...(this.props.iam?.cloudwatch ?? [])]
+    );
 
     // Allow export of CW
     this.addPermissionsToRole(`cwlogsExport`, ['logs:CreateExportTask'], this.props.iam?.cloudwatchExport ?? []);
@@ -239,11 +242,11 @@ export class UNSLambdaConstruct extends Construct {
     //// =====================================================
     // Scheduler
     //// =====================================================
-    for (const s of (props?.triggers?.schedule ?? [])) {
+    for (const s of props?.triggers?.schedule ?? []) {
       new Rule(this, config.utils.namingHelper(`scheduler`, this.props.serviceName), {
         schedule: s,
-        targets: [new LambdaFunction(this.fn)]
-      })
+        targets: [new LambdaFunction(this.fn)],
+      });
     }
 
     // Apply Checkov standard exclusion overrides

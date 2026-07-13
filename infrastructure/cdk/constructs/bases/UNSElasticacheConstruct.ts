@@ -34,7 +34,7 @@ export class UNSElasticacheConstruct extends Construct {
     // Valkey User Group assignment
     this.group = new CfnUserGroup(this, `group`, {
       engine: 'valkey',
-      userGroupId: namingHelper(`elca`, `group`).split(`-`).join(``),
+      userGroupId: namingHelper(`elca`, `group`).replaceAll(`-`, ``),
       userIds: [this.user.userId],
     });
     this.group.addDependency(this.user);

@@ -5,6 +5,8 @@ import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
+const url = () => `/status`;
+
 describe('Post /send', () => {
   let notificationID: string;
   let messageRequest: Omit<IMessage, 'OrganisationID'>[];
@@ -25,79 +27,133 @@ describe('Post /send', () => {
     ];
   });
 
-  test('returns 202 and a list of notificationIDs when calling the post message endpoint, when the request body is valid', async ({
-    psoAPI,
-  }) => {
-    // Act
-    const result = await psoAPI.post({ path: '/send', body: messageRequest });
+  describe(`Unhappy paths`, () => {
+    test('UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
+      psoAPIUsingInsecureProtocol: api,
+    }) => {
+      // Arrange
+      const path = url();
 
-    // Assert
-    expect(result.status).toBe(202);
-    expect(result.body).toEqual([
-      {
-        NotificationID: notificationID,
-      },
-    ]);
-  });
-
-  test('if notification is successfully validated, processed, dispatched.', async ({ psoAPI }) => {
-    // Act
-    const result = await psoAPI.post({ path: '/send', body: messageRequest });
-
-    // Assert
-    expect(result.status).toBe(202);
-    const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
-      timeout: 30000,
-      interval: 2000,
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'fetch failed',
+          cause: expect.objectContaining({
+            code: 'UND_ERR_CONNECT_TIMEOUT',
+          }),
+        })
+      );
     });
-    expect(status).toEqual(
-      expect.arrayContaining(
-        [
-          NotificationStateEnum.VALIDATED_API_CALL,
-          NotificationStateEnum.PROCESSING,
-          // Need a way to void test notification while adapter is not VOID.
-          // NotificationStateEnum.PROCESSED,
-          // NotificationStateEnum.DISPATCHING,
-          // NotificationStateEnum.DISPATCHED,
-        ].map((Status) =>
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-          expect.objectContaining({
-            Status,
-            NotificationID: notificationID,
-          })
+
+    test('ECONNRESET when - missing MTLS certificate', async ({ psoAPIWithoutMTLSCert: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'fetch failed',
+          cause: expect.objectContaining({
+            code: 'ECONNRESET',
+          }),
+        })
+      );
+    });
+
+    test('status 403 when - using invalid api key', async ({ psoAPIWithoutAPIKey: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+        })
+      ).rejects.toThrow(`API [POST] ${path} Failed with 403`);
+    });
+  });
+
+  describe(`Happy paths`, () => {
+    test('status 202 when - called with a valid array of notifications', async ({ psoAPI }) => {
+      // Act
+      const result = await psoAPI.post({ path: '/send', body: messageRequest });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([
+        {
+          NotificationID: notificationID,
+        },
+      ]);
+    });
+
+    test('status 202 when - called with a valid notification', async ({ psoAPI }) => {
+      // Act
+      const result = await psoAPI.post({ path: '/send', body: messageRequest });
+
+      // Assert
+      expect(result.status).toBe(202);
+      const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
+        timeout: 30000,
+        interval: 2000,
+      });
+      expect(status).toEqual(
+        expect.arrayContaining(
+          [
+            NotificationStateEnum.VALIDATED_API_CALL,
+            NotificationStateEnum.PROCESSING,
+            // Need a way to void test notification while adapter is not VOID.
+            // NotificationStateEnum.PROCESSED,
+            // NotificationStateEnum.DISPATCHING,
+            // NotificationStateEnum.DISPATCHED,
+          ].map((Status) =>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            expect.objectContaining({
+              Status,
+              NotificationID: notificationID,
+            })
+          )
         )
-      )
-    );
+      );
+    });
+
+    test('status 202 when - message contains valid markdown', async ({ psoAPI }) => {
+      // Arrange
+      const body = [
+        {
+          NotificationID: notificationID,
+          CampaignID: 'testCampaignID',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path: '/send', body });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([
+        {
+          NotificationID: notificationID,
+        },
+      ]);
+    });
   });
 
-  test('returns 202 when message is valid markdown', async ({ psoAPI }) => {
-    // Arrange
-    const body = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
-
-    // Act
-    const result = await psoAPI.post({ path: '/send', body });
-
-    // Assert
-    expect(result.status).toBe(202);
-    expect(result.body).toEqual([
-      {
-        NotificationID: notificationID,
-      },
-    ]);
-  });
-
-  test('it returns 400 when the request has no body.', async ({ psoAPI }) => {
+  test('status 400 when - the request has no body', async ({ psoAPI }) => {
     // Act
     const result = psoAPI.post({ path: '/send' });
 
@@ -107,7 +163,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 202 when the message has no departmentID.', async ({ psoAPI }) => {
+  test('status 202 when - the message has no departmentID', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoDepartmentID = [
       {
@@ -129,7 +185,7 @@ describe('Post /send', () => {
     expect(result.body).toEqual([{ NotificationID: notificationID }]);
   });
 
-  test('it returns 400 when the message has no userID.', async ({ psoAPI }) => {
+  test('status 400 when - the message has no userID', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoUserID = [
       {
@@ -152,7 +208,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 400 when the message has no notificationTitle.', async ({ psoAPI }) => {
+  test('status 400 when - the message has no notificationTitle.', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoNotificationTitle = [
       {
@@ -175,7 +231,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 400 when the message has no notificationBody.', async ({ psoAPI }) => {
+  test('status 400 when - the message has no notificationBody', async ({ psoAPI }) => {
     // Arrange
     const messagesWithNoNotificationBody = [
       {
@@ -198,7 +254,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 400 when the message has invalid url in markdown.', async ({ psoAPI }) => {
+  test('status 400 when - the message has invalid url in markdown', async ({ psoAPI }) => {
     // Arrange
     const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
       {
@@ -222,7 +278,7 @@ describe('Post /send', () => {
     );
   });
 
-  test('it returns 400 when the message has invalid markdown.', async ({ psoAPI }) => {
+  test('status 400 when - the message has invalid markdown', async ({ psoAPI }) => {
     // Arrange
     const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
       {
