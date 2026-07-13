@@ -53,6 +53,10 @@ export const configurableParameters = {
   'udp/config/role': 'null',
 };
 
+export const parametersForDeletion =  [
+  'config/dispatch/onesignal/apiKey'
+]
+
 await (async () => {
   const namespace = config.namespace;
 
