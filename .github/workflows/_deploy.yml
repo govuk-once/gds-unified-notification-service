@@ -74,6 +74,7 @@ jobs:
           code_version: ${{ inputs.VERSION }}
           use_mtls: 'true'
           is_main_environment_in_account: 'true'
+          SSM_PARAMETERS_TO_UPDATE: ${{ vars.SSM_PARAMETERS_TO_UPDATE }}
 
       # End to end testing
       - name: 🧪 Unit & E2E Testing
