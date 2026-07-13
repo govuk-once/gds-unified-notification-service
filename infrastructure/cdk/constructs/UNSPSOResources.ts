@@ -2,7 +2,7 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
@@ -21,6 +21,7 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
+import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -49,6 +50,7 @@ export class UNSPSOResource extends Construct {
     };
   };
   public readonly gateway: UNSAPIGatewayGateway;
+  public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -122,7 +124,7 @@ export class UNSPSOResource extends Construct {
 
     const analyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
       logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
-      retention: RetentionDays.ONE_MONTH,
+      retention: config.retention,
       encryptionKey: refs.kms,
       removalPolicy: config.removalPolicy,
     });
@@ -508,7 +510,7 @@ export class UNSPSOResource extends Construct {
       },
       usagePlans: getConsumers(config.env, config)
         .map((consumer) => ({ [consumer.organization]: {} }))
-        .reduce((a, b) => ({ ...a, ...b })),
+        .reduce((a, b) => ({ ...a, ...b }), {}),
     })
       .GET(`getHealthcheck`, `/status`, this.lambdas.http.getHealthcheck.integration)
       .GET(`getNotificationStatus`, `/status/{notificationID}`, this.lambdas.http.getNotificationStatus.integration)
@@ -564,6 +566,16 @@ export class UNSPSOResource extends Construct {
       // BigQuery Analytics export
       'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
       'analytics/export/bucket/name': analyticsExportBucket.bucketName,
+    });
+
+    //// =====================================================
+    // CloudWatch Alarms
+    //// =====================================================
+
+    this.apiGatewayAlarms = new UNSApiGatewayAlarmsConstruct(this, config, {
+      restApi: this.gateway.restApi,
+      alertTopic: refs.alertTopic,
+      group: this.serviceName,
     });
   }
 }

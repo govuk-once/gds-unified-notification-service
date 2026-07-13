@@ -74,16 +74,16 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     }
 
     const departmentID = event.queryStringParameters?.departmentID;
-
     const compositeID = CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID);
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
+
     // If it doesn't exist - 404
     if (campaign == null) {
       throw new NotFoundError();
     }
 
     const compositeSegments = campaign.CompositeID.split('/');
-    const campaignId = compositeSegments[compositeSegments.length - 1];
+    const campaignId = compositeSegments.at(compositeSegments.length - 1)!;
 
     return {
       body: {

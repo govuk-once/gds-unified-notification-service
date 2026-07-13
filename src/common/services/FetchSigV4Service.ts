@@ -52,7 +52,7 @@ export class FetchSigV4Service extends FetchService {
       method: init?.method,
       protocol: parsedUrl.protocol,
       hostname: parsedUrl.hostname,
-      port: parsedUrl.port ? parseInt(parsedUrl.port, 10) : undefined,
+      port: parsedUrl.port ? Number.parseInt(parsedUrl.port, 10) : undefined,
       path: parsedUrl.pathname,
       query,
       headers: {

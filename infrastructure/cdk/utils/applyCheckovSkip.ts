@@ -28,13 +28,11 @@ export function findResource(construct: IConstruct, predicate: (c: IConstruct) =
     return construct;
   }
   if (construct.node.children) {
-    for (let i = 0; i < construct.node.children.length; i++) {
-      if (construct.node.children[i].node.id.includes(`ObjectsCustomResourceProvider`)) {
+    for (const child of construct.node.children) {
+      if (predicate(child)) {
+        return child;
       }
-      if (predicate(construct.node.children[i])) {
-        return construct.node.children[i];
-      }
-      const result = findResource(construct.node.children[i], predicate);
+      const result = findResource(child, predicate);
       if (result) {
         return result;
       }

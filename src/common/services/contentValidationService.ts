@@ -46,7 +46,7 @@ export class ContentValidationService {
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
     private readonly protocols: string[],
-    private readonly hostnames: string[],
+    private readonly hostnames: string[]
   ) {}
 
   private createError(content: string) {
@@ -87,7 +87,7 @@ export class ContentValidationService {
         continue;
       }
       // Validate protocol is on the list
-      if (this.protocols.includes(url.protocol) == false) {
+      if (!this.protocols.includes(url.protocol)) {
         throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${this.protocols.join(',')}`
         );

@@ -16,7 +16,10 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "lib": ["ESNext.Error"],
+    "lib": [
+      "ESNext.Error",
+      "es2022"
+    ],
     "sourceMap": true,
     "outDir": "./dist",
     "incremental": true,
@@ -26,15 +29,32 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["node", "vitest/globals"],
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
     "paths": {
-      "@common/*": ["./src/common/*"],
-      "@common": ["./src/common"],
-      "@project/*": ["./src/*"],
-      "@project": ["./src"],
-      "@test/*": ["./test/*"],
-      "@test": ["./test"]
+      "@common/*": [
+        "./src/common/*"
+      ],
+      "@common": [
+        "./src/common"
+      ],
+      "@project/*": [
+        "./src/*"
+      ],
+      "@project": [
+        "./src"
+      ],
+      "@test/*": [
+        "./test/*"
+      ],
+      "@test": [
+        "./test"
+      ]
     }
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

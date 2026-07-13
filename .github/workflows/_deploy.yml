@@ -66,7 +66,8 @@ jobs:
         run: pnpm run build
 
       - name: 🏗️ CDK Deploy
-        run: pnpm run cdk:deploy
+        run: |
+          pnpm run cdk:deploy
         env:
           region: ${{ vars.AWS_REGION }}
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
@@ -75,7 +76,8 @@ jobs:
           is_main_environment_in_account: 'true'
 
       # End to end testing
-      - name: 🧪 E2E Testing
-        run: VITEST_SILENT=true pnpm test:e2e
+      - name: 🧪 Unit & E2E Testing
+        run: |
+          VITEST_TREE_REPORT=true pnpm test
         env:
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'

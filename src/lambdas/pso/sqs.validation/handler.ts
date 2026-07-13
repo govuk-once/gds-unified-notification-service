@@ -14,10 +14,9 @@ import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
   ConfigurationService,
-  ContentValidationService,
   MetricsLabels,
   ObservabilityService,
-  ProcessingQueueService,
+  ProcessingQueueService
 } from '@common/services';
 import { BoolParameters } from '@common/utils';
 import { IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
@@ -86,6 +85,9 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
       );
     }
 
+    // Pre-validate message & reject request when one of them contains unsupported url or invalid markdown
+    this.contentValidationService!.validate(message.MessageBody);
+
     await this.notificationsRepository.createRecord({
       ...message,
       OrganisationID: message.OrganisationID,
@@ -126,13 +128,9 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   }
 }
 
-export const handler = new Validation(
-  iocGetConfigurationService(),
-  iocGetObservabilityService(),
-  () => ({
-    analyticsService: iocGetAnalyticsService(),
-    contentValidationService: iocGetContentValidationService(),
-    notificationsRepository: iocGetNotificationDynamoRepository(),
-    processingQueue: iocGetProcessingQueueService(),
-  })
-).handler();
+export const handler = new Validation(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  analyticsService: iocGetAnalyticsService(),
+  contentValidationService: iocGetContentValidationService(),
+  notificationsRepository: iocGetNotificationDynamoRepository(),
+  processingQueue: iocGetProcessingQueueService(),
+})).handler();

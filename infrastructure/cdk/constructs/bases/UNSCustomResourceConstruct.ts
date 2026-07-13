@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import * as customResources from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -39,7 +39,7 @@ export class UNSCustomResourceConstruct<
     const functionName = namingHelper('cdk-construct-lambda', ...props.name);
     const loggroup = new LogGroup(this, `logs`, {
       logGroupName: `/aws/lambda/${functionName}`,
-      retention: RetentionDays.ONE_MONTH,
+      retention: config.retention,
       removalPolicy: config.removalPolicy,
       encryptionKey: props.kms,
     });
