@@ -162,11 +162,7 @@ export const config = {
     constructNamingHelper: (...args: string[]) => camelCase(...args),
     namingHelper: (...args: string[]) =>
       [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', ''),
-    namingHelperSnakeCase: (...args: string[]) =>
-      config.utils
-        .namingHelper(...args)
-        .split('-')
-        .join('_'),
+    namingHelperSnakeCase: (...args: string[]) => config.utils.namingHelper(...args).replaceAll(`-`, `_`),
 
     // Rolling week to week dates - used for short term mtls certs
     lastSunday: () => {

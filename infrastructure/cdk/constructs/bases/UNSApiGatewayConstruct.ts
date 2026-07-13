@@ -116,7 +116,7 @@ export class UNSAPIGatewayGateway extends Construct {
       ? s3.Bucket.fromBucketName(
           this,
           namingHelper(`restapi`, ...props.name, 'truststoreBucket'),
-          props.mtls.truststore.split(`s3://`).join(``).split(`/`).shift()!
+          props.mtls.truststore.replace(`s3://`, ``).split(`/`).shift()!
         )
       : null;
 
@@ -133,7 +133,7 @@ export class UNSAPIGatewayGateway extends Construct {
                 ? {
                     mtls: {
                       bucket: mtlsTruststoreBucket,
-                      key: props.mtls.truststore.split(`s3://`).join(``).split(`/`).slice(1).join(`/`),
+                      key: props.mtls.truststore.replace(`s3://`, ``).split(`/`).slice(1).join(`/`),
                     },
                   }
                 : {}),
