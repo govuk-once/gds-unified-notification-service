@@ -54,6 +54,8 @@ export const configurableParameters = {
   'udp/config/role': 'null',
 };
 
+const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
+
 await (async () => {
   const namespace = config.namespace;
 
@@ -76,6 +78,28 @@ await (async () => {
     );
     if (getParamResult?.Parameter?.Value !== undefined) {
       console.log(` - Exists`);
+      // If parameter exists - check if it's in the ENV.SSM_PARAMETERS_TO_UPDATE
+      if (SSM_PARAMETERS_TO_UPDATE[key]) {
+        console.log(`SSM_PARAMETERS_TO_UPDATE contains entry - updating`);
+
+        const [, putParameterError] = await unwrap(
+          ssmClient.send(
+            new PutParameterCommand({
+              Name: fullKey,
+              Value: SSM_PARAMETERS_TO_UPDATE[key],
+              Type: 'SecureString',
+              Overwrite: false,
+              Description: `Note: This parameter has been created post CDK deployment - ${config.env}`,
+              Tags: Object.entries(config.defaultTags()).map(([Key, Value]) => ({ Key, Value })),
+            })
+          )
+        );
+        if (putParameterError) {
+          console.error(` - Failed to update param`);
+        } else {
+          console.log(` - Param updated`);
+        }
+      }
     }
 
     if (getParamResult?.Parameter?.Value === undefined) {
@@ -84,7 +108,7 @@ await (async () => {
         ssmClient.send(
           new PutParameterCommand({
             Name: fullKey,
-            Value: defaultValue,
+            Value: SSM_PARAMETERS_TO_UPDATE[key] ?? defaultValue,
             Type: 'SecureString',
             Overwrite: false,
             Description: `Note: This parameter has been created post CDK deployment - ${config.env}`,
