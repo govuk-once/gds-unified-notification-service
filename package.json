@@ -17,7 +17,7 @@
     "cdk:postdeploy:ssm": "cd infrastructure/cdk && tsx cdk.postdeploy.ssm.ts",
     "lint:fix": "eslint . --fix",
     "lint": "eslint . --cache --cache-location .eslintcache --concurrency=auto --stats",
-    "pre-commit": "VITEST_SILENT=true tsx scripts/pre-commit.ts",
+    "pre-commit": "tsx scripts/pre-commit.ts",
     "prepare": "husky",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage --project unit",

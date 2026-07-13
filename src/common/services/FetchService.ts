@@ -44,7 +44,7 @@ export const isFetchResponseError = (item: unknown): item is FetchErrorResponse<
 };
 
 export type FetchInputParameter = Parameters<typeof fetch>[0];
-export type FetchOptionsParameter = Parameters<typeof fetch>[1];
+export type FetchOptionsParameter = Required<Parameters<typeof fetch>>[1];
 
 export class FetchService {
   constructor(
