@@ -1,32 +1,22 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
-import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
 const url = () => `/status`;
+const messageRequest = (notificationID: string, userID: string) => (
+  {
+    NotificationID: notificationID,
+    CampaignID: 'testCampaignID',
+    DepartmentID: 'testDepartmentID',
+    UserID: userID,
+    NotificationTitle: 'End 2 End Test',
+    NotificationBody: 'This is an end 2 end test!',
+    MessageTitle: 'End 2 End Test Message Title',
+    MessageBody: 'End 2 End Test Message Body',
+  })
 
 describe('Post /send', () => {
-  let notificationID: string;
-  let messageRequest: Omit<IMessage, 'OrganisationID'>[];
-
-  beforeEach(() => {
-    notificationID = uuid();
-    messageRequest = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
-  });
-
   describe(`Unhappy paths`, () => {
     test('UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
@@ -82,26 +72,26 @@ describe('Post /send', () => {
   });
 
   describe(`Happy paths`, () => {
-    test('status 202 when - called with a valid array of notifications', async ({ psoAPI }) => {
+    test('status 202 when - called with a valid array of notifications', async ({ psoAPI, mockNotificationID, validPushID }) => {
       // Act
-      const result = await psoAPI.post({ path: '/send', body: messageRequest });
+      const result = await psoAPI.post({ path: '/send', body: [ messageRequest(mockNotificationID.valid, validPushID) ]});
 
       // Assert
       expect(result.status).toBe(202);
       expect(result.body).toEqual([
         {
-          NotificationID: notificationID,
+          NotificationID: mockNotificationID.valid,
         },
       ]);
     });
 
-    test('status 202 when - called with a valid notification', async ({ psoAPI }) => {
+    test('status 202 when - called with a valid notification', async ({ psoAPI, mockNotificationID, validPushID }) => {
       // Act
-      const result = await psoAPI.post({ path: '/send', body: messageRequest });
+      const result = await psoAPI.post({ path: '/send', body: [messageRequest(mockNotificationID.valid, validPushID) ]});
 
       // Assert
       expect(result.status).toBe(202);
-      const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
+      const status = await vi.waitFor(() => checkStatus(psoAPI, mockNotificationID.valid), {
         timeout: 30000,
         interval: 2000,
       });
@@ -118,36 +108,25 @@ describe('Post /send', () => {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-return
             expect.objectContaining({
               Status,
-              NotificationID: notificationID,
+              NotificationID: mockNotificationID.valid,
             })
           )
         )
       );
     });
 
-    test('status 202 when - message contains valid markdown', async ({ psoAPI }) => {
+    test('status 202 when - message contains valid markdown', async ({ psoAPI, mockNotificationID, validPushID }) => {
       // Arrange
-      const body = [
-        {
-          NotificationID: notificationID,
-          CampaignID: 'testCampaignID',
-          DepartmentID: 'testDepartmentID',
-          UserID: 'testExternalUserID',
-          NotificationTitle: 'End 2 End Test',
-          NotificationBody: 'This is an end 2 end test!',
-          MessageTitle: 'End 2 End Test Message Title',
-          MessageBody: 'End 2 End Test Message Body',
-        },
-      ];
+      const messageWithMarkdown = [{ ...messageRequest(mockNotificationID.valid, validPushID), MessageBody: '### End 2 End Test Message Body'}];
 
       // Act
-      const result = await psoAPI.post({ path: '/send', body });
+      const result = await psoAPI.post({ path: '/send', body: messageWithMarkdown });
 
       // Assert
       expect(result.status).toBe(202);
       expect(result.body).toEqual([
         {
-          NotificationID: notificationID,
+          NotificationID: mockNotificationID.valid,
         },
       ]);
     });
@@ -163,41 +142,21 @@ describe('Post /send', () => {
     );
   });
 
-  test('status 202 when - the message has no departmentID', async ({ psoAPI }) => {
+  test('status 202 when - the message has no departmentID', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithNoDepartmentID = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
+    const messagesWithNoDepartmentID = [{ ...messageRequest(mockNotificationID.valid, validPushID), DepartmentID: undefined }];
 
     // Act
     const result = await psoAPI.post({ path: '/send', body: messagesWithNoDepartmentID });
 
     // Assert
     expect(result.status).toBe(202);
-    expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    expect(result.body).toEqual([{ NotificationID: mockNotificationID.valid }]);
   });
 
-  test('status 400 when - the message has no userID', async ({ psoAPI }) => {
+  test('status 400 when - the message has no userID', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithNoUserID = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
+    const messagesWithNoUserID = [{ ...messageRequest(mockNotificationID.valid, validPushID), UserID: undefined}]
 
     // Act
     const result = psoAPI.post({ path: '/send', body: messagesWithNoUserID });
@@ -208,19 +167,9 @@ describe('Post /send', () => {
     );
   });
 
-  test('status 400 when - the message has no notificationTitle.', async ({ psoAPI }) => {
+  test('status 400 when - the message has no notificationTitle.', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithNoNotificationTitle = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
+    const messagesWithNoNotificationTitle = [{ ...messageRequest(mockNotificationID.valid, validPushID), NotificationID: undefined}];
 
     // Act
     const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationTitle });
@@ -231,19 +180,10 @@ describe('Post /send', () => {
     );
   });
 
-  test('status 400 when - the message has no notificationBody', async ({ psoAPI }) => {
+  test('status 400 when - the message has no notificationBody', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithNoNotificationBody = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
+    const messagesWithNoNotificationBody = [{ ...messageRequest(mockNotificationID.valid, validPushID), NotificationBody: undefined}];
+
 
     // Act
     const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationBody });
@@ -254,20 +194,9 @@ describe('Post /send', () => {
     );
   });
 
-  test('status 400 when - the message has invalid url in markdown', async ({ psoAPI }) => {
+  test('status 400 when - the message has invalid url in markdown', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
-      },
-    ];
+    const messagesWithInvalidMarkdown = [{ ...messageRequest(mockNotificationID.valid, validPushID), MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.'}];
 
     // Act
     const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
@@ -278,20 +207,9 @@ describe('Post /send', () => {
     );
   });
 
-  test('status 400 when - the message has invalid markdown', async ({ psoAPI }) => {
+  test('status 400 when - the message has invalid markdown', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: '    const x = 10;\n    const y = 20;',
-      },
-    ];
+    const messagesWithInvalidMarkdown = [{ ...messageRequest(mockNotificationID.valid, validPushID), MessageBody: '    const x = 10;\n    const y = 20;'}];
 
     // Act
     const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
