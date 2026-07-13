@@ -76,8 +76,8 @@ jobs:
           is_main_environment_in_account: 'true'
 
       # End to end testing
-      - name: 🧪 E2E Testing
+      - name: 🧪 Unit & E2E Testing
         run: |
-          VITEST_SILENT=true VITEST_TREE_REPORT=true pnpm test
+          VITEST_TREE_REPORT=true pnpm test
         env:
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'

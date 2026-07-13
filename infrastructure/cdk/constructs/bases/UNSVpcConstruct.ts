@@ -59,7 +59,7 @@ export class UNSVpcConstruct<
     const availabilityZones = props.zones.map((zone) => `${stack.env.region}${zone}`);
 
     // Use imports if we're in sandbox env instead of creating infrastructure
-    if (config.isMainEnv == false && config.sandbox.shared.vpc !== null) {
+    if (!config.isMainEnv && config.sandbox.shared.vpc !== null) {
       const imported = this.imports(config.sandbox.shared.vpc);
       this.vpc = imported.vpc;
       this.securityGroups = imported.securityGroups;
@@ -160,9 +160,9 @@ export class UNSVpcConstruct<
       vpc: this.vpc,
       networkAclName: namingHelper('network-acl', ...props.name, 'vpc'),
       subnetSelection: {
-        subnetGroupName: constructNamingHelper('sn', 'private')
-      }
-    })
+        subnetGroupName: constructNamingHelper('sn', 'private'),
+      },
+    });
 
     // Inbound Rules
     networkAcl.addEntry(namingHelper('network-acl', 'deny-ssh-in'), {
@@ -283,7 +283,6 @@ export class UNSVpcConstruct<
         },
         { omitNamespace: true }
       );
-      return;
     }
   }
 }

@@ -34,7 +34,7 @@ fnm use # or nvm use  # or mise install
 4. Install dependencies:
 
 ```sh
-pnpm run  run install
+pnpm run install
 ```
 
 5. Initialize CDK - relies on gds-cli being already configured
@@ -43,7 +43,7 @@ This guided wizard will create a tfstate bucket within AWS based on your develop
 
 ```sh
 eval $(gds-cli aws once-notifications-development-admin -e)
-pnpm run  development:sandbox:setup
+pnpm run development:sandbox:setup
 ```
 
 6. Recommended - Install checkov - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
@@ -51,7 +51,7 @@ pnpm run  development:sandbox:setup
 ```sh
 brew install checkov # not needed if using mise
 # Pre-configured aliases
-pnpm run  checkov
+pnpm run checkov
 ```
 
 Note: If you are using mise-en-place, you can skip brew install step.
@@ -76,7 +76,7 @@ alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-p
 First one authenticates your shell session with the sandbox aws account, second one opens the AWS console with a pre-authenticated session within the correct account.
 
 ```sh
-pnpm run  development:sandbox:setup
+pnpm run development:sandbox:setup
 ```
 
 This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/cdk/.env` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
@@ -85,8 +85,8 @@ Also, if mTLS is enables, it pulls mTLS certificates and domain name into the re
 After the initial setup is completed, another 2 commands can be used to release to sandbox
 
 ```sh
-pnpm run  development:sandbox:release
-pnpm run  development:sandbox:release:plan
+pnpm run development:sandbox:release
+pnpm run development:sandbox:release:plan
 ```
 
 Both versions will convert TS bundles into JS, and execute CDK.
@@ -98,22 +98,26 @@ Within this project there are multiple ways of triggering tests, there are also 
 
 ```sh
 # Standard unit tests
-pnpm run  test
+pnpm run test:unit
+
 # Unit tests reporting coverage
-pnpm run  test:coverage
+pnpm run test:coverage
+
 # End to end tests
-pnpm run  test:e2e
+pnpm run test:e2e
 
 # Additional env vars can also be supplied:
-## Surpress console output
-VITEST_SILENT=true
 ## Disables Mock service worker - allowing http requests to go to internet instead of mock interceptor
 VITEST_DISABLE_MSW=true
+
 ## Changes the test:coverage output to a per file structure instead of summary
 VITEST_DETAILED_COVERAGE=true
 
 ## Sample usage
-VITEST_DETAILED_COVERAGE=true VITEST_SILENT=true pnpm run test:coverage
+VITEST_DETAILED_COVERAGE=true pnpm run test:coverage
+
+## E2E tests against dev environemt
+env=dev pnpm run test:e2e
 ```
 
 We also have some additional flags that can adjust the way

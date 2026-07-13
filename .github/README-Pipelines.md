@@ -41,7 +41,7 @@ sequenceDiagram
 
 - Create Comment with Test results: After running the unit tests, this step creates a comment summarizing the test results. This allows reviewers to quickly see whether the code passes or fails its automated testing regimen.
 
-- Checkov GitHub Action: This step uses Checkov, a popular open-source tool for evaluating cloud infrastructure configurations, to analyze the Terraform code and report on any potential security or compliance issues. The results are likely displayed as a GitHub Action status check.
+- Checkov GitHub Action: This step uses Checkov, a popular open-source tool for evaluating cloud infrastructure configurations, to analyze the CDK code and report on any potential security or compliance issues. The results are likely displayed as a GitHub Action status check.
 
 - Run SonarQube Scan: Finally, this step runs a SonarQube scan to analyze the code for quality and security issues. SonarQube provides detailed reports on code smells, bugs, vulnerabilities, and other metrics to help you maintain high-quality software development practices.
 </details>
@@ -61,13 +61,13 @@ sequenceDiagram
     end
     alt Deployment Steps
       Phase 2-->Phase 3: Checkout Code
-      Phase 2-->Phase 3: Show OIDC claims (right before assume)
+      Phase 2-->Phase 3: Show OIDC claims (right before assume, debug only)
       Phase 2-->Phase 3: Configure AWS credentials
       Phase 2-->Phase 3: Setup Node.js
       Phase 2-->Phase 3: Install Dependencies
       Phase 2-->Phase 3: Build bundles
-      Phase 2-->Phase 3: Setup Terraform
-      Phase 2-->Phase 3: Terraform Deploy
+      Phase 2-->Phase 3: Setup CDK
+      Phase 2-->Phase 3: CDK Deploy
     end
 ```
 
@@ -102,6 +102,8 @@ sequenceDiagram
 
 The release pipeline in this repository is defined in [./.github/workflows/manual.deploy.yml](./workflows/manual.deploy.yml), it consists of the following flow
 
+( This is only supported on Dev & Staging to allow test rollbacks )
+
 ```mermaid
 sequenceDiagram
     alt Environment Settings
@@ -114,7 +116,7 @@ sequenceDiagram
       Phase 2->Phase 3: Setup Node.js
       Phase 2->Phase 3: Install Dependencies
       Phase 2->Phase 3: Build bundles
-      Phase 2->Phase 3: Terraform CDK
+      Phase 2->Phase 3: CDK Deploy
     end
 ```
 

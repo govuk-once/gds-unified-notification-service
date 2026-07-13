@@ -120,17 +120,17 @@ await (async () => {
   }
 
   // Find flex private api gateway
-  const privateApiGw = ((await apiGwClient.send(new GetRestApisCommand({}))).items ?? [])
-    .filter((x) => x.name == config.utils.namingHelper(`apigw`, `flex-private`))
-    .shift();
+  const privateApiGw = ((await apiGwClient.send(new GetRestApisCommand({}))).items ?? []).find(
+    (x) => x.name == config.utils.namingHelper(`apigw`, `flex-private`)
+  );
   if (privateApiGw == undefined) {
     throw new Error(`Failed fetching private apigw used by flex`);
   }
 
   // Find relevant private api key
-  const key = ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? [])
-    .filter((key) => key.name == config.utils.namingHelper(`flex-private`, `api-key`, `flex`))
-    .shift();
+  const key = ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? []).find(
+    (key) => key.name == config.utils.namingHelper(`flex-private`, `api-key`, `flex`)
+  );
   if (key == undefined) {
     throw new Error(`Failed fetching flex API Key during`);
   }
