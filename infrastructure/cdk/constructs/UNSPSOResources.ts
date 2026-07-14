@@ -222,6 +222,51 @@ export class UNSPSOResource extends Construct {
     ]);
 
     //// =====================================================
+    // Secret Manager
+    //// =====================================================
+    const smWriterProvider = new UNSSMWriterProvider(this, config, {
+      kms: refs.kms,
+      names: [`bq-sm-writer`],
+      codeSigningConfig: refs.codeSigning,
+    });
+
+    const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
+      secretName: `${config.prefix}/bigquery/export/key/id`,
+      description: 'Access key for big query export user to gain access to s3 bucket',
+      encryptionKey: refs.kms,
+    });
+    bqExportAccessKeyId.grantWrite(smWriterProvider.fn);
+    smWriterProvider.use(
+      this,
+      {
+        secretArn: bqExportAccessKeyId.secretArn,
+        secretValue: bqExportAccessKey.ref,
+      },
+      { name: ['BigQueryKeyId'] }
+    );
+
+    const bqExportAccessKeySecret = new Secret(this, namingHelper('bigquery-export', 'key-secret'), {
+      secretName: `${config.prefix}/bigquery/export/key/secret`,
+      description: 'Access secret for big query export user to gain access to s3 bucket',
+      encryptionKey: refs.kms,
+    });
+    bqExportAccessKeySecret.grantWrite(smWriterProvider.fn);
+    smWriterProvider.use(
+      this,
+      {
+        secretArn: bqExportAccessKeySecret.secretArn,
+        secretValue: bqExportAccessKey.attrSecretAccessKey,
+      },
+      { name: ['BigQueryKeySecret'] }
+    );
+
+    const dispatchApiKeySecret = new Secret(this, namingHelper('dispatch', 'api', 'key'), {
+      secretName: `${config.prefix}/config/dispatch/onesignal/apiKey`,
+      description: 'Api Key for the dispatch provider - OneSignal',
+      encryptionKey: refs.kms,
+    });
+
+    //// =====================================================
     // Lambdas
     //// =====================================================
 
@@ -356,6 +401,7 @@ export class UNSPSOResource extends Construct {
         dlq: this.queues.dispatch.dlq,
       },
       iam: {
+        sm: [dispatchApiKeySecret.secretArn],
         ssmNamespaces: [config.namespace],
         sqsSend: [this.queues.analytics.queue.queueArn],
         dynamodb: {
@@ -521,45 +567,6 @@ export class UNSPSOResource extends Construct {
       'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
       'analytics/export/bucket/name': analyticsExportBucket.bucketName,
     });
-
-    //// =====================================================
-    // Secret Manager
-    //// =====================================================
-    const smWriterProvider = new UNSSMWriterProvider(this, config, {
-      kms: refs.kms,
-      names: [`bq-sm-writer`],
-      codeSigningConfig: refs.codeSigning,
-    });
-
-    const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
-      secretName: `${config.prefix}/bigquery/export/key/id`,
-      description: 'Access key for big query export user to gain access to s3 bucket',
-      encryptionKey: refs.kms,
-    });
-    bqExportAccessKeyId.grantWrite(smWriterProvider.fn);
-    smWriterProvider.use(
-      this,
-      {
-        secretArn: bqExportAccessKeyId.secretArn,
-        secretValue: bqExportAccessKey.ref,
-      },
-      { name: ['KeyId'] }
-    );
-
-    const bqExportAccessKeySecret = new Secret(this, namingHelper('bigquery-export', 'key-secret'), {
-      secretName: `${config.prefix}/bigquery/export/key/secret`,
-      description: 'Access secret for big query export user to gain access to s3 bucket',
-      encryptionKey: refs.kms,
-    });
-    bqExportAccessKeySecret.grantWrite(smWriterProvider.fn);
-    smWriterProvider.use(
-      this,
-      {
-        secretArn: bqExportAccessKeySecret.secretArn,
-        secretValue: bqExportAccessKey.attrSecretAccessKey,
-      },
-      { name: ['KeySecret'] }
-    );
 
     //// =====================================================
     // CloudWatch Alarms

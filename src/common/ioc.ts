@@ -23,6 +23,7 @@ import {
 import { AnalyticsExportService } from '@common/services/analyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
+import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { InMemoryTTLCache, StringParameters } from '@common/utils';
 
 enum Mode {
@@ -131,6 +132,12 @@ export const iocGetSMConfigurationService = ioc(
   () => new SMConfigurationService(iocGetObservabilityService())
 );
 
+export const iocGetSMNamespacedConfigurationService = ioc(
+  'SMPrefixedConfigurationService',
+  Mode.SINGLETON,
+  () => new SMNamespacedConfigurationService(iocGetObservabilityService())
+)
+
 export const iocGetCacheService = ioc(
   'CacheService',
   Mode.SINGLETON,
@@ -186,7 +193,7 @@ export const iocGetOrganisationsDynamoRepository = ioc(
 
 // Services - API Integrations
 export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, () =>
-  new NotificationService(iocGetObservabilityService(), iocGetConfigurationService()).initialize()
+  new NotificationService(iocGetObservabilityService(), iocGetConfigurationService(), iocGetSMNamespacedConfigurationService()).initialize()
 );
 
 export const iocGetProcessingService = ioc('ProcessingService', Mode.TIMEBOUND_SINGLETON, () =>

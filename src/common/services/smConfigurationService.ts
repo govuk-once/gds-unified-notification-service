@@ -9,15 +9,16 @@ export class SMConfigurationService extends BaseConfigurableValueService {
     this.client = new SecretsManagerClient({ region: 'eu-west-2' });
   }
 
-  public async getParameter(namespace: string): Promise<string> {
-    this.observability.logger.info(`Namespace`, { namespace });
+  public async getParameter(secretId: string): Promise<string> {
+    this.observability.logger.info(`Retrieving secret`, { secretId }); 
     const secret = await this.client.send(
       new GetSecretValueCommand({
         // Allow the value to be a serialized JSON string
-        SecretId: namespace,
+        SecretId: secretId,
       })
     );
 
+    this.observability.logger.info(`Successfully retrieved secret`, { secretId });
     return `${secret.SecretString}`;
   }
 }

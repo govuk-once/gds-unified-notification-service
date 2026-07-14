@@ -5,7 +5,7 @@
 
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand, GetRestApisCommand } from '@aws-sdk/client-api-gateway';
 import { DescribeSecretCommand, SecretsManagerClient, UpdateSecretCommand } from '@aws-sdk/client-secrets-manager';
-import { GetParameterCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { DeleteParametersCommand, GetParameterCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
@@ -22,7 +22,6 @@ export const configurableParameters = {
 
   // Dispatch
   'config/dispatch/adapter': 'VOID', // Enum: VOID, OneSignal
-  'config/dispatch/onesignal/apiKey': 'placeholder',
   'config/dispatch/onesignal/appId': 'placeholder',
 
   // Common
@@ -55,6 +54,10 @@ export const configurableParameters = {
 };
 
 const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
+
+export const parametersForDeletion =  [
+  'config/dispatch/onesignal/apiKey'
+]
 
 await (async () => {
   const namespace = config.namespace;
@@ -122,6 +125,37 @@ await (async () => {
         console.log(` - Param created`);
       }
     }
+  }
+
+  // Iterate through deletion list and remove parameter if it exists
+  const keysToDelete: string[] = [];
+  for (const deprecatedKey of parametersForDeletion) {
+    const fullKey = `/${namespace}/${deprecatedKey}`;
+    try {
+      console.log(`Checking if ${deprecatedKey} still exist in namespace.`);
+      await ssmClient.send(
+        new GetParameterCommand({
+          Name: fullKey,
+          WithDecryption: true,
+        })
+      )
+      console.log(`Parameter ${deprecatedKey} still exist in namespace.`);
+      keysToDelete.push(fullKey);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ParameterNotFound") {
+        return;
+      }
+      throw error;
+    }
+  }
+
+  if (keysToDelete) {
+    console.log(`Deleting deprecated parameters from namespace.`);
+    await ssmClient.send(
+      new DeleteParametersCommand({
+        Names: keysToDelete
+      })
+    )
   }
 
   //// =====================================================

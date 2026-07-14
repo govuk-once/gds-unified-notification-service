@@ -5,11 +5,13 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import { ObservabilityService } from '@common/services/observabilityService';
+import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 
 export class NotificationAdapterVoid implements NotificationAdapter {
   constructor(
     protected observability: ObservabilityService,
-    protected config: ConfigurationService
+    protected config: ConfigurationService,
+    protected smConfig: SMNamespacedConfigurationService
   ) {}
 
   // Empty shim

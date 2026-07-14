@@ -81,7 +81,6 @@ export const StringParameters = {
   },
   Dispatch: {
     OneSignal: {
-      ApiKey: `config/dispatch/onesignal/apiKey`,
       AppId: `config/dispatch/onesignal/appId`,
     },
   },
