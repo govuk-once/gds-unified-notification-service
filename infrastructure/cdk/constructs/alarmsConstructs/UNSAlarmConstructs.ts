@@ -1,0 +1,53 @@
+import { Duration } from "aws-cdk-lib";
+import { EnvVars } from "infrastructure/cdk/config";
+
+export const alarmPriority = {
+  HIGH: 'P2',
+  MEDIUM: 'P3',
+} as const;
+
+export const AlarmPeriod = {
+  ONE_MINUTE: Duration.minutes(1),
+  FIVE_MINUTES: Duration.minutes(5),
+} as const;
+
+export const P95_STATISTIC = 'p95';
+
+export const ZERO_THRESHOLD = 0;
+
+export const ApiGatewayAlarmThreshold = {
+  SERVER_ERROR_RATE_PERCENT: 1,
+  CLIENT_ERROR_RATE_PERCENTAGE: 10,
+} as const;
+
+export const OperationalAlarmThreshold = {
+  QUEUE_DEPTH: 1000, 
+  FAILURE_RATE_PERCENTAGE: 5, 
+  PROCESSING_DURATION_P95_MS: 3000,
+  DISPATCH_DURATION_P95_MS: 5000,
+} as const 
+
+export const MetricName = {
+  CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED: 'CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED',
+  ANALYTICS_EVENT_VALIDATING: 'ANALYTICS_EVENT_VALIDATING',
+  ANALYTICS_EVENT_VALIDATION_FAILED: 'ANALYTICS_EVENT_VALIDATION_FAILED',
+  ANALYTICS_EVENT_PROCESSING: 'ANALYTICS_EVENT_PROCESSING',
+  ANALYTICS_EVENT_PROCESSING_FAILED: 'ANALYTICS_EVENT_PROCESSING_FAILED',
+  ANALYTICS_EVENT_DISPATCHING: 'ANALYTICS_EVENT_DISPATCHING',
+  ANALYTICS_EVENT_DISPATCHING_FAILED: 'ANALYTICS_EVENT_DISPATCHING_FAILED',
+  PROCESSING_DURATION: 'PROCESSING_DURATION',
+  DISPATCH_DURATION: 'DISPATCH_DURATION',
+  BATCH_ITEM_FAILURES_VALIDATION: 'BATCH_ITEM_FAILURES_VALIDATION',
+  BATCH_ITEM_FAILURES_PROCESSING: 'BATCH_ITEM_FAILURES_PROCESSING',
+  BATCH_ITEM_FAILURES_DISPATCH: 'BATCH_ITEM_FAILURES_DISPATCH',
+  QUEUE_PROCESSING_PUBLISHED_FAILED: 'QUEUE_PROCESSING_PUBLISHED_FAILED',
+  QUEUE_DISPATCH_PUBLISHED_FAILED: 'QUEUE_DISPATCH_PUBLISHED_FAILED',
+  QUEUE_ANALYTICS_PUBLISHED_FAILED: 'QUEUE_ANALYTICS_PUBLISHED_FAILED',
+} as const;
+
+export const metricNamespace = (config: EnvVars): string => `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_');
+
+export const metricDimensions = (config: EnvVars, group: string): Record<string, string> => ({
+  service: `NOTIFICATIONS_${group}`.toUpperCase().replace('-', '_'), 
+  environments: `${config.project}-${config.env}`
+});
