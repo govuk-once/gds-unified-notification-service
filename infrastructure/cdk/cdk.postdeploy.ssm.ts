@@ -88,9 +88,8 @@ await (async () => {
               Name: fullKey,
               Value: SSM_PARAMETERS_TO_UPDATE[key],
               Type: 'SecureString',
-              Overwrite: false,
+              Overwrite: true,
               Description: `Note: This parameter has been created post CDK deployment - ${config.env}`,
-              Tags: Object.entries(config.defaultTags()).map(([Key, Value]) => ({ Key, Value })),
             })
           )
         );
