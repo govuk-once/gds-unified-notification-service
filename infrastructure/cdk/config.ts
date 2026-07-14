@@ -18,6 +18,7 @@ if (existsSync('./infrastructure/cdk/.env')) {
 }
 
 export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
+export const nonDevelopmentEnvironments = ['stg', 'prod'];
 export const environmentLabels: Record<string, string> = {
   dev: 'development',
   stg: 'staging',
@@ -64,6 +65,7 @@ const prefix = `${project}-${env}`;
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString()}`;
 const namespace = [project, env].join(`-`);
 const isMainEnv = unremoveableEnvironments.includes(env);
+const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
@@ -95,6 +97,7 @@ export const config = {
 
   // Flags
   isMainEnv,
+  isNonDevEnv,
   debugMode,
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
