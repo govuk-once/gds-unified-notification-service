@@ -11,6 +11,7 @@ import {
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
+import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { EnumParameters, segment } from '@common/utils';
 import * as z from 'zod';
 
@@ -18,7 +19,8 @@ export class NotificationService {
   public adapter: NotificationAdapter;
   constructor(
     protected observability: ObservabilityService,
-    protected config: ConfigurationService
+    protected config: ConfigurationService,
+    protected smConfig: SMNamespacedConfigurationService,
   ) {}
 
   async initialize() {
@@ -30,8 +32,8 @@ export class NotificationService {
 
     this.adapter =
       adapter == 'OneSignal'
-        ? new NotificationAdapterOneSignal(this.observability, this.config)
-        : new NotificationAdapterVoid(this.observability, this.config);
+        ? new NotificationAdapterOneSignal(this.observability, this.config, this.smConfig)
+        : new NotificationAdapterVoid(this.observability, this.config, this.smConfig);
 
     // Initialize the adapter
     await this.adapter.initialize();

@@ -4,14 +4,17 @@ import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationServ
 import { EnumParameters, StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
+  mockDefaultSecrets,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { StringSecret } from '@common/utils/secrets';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smNamespacedConfigurationService', { spy: true });
 vi.mock('@common/adapters/notificationAdapterOneSignal', { spy: true });
 
 describe('NotificationService', () => {
@@ -23,6 +26,7 @@ describe('NotificationService', () => {
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
+  let mockSecrets = mockDefaultSecrets();
 
   const mockRequest = {
     NotificationID: 'test01',
@@ -40,8 +44,12 @@ describe('NotificationService', () => {
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
+    mockSecrets = mockDefaultSecrets();
+    serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockSecrets)
+    )
 
-    instance = new NotificationService(observabilityMock, serviceMocks.configurationServiceMock);
+    instance = new NotificationService(observabilityMock, serviceMocks.configurationServiceMock, serviceMocks.smNamespacedConfigurationServiceMock);
   });
 
   describe('initialize', () => {
@@ -66,7 +74,6 @@ describe('NotificationService', () => {
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
       const expectedParamCalls = [
         EnumParameters.Config.Dispatch.Adapter,
-        StringParameters.Dispatch.OneSignal.ApiKey,
         StringParameters.Dispatch.OneSignal.AppId,
         StringParameters.Notification.DeeplinkTemplate,
       ];
@@ -80,6 +87,7 @@ describe('NotificationService', () => {
       for (const param of expectedParamCalls) {
         expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(param);
       }
+      expect(serviceMocks.smNamespacedConfigurationServiceMock.getParameter).toHaveBeenCalledWith(StringSecret.Dispatch.OneSignal.ApiKey);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(expectedParamCalls.length);
     });
   });
@@ -105,8 +113,9 @@ describe('NotificationService', () => {
     it('Sends a request to onesignal and parses valid response', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
       mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+
+      mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
 
       // Act
       await instance.initialize();
@@ -124,8 +133,9 @@ describe('NotificationService', () => {
     it('Sends a request to onesignal with a deeplink pointing at notification id', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
       mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+
       await instance.initialize();
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
@@ -144,8 +154,9 @@ describe('NotificationService', () => {
     it('Sends a request to onesignal and logs errors before throwing an exception', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
       mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+
+      mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
 
       // Act
       await instance.initialize();

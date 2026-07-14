@@ -1,4 +1,5 @@
 import { BoolParameters, EnumParameters, NumericParameters, StringParameters } from '@common/utils/parameters';
+import { StringSecret } from '@common/utils/secrets';
 
 // Default config values for mocking
 // All of the values in SSM are strings
@@ -11,7 +12,6 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Queue.Analytics.Url]: 'sqsurl/sqsanalytics',
     [StringParameters.Queue.Dispatch.Url]: 'sqsurl/sqsdispatch',
     [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
-    [StringParameters.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
     [StringParameters.AnalyticsExport.LogGroup.Name]: 'mockLogGroupName',
@@ -61,6 +61,12 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       hashKey: 'OrganisationID',
       rangeKey: null,
     }),
+  }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
+
+export const mockDefaultSecrets = (): Record<string, string | Error> =>
+  Object.entries({
+    // Strings
+    [StringSecret.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockGetParameterImplementation = (records: Record<string, string | Error>) => {

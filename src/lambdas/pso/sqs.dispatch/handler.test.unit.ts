@@ -9,6 +9,7 @@ import { NotificationAdapterResult } from '@common/services/interfaces';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
+  mockDefaultSecrets,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
@@ -36,6 +37,7 @@ describe('Dispatch QueueHandler', () => {
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
+  let mockSecrets = mockDefaultSecrets();
 
   // Data presets
   const mockContext: Context = {
@@ -164,6 +166,11 @@ describe('Dispatch QueueHandler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
+
+    mockSecrets = mockDefaultSecrets();
+    serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockSecrets)
+    )
 
     // Mocking successful completion of service functions
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
