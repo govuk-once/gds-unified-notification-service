@@ -169,7 +169,7 @@ describe('Post /send', () => {
 
   test('status 400 when - the message has no notificationTitle.', async ({ psoAPI, mockNotificationID, validPushID }) => {
     // Arrange
-    const messagesWithNoNotificationTitle = [{ ...messageRequest(mockNotificationID.valid, validPushID), NotificationID: undefined}];
+    const messagesWithNoNotificationTitle = [{ ...messageRequest(mockNotificationID.valid, validPushID), NotificationTitle: undefined}];
 
     // Act
     const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationTitle });
