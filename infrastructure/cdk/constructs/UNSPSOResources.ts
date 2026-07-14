@@ -9,6 +9,7 @@ import { Construct } from 'constructs';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { UNSOperationalAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
@@ -21,7 +22,7 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
+import { UNSApiGatewayAlarmsConstruct } from './alarmsConstructs/UNSApiGatewayAlarmsConstruct';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -51,6 +52,7 @@ export class UNSPSOResource extends Construct {
   };
   public readonly gateway: UNSAPIGatewayGateway;
   public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
+  public readonly operationalAlarms: UNSOperationalAlarmsConstruct;
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -577,5 +579,16 @@ export class UNSPSOResource extends Construct {
       alertTopic: refs.alertTopic,
       group: this.serviceName,
     });
+
+    this.operationalAlarms = new UNSOperationalAlarmsConstruct(this, config, {
+      alertTopic: refs.alertTopic,
+      group: this.serviceName, 
+      queues: [
+        { name: 'incoming', queue: this.queues.incoming.queue },
+        { name: 'processing', queue: this.queues.processing.queue  },
+        { name: 'dispatch', queue: this.queues.dispatch.queue  },
+        { name: 'analytics', queue: this.queues.analytics.queue },
+      ]
+    })
   }
 }
