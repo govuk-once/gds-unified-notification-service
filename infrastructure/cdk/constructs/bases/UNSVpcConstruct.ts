@@ -210,7 +210,7 @@ export class UNSVpcConstruct<
         name: [...props.name, 'flow-log'],
         lifecycleRules: [{
           enabled: true,
-          expiration: Duration.days(365),
+          expiration: config.expiration,
         }]
       });
 

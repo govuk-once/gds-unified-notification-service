@@ -1,5 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { CfnDeletionPolicy, RemovalPolicy } from 'aws-cdk-lib';
+import { CfnDeletionPolicy, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import dotenv from 'dotenv';
@@ -94,6 +94,7 @@ export const config = {
   removalPolicy: isMainEnv ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
   deletionPolicy: isMainEnv ? CfnDeletionPolicy.RETAIN : CfnDeletionPolicy.DELETE,
   retention: isMainEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
+  expiration: isNonDevEnv ? Duration.days(365) : Duration.days(30),
 
   // Flags
   isMainEnv,
