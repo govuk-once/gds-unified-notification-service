@@ -1,8 +1,12 @@
-import { CfnResource, Stack } from 'aws-cdk-lib';
+import { CfnResource, Duration, Stack } from 'aws-cdk-lib';
 import {
   AclCidr,
   AclTraffic,
   Action,
+  FlowLog,
+  FlowLogDestination,
+  FlowLogResourceType,
+  FlowLogTrafficType,
   GatewayVpcEndpoint,
   GatewayVpcEndpointAwsService,
   IGatewayVpcEndpoint,
@@ -20,8 +24,10 @@ import {
   TrafficDirection,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
+import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
@@ -197,6 +203,23 @@ export class UNSVpcConstruct<
       direction: TrafficDirection.EGRESS,
       ruleAction: Action.ALLOW,
     });
+
+    // VPC Flow logs
+    if (config.isNonDevEnv) {
+      const flowLogBucket = new UNSS3Bucket(this, config, {
+        name: [...props.name, 'flow-log'],
+        lifecycleRules: [{
+          enabled: true,
+          expiration: config.expiration,
+        }]
+      });
+
+      new FlowLog(this, namingHelper('flow-log', 's3'), {
+        resourceType: FlowLogResourceType.fromVpc(this.vpc),
+        destination: FlowLogDestination.toS3(flowLogBucket.bucket),
+        trafficType: FlowLogTrafficType.ALL,
+      });
+    }
   }
 
   imports(imported: NonNullable<EnvVars['sandbox']['shared']['vpc']>) {
