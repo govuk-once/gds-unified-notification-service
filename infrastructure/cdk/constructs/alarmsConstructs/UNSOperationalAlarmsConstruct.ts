@@ -13,7 +13,8 @@ import { ITopic } from 'aws-cdk-lib/aws-sns';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { AlarmPeriod, alarmPriority, metricDimensions, MetricName, metricNamespace, OperationalAlarmThreshold, P95_STATISTIC, ZERO_THRESHOLD } from "./UNSAlarmConstructs";
+import { MetricsLabels } from "../../../../src/common/services/observabilityService";
+import { AlarmPeriod, alarmPriority, metricDimensions, OperationalAlarmThreshold, P95_STATISTIC, ZERO_THRESHOLD } from "./UNSAlarmConstructs";
 
 interface QueueTarget {
   name: string;
@@ -33,6 +34,7 @@ export class UNSOperationalAlarmsConstruct extends Construct {
     super(scope, constructNamingHelper('operational', 'alarms', props.group));
     const { alertTopic, group, queues } = props;
     
+    const metricNamespace = (config: EnvVars): string => `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_');
     const namespace = metricNamespace(config);
     const dimensionsMap = metricDimensions(config, group);
       
@@ -57,7 +59,7 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       id: constructNamingHelper('rateLimitEnforcedAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchRateLimitingEnforced'),
       description: `Dispatch circuit breaker enforced rate limiting for 2 consecutive minutes.`,
-      metric: customMetric(MetricName.CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED, Stats.MAXIMUM, AlarmPeriod.ONE_MINUTE),
+      metric: customMetric(MetricsLabels.CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED, Stats.MAXIMUM, AlarmPeriod.ONE_MINUTE),
       threshold: 1,
       comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       evaluationPeriods: 2,
@@ -69,8 +71,8 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       id: constructNamingHelper('validationFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'ValidationFailureRateHigh'),
       description: `Validation failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
-      failed: customMetric(MetricName.ANALYTICS_EVENT_VALIDATION_FAILED, Stats.SUM),
-      total: customMetric(MetricName.ANALYTICS_EVENT_VALIDATING, Stats.SUM),
+      failed: customMetric(MetricsLabels.ANALYTICS_EVENT_VALIDATION_FAILED, Stats.SUM),
+      total: customMetric(MetricsLabels.ANALYTICS_EVENT_VALIDATING, Stats.SUM),
       label: 'validation failure rate (%)',
       alertTopic,
     });
@@ -79,8 +81,8 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       id: constructNamingHelper('processingFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'ProcessingFailureRateHigh'),
       description: `Processing failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
-      failed: customMetric(MetricName.ANALYTICS_EVENT_PROCESSING_FAILED, Stats.SUM),
-      total: customMetric(MetricName.ANALYTICS_EVENT_PROCESSING, Stats.SUM),
+      failed: customMetric(MetricsLabels.ANALYTICS_EVENT_PROCESSING_FAILED, Stats.SUM),
+      total: customMetric(MetricsLabels.ANALYTICS_EVENT_PROCESSING, Stats.SUM),
       label: 'processing failure rate (%)',
       alertTopic,
     });
@@ -89,8 +91,8 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       id: constructNamingHelper('dispatchFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchFailureRateHigh'),
       description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS}% over a 5-minute window.`,
-      failed: customMetric(MetricName.ANALYTICS_EVENT_DISPATCHING_FAILED, Stats.SUM),
-      total: customMetric(MetricName.ANALYTICS_EVENT_DISPATCHING, Stats.SUM),
+      failed: customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING_FAILED, Stats.SUM),
+      total: customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING, Stats.SUM),
       label: 'dispatch failure rate (%)',
       alertTopic,
     });
@@ -99,7 +101,7 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       id: constructNamingHelper('processingDurationAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'ProcessingDurationP95High'),
       description: `Processing p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
-      metric: customMetric(MetricName.PROCESSING_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
+      metric: customMetric(MetricsLabels.PROCESSING_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
       threshold: OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS,
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 1,
@@ -111,7 +113,7 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       id: constructNamingHelper('dispatchDurationAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchDurationP95High'),
       description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
-      metric: customMetric(MetricName.DISPATCH_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
+      metric: customMetric(MetricsLabels.DISPATCH_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
       threshold: OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS,
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 1,
@@ -120,9 +122,9 @@ export class UNSOperationalAlarmsConstruct extends Construct {
     });
     
     const batchFailureTargets = [
-      { id: 'validationBatchFailuresAlarm', metric: MetricName.BATCH_ITEM_FAILURES_VALIDATION, title: 'ValidationBatchItemFailures', label: 'Validation' },
-      { id: 'processingBatchFailuresAlarm', metric: MetricName.BATCH_ITEM_FAILURES_PROCESSING, title: 'ProcessingBatchItemFailures', label: 'Processing' },
-      { id: 'dispatchBatchFailuresAlarm', metric: MetricName.BATCH_ITEM_FAILURES_DISPATCH, title: 'DispatchBatchItemFailures', label: 'Dispatch' },
+      { id: 'validationBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION, title: 'ValidationBatchItemFailures', label: 'Validation' },
+      { id: 'processingBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING, title: 'ProcessingBatchItemFailures', label: 'Processing' },
+      { id: 'dispatchBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH, title: 'DispatchBatchItemFailures', label: 'Dispatch' },
     ];
     
     for (const target of batchFailureTargets) {
@@ -140,9 +142,9 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       }
       
     const publishFailureTargets = [
-      { id: 'processingPublishFailuresAlarm', metric: MetricName.QUEUE_PROCESSING_PUBLISHED_FAILED, title: 'ProcessingQueuePublishFailed', label: 'processing' },
-      { id: 'dispatchPublishFailuresAlarm', metric: MetricName.QUEUE_DISPATCH_PUBLISHED_FAILED, title: 'DispatchQueuePublishFailed', label: 'dispatch' },
-      { id: 'analyticsPublishFailuresAlarm', metric: MetricName.QUEUE_ANALYTICS_PUBLISHED_FAILED, title: 'AnalyticsQueuePublishFailed', label: 'analytics' },
+      { id: 'processingPublishFailuresAlarm', metric: MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED, title: 'ProcessingQueuePublishFailed', label: 'processing' },
+      { id: 'dispatchPublishFailuresAlarm', metric: MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED, title: 'DispatchQueuePublishFailed', label: 'dispatch' },
+      { id: 'analyticsPublishFailuresAlarm', metric: MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED, title: 'AnalyticsQueuePublishFailed', label: 'analytics' },
     ];
     
     for (const target of publishFailureTargets) {

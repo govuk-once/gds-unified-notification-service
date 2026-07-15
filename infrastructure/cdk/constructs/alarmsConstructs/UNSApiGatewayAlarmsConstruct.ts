@@ -26,7 +26,7 @@ export class UNSApiGatewayAlarmsConstruct extends Construct {
 
     this.serverErrorRateAlarm = this.buildRateAlarm({
       id: constructNamingHelper('api5xxRateAlarm', group),
-      name: namingHelper(alarmPriority.HIGH, group, 'Api5xxErrorRateElevated'), 
+      name: namingHelper(alarmPriority.EXTRA_HIGH, group, 'Api5xxErrorRateElevated'), 
       description: `API 5xx error rate for ${group} exceeded ${ApiGatewayAlarmThreshold.SERVER_ERROR_RATE_PERCENT}% of requests over a 5-minute window.`,
       errors: restApi.metricServerError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
       requests,
@@ -37,7 +37,7 @@ export class UNSApiGatewayAlarmsConstruct extends Construct {
 
     this.clientErrorRateAlarm = this.buildRateAlarm({
       id: constructNamingHelper('api4xxRateAlarm', group),
-      name: namingHelper(alarmPriority.MEDIUM, group, 'Api4xxErrorRateElevated'), 
+      name: namingHelper(alarmPriority.HIGH, group, 'Api4xxErrorRateElevated'), 
       description: `API 4xx error rate for ${group} exceeded ${ApiGatewayAlarmThreshold.CLIENT_ERROR_RATE_PERCENTAGE}% of requests over a 5-minute window.`,
       errors: restApi.metricClientError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
       requests,
