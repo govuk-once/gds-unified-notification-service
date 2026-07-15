@@ -55,9 +55,7 @@ export const configurableParameters = {
 
 const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
 
-export const parametersForDeletion =  [
-  'config/dispatch/onesignal/apiKey'
-]
+export const parametersForDeletion = ['config/dispatch/onesignal/apiKey'];
 
 await (async () => {
   const namespace = config.namespace;
@@ -138,24 +136,23 @@ await (async () => {
           Name: fullKey,
           WithDecryption: true,
         })
-      )
+      );
       console.log(`Parameter ${deprecatedKey} still exist in namespace.`);
       keysToDelete.push(fullKey);
     } catch (error) {
-      if (error instanceof Error && error.name === "ParameterNotFound") {
-        return;
+      if (!(error instanceof Error && error.name === 'ParameterNotFound')) {
+        throw error;
       }
-      throw error;
     }
   }
 
-  if (keysToDelete) {
+  if (keysToDelete.length > 0) {
     console.log(`Deleting deprecated parameters from namespace.`);
     await ssmClient.send(
       new DeleteParametersCommand({
-        Names: keysToDelete
+        Names: keysToDelete,
       })
-    )
+    );
   }
 
   //// =====================================================
