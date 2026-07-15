@@ -50,6 +50,8 @@ describe('ContentValidationService', () => {
       [`Message mentioning https://content.gov.uk val`, 'Link text'],
       [`Deeplink to any other part of app govuk://home`, 'Deeplink'],
       ['Message without a deeplink', 'Without Deeplink'],
+      ['Message with character:', 'with : as not hyperlink'],
+      ['The time is 09:00', 'a time not as a hyperlink'],
     ])('Validates message body with valid markdown: %s', (message: string) => {
       // Act
       const result = instance.validate(message);
@@ -106,8 +108,8 @@ describe('ContentValidationService', () => {
           `http://unexpected-website.com is using http: protocol which is not allowed. Allowed protocols: govuk:,https:`,
         ],
         [
-          `Example scam message trying to open banking apps bankapp://send`,
-          `bankapp://send is using bankapp: protocol which is not allowed. Allowed protocols: govuk:,https:`,
+          `Example message using unsecure http with http://send`,
+          `http://send is using http: protocol which is not allowed. Allowed protocols: govuk:,https:`,
         ],
         [
           `mailto:name@email.com`,
@@ -123,6 +125,7 @@ describe('ContentValidationService', () => {
         // & Assert
         expect(result).toThrow(exception);
       });
+    });
 
     describe('Hostname validation', () => {
       it.each([
@@ -143,7 +146,6 @@ describe('ContentValidationService', () => {
 
         // Assert
         expect(result).toThrow(exception);
-      });
       });
     });
   });
