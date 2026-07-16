@@ -209,6 +209,7 @@ await (async () => {
       SecretId: `${config.prefix}/flex/consumer`,
       SecretString: JSON.stringify({
         apiKey: keyValue.value,
+        apiUrl: '_',
         privateApiUrl: `https://${privateApiGw.id}.execute-api.eu-west-2.amazonaws.com/api`,
         roleArn: `arn:aws:iam::${identityResult.Account}:role/${config.utils.namingHelper('iamr-api-gateway', 'flex-private', 'private-invoker')}`,
         region: config.region,
