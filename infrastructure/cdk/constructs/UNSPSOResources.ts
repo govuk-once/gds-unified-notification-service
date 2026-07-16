@@ -21,7 +21,9 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
+import { UNSAuthenticationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct';
+import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
+import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -51,6 +53,8 @@ export class UNSPSOResource extends Construct {
   };
   public readonly gateway: UNSAPIGatewayGateway;
   public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
+  public readonly authenticationAlarms: UNSAuthenticationAlarmsConstruct;
+  public readonly wafAlarms: UNSWAFAlarmsConstruct;
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -577,5 +581,14 @@ export class UNSPSOResource extends Construct {
       alertTopic: refs.alertTopic,
       group: this.serviceName,
     });
+    this.authenticationAlarms = new UNSAuthenticationAlarmsConstruct(this, config, {
+      alertTopic: refs.alertTopic,
+      group: this.serviceName,
+    })
+    this.wafAlarms = new UNSWAFAlarmsConstruct(this, config, {
+      waf: this.gateway.waf,
+      alertTopic: refs.alertTopic,
+      group: this.serviceName,
+    })
   }
 }

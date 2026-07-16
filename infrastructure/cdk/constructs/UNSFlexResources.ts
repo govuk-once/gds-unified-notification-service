@@ -9,13 +9,15 @@ import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambd
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
+import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
+import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
 
 export class UNSFlexResource extends Construct {
   public readonly serviceName = 'flex';
   public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
   public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
+  public readonly wafAlarms: UNSWAFAlarmsConstruct;
   public readonly lambdas: {
     http: {
       getNotifications: UNSLambdaConstruct;
@@ -265,5 +267,10 @@ export class UNSFlexResource extends Construct {
       alertTopic: refs.alertTopic,
       group: this.serviceName,
     });
+    this.wafAlarms = new UNSWAFAlarmsConstruct(this, config, {
+      waf: this.gateway.waf,
+      alertTopic: refs.alertTopic,
+      group: this.serviceName,
+    })
   }
 }
