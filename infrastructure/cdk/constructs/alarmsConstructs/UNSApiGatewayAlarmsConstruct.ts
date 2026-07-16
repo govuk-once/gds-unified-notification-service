@@ -25,6 +25,7 @@ export class UNSApiGatewayAlarmsConstruct extends UNSAlarmsConstruct {
     const { restApi, group } = props;
     const requests = restApi.metricCount({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES });
 
+    // Rate alarm for server errors
     this.serverErrorRateAlarm = this.addRateAlarm({
       id: constructNamingHelper('api5xxRateAlarm', group),
       name: namingHelper(alarmPriority.EXTRA_HIGH, group, 'Api5xxErrorRateElevated'), 
@@ -35,6 +36,7 @@ export class UNSApiGatewayAlarmsConstruct extends UNSAlarmsConstruct {
       label: '5xx error rate (%)',
     });
 
+    // Rate alarm for client errors
     this.clientErrorRateAlarm = this.addRateAlarm({
       id: constructNamingHelper('api4xxRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'Api4xxErrorRateElevated'), 

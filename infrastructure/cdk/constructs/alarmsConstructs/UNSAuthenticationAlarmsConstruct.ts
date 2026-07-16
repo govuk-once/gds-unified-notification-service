@@ -11,6 +11,7 @@ export const AuthenticationAlarmThreshold = {
 export class UNSAuthenticationAlarmsConstruct extends UNSAlarmsConstruct {
   constructor(scope: Construct, config: EnvVars, props: UNSAlarmsProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
+    props.names = [...(props.names ?? []), 'authentication'];
     super(scope, config, props);
 
     const { group } = props;

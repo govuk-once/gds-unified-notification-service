@@ -91,7 +91,7 @@ export class UNSAlarmsConstruct extends Construct {
     label: string; 
   }): Alarm {
     const errorRate = new MathExpression({
-      expression: '(FILL(errors, 0) / requests) * 100',
+      expression: '(FILL(failed, 0) / total) * 100',
       usingMetrics: { failed: props.failed, total: props.total },
       period: AlarmPeriod.FIVE_MINUTES,
       label: props.label,

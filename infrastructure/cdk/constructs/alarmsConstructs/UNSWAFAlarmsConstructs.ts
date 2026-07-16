@@ -16,6 +16,7 @@ export interface UNSWAFAlarmProps extends UNSAlarmsProps {
 export class UNSWAFAlarmsConstruct extends UNSAlarmsConstruct {
   constructor(scope: Construct, config: EnvVars, props: UNSWAFAlarmProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
+    props.names = [...(props.names ?? []), 'waf']
     super(scope, config, props);
 
     const { group } = props;
