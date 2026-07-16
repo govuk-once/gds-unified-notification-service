@@ -34,8 +34,7 @@ export class UNSOperationalAlarmsConstruct extends Construct {
     super(scope, constructNamingHelper('operational', 'alarms', props.group));
     const { alertTopic, group, queues } = props;
     
-    const metricNamespace = (config: EnvVars): string => `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_');
-    const namespace = metricNamespace(config);
+    const namespace = `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_');
     const dimensionsMap = metricDimensions(config, group);
       
     const customMetric = (metricName: string, statistic: string, period: Duration = AlarmPeriod.FIVE_MINUTES): Metric =>
@@ -90,7 +89,7 @@ export class UNSOperationalAlarmsConstruct extends Construct {
     this.addRateAlarm({
       id: constructNamingHelper('dispatchFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchFailureRateHigh'),
-      description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS}% over a 5-minute window.`,
+      description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
       failed: customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING_FAILED, Stats.SUM),
       total: customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING, Stats.SUM),
       label: 'dispatch failure rate (%)',
@@ -112,14 +111,26 @@ export class UNSOperationalAlarmsConstruct extends Construct {
     this.addAlarm({
       id: constructNamingHelper('dispatchDurationAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchDurationP95High'),
-      description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
+      description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS} ms over a 5-minute window.`,
       metric: customMetric(MetricsLabels.DISPATCH_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
-      threshold: OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS,
+      threshold: OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS,
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
       alertTopic,
     });
+
+    this.addAlarm({
+      id: constructNamingHelper('validationDurationAlarm', group),
+      name: namingHelper(alarmPriority.HIGH, group, 'ValidationDurationP95High'),
+      description: `Validation p95 duration exceeded ${OperationalAlarmThreshold.VALIDATION_DURATION_P95_MS} ms over a 5-minute window.`,
+      metric: customMetric(MetricsLabels.VALIDATION_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
+      threshold: OperationalAlarmThreshold.VALIDATION_DURATION_P95_MS,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+      alertTopic,
+    })
     
     const batchFailureTargets = [
       { id: 'validationBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION, title: 'ValidationBatchItemFailures', label: 'Validation' },

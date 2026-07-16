@@ -24,6 +24,7 @@ export const ApiGatewayAlarmThreshold = {
 export const OperationalAlarmThreshold = {
   QUEUE_DEPTH: 1000, 
   FAILURE_RATE_PERCENTAGE: 5, 
+  VALIDATION_DURATION_P95_MS: 2000,
   PROCESSING_DURATION_P95_MS: 3000,
   DISPATCH_DURATION_P95_MS: 5000,
 } as const 

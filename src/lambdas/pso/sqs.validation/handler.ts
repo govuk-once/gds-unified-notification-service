@@ -75,6 +75,8 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   }
 
   public recordHandler = async (record: SQSRecord) => {
+    const start = performance.now();
+
     // Validate Incoming messages
     const data = await this.validateRecord(record);
     const message = data.body;
@@ -87,6 +89,12 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
 
     // Pre-validate message & reject request when one of them contains unsupported url or invalid markdown
     this.contentValidationService!.validate(message.MessageBody);
+
+    this.observability.metrics.addMetric(
+      MetricsLabels.VALIDATION_DURATION, 
+      MetricUnit.Milliseconds,
+      performance.now() - start
+    );
 
     await this.notificationsRepository.createRecord({
       ...message,
