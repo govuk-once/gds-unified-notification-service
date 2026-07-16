@@ -87,6 +87,9 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
     const responseBody = notifications
+      .filter(
+        (notification) => notification.DispatchedDateTime !== null && notification.DispatchedDateTime !== undefined
+      )
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
         if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
