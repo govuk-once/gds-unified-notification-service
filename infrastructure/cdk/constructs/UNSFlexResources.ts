@@ -235,7 +235,7 @@ export class UNSFlexResource extends Construct {
       description: 'Consumer secret for the UNS Service gateway within Flex',
       encryptionKey: flexConsumerKMS.key,
     });
-    if (config.ssm.flex.account) {
+    if (config.ssm.flex.account !== null) {
       flexConsumerKMS.key.addToResourcePolicy(
         new PolicyStatement({
           sid: 'AllowExternalAccountToDecrypt',
