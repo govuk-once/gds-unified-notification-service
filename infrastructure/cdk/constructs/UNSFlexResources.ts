@@ -158,7 +158,7 @@ export class UNSFlexResource extends Construct {
       },
       type: `PRIVATE`,
       iam:
-        config.ssm.flex.account !== null && config.ssm.flex.vpce.length > 0
+        config.ssm.flex.account !== null && config.ssm.flex.vpce && config.ssm.flex.vpce.length > 0
           ? {
               allowOnlyFromKnownSources: {
                 awsAccountID: config.ssm.flex.account,
