@@ -9,7 +9,7 @@ import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambd
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { UNSApiGatewayAlarmsConstruct } from './UNSApiGatewayAlarmsConstruct';
+import { UNSApiGatewayAlarmsConstruct } from './alarmsConstructs/UNSApiGatewayAlarmsConstruct';
 
 export class UNSFlexResource extends Construct {
   public readonly serviceName = 'flex';

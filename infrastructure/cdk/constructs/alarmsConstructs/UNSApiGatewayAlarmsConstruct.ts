@@ -1,22 +1,14 @@
-import { Duration } from "aws-cdk-lib";
 import { RestApi } from "aws-cdk-lib/aws-apigateway";
 import { Alarm, ComparisonOperator, IMetric, MathExpression, Stats, TreatMissingData } from "aws-cdk-lib/aws-cloudwatch";
 import { SnsAction } from "aws-cdk-lib/aws-cloudwatch-actions";
 import { ITopic } from "aws-cdk-lib/aws-sns";
 import { Construct } from 'constructs';
 import { EnvVars } from "infrastructure/cdk/config";
-
-const PRIORITY_SERVER_ERROR = 'P2';
-const PRIORITY_CLIENT_ERROR = 'P3';
-
-const SERVER_ERROR_RATE_THRESHOLD = 1;
-const CLIENT_ERROR_RATE_THRESHOLD = 10;
-
-const ALARM_PERIOD = Duration.minutes(5);
+import { AlarmPeriod, alarmPriority, ApiGatewayAlarmThreshold } from "./UNSAlarmConstructs";
 
 interface UNSApiGatewayAlarmsProps {
-  restApi: RestApi,
-  alertTopic: ITopic,
+  restApi: RestApi;
+  alertTopic: ITopic;
   group: string;
 }
 
@@ -30,32 +22,32 @@ export class UNSApiGatewayAlarmsConstruct extends Construct {
 
     const { restApi, alertTopic, group } = props;
 
-    const requests = restApi.metricCount({ statistic: Stats.SUM, period: ALARM_PERIOD });
+    const requests = restApi.metricCount({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES });
 
-    this.serverErrorRateAlarm = this.buildRateAlarm(config, {
+    this.serverErrorRateAlarm = this.buildRateAlarm({
       id: constructNamingHelper('api5xxRateAlarm', group),
-      name: namingHelper(PRIORITY_SERVER_ERROR, group, 'Api5xxErrorRateElevated'), 
-      description: `API 5xx error rate for ${group} exceeded ${SERVER_ERROR_RATE_THRESHOLD}% of requests over a 5-minute window.`,
-      errors: restApi.metricServerError({ statistic: Stats.SUM, period: ALARM_PERIOD }), 
+      name: namingHelper(alarmPriority.EXTRA_HIGH, group, 'Api5xxErrorRateElevated'), 
+      description: `API 5xx error rate for ${group} exceeded ${ApiGatewayAlarmThreshold.SERVER_ERROR_RATE_PERCENT}% of requests over a 5-minute window.`,
+      errors: restApi.metricServerError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
       requests,
-      threshold: SERVER_ERROR_RATE_THRESHOLD, 
+      threshold: ApiGatewayAlarmThreshold.SERVER_ERROR_RATE_PERCENT, 
       label: '5xx error rate (%)', 
       alertTopic,
     });
 
-    this.clientErrorRateAlarm = this.buildRateAlarm(config, {
+    this.clientErrorRateAlarm = this.buildRateAlarm({
       id: constructNamingHelper('api4xxRateAlarm', group),
-      name: namingHelper(PRIORITY_CLIENT_ERROR, group, 'Api4xxErrorRateElevated'), 
-      description: `API 4xx error rate for ${group} exceeded ${PRIORITY_CLIENT_ERROR}% of requests over a 5-minute window.`,
-      errors: restApi.metricServerError({ statistic: Stats.SUM, period: ALARM_PERIOD }), 
+      name: namingHelper(alarmPriority.HIGH, group, 'Api4xxErrorRateElevated'), 
+      description: `API 4xx error rate for ${group} exceeded ${ApiGatewayAlarmThreshold.CLIENT_ERROR_RATE_PERCENTAGE}% of requests over a 5-minute window.`,
+      errors: restApi.metricClientError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
       requests,
-      threshold: CLIENT_ERROR_RATE_THRESHOLD, 
+      threshold: ApiGatewayAlarmThreshold.CLIENT_ERROR_RATE_PERCENTAGE, 
       label: '4xx error rate (%)', 
       alertTopic,
     });
   }
 
-  private buildRateAlarm(config: EnvVars, props: { 
+  private buildRateAlarm(props: { 
     id: string; 
     name: string; 
     description: string; 
@@ -63,11 +55,11 @@ export class UNSApiGatewayAlarmsConstruct extends Construct {
     requests: IMetric; 
     threshold: number; 
     label: string; 
-    alertTopic: ITopic; }): Alarm {
+    alertTopic: ITopic;}): Alarm {
       const errorRate = new MathExpression({
-        expression: '(errors / requests) * 100',
+        expression: '(FILL(errors, 0) / requests) * 100',
         usingMetrics: { errors: props.errors, requests: props.requests },
-        period: ALARM_PERIOD,
+        period: AlarmPeriod.FIVE_MINUTES,
         label: props.label,
       });
       
