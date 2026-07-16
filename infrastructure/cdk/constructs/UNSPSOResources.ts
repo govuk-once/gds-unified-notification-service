@@ -9,6 +9,7 @@ import { Construct } from 'constructs';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { UNSOperationalAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
@@ -55,6 +56,7 @@ export class UNSPSOResource extends Construct {
   public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
   public readonly authenticationAlarms: UNSAuthenticationAlarmsConstruct;
   public readonly wafAlarms: UNSWAFAlarmsConstruct;
+  public readonly operationalAlarms: UNSOperationalAlarmsConstruct;
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -589,6 +591,17 @@ export class UNSPSOResource extends Construct {
       waf: this.gateway.waf,
       alertTopic: refs.alertTopic,
       group: this.serviceName,
+    })
+
+    this.operationalAlarms = new UNSOperationalAlarmsConstruct(this, config, {
+      alertTopic: refs.alertTopic,
+      group: this.serviceName, 
+      queues: [
+        { name: 'incoming', queue: this.queues.incoming.queue },
+        { name: 'processing', queue: this.queues.processing.queue  },
+        { name: 'dispatch', queue: this.queues.dispatch.queue  },
+        { name: 'analytics', queue: this.queues.analytics.queue },
+      ]
     })
   }
 }

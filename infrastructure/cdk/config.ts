@@ -61,9 +61,9 @@ if (process.env.env == undefined) {
 const project = 'uns';
 const env = process.env.env ?? 'dev';
 const region = process.env.region ?? 'eu-west-2';
-const prefix = `${project}-${env}`;
+const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString()}`;
-const namespace = [project, env].join(`-`);
+const namespace = [project, env].join(`-`).replace(`-prod`, ``);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const mtls = process.env.use_mtls == 'true';

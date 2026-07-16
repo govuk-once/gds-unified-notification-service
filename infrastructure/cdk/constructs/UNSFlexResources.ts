@@ -160,7 +160,7 @@ export class UNSFlexResource extends Construct {
       },
       type: `PRIVATE`,
       iam:
-        config.ssm.flex.account !== null && config.ssm.flex.vpce.length > 0
+        config.ssm.flex.account !== null && config.ssm.flex.vpce && config.ssm.flex.vpce.length > 0
           ? {
               allowOnlyFromKnownSources: {
                 awsAccountID: config.ssm.flex.account,
@@ -237,7 +237,7 @@ export class UNSFlexResource extends Construct {
       description: 'Consumer secret for the UNS Service gateway within Flex',
       encryptionKey: flexConsumerKMS.key,
     });
-    if (config.ssm.flex.account) {
+    if (config.ssm.flex.account !== null) {
       flexConsumerKMS.key.addToResourcePolicy(
         new PolicyStatement({
           sid: 'AllowExternalAccountToDecrypt',

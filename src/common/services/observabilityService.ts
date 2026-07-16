@@ -64,6 +64,8 @@ export const MetricsLabels = {
   QUEUE_DISPATCH_PUBLISHED_FAILED: 'QUEUE_DISPATCH_PUBLISHED_FAILED',
   QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY: 'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
   QUEUE_PROCESSING_PUBLISHED_FAILED: 'QUEUE_PROCESSING_PUBLISHED_FAILED',
+
+  VALIDATION_DURATION: 'VALIDATION_DURATION'
 } as const;
 
 // Coverts all metrics for analytics events into a metric that uses the units count
@@ -121,6 +123,8 @@ export const MetricsLabelsUnits = {
   [MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED]: MetricUnit.Count,
   [MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY]: MetricUnit.Count,
   [MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED]: MetricUnit.Count,
+
+  [MetricsLabels.VALIDATION_DURATION]: MetricUnit.Milliseconds
 } as const;
 
 export type KnownMetrics = Omit<Metrics, 'addMetric'> & {
