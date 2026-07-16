@@ -212,7 +212,8 @@ export class UNSLambdaConstruct extends Construct {
         NODE_OPTIONS: '--enable-source-maps',
         SERVICE_NAME: `NOTIFICATIONS_${props.serviceName}`.toUpperCase().replace(`-`, `_`),
         NAMESPACE_NAME: `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace(`-`, `_`),
-        PREFIX: `${config.project}-${config.env}`,
+        // Prod environment drops prefix
+        PREFIX: config.prefix,
         AWS_LAMBDA_EXEC_WRAPPER: '/opt/otel-handler',
         OTEL_AWS_APPLICATION_SIGNALS_ENABLED: 'false',
         OTEL_SERVICE_VERSION: config.version,
