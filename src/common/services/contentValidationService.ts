@@ -35,6 +35,18 @@ const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   'link_close',
 ]);
 
+const PROTOCOLS = [
+  'mailto:',
+  'tel:',
+  'sms:',
+  'https:',
+  'http:',
+  'file:',
+  'data:',
+  'blob:',
+  'geo:',
+]
+
 export class ContentValidationService {
   private readonly parser = new MarkdownIt({
     html: true,
@@ -82,6 +94,9 @@ export class ContentValidationService {
       let url: URL;
       try {
         url = new URL(segment);
+        if (!PROTOCOLS.includes(url.protocol)) {
+          continue;
+        }
       } catch {
         // String segment is not a valid URL
         continue;
