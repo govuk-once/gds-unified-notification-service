@@ -1,6 +1,7 @@
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
 import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
+import { Effect, PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { CodeSigningConfig, UntrustedArtifactOnDeployment } from 'aws-cdk-lib/aws-lambda';
 import { Platform, SigningProfile } from 'aws-cdk-lib/aws-signer';
@@ -67,6 +68,8 @@ export class UNSCommon extends Construct {
     const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, 'common');
 
+    const stack = Stack.of(this);
+
     //// =====================================================
     //  Shared KMS Key
     //// =====================================================
@@ -78,6 +81,25 @@ export class UNSCommon extends Construct {
         cloudwatch: true,
       },
     }).key;
+
+    this.kms.addToResourcePolicy(new PolicyStatement({
+      sid: 'AllowCloudWatchAlarmsToUseKey',
+      effect: Effect.ALLOW,
+      principals: [new ServicePrincipal('cloudwatch.amazonaws.com')],
+      actions: [
+        'kms:Decrypt',
+        'kms:GenerateDataKey*'
+      ],
+      resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'aws:SourceAccount': [stack.account],
+        },
+        ArnLike: {
+          'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:alarm:*`],
+        },
+      },
+    }))
 
     //// =====================================================
     // Alerts - always create alert topic, conditionally create slack alert linked to the topic if workspace & channel ids are present
