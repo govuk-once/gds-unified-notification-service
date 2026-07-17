@@ -96,7 +96,7 @@ export class UNSCommon extends Construct {
           'aws:SourceAccount': [stack.account],
         },
         ArnLike: {
-          'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:alarm:*`],
+          'aws:SourceArn': [`arn:aws:cloudwatch:eu-west-2:${stack.account}:alarm:*`],
         },
       },
     }))
