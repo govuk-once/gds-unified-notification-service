@@ -21,11 +21,17 @@ export const P95_STATISTIC = 'p95';
 export const numericThreshold = {
   ZERO_THRESHOLD: 0,
   FIVE_THRESHOLD: 5,
+  TWENTY_THRESHOLD: 20,
 }
 
-export const metricDimensions = (config: EnvVars, group: string): Record<string, string> => ({
-  service: `NOTIFICATIONS_${group}`.toUpperCase().replace('-', '_'), 
-  environments: `${config.project}-${config.env}`
+export const metricDimensions = (config: EnvVars, group: string, functionName?: string): Record<string, string> => (
+  functionName ? {
+    service: `NOTIFICATIONS_${group}`.toUpperCase().replace('-', '_'), 
+    environments: `${config.project}-${config.env}`,
+    function_name: functionName
+  } : {
+    service: `NOTIFICATIONS_${group}`.toUpperCase().replace('-', '_'), 
+    environments: `${config.project}-${config.env}`,
 });
 
 export interface UNSAlarmsProps {
@@ -47,10 +53,10 @@ export class UNSAlarmsConstruct extends Construct {
     this.props = props
   }
 
-  public customMetric = (metricName: string, statistic: string, period: Duration = AlarmPeriod.FIVE_MINUTES): Metric => {
+  public customMetric = (metricName: string, statistic: string, period: Duration = AlarmPeriod.FIVE_MINUTES, functionName?: string): Metric => {
     const metricNamespace = (config: EnvVars): string => `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_'); 
     const namespace = metricNamespace(this.config);
-    const dimensionsMap = metricDimensions(this.config, this.props.group);
+    const dimensionsMap = metricDimensions(this.config, this.props.group, functionName);
 
     return new Metric({ namespace, metricName, dimensionsMap, statistic, period });
   }

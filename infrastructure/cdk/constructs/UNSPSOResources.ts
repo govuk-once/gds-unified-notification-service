@@ -25,6 +25,7 @@ import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 import { UNSAuthenticationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct';
 import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
+import { UNSPerformanceAlarmsConstructs } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -53,10 +54,15 @@ export class UNSPSOResource extends Construct {
     };
   };
   public readonly gateway: UNSAPIGatewayGateway;
-  public readonly apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
-  public readonly authenticationAlarms: UNSAuthenticationAlarmsConstruct;
-  public readonly wafAlarms: UNSWAFAlarmsConstruct;
-  public readonly operationalAlarms: UNSOperationalAlarmsConstruct;
+
+  public readonly alarms: {
+    apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
+    authenticationAlarms: UNSAuthenticationAlarmsConstruct;
+    wafAlarms: UNSWAFAlarmsConstruct;
+    operationalAlarms: UNSOperationalAlarmsConstruct;
+    performanceAlarms: UNSPerformanceAlarmsConstructs
+  }
+
   public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
@@ -578,30 +584,46 @@ export class UNSPSOResource extends Construct {
     // CloudWatch Alarms
     //// =====================================================
 
-    this.apiGatewayAlarms = new UNSApiGatewayAlarmsConstruct(this, config, {
-      restApi: this.gateway.restApi,
-      alertTopic: refs.alertTopic,
-      group: this.serviceName,
-    });
-    this.authenticationAlarms = new UNSAuthenticationAlarmsConstruct(this, config, {
-      alertTopic: refs.alertTopic,
-      group: this.serviceName,
-    })
-    this.wafAlarms = new UNSWAFAlarmsConstruct(this, config, {
-      waf: this.gateway.waf,
-      alertTopic: refs.alertTopic,
-      group: this.serviceName,
-    })
-
-    this.operationalAlarms = new UNSOperationalAlarmsConstruct(this, config, {
-      alertTopic: refs.alertTopic,
-      group: this.serviceName, 
-      queues: [
-        { name: 'incoming', queue: this.queues.incoming.queue },
-        { name: 'processing', queue: this.queues.processing.queue  },
-        { name: 'dispatch', queue: this.queues.dispatch.queue  },
-        { name: 'analytics', queue: this.queues.analytics.queue },
-      ]
-    })
+    this.alarms = {
+      apiGatewayAlarms: new UNSApiGatewayAlarmsConstruct(this, config, {
+        restApi: this.gateway.restApi,
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
+      }),
+      authenticationAlarms: new UNSAuthenticationAlarmsConstruct(this, config, {
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
+      }),
+      wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
+        waf: this.gateway.waf,
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
+      }),
+      operationalAlarms: new UNSOperationalAlarmsConstruct(this, config, {
+        alertTopic: refs.alertTopic,
+        group: this.serviceName, 
+        queues: [
+          { name: 'incoming', queue: this.queues.incoming.queue },
+          { name: 'processing', queue: this.queues.processing.queue  },
+          { name: 'dispatch', queue: this.queues.dispatch.queue  },
+          { name: 'analytics', queue: this.queues.analytics.queue },
+        ]
+      }),
+      performanceAlarms: new UNSPerformanceAlarmsConstructs(this, config, {
+        lambdas: [
+          { name: 'mtlsCertificateRevocationAuthorizer', lambda: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer },
+          { name: 'getCampaignStatus', lambda: this.lambdas.http.getCampaignStatus },
+          { name: 'postMessage', lambda: this.lambdas.http.postMessage },
+          { name: 'getHealthcheck', lambda: this.lambdas.http.getHealthcheck },
+          { name: 'getNotificationStatus', lambda: this.lambdas.http.getNotificationStatus },
+          { name: 'validation', lambda: this.lambdas.sqs.validation },
+          { name: 'processing', lambda: this.lambdas.sqs.processing },
+          { name: 'dispatch', lambda: this.lambdas.sqs.dispatch },
+          { name: 'analyticsExport', lambda: this.lambdas.schedule.analyticsExport }
+        ],
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
+      })
+    }
   }
 }
