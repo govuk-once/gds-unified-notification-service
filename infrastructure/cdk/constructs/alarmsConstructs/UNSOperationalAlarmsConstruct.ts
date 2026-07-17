@@ -1,45 +1,42 @@
-import { Duration } from 'aws-cdk-lib';
 import {
   Alarm,
   ComparisonOperator,
-  IMetric,
-  MathExpression,
-  Metric,
   Stats,
-  TreatMissingData,
 } from 'aws-cdk-lib/aws-cloudwatch';
-import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions';
-import { ITopic } from 'aws-cdk-lib/aws-sns';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { MetricsLabels } from "../../../../src/common/services/observabilityService";
-import { AlarmPeriod, alarmPriority, metricDimensions, OperationalAlarmThreshold, P95_STATISTIC, ZERO_THRESHOLD } from "./UNSAlarmConstructs";
+import { AlarmPeriod, alarmPriority, numericThreshold, P95_STATISTIC, UNSAlarmsConstruct, UNSAlarmsProps } from "./UNSAlarmConstructs";
+
+export const OperationalAlarmThreshold = {
+  QUEUE_DEPTH: 1000, 
+  FAILURE_RATE_PERCENTAGE: 5, 
+  PROCESSING_DURATION_P95_MS: 3000,
+  DISPATCH_DURATION_P95_MS: 5000,
+  VALIDATION_DURATION_P95_MS: 2000,
+} as const 
 
 interface QueueTarget {
   name: string;
   queue: IQueue;
 }
 
-interface UNSOperationalAlarmsProps {
-  alertTopic: ITopic;
-  group: string;
+interface UNSOperationalAlarmsProps extends UNSAlarmsProps {
   queues: QueueTarget[];
 }
 
-export class UNSOperationalAlarmsConstruct extends Construct {
+export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
   public readonly alarms: Alarm[] = [];
+
   constructor(scope: Construct, config: EnvVars, props: UNSOperationalAlarmsProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
-    super(scope, constructNamingHelper('operational', 'alarms', props.group));
-    const { alertTopic, group, queues } = props;
-    
-    const namespace = `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_');
-    const dimensionsMap = metricDimensions(config, group);
+    props.names = [...(props.names ?? []), 'operational']
+    super(scope, config, props);
+
+    const { group, queues } = props;
       
-    const customMetric = (metricName: string, statistic: string, period: Duration = AlarmPeriod.FIVE_MINUTES): Metric =>
-      new Metric({ namespace, metricName, dimensionsMap, statistic, period });
-      
+    // SQS Depth Alarm
     for (const { name, queue } of queues) {
       this.addAlarm({
         id: constructNamingHelper('sqsDepthAlarm', group, name),
@@ -50,87 +47,89 @@ export class UNSOperationalAlarmsConstruct extends Construct {
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 5,
         datapointsToAlarm: 5,
-        alertTopic,
       });
     }
     
+    // Rate limiting enforced alarm
     this.addAlarm({
       id: constructNamingHelper('rateLimitEnforcedAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchRateLimitingEnforced'),
       description: `Dispatch circuit breaker enforced rate limiting for 2 consecutive minutes.`,
-      metric: customMetric(MetricsLabels.CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED, Stats.MAXIMUM, AlarmPeriod.ONE_MINUTE),
+      metric: this.customMetric(MetricsLabels.CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED, Stats.MAXIMUM, AlarmPeriod.ONE_MINUTE),
       threshold: 1,
       comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       evaluationPeriods: 2,
       datapointsToAlarm: 2,
-      alertTopic,
     });
     
+    // Validation failure rate alarm
     this.addRateAlarm({
       id: constructNamingHelper('validationFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'ValidationFailureRateHigh'),
       description: `Validation failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
-      failed: customMetric(MetricsLabels.ANALYTICS_EVENT_VALIDATION_FAILED, Stats.SUM),
-      total: customMetric(MetricsLabels.ANALYTICS_EVENT_VALIDATING, Stats.SUM),
+      failed: this.customMetric(MetricsLabels.ANALYTICS_EVENT_VALIDATION_FAILED, Stats.SUM),
+      total: this.customMetric(MetricsLabels.ANALYTICS_EVENT_VALIDATING, Stats.SUM),
+      threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
       label: 'validation failure rate (%)',
-      alertTopic,
     });
     
+    // Processing failure rate alarm
     this.addRateAlarm({
       id: constructNamingHelper('processingFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'ProcessingFailureRateHigh'),
       description: `Processing failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
-      failed: customMetric(MetricsLabels.ANALYTICS_EVENT_PROCESSING_FAILED, Stats.SUM),
-      total: customMetric(MetricsLabels.ANALYTICS_EVENT_PROCESSING, Stats.SUM),
+      failed: this.customMetric(MetricsLabels.ANALYTICS_EVENT_PROCESSING_FAILED, Stats.SUM),
+      total: this.customMetric(MetricsLabels.ANALYTICS_EVENT_PROCESSING, Stats.SUM),
+      threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
       label: 'processing failure rate (%)',
-      alertTopic,
     });
     
+    // Dispatching failure rate alarm
     this.addRateAlarm({
       id: constructNamingHelper('dispatchFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchFailureRateHigh'),
-      description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
-      failed: customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING_FAILED, Stats.SUM),
-      total: customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING, Stats.SUM),
+      description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS}% over a 5-minute window.`,
+      failed: this.customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING_FAILED, Stats.SUM),
+      total: this.customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING, Stats.SUM),
+      threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
       label: 'dispatch failure rate (%)',
-      alertTopic,
-    });
-    
-    this.addAlarm({
-      id: constructNamingHelper('processingDurationAlarm', group),
-      name: namingHelper(alarmPriority.HIGH, group, 'ProcessingDurationP95High'),
-      description: `Processing p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
-      metric: customMetric(MetricsLabels.PROCESSING_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
-      threshold: OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS,
-      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
-      evaluationPeriods: 1,
-      datapointsToAlarm: 1,
-      alertTopic,
-    });
-    
-    this.addAlarm({
-      id: constructNamingHelper('dispatchDurationAlarm', group),
-      name: namingHelper(alarmPriority.HIGH, group, 'DispatchDurationP95High'),
-      description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS} ms over a 5-minute window.`,
-      metric: customMetric(MetricsLabels.DISPATCH_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
-      threshold: OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS,
-      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
-      evaluationPeriods: 1,
-      datapointsToAlarm: 1,
-      alertTopic,
     });
 
+    // Validation duration alarm
     this.addAlarm({
       id: constructNamingHelper('validationDurationAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'ValidationDurationP95High'),
       description: `Validation p95 duration exceeded ${OperationalAlarmThreshold.VALIDATION_DURATION_P95_MS} ms over a 5-minute window.`,
-      metric: customMetric(MetricsLabels.VALIDATION_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
+      metric: this.customMetric(MetricsLabels.VALIDATION_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
       threshold: OperationalAlarmThreshold.VALIDATION_DURATION_P95_MS,
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
-      alertTopic,
     })
+    
+    // Processing duration alarm
+    this.addAlarm({
+      id: constructNamingHelper('processingDurationAlarm', group),
+      name: namingHelper(alarmPriority.HIGH, group, 'ProcessingDurationP95High'),
+      description: `Processing p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
+      metric: this.customMetric(MetricsLabels.PROCESSING_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
+      threshold: OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+    });
+    
+    // Dispatching duration alarm
+    this.addAlarm({
+      id: constructNamingHelper('dispatchDurationAlarm', group),
+      name: namingHelper(alarmPriority.HIGH, group, 'DispatchDurationP95High'),
+      description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
+      metric: this.customMetric(MetricsLabels.DISPATCH_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
+      threshold: OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+    });
     
     const batchFailureTargets = [
       { id: 'validationBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION, title: 'ValidationBatchItemFailures', label: 'Validation' },
@@ -138,17 +137,17 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       { id: 'dispatchBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH, title: 'DispatchBatchItemFailures', label: 'Dispatch' },
     ];
     
+    // Batch item failure alarm
     for (const target of batchFailureTargets) {
       this.addAlarm({
         id: constructNamingHelper(target.id, group),
         name: namingHelper(alarmPriority.MEDIUM, group, target.title),
         description: `${target.label} batch item failures detected for 2 consecutive minutes.`,
-        metric: customMetric(target.metric, Stats.SUM, AlarmPeriod.ONE_MINUTE),
-        threshold: ZERO_THRESHOLD,
+        metric: this.customMetric(target.metric, Stats.SUM, AlarmPeriod.ONE_MINUTE),
+        threshold: numericThreshold.ZERO_THRESHOLD,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 2,
         datapointsToAlarm: 2,
-        alertTopic,
         });
       }
       
@@ -158,74 +157,18 @@ export class UNSOperationalAlarmsConstruct extends Construct {
       { id: 'analyticsPublishFailuresAlarm', metric: MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED, title: 'AnalyticsQueuePublishFailed', label: 'analytics' },
     ];
     
+    // Publishing failed alarm
     for (const target of publishFailureTargets) {
       this.addAlarm({
         id: constructNamingHelper(target.id, group),
         name: namingHelper(alarmPriority.MEDIUM, group, target.title),
         description: `Failed to publish to the ${target.label} queue within a 1-minute period.`,
-        metric: customMetric(target.metric, Stats.SUM, AlarmPeriod.ONE_MINUTE),
-        threshold: ZERO_THRESHOLD,
+        metric: this.customMetric(target.metric, Stats.SUM, AlarmPeriod.ONE_MINUTE),
+        threshold: numericThreshold.ZERO_THRESHOLD,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 1,
         datapointsToAlarm: 1,
-        alertTopic,
       });
     }
-  }
-  
-  private addAlarm(props: {
-    id: string;
-    name: string;
-    description: string;
-    metric: IMetric;
-    threshold: number;
-    comparisonOperator: ComparisonOperator;
-    evaluationPeriods: number;
-    datapointsToAlarm: number;
-    alertTopic: ITopic;
-    }): Alarm {
-      const alarm = new Alarm(this, props.id, {
-        alarmName: props.name,
-        alarmDescription: props.description,
-        metric: props.metric,
-        threshold: props.threshold,
-        comparisonOperator: props.comparisonOperator,
-        evaluationPeriods: props.evaluationPeriods,
-        datapointsToAlarm: props.datapointsToAlarm,
-        treatMissingData: TreatMissingData.NOT_BREACHING,
-    });
-    
-    alarm.addAlarmAction(new SnsAction(props.alertTopic));
-    this.alarms.push(alarm);
-    return alarm;
-  }
-  
-  private addRateAlarm(props: {
-    id: string;
-    name: string;
-    description: string;
-    failed: IMetric;
-    total: IMetric;
-    label: string;
-    alertTopic: ITopic;
-  }): Alarm {
-    const failureRate = new MathExpression({
-      expression: '(FILL(failed, 0) / total) * 100',
-      usingMetrics: { failed: props.failed, total: props.total },
-      period: AlarmPeriod.FIVE_MINUTES,
-      label: props.label,
-    });
-    
-    return this.addAlarm({
-      id: props.id,
-      name: props.name,
-      description: props.description,
-      metric: failureRate,
-      threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
-      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
-      evaluationPeriods: 1,
-      datapointsToAlarm: 1,
-      alertTopic: props.alertTopic,
-    });
   }
 }

@@ -1,80 +1,50 @@
 import { RestApi } from "aws-cdk-lib/aws-apigateway";
-import { Alarm, ComparisonOperator, IMetric, MathExpression, Stats, TreatMissingData } from "aws-cdk-lib/aws-cloudwatch";
-import { SnsAction } from "aws-cdk-lib/aws-cloudwatch-actions";
-import { ITopic } from "aws-cdk-lib/aws-sns";
+import { Alarm, Stats } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from 'constructs';
 import { EnvVars } from "infrastructure/cdk/config";
-import { AlarmPeriod, alarmPriority, ApiGatewayAlarmThreshold } from "./UNSAlarmConstructs";
+import { AlarmPeriod, alarmPriority, UNSAlarmsConstruct, UNSAlarmsProps } from "./UNSAlarmConstructs";
 
-interface UNSApiGatewayAlarmsProps {
+export const ApiGatewayAlarmThreshold = {
+  SERVER_ERROR_RATE_PERCENT: 1,
+  CLIENT_ERROR_RATE_PERCENTAGE: 10,
+} as const;
+
+interface UNSApiGatewayAlarmsProps extends UNSAlarmsProps {
   restApi: RestApi;
-  alertTopic: ITopic;
-  group: string;
 }
 
-export class UNSApiGatewayAlarmsConstruct extends Construct {
+export class UNSApiGatewayAlarmsConstruct extends UNSAlarmsConstruct {
   public readonly serverErrorRateAlarm: Alarm;
   public readonly clientErrorRateAlarm: Alarm;
 
   constructor(scope: Construct, config: EnvVars, props: UNSApiGatewayAlarmsProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
-    super(scope, constructNamingHelper('apigw', 'alarms', props.group));
+    props.names = [...(props.names ?? []), 'apigw']
+    super(scope, config, props);
 
-    const { restApi, alertTopic, group } = props;
-
+    const { restApi, group } = props;
     const requests = restApi.metricCount({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES });
 
-    this.serverErrorRateAlarm = this.buildRateAlarm({
+    // Rate alarm for server errors
+    this.serverErrorRateAlarm = this.addRateAlarm({
       id: constructNamingHelper('api5xxRateAlarm', group),
       name: namingHelper(alarmPriority.EXTRA_HIGH, group, 'Api5xxErrorRateElevated'), 
       description: `API 5xx error rate for ${group} exceeded ${ApiGatewayAlarmThreshold.SERVER_ERROR_RATE_PERCENT}% of requests over a 5-minute window.`,
-      errors: restApi.metricServerError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
-      requests,
+      failed: restApi.metricServerError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
+      total: requests,
       threshold: ApiGatewayAlarmThreshold.SERVER_ERROR_RATE_PERCENT, 
-      label: '5xx error rate (%)', 
-      alertTopic,
+      label: '5xx error rate (%)',
     });
 
-    this.clientErrorRateAlarm = this.buildRateAlarm({
+    // Rate alarm for client errors
+    this.clientErrorRateAlarm = this.addRateAlarm({
       id: constructNamingHelper('api4xxRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'Api4xxErrorRateElevated'), 
       description: `API 4xx error rate for ${group} exceeded ${ApiGatewayAlarmThreshold.CLIENT_ERROR_RATE_PERCENTAGE}% of requests over a 5-minute window.`,
-      errors: restApi.metricClientError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
-      requests,
+      failed: restApi.metricClientError({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }), 
+      total: requests,
       threshold: ApiGatewayAlarmThreshold.CLIENT_ERROR_RATE_PERCENTAGE, 
-      label: '4xx error rate (%)', 
-      alertTopic,
+      label: '4xx error rate (%)',
     });
   }
-
-  private buildRateAlarm(props: { 
-    id: string; 
-    name: string; 
-    description: string; 
-    errors: IMetric; 
-    requests: IMetric; 
-    threshold: number; 
-    label: string; 
-    alertTopic: ITopic;}): Alarm {
-      const errorRate = new MathExpression({
-        expression: '(FILL(errors, 0) / requests) * 100',
-        usingMetrics: { errors: props.errors, requests: props.requests },
-        period: AlarmPeriod.FIVE_MINUTES,
-        label: props.label,
-      });
-      
-      const alarm = new Alarm(this, props.id, {
-        alarmName: props.name,
-        alarmDescription: props.description,
-        metric: errorRate, 
-        threshold: props.threshold,
-        evaluationPeriods: 1, 
-        datapointsToAlarm: 1,
-        comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD, 
-        treatMissingData: TreatMissingData.NOT_BREACHING,
-      });
-      
-      alarm.addAlarmAction(new SnsAction(props.alertTopic));
-      return alarm; 
-    }
 }

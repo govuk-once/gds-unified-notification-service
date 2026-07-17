@@ -1,4 +1,4 @@
-import { CfnResource, Duration, Stack } from 'aws-cdk-lib';
+import { CfnResource, Stack } from 'aws-cdk-lib';
 import {
   AclCidr,
   AclTraffic,
@@ -24,7 +24,6 @@ import {
   TrafficDirection,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
-import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
