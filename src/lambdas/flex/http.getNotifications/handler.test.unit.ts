@@ -44,7 +44,7 @@ describe('getNotifications Handler', () => {
     EventDateTime: new Date().toISOString(),
     EventReason: '',
     APIGWExtendedID: 'Test',
-    OrganisationID: 'ORG_ID'
+    OrganisationID: 'ORG_ID',
   };
 
   const mockHiddenEvent: IAnalytics = {
@@ -55,7 +55,7 @@ describe('getNotifications Handler', () => {
     EventDateTime: new Date().toISOString(),
     EventReason: '',
     APIGWExtendedID: 'Test',
-    OrganisationID: 'ORG_ID'
+    OrganisationID: 'ORG_ID',
   };
 
   const mockDbRecord: IMessageRecord = {
@@ -76,7 +76,7 @@ describe('getNotifications Handler', () => {
         EventDateTime: new Date().toISOString(),
         EventReason: '',
         APIGWExtendedID: 'Test',
-        OrganisationID: 'ORG_ID'
+        OrganisationID: 'ORG_ID',
       },
     ],
     DispatchedDateTime: '2026-02-13',
@@ -136,7 +136,7 @@ describe('getNotifications Handler', () => {
     handler = instance.handler();
 
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValue([mockDbRecord]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecordsQuery.mockResolvedValue([mockDbRecord]);
     serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([mockOrganisationRecord]);
   });
 
@@ -154,21 +154,24 @@ describe('getNotifications Handler', () => {
     expect(JSON.parse(result.body)).toEqual([mockResponse]);
   });
 
-  it('should fetch all notifications from getRecords call', async () => {
+  it('should fetch all notifications from getRecordsQuery call', async () => {
     // Act
     const { statusCode } = await handler(mockAuthorizedEvent, mockContext);
 
     // Assert
     expect(statusCode).toEqual(200);
-    expect(serviceMocks.notificationsDynamoRepositoryMock.getRecords).toHaveBeenCalledWith({
-      field: 'ExternalUserID',
-      value: externalUserID,
-    });
+    expect(serviceMocks.notificationsDynamoRepositoryMock.getRecordsQuery).toHaveBeenCalledWith(
+      {
+        field: 'ExternalUserID',
+        value: externalUserID,
+      },
+      'ExternalUserIDIndex'
+    );
   });
 
-  it('should exclude all notifications with expiry date in the past from getRecords call', async () => {
+  it('should exclude all notifications with expiry date in the past from getRecordsQuery call', async () => {
     // Arrange
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValueOnce([
+    serviceMocks.notificationsDynamoRepositoryMock.getRecordsQuery.mockResolvedValueOnce([
       {
         ...mockDbRecord,
         ExpirationDateTime: new Date(0).toISOString(), // 1970
@@ -186,7 +189,7 @@ describe('getNotifications Handler', () => {
 
   it('should return an empty array when there are no notifications', async () => {
     // Arrange
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords = vi.fn().mockResolvedValueOnce([]);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecordsQuery = vi.fn().mockResolvedValueOnce([]);
 
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);
@@ -218,7 +221,7 @@ describe('getNotifications Handler', () => {
 
   it('should exclude notifications with HIDDEN status', async () => {
     // Arrange
-    serviceMocks.notificationsDynamoRepositoryMock.getRecords.mockResolvedValueOnce([
+    serviceMocks.notificationsDynamoRepositoryMock.getRecordsQuery.mockResolvedValueOnce([
       {
         ...mockDbRecord,
         Events: [mockReceivedEvent, mockHiddenEvent],

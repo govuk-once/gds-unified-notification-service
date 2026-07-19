@@ -165,6 +165,12 @@ export class UNSCommon extends Construct {
           rangeKey: 'DepartmentID',
           projectionType: ProjectionType.KEYS_ONLY,
         },
+        {
+          name: 'ExternalUserIDIndex',
+          hashKey: 'ExternalUserID',
+          rangeKey: 'ReceivedDateTime',
+          projectionType: ProjectionType.ALL,
+        },
       ],
     });
 
