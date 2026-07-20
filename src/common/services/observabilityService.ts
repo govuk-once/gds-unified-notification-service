@@ -73,10 +73,11 @@ export const MetricsLabels = {
 
 // Provider for outbound integrations upstream and downstream HTTP metrics
 export const ProviderDimension = {
-  KEY: 'provider',
   ONESIGNAL: 'ONESIGNAL',
   UDP: 'UDP'
 } as const;
+
+export const ProviderKey = 'provider';
 
 // Coverts all metrics for analytics events into a metric that uses the units count
 const addCountToMetric = <T extends object>(enumerator: T) => {
@@ -174,7 +175,7 @@ export class ObservabilityService {
       : MetricsLabels.PROVIDER_HTTP_CALLS;
     
     const metric = this.metrics.singleMetric();
-    metric.addDimension(ProviderDimension.KEY, provider);
+    metric.addDimension(ProviderKey, provider);
     metric.addMetric(label, MetricUnit.Count, 1);
   }
 }

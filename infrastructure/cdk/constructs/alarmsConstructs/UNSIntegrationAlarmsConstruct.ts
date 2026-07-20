@@ -1,4 +1,4 @@
-import { MetricsLabels, ProviderDimension } from '@common/services/observabilityService';
+import { MetricsLabels, ProviderKey } from '@common/services/observabilityService';
 import {
   Alarm,
   ComparisonOperator,
@@ -21,7 +21,7 @@ export const providerMetricDimensions = (
   provider: string
 ): Record<string, string> => ({
   ...metricDimensions(config, group),
-  [ProviderDimension.KEY]: provider
+  [ProviderKey]: provider
 });
 
 interface ProviderTarget {
