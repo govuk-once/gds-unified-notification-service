@@ -30,6 +30,7 @@ export abstract class QueueService<InputType> {
       throw new ServiceMisconfigurationError();
     }
     this.client = new SQSClient({ region: 'eu-west-2' });
+    this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }
 
@@ -37,9 +38,9 @@ export abstract class QueueService<InputType> {
     return this.queueName;
   }
 
-  public abstract addPublishingSuccessMetric(count: number): void
+  public abstract addPublishingSuccessMetric(count: number): void;
 
-  public abstract addPublishingFailedMetric(count: number): void
+  public abstract addPublishingFailedMetric(count: number): void;
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
     this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`, {

@@ -1,20 +1,28 @@
-import { CloudWatchLogsClient, CloudWatchLogsServiceException, CreateExportTaskCommand, CreateExportTaskCommandInput, CreateLogStreamCommand, PutLogEventsCommand, PutLogEventsCommandInput } from "@aws-sdk/client-cloudwatch-logs";
-import { InvalidCharacterError } from "@common/models/Errors/BadRequestError";
-import { ParsingFailedError } from "@common/models/Errors/InternalServerError";
-import { CacheService } from "@common/services/cacheService";
-import { ConfigurationService } from "@common/services/configurationService";
-import { ObservabilityService } from "@common/services/observabilityService";
-import { StringParameters } from "@common/utils";
-import { IAnalytics } from "@project/lambdas/interfaces/IAnalyticsSchema";
+import {
+  CloudWatchLogsClient,
+  CloudWatchLogsServiceException,
+  CreateExportTaskCommand,
+  CreateExportTaskCommandInput,
+  CreateLogStreamCommand,
+  PutLogEventsCommand,
+  PutLogEventsCommandInput,
+} from '@aws-sdk/client-cloudwatch-logs';
+import { InvalidCharacterError } from '@common/models/Errors/BadRequestError';
+import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
+import { CacheService } from '@common/services/cacheService';
+import { ConfigurationService } from '@common/services/configurationService';
+import { ObservabilityService } from '@common/services/observabilityService';
+import { StringParameters } from '@common/utils';
+import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 
 export interface AnalyticsLog {
-  EventID: string,
-  EventTimestamp: string,
-  OrganisationID: string,
-  DepartmentID?: string,
-  NotificationID: string,
-  CampaignID?: string,
-  EventStatus: string,
+  EventID: string;
+  EventTimestamp: string;
+  OrganisationID: string;
+  DepartmentID?: string;
+  NotificationID: string;
+  CampaignID?: string;
+  EventStatus: string;
 }
 
 export class AnalyticsExportService {
@@ -26,7 +34,7 @@ export class AnalyticsExportService {
     private readonly observability: ObservabilityService,
     private readonly config: ConfigurationService,
     private readonly cache: CacheService,
-    private readonly client: CloudWatchLogsClient,
+    private readonly client: CloudWatchLogsClient
   ) {}
 
   public async initialize() {
@@ -40,35 +48,36 @@ export class AnalyticsExportService {
     // Create a new log stream if one doesn't exist
     const logStreamName = new Date().toISOString().split(':').shift() ?? '';
 
-    return await this.cache.get(`${this.logStreamCacheKeyPrefix}:${logStreamName}`, { factory: async (): Promise<string> => {
-      try {
-        const input = {
-          logGroupName: this.logGroupName,
-          logStreamName: logStreamName,
-        };
+    return await this.cache.get(`${this.logStreamCacheKeyPrefix}:${logStreamName}`, {
+      factory: async (): Promise<string> => {
+        try {
+          const input = {
+            logGroupName: this.logGroupName,
+            logStreamName: logStreamName,
+          };
 
-        this.observability.logger.debug(`Creating new log stream`, { logStreamName });
-        const command = new CreateLogStreamCommand(input);
-        await this.client.send(command);
-        this.observability.logger.debug(`New log stream was created`, { logStreamName });
-      } catch (error) {
-        if (error instanceof CloudWatchLogsServiceException && error.name === 'ResourceAlreadyExistsException') {
-          this.observability.logger.debug(`Log stream already exists`, { logStreamName });
-        } else {
-          this.observability.logger.error(`Error creating log stream`, { error });
-          throw error
+          this.observability.logger.debug(`Creating new log stream`, { logStreamName });
+          const command = new CreateLogStreamCommand(input);
+          await this.client.send(command);
+          this.observability.logger.debug(`New log stream was created`, { logStreamName });
+        } catch (error) {
+          if (error instanceof CloudWatchLogsServiceException && error.name === 'ResourceAlreadyExistsException') {
+            this.observability.logger.debug(`Log stream already exists`, { logStreamName });
+          } else {
+            this.observability.logger.error(`Error creating log stream`, { error });
+            throw error;
+          }
         }
-      }
 
-      return logStreamName
-    },
-    ttlSeconds: 7200
+        return logStreamName;
+      },
+      ttlSeconds: 7200,
     });
   }
 
   public async logAnalytics(analytics: IAnalytics) {
     this.observability.logger.debug(`Adding analytics to Cloudwatch log group`, { analytics });
-    const logStreamName = await this.getLogStreamName()
+    const logStreamName = await this.getLogStreamName();
     const log = this.analyticsToCsvLog(analytics);
 
     // Push analytics to log group and stream
@@ -95,8 +104,8 @@ export class AnalyticsExportService {
 
     // Determines the log stream name off the timestamp from event bridge
     if (Number.isNaN(Date.parse(timestamp))) {
-      this.observability.logger.error("Timestamp used is not a valid datetime format.", { timestamp })
-      throw new ParsingFailedError()
+      this.observability.logger.error('Timestamp used is not a valid datetime format.', { timestamp });
+      throw new ParsingFailedError();
     }
     const logStreamName = timestamp.split(':').shift();
     const time = new Date(timestamp).getTime();
@@ -114,9 +123,15 @@ export class AnalyticsExportService {
     };
     const command = new CreateExportTaskCommand(input);
 
-    this.observability.logger.debug(`Started export of log stream to s3 bucket`, { LogStream: logStreamName, s3Bucket: exportBucketName });
+    this.observability.logger.debug(`Started export of log stream to s3 bucket`, {
+      LogStream: logStreamName,
+      s3Bucket: exportBucketName,
+    });
     await this.client.send(command);
-    this.observability.logger.debug(`Export of log stream to s3 bucket was successful`, { LogStream: logStreamName, s3Bucket: exportBucketName });
+    this.observability.logger.debug(`Export of log stream to s3 bucket was successful`, {
+      LogStream: logStreamName,
+      s3Bucket: exportBucketName,
+    });
   }
 
   private analyticsToCsvLog(analytics: IAnalytics): string {
@@ -130,20 +145,20 @@ export class AnalyticsExportService {
       NotificationID: analytics.NotificationID,
       CampaignID: analytics.CampaignID,
       EventStatus: analytics.Event,
-    }
+    };
 
     for (const [key, value] of Object.entries(analyticsLog)) {
       if (value && ((value as string).includes(`,`) || (value as string).includes(`"`))) {
-        const errorMsg = `Analytics contains invalid char , or " for csv format.`
-        this.observability.logger.warn(errorMsg, { field: key, analyticsLog});
+        const errorMsg = `Analytics contains invalid char , or " for csv format.`;
+        this.observability.logger.warn(errorMsg, { field: key, analyticsLog });
         throw new InvalidCharacterError([errorMsg]);
       }
     }
 
     return [
-      "",
+      '',
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      ...Object.values(analyticsLog)
-    ].join(",")
+      ...Object.values(analyticsLog),
+    ].join(',');
   }
 }

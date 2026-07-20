@@ -5,15 +5,7 @@ import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
-import {
-  AdotLambdaExecWrapper,
-  AdotLambdaLayerJavaScriptSdkVersion,
-  AdotLayerVersion,
-  Code,
-  CodeSigningConfig,
-  Runtime,
-  Tracing,
-} from 'aws-cdk-lib/aws-lambda';
+import { Code, CodeSigningConfig, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
@@ -193,10 +185,6 @@ export class UNSLambdaConstruct extends Construct {
       codeSigningConfig: props.signingConfig,
       role: this.role,
       logGroup: this.logGroup,
-      adotInstrumentation: {
-        layerVersion: AdotLayerVersion.fromJavaScriptSdkLayerVersion(AdotLambdaLayerJavaScriptSdkVersion.LATEST),
-        execWrapper: AdotLambdaExecWrapper.REGULAR_HANDLER,
-      },
       tracing: Tracing.ACTIVE,
       ...(props.resources.vpc
         ? {
@@ -214,9 +202,6 @@ export class UNSLambdaConstruct extends Construct {
         NAMESPACE_NAME: `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace(`-`, `_`),
         // Prod environment drops prefix
         PREFIX: config.prefix,
-        AWS_LAMBDA_EXEC_WRAPPER: '/opt/otel-handler',
-        OTEL_AWS_APPLICATION_SIGNALS_ENABLED: 'false',
-        OTEL_SERVICE_VERSION: config.version,
         AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING: `true`,
         LOG_LEVEL: config.debugMode ? `DEBUG` : `INFO`,
         ...props.environment,
