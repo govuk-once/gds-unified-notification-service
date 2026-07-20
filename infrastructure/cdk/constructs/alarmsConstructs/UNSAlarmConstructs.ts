@@ -27,11 +27,11 @@ export const numericThreshold = {
 export const metricDimensions = (config: EnvVars, group: string, functionName?: string): Record<string, string> => (
   functionName ? {
     service: `NOTIFICATIONS_${group}`.toUpperCase().replace('-', '_'), 
-    environments: `${config.project}-${config.env}`,
+    environment: `${config.project}-${config.env}`,
     function_name: functionName
   } : {
     service: `NOTIFICATIONS_${group}`.toUpperCase().replace('-', '_'), 
-    environments: `${config.project}-${config.env}`,
+    environment: `${config.project}-${config.env}`,
 });
 
 export interface UNSAlarmsProps {
