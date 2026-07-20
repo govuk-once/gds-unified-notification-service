@@ -3,6 +3,7 @@ import {
   ConsumedCapacity,
   DeleteItemCommandInput,
   DynamoDB,
+  QueryCommandInput,
   ReturnConsumedCapacity,
   ScanCommandInput,
   UpdateItemCommandInput,
@@ -40,6 +41,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
       for (const consumedCapacity of Array.isArray(result.ConsumedCapacity)
         ? result.ConsumedCapacity
         : [result.ConsumedCapacity]) {
+        const cu = consumedCapacity.CapacityUnits ?? 0;
         const rcu = consumedCapacity.ReadCapacityUnits ?? 0;
         const wcu = consumedCapacity.WriteCapacityUnits ?? 0;
         const gsi = consumedCapacity.GlobalSecondaryIndexes ?? {};
@@ -56,7 +58,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
           MetricUnit.Count,
           wcu
         );
-        this.observability.logger.info(`Dynamodb Usage`, { label, table, rcu, wcu, gsi, lsi });
+        this.observability.logger.info(`Dynamodb Usage`, { label, table, cu, rcu, wcu, gsi, lsi });
       }
     }
     return result;
@@ -303,17 +305,47 @@ export abstract class DynamodbRepository<RecordType extends object> {
         ExpressionAttributeNames: { '#filterField': filter.field },
         ExpressionAttributeValues: marshall({ ':filterValue': filter.value }),
         IndexName: indexName,
+        ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
       }),
     };
 
     try {
-      const { Items } = await this.client.scan(params);
+      const { Items } = await this.observeCapacity(this.getRecord.name, this.client.scan(params));
       if (!Items || Items.length === 0) {
         return [];
       }
       return Items.map((item) => unmarshall(item) as RecordType);
     } catch (error) {
       this.observability.logger.error('Failure in getting records for table', {
+        tableName: this.tableAttributes.name,
+        error: this.observability.formatError(error),
+      });
+      throw error;
+    }
+  }
+
+  public async getRecordsQuery<RecordType>(
+    filter?: { field: string; value: string },
+    indexName?: string
+  ): Promise<RecordType[]> {
+    const params: QueryCommandInput = {
+      TableName: this.tableAttributes.name,
+      ...(filter && {
+        KeyConditionExpression: `${filter.field} = :filterValue`,
+        ExpressionAttributeValues: marshall({ ':filterValue': filter.value }),
+        IndexName: indexName,
+        ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
+      }),
+    };
+
+    try {
+      const { Items } = await this.observeCapacity(this.getRecordsQuery.name, this.client.query(params));
+      if (!Items || Items.length === 0) {
+        return [];
+      }
+      return Items.map((item) => unmarshall(item) as RecordType);
+    } catch (error) {
+      this.observability.logger.error('Failure in getting records (query) for table', {
         tableName: this.tableAttributes.name,
         error: this.observability.formatError(error),
       });

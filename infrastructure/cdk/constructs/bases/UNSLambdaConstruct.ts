@@ -158,7 +158,7 @@ export class UNSLambdaConstruct extends Construct {
             ? ['dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:BatchWriteItem', 'dynamodb:DeleteItem']
             : []),
         ],
-        [arn]
+        [arn, `${arn}/index/*`]
       );
     }
 

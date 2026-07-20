@@ -51,7 +51,7 @@ export const IMessageRecordToIFlexNotification = (
     NotificationBody: item.NotificationBody,
     MessageTitle: item.MessageTitle,
     MessageBody: item.MessageBody,
-    DispatchedDateTime: item.DispatchedDateTime,
+    DispatchedDateTime: item.DispatchedDateTime ?? item.ReceivedDateTime ?? new Date().toISOString(),
     // Infer status from Events
     Status: latestEvent ?? NotificationStateEnum.RECEIVED,
     // Fetch display name from DynamoDB
