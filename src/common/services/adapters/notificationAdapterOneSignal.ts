@@ -1,6 +1,6 @@
 import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
 import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { ConfigurationService, ObservabilityService, ProviderDimension } from '@common/services';
 import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import {
   NotificationAdapter,
@@ -62,6 +62,8 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
       NotificationID: request.NotificationID,
     };
 
+    this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'call');
+
     try {
       this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);
       const result = await this.client.post<OneSignalPushNotificationResponse>({
@@ -109,6 +111,8 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
   }
 
   private errorHandler(request: NotificationAdapterRequest, error: unknown): never {
+    this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'error');
+
     if (isFetchResponseError(error)) {
       this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
         NotificationID: request.NotificationID,

@@ -9,7 +9,12 @@ import { Construct } from 'constructs';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
+import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
+import { UNSAuthenticationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct';
+import { UNSIntegrationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct';
 import { UNSOperationalAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct';
+import { UNSPerformanceAlarmsConstructs } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
+import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
@@ -22,10 +27,7 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { UNSAuthenticationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct';
-import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
-import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
-import { UNSPerformanceAlarmsConstructs } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
+import { ProviderDimension } from "../../../src/common/services/observabilityService";
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -60,7 +62,8 @@ export class UNSPSOResource extends Construct {
     authenticationAlarms: UNSAuthenticationAlarmsConstruct;
     wafAlarms: UNSWAFAlarmsConstruct;
     operationalAlarms: UNSOperationalAlarmsConstruct;
-    performanceAlarms: UNSPerformanceAlarmsConstructs
+    performanceAlarms: UNSPerformanceAlarmsConstructs;
+    integrationAlarms: UNSIntegrationAlarmsConstruct;
   }
 
   public readonly dashboards: {
@@ -623,7 +626,21 @@ export class UNSPSOResource extends Construct {
         ],
         alertTopic: refs.alertTopic,
         group: this.serviceName,
-      })
+      }),
+      integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
+        alertTopic: refs.alertTopic, 
+        group: this.serviceName,
+        providers: [
+          { name: 'OneSignal', provider: ProviderDimension.ONESIGNAL, direction: 'downstream' },
+          { name: 'UDP', provider: ProviderDimension.UDP, direction: 'upstream' },
+        ],
+        lambdas: [
+          ...Object.entries(this.lambdas.http).map(([name, func]) => ({ name, func: func.fn })),
+          ...Object.entries(this.lambdas.sqs).map(([name, func]) => ({ name, func: func.fn })),
+          ...Object.entries(this.lambdas.authorizers).map(([name, func]) => ({ name, func: func.fn })),
+          ...Object.entries(this.lambdas.schedule).map(([name, func]) => ({ name, func: func.fn })),
+        ] 
+      }),
     }
   }
 }
