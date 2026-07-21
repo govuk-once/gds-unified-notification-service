@@ -8,7 +8,7 @@ import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServ
 import { NoLinkingIdFound } from '@common/models/Errors/NotFoundError';
 import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
-import { ObservabilityService } from '@common/services/observabilityService';
+import { ObservabilityService, ProviderDimension } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
 
 const UDPConfigSchema = z.object({
@@ -66,6 +66,8 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
     this.observability.logger.info(`Processing using UDP adapter - mapping userID to externalUserID`, {
       userID: request.userID,
     });
+    
+    this.observability.recordProviderHttpMetric(ProviderDimension.UDP, 'call');
 
     try {
       // /v1/{resourcePath+} - notifications is resource namespace that was assigned to us by flex
@@ -100,6 +102,8 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
   }
 
   private errorHandler(request: ProcessingAdapterRequest, error: unknown): never {
+    this.observability.recordProviderHttpMetric(ProviderDimension.UDP, 'error');
+
     this.observability.logger.error(`Processing adapter error`, { error });
 
     if (isFetchResponseError(error)) {
