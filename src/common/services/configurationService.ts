@@ -13,7 +13,6 @@ export class ConfigurationService extends BaseConfigurableValueService {
     super(observability);
     this.client = new SSMClient({ region: 'eu-west-2' });
   }
-
   public async refreshCache(nextToken?: string): Promise<void> {
     this.observability.logger.info(`Refreshing namespace ${nextToken}`);
     const params = await this.client.send(
@@ -36,6 +35,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
     }
   }
 
+  private refreshCachePromise: Promise<void> | null = null;
   public async getParameter(namespace: string): Promise<string> {
     this.observability.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
 
@@ -47,7 +47,15 @@ export class ConfigurationService extends BaseConfigurableValueService {
     try {
       // If namespace does not contain value - fetch namepsace
       if (!this.inMemoryCache.has(param.Name)) {
-        await this.refreshCache();
+        // Persist promise into the class prevent parallel refresh cache calls when cache is empty & lambda has been initialized
+        if (this.refreshCachePromise == null) {
+          this.refreshCachePromise = this.refreshCache();
+          await this.refreshCachePromise;
+          this.refreshCachePromise = null;
+        } else {
+          this.observability.logger.info(`Preventing parallel config fetching`);
+          await this.refreshCachePromise;
+        }
       }
 
       // Confirm value in cache
