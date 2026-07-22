@@ -1,14 +1,16 @@
 import { BaseError } from '@common/models/Errors/BaseError';
 import type { MiddlewareObj } from '@middy/core';
-import type { APIGatewayEvent, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
+import type { APIGatewayEvent, APIGatewayProxyStructuredResultV2, Context } from 'aws-lambda';
 
 // Add middleware factory
 export const httpErrorHandlerMiddleware = (
-  loggerCallback: (message: string, statusCode: number, errors: string[] | Error) => void
+  loggerCallback: (message: string, statusCode: number, errors: string[] | Error, context: Context) => void
 ): MiddlewareObj<APIGatewayEvent, APIGatewayProxyStructuredResultV2, Error> => ({
   onError: (request) => {
     if (request.error instanceof BaseError) {
-      loggerCallback('Request failed', request.error.statusCode, request.error.errors);
+      loggerCallback('Request failed', request.error.statusCode, request.error.errors,
+      request.context
+      );
       request.response = {
         statusCode: request.error.statusCode,
         headers: { 'Content-Type': 'application/json' },
@@ -25,7 +27,8 @@ export const httpErrorHandlerMiddleware = (
     loggerCallback(
       'Request failed unexpected.',
       500,
-      request.error?.message ? [request.error?.message] : ['There was no error message provided.']
+      request.error?.message ? [request.error?.message] : ['There was no error message provided.'],
+      request.context
     );
     request.response = {
       statusCode: 500,

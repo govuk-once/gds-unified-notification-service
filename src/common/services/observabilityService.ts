@@ -21,6 +21,8 @@ export const MetricsLabels = {
   ...AnalyticsEventsLabels,
 
   API_CALL_TRIGGERED: 'API_CALL_TRIGGERED',
+  API_CLIENT_ERROR_RESPONSES: 'API_CLIENT_ERROR_RESPONSES',
+  API_SERVER_ERROR_RESPONSES: 'API_SERVER_ERROR_RESPONSES',
 
   BATCH_ITEM_FAILURES_ANALYTICS: 'BATCH_ITEM_FAILURES_ANALYTICS',
   BATCH_ITEM_FAILURES_DISPATCH: 'BATCH_ITEM_FAILURES_DISPATCH',
@@ -91,6 +93,9 @@ export const MetricsLabelsUnits = {
   ...analyticsEventMetricCount,
 
   [MetricsLabels.API_CALL_TRIGGERED]: MetricUnit.Count,
+  [MetricsLabels.API_CLIENT_ERROR_RESPONSES]: MetricUnit.Count,
+  [MetricsLabels.API_SERVER_ERROR_RESPONSES]: MetricUnit.Count,
+
 
   [MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS]: MetricUnit.Count,
   [MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH]: MetricUnit.Count,
@@ -177,5 +182,23 @@ export class ObservabilityService {
     const metric = this.metrics.singleMetric();
     metric.addDimension(ProviderKey, provider);
     metric.addMetric(label, MetricUnit.Count, 1);
+  }
+
+  public recordHttpErrorResponse(statusCode: number, functionName?: string) {
+    if(statusCode < 400){
+      return;
+    }
+    
+    const label = statusCode >= 500 
+      ? MetricsLabels.API_SERVER_ERROR_RESPONSES 
+      : MetricsLabels.API_CLIENT_ERROR_RESPONSES;
+
+    const metric = this.metrics.singleMetric();
+
+    if(functionName) {
+      metric.addDimension('function_name', functionName);
+    }
+
+    metric.addMetric(label, MetricUnit.Count, 1)
   }
 }
