@@ -1,21 +1,24 @@
-import {
-  Alarm,
-  ComparisonOperator,
-  Stats,
-} from 'aws-cdk-lib/aws-cloudwatch';
+import { Alarm, ComparisonOperator, Stats } from 'aws-cdk-lib/aws-cloudwatch';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { MetricsLabels } from "../../../../src/common/services/observabilityService";
-import { AlarmPeriod, alarmPriority, numericThreshold, P95_STATISTIC, UNSAlarmsConstruct, UNSAlarmsProps } from "./UNSAlarmConstructs";
+import { MetricsLabels } from '../../../../src/common/services/observabilityService';
+import {
+  AlarmPeriod,
+  alarmPriority,
+  numericThreshold,
+  P95_STATISTIC,
+  UNSAlarmsConstruct,
+  UNSAlarmsProps,
+} from './UNSAlarmConstructs';
 
 export const OperationalAlarmThreshold = {
-  QUEUE_DEPTH: 1000, 
-  FAILURE_RATE_PERCENTAGE: 5, 
+  QUEUE_DEPTH: 1000,
+  FAILURE_RATE_PERCENTAGE: 5,
   PROCESSING_DURATION_P95_MS: 3000,
   DISPATCH_DURATION_P95_MS: 5000,
   VALIDATION_DURATION_P95_MS: 2000,
-} as const 
+} as const;
 
 interface QueueTarget {
   name: string;
@@ -31,37 +34,44 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
 
   constructor(scope: Construct, config: EnvVars, props: UNSOperationalAlarmsProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
-    props.names = [...(props.names ?? []), 'operational']
+    props.names = [...(props.names ?? []), 'operational'];
     super(scope, config, props);
 
     const { group, queues } = props;
-      
+
     // SQS Depth Alarm
     for (const { name, queue } of queues) {
       this.addAlarm({
         id: constructNamingHelper('sqsDepthAlarm', group, name),
         name: namingHelper(alarmPriority.HIGH, group, 'SqsQueueDepthHigh', name),
         description: `SQS queue '${name}' exceeded ${OperationalAlarmThreshold.QUEUE_DEPTH} visible messages for 5 consecutive minutes.`,
-        metric: queue.metricApproximateNumberOfMessagesVisible({ statistic: Stats.MAXIMUM, period: AlarmPeriod.ONE_MINUTE }),
+        metric: queue.metricApproximateNumberOfMessagesVisible({
+          statistic: Stats.MAXIMUM,
+          period: AlarmPeriod.ONE_MINUTE,
+        }),
         threshold: OperationalAlarmThreshold.QUEUE_DEPTH,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 5,
         datapointsToAlarm: 5,
       });
     }
-    
+
     // Rate limiting enforced alarm
     this.addAlarm({
       id: constructNamingHelper('rateLimitEnforcedAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchRateLimitingEnforced'),
       description: `Dispatch circuit breaker enforced rate limiting for 2 consecutive minutes.`,
-      metric: this.customMetric(MetricsLabels.CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED, Stats.MAXIMUM, AlarmPeriod.ONE_MINUTE),
+      metric: this.customMetric(
+        MetricsLabels.CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED,
+        Stats.MAXIMUM,
+        AlarmPeriod.ONE_MINUTE
+      ),
       threshold: 1,
       comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       evaluationPeriods: 2,
       datapointsToAlarm: 2,
     });
-    
+
     // Validation failure rate alarm
     this.addRateAlarm({
       id: constructNamingHelper('validationFailureRateAlarm', group),
@@ -72,7 +82,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
       threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
       label: 'validation failure rate (%)',
     });
-    
+
     // Processing failure rate alarm
     this.addRateAlarm({
       id: constructNamingHelper('processingFailureRateAlarm', group),
@@ -83,7 +93,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
       threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
       label: 'processing failure rate (%)',
     });
-    
+
     // Dispatching failure rate alarm
     this.addRateAlarm({
       id: constructNamingHelper('dispatchFailureRateAlarm', group),
@@ -105,8 +115,8 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
-    })
-    
+    });
+
     // Processing duration alarm
     this.addAlarm({
       id: constructNamingHelper('processingDurationAlarm', group),
@@ -118,7 +128,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
     });
-    
+
     // Dispatching duration alarm
     this.addAlarm({
       id: constructNamingHelper('dispatchDurationAlarm', group),
@@ -130,13 +140,28 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
     });
-    
+
     const batchFailureTargets = [
-      { id: 'validationBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION, title: 'ValidationBatchItemFailures', label: 'Validation' },
-      { id: 'processingBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING, title: 'ProcessingBatchItemFailures', label: 'Processing' },
-      { id: 'dispatchBatchFailuresAlarm', metric: MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH, title: 'DispatchBatchItemFailures', label: 'Dispatch' },
+      {
+        id: 'validationBatchFailuresAlarm',
+        metric: MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION,
+        title: 'ValidationBatchItemFailures',
+        label: 'Validation',
+      },
+      {
+        id: 'processingBatchFailuresAlarm',
+        metric: MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
+        title: 'ProcessingBatchItemFailures',
+        label: 'Processing',
+      },
+      {
+        id: 'dispatchBatchFailuresAlarm',
+        metric: MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH,
+        title: 'DispatchBatchItemFailures',
+        label: 'Dispatch',
+      },
     ];
-    
+
     // Batch item failure alarm
     for (const target of batchFailureTargets) {
       this.addAlarm({
@@ -148,15 +173,30 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 2,
         datapointsToAlarm: 2,
-        });
-      }
-      
+      });
+    }
+
     const publishFailureTargets = [
-      { id: 'processingPublishFailuresAlarm', metric: MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED, title: 'ProcessingQueuePublishFailed', label: 'processing' },
-      { id: 'dispatchPublishFailuresAlarm', metric: MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED, title: 'DispatchQueuePublishFailed', label: 'dispatch' },
-      { id: 'analyticsPublishFailuresAlarm', metric: MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED, title: 'AnalyticsQueuePublishFailed', label: 'analytics' },
+      {
+        id: 'processingPublishFailuresAlarm',
+        metric: MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
+        title: 'ProcessingQueuePublishFailed',
+        label: 'processing',
+      },
+      {
+        id: 'dispatchPublishFailuresAlarm',
+        metric: MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED,
+        title: 'DispatchQueuePublishFailed',
+        label: 'dispatch',
+      },
+      {
+        id: 'analyticsPublishFailuresAlarm',
+        metric: MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_FAILED,
+        title: 'AnalyticsQueuePublishFailed',
+        label: 'analytics',
+      },
     ];
-    
+
     // Publishing failed alarm
     for (const target of publishFailureTargets) {
       this.addAlarm({

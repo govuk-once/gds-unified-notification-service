@@ -47,7 +47,7 @@ export const observabilitySpies = (): Mocked<ObservabilityService> => {
 // TODO: Add to test files when refactoring in NOT-292
 // AWS client mocks
 export interface AwsClientMocks {
-  cloudWatchLogsClientMock: Mocked<CloudWatchLogsClient>
+  cloudWatchLogsClientMock: Mocked<CloudWatchLogsClient>;
 }
 
 /*
@@ -58,7 +58,7 @@ export const awsClientSpies = (): AwsClientMocks => {
   const cloudWatchLogsClientMock = new CloudWatchLogsClient() as Mocked<CloudWatchLogsClient>;
 
   return {
-    cloudWatchLogsClientMock
+    cloudWatchLogsClientMock,
   };
 };
 
@@ -71,7 +71,9 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   // Config
   const configurationServiceMock = new ConfigurationService(observabilityMock) as Mocked<ConfigurationService>;
   const smConfigurationServiceMock = new SMConfigurationService(observabilityMock) as Mocked<SMConfigurationService>;
-  const smNamespacedConfigurationServiceMock = new SMNamespacedConfigurationService(observabilityMock) as Mocked<SMNamespacedConfigurationService>;
+  const smNamespacedConfigurationServiceMock = new SMNamespacedConfigurationService(
+    observabilityMock
+  ) as Mocked<SMNamespacedConfigurationService>;
 
   // Queues
   const processingQueueServiceMock = new ProcessingQueueService(
@@ -125,7 +127,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   const contentValidationServiceMock = new ContentValidationService(
     observabilityMock,
     configurationServiceMock,
-    ['govuk:','https:'],
+    ['govuk:', 'https:'],
     ['*.gov.uk']
   ) as Mocked<ContentValidationService>;
   const processingServiceMock = new ProcessingService(

@@ -47,9 +47,13 @@ describe('NotificationService', () => {
     mockSecrets = mockDefaultSecrets();
     serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockSecrets)
-    )
+    );
 
-    instance = new NotificationService(observabilityMock, serviceMocks.configurationServiceMock, serviceMocks.smNamespacedConfigurationServiceMock);
+    instance = new NotificationService(
+      observabilityMock,
+      serviceMocks.configurationServiceMock,
+      serviceMocks.smNamespacedConfigurationServiceMock
+    );
   });
 
   describe('initialize', () => {
@@ -87,7 +91,9 @@ describe('NotificationService', () => {
       for (const param of expectedParamCalls) {
         expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(param);
       }
-      expect(serviceMocks.smNamespacedConfigurationServiceMock.getParameter).toHaveBeenCalledWith(StringSecret.Dispatch.OneSignal.ApiKey);
+      expect(serviceMocks.smNamespacedConfigurationServiceMock.getParameter).toHaveBeenCalledWith(
+        StringSecret.Dispatch.OneSignal.ApiKey
+      );
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(expectedParamCalls.length);
     });
   });

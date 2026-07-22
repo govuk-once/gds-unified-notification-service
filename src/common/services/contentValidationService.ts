@@ -35,17 +35,7 @@ const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   'link_close',
 ]);
 
-const PROTOCOLS = [
-  'mailto:',
-  'tel:',
-  'sms:',
-  'https:',
-  'http:',
-  'file:',
-  'data:',
-  'blob:',
-  'geo:',
-]
+const PROTOCOLS = ['mailto:', 'tel:', 'sms:', 'https:', 'http:', 'file:', 'data:', 'blob:', 'geo:'];
 
 export class ContentValidationService {
   private readonly parser = new MarkdownIt({

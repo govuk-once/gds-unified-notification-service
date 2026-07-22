@@ -27,7 +27,7 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { ProviderDimension } from "../../../src/common/services/observabilityService";
+import { ProviderDimension } from '../../../src/common/services/observabilityService';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -64,7 +64,7 @@ export class UNSPSOResource extends Construct {
     operationalAlarms: UNSOperationalAlarmsConstruct;
     performanceAlarms: UNSPerformanceAlarmsConstructs;
     integrationAlarms: UNSIntegrationAlarmsConstruct;
-  }
+  };
 
   public readonly dashboards: {
     flow: UNSPSOFlow;
@@ -604,17 +604,20 @@ export class UNSPSOResource extends Construct {
       }),
       operationalAlarms: new UNSOperationalAlarmsConstruct(this, config, {
         alertTopic: refs.alertTopic,
-        group: this.serviceName, 
+        group: this.serviceName,
         queues: [
           { name: 'incoming', queue: this.queues.incoming.queue },
-          { name: 'processing', queue: this.queues.processing.queue  },
-          { name: 'dispatch', queue: this.queues.dispatch.queue  },
+          { name: 'processing', queue: this.queues.processing.queue },
+          { name: 'dispatch', queue: this.queues.dispatch.queue },
           { name: 'analytics', queue: this.queues.analytics.queue },
-        ]
+        ],
       }),
       performanceAlarms: new UNSPerformanceAlarmsConstructs(this, config, {
         lambdas: [
-          { name: 'mtlsCertificateRevocationAuthorizer', lambda: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer },
+          {
+            name: 'mtlsCertificateRevocationAuthorizer',
+            lambda: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer,
+          },
           { name: 'getCampaignStatus', lambda: this.lambdas.http.getCampaignStatus },
           { name: 'postMessage', lambda: this.lambdas.http.postMessage },
           { name: 'getHealthcheck', lambda: this.lambdas.http.getHealthcheck },
@@ -622,13 +625,13 @@ export class UNSPSOResource extends Construct {
           { name: 'validation', lambda: this.lambdas.sqs.validation },
           { name: 'processing', lambda: this.lambdas.sqs.processing },
           { name: 'dispatch', lambda: this.lambdas.sqs.dispatch },
-          { name: 'analyticsExport', lambda: this.lambdas.schedule.analyticsExport }
+          { name: 'analyticsExport', lambda: this.lambdas.schedule.analyticsExport },
         ],
         alertTopic: refs.alertTopic,
         group: this.serviceName,
       }),
       integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic, 
+        alertTopic: refs.alertTopic,
         group: this.serviceName,
         providers: [
           { name: 'OneSignal', provider: ProviderDimension.ONESIGNAL, direction: 'downstream' },
@@ -639,8 +642,8 @@ export class UNSPSOResource extends Construct {
           ...Object.entries(this.lambdas.sqs).map(([name, func]) => ({ name, func: func.fn })),
           ...Object.entries(this.lambdas.authorizers).map(([name, func]) => ({ name, func: func.fn })),
           ...Object.entries(this.lambdas.schedule).map(([name, func]) => ({ name, func: func.fn })),
-        ] 
+        ],
       }),
-    }
+    };
   }
 }

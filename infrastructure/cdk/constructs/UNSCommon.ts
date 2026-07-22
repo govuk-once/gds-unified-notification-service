@@ -82,24 +82,23 @@ export class UNSCommon extends Construct {
       },
     }).key;
 
-    this.kms.addToResourcePolicy(new PolicyStatement({
-      sid: 'AllowCloudWatchAlarmsToUseKey',
-      effect: Effect.ALLOW,
-      principals: [new ServicePrincipal('cloudwatch.amazonaws.com')],
-      actions: [
-        'kms:Decrypt',
-        'kms:GenerateDataKey*'
-      ],
-      resources: ['*'],
-      conditions: {
-        StringEquals: {
-          'aws:SourceAccount': [stack.account],
+    this.kms.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AllowCloudWatchAlarmsToUseKey',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('cloudwatch.amazonaws.com')],
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey*'],
+        resources: ['*'],
+        conditions: {
+          StringEquals: {
+            'aws:SourceAccount': [stack.account],
+          },
+          ArnLike: {
+            'aws:SourceArn': [`arn:aws:cloudwatch:eu-west-2:${stack.account}:alarm:*`],
+          },
         },
-        ArnLike: {
-          'aws:SourceArn': [`arn:aws:cloudwatch:eu-west-2:${stack.account}:alarm:*`],
-        },
-      },
-    }))
+      })
+    );
 
     //// =====================================================
     // Alerts - always create alert topic, conditionally create slack alert linked to the topic if workspace & channel ids are present

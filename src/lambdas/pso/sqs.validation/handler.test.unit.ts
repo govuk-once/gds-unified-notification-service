@@ -124,16 +124,12 @@ describe('Validation QueueHandler', () => {
     serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
-    instance = new Validation(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks,
-      () => ({
-        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
-        notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
-        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-      })
-    );
+    instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
+      notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+    }));
     handler = instance.handler();
   });
 

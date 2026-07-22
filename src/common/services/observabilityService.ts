@@ -68,13 +68,13 @@ export const MetricsLabels = {
   PROVIDER_HTTP_CALLS: 'PROVIDER_HTTP_CALLS',
   PROVIDER_HTTP_ERRORS: 'PROVIDER_HTTP_ERRORS',
 
-  VALIDATION_DURATION: 'VALIDATION_DURATION'
+  VALIDATION_DURATION: 'VALIDATION_DURATION',
 } as const;
 
 // Provider for outbound integrations upstream and downstream HTTP metrics
 export const ProviderDimension = {
   ONESIGNAL: 'ONESIGNAL',
-  UDP: 'UDP'
+  UDP: 'UDP',
 } as const;
 
 export const ProviderKey = 'provider';
@@ -138,7 +138,7 @@ export const MetricsLabelsUnits = {
   [MetricsLabels.PROVIDER_HTTP_CALLS]: MetricUnit.Count,
   [MetricsLabels.PROVIDER_HTTP_ERRORS]: MetricUnit.Count,
 
-  [MetricsLabels.VALIDATION_DURATION]: MetricUnit.Milliseconds
+  [MetricsLabels.VALIDATION_DURATION]: MetricUnit.Milliseconds,
 } as const;
 
 export type KnownMetrics = Omit<Metrics, 'addMetric'> & {
@@ -170,10 +170,8 @@ export class ObservabilityService {
   }
 
   public recordProviderHttpMetric(provider: string, outcome: 'call' | 'error'): void {
-    const label = outcome === 'error' 
-      ? MetricsLabels.PROVIDER_HTTP_ERRORS 
-      : MetricsLabels.PROVIDER_HTTP_CALLS;
-    
+    const label = outcome === 'error' ? MetricsLabels.PROVIDER_HTTP_ERRORS : MetricsLabels.PROVIDER_HTTP_CALLS;
+
     const metric = this.metrics.singleMetric();
     metric.addDimension(ProviderKey, provider);
     metric.addMetric(label, MetricUnit.Count, 1);

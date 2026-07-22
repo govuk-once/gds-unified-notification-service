@@ -170,7 +170,7 @@ describe('Dispatch QueueHandler', () => {
     mockSecrets = mockDefaultSecrets();
     serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockSecrets)
-    )
+    );
 
     // Mocking successful completion of service functions
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);

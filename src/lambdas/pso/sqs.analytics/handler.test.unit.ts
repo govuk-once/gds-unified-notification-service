@@ -3,8 +3,8 @@ import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
 import { AnalyticsExportService } from '@common/services';
 import {
-    mockDefaultConfig,
-    mockGetParameterImplementation,
+  mockDefaultConfig,
+  mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';

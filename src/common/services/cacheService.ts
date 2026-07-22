@@ -75,7 +75,7 @@ export class CacheService {
     key: string,
     options?: {
       factory?: () => Promise<T> | T;
-      ttlSeconds?: number
+      ttlSeconds?: number;
     }
   ): Promise<T | undefined> {
     const value = await this.cache.get(key);

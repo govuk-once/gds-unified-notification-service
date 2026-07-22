@@ -34,7 +34,12 @@ describe('ContentValidationService', () => {
     mockParameterStore = mockDefaultConfig();
     configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
 
-    instance = new ContentValidationService(observabilityMock, configurationServiceMock, ['govuk:','https:'], ['*.gov.uk']);
+    instance = new ContentValidationService(
+      observabilityMock,
+      configurationServiceMock,
+      ['govuk:', 'https:'],
+      ['*.gov.uk']
+    );
   });
 
   describe('validate', () => {
@@ -119,8 +124,8 @@ describe('ContentValidationService', () => {
         // Arrange
         const exception = expectedError(errorMessage);
 
-        // Act 
-        const result = () => instance.validate(content)
+        // Act
+        const result = () => instance.validate(content);
 
         // & Assert
         expect(result).toThrow(exception);

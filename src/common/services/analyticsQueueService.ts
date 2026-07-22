@@ -22,11 +22,7 @@ export class AnalyticsQueueService extends QueueService<unknown> {
   }
 
   public addPublishingSuccessMetric(count: number) {
-    this.observability.metrics.addMetric(
-      MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_SUCCESSFULLY,
-      MetricUnit.Count,
-      count
-    );
+    this.observability.metrics.addMetric(MetricsLabels.QUEUE_ANALYTICS_PUBLISHED_SUCCESSFULLY, MetricUnit.Count, count);
   }
 
   public addPublishingFailedMetric(count: number): void {
