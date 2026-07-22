@@ -124,6 +124,8 @@ export const config = {
       channelId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/channelId`, null))!,
       workspaceId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/workspaceId`, null))!,
     },
+
+    certificateConsumers: await fromSSMJSON<Record<string, string>>(`/${namespace}/certificate/consumers`, {}),
   },
 
   // VPC
