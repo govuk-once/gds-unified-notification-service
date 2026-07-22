@@ -51,7 +51,7 @@ describe('AnalyticsExportService', () => {
   };
 
   const mockCsv = [
-    "",
+    '',
     '123',
     '2026-01-22T00:00:01Z',
     'ORG01',
@@ -125,9 +125,9 @@ describe('AnalyticsExportService', () => {
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
 
-      const mockAnalyticsNoDepID = { ...mockAnalytics, DepartmentID: undefined};
+      const mockAnalyticsNoDepID = { ...mockAnalytics, DepartmentID: undefined };
       const mockCsvNoDepID = [
-        "",
+        '',
         '123',
         '2026-01-22T00:00:01Z',
         'ORG01',
@@ -165,24 +165,26 @@ describe('AnalyticsExportService', () => {
       const logStreamName = date.toISOString().split(':').shift() ?? '';
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
-      const mockInvalidAnalytics = {...mockAnalytics, CampaignID: 'invalid-camp,'};
-      const mockInvalidAnalyticsLog = {...mockAnalyticsLog, CampaignID: 'invalid-camp,'};
+      const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp,' };
+      const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp,' };
 
       // Act
       const result = instance.logAnalytics(mockInvalidAnalytics);
 
       // Assert
-      await expect(result).rejects.toThrow(new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.']))
+      await expect(result).rejects.toThrow(
+        new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.'])
+      );
       expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
-        'Analytics contains invalid char , or " for csv format.', 
-        { 
-          field: 'CampaignID', 
-          analyticsLog: mockInvalidAnalyticsLog
+        'Analytics contains invalid char , or " for csv format.',
+        {
+          field: 'CampaignID',
+          analyticsLog: mockInvalidAnalyticsLog,
         }
-      )
+      );
     });
 
-  it('should throw an error if an analytics object contain an invalid char " .', async () => {
+    it('should throw an error if an analytics object contain an invalid char " .', async () => {
       // Arrange
       vi.useFakeTimers();
       const date = new Date(2026, 1, 1, 12, 30, 0);
@@ -191,20 +193,22 @@ describe('AnalyticsExportService', () => {
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
       const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp"' };
-      const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp"'};
+      const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp"' };
 
       // Act
       const result = instance.logAnalytics(mockInvalidAnalytics);
 
       // Assert
-      await expect(result).rejects.toThrow(new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.']))
+      await expect(result).rejects.toThrow(
+        new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.'])
+      );
       expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
-        'Analytics contains invalid char , or " for csv format.', 
-        { 
-          field: 'CampaignID', 
-          analyticsLog: mockInvalidAnalyticsLog
+        'Analytics contains invalid char , or " for csv format.',
+        {
+          field: 'CampaignID',
+          analyticsLog: mockInvalidAnalyticsLog,
         }
-      )
+      );
     });
   });
 

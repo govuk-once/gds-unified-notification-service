@@ -32,7 +32,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
 
   constructor(
     protected config: ConfigurationService,
-    protected observability: ObservabilityService,
+    protected observability: ObservabilityService
   ) {
     super(observability);
   }

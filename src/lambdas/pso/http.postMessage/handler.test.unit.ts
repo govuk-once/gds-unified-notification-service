@@ -72,16 +72,12 @@ describe('PostMessage Handler', () => {
     } as unknown as EventType;
 
     // Mocking retrieving store apiKey
-    instance = new PostMessage(
-      serviceMocks.configurationServiceMock,
-      observabilityMocks,
-      () => ({
-        analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-        contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
-        notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
-        processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
-      })
-    );
+    instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
+      analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
+      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
+      notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+    }));
     handler = instance.handler();
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);

@@ -104,7 +104,7 @@ describe('ProcessingQueueService', () => {
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
         MetricUnit.Count,
         1
-      )
+      );
     });
 
     it('should throw an error and log when the send message command fails and adds a metric', async () => {
@@ -122,7 +122,7 @@ describe('ProcessingQueueService', () => {
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
         1
-      )
+      );
     });
   });
 
@@ -158,7 +158,7 @@ describe('ProcessingQueueService', () => {
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
         MetricUnit.Count,
         1
-      )
+      );
     });
 
     it('should send a batch of messages, logs any that were failed to be sent, and adds a metric.', async () => {
@@ -215,7 +215,7 @@ describe('ProcessingQueueService', () => {
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
         1
-      )
+      );
     });
 
     it('should throw an error and log when the send batch message command fails', async () => {

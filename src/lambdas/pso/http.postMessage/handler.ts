@@ -144,13 +144,9 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   }
 }
 
-export const handler = new PostMessage(
-  iocGetConfigurationService(),
-  iocGetObservabilityService(),
-  () => ({
-    analyticsService: iocGetAnalyticsService(),
-    contentValidationService: iocGetContentValidationService(),
-    notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
-    processingQueue: iocGetProcessingQueueService(),
-  })
-).handler();
+export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  analyticsService: iocGetAnalyticsService(),
+  contentValidationService: iocGetContentValidationService(),
+  notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
+  processingQueue: iocGetProcessingQueueService(),
+})).handler();

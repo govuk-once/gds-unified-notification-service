@@ -9,6 +9,6 @@ export class SMNamespacedConfigurationService extends SMConfigurationService {
   }
 
   public async getParameter(secretId: string): Promise<string> {
-    return await super.getParameter(`${this.prefix}/${secretId}`)
+    return await super.getParameter(`${this.prefix}/${secretId}`);
   }
 }

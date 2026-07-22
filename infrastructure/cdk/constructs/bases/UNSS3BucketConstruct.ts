@@ -1,11 +1,11 @@
-import { BlockPublicAccess, Bucket, BucketEncryption, LifecycleRule } from "aws-cdk-lib/aws-s3";
-import { Construct } from "constructs";
-import { EnvVars } from "infrastructure/cdk/config";
-import { applyCheckovSkipsS3Bucket } from "infrastructure/cdk/utils/applyCheckovSkip";
+import { BlockPublicAccess, Bucket, BucketEncryption, LifecycleRule } from 'aws-cdk-lib/aws-s3';
+import { Construct } from 'constructs';
+import { EnvVars } from 'infrastructure/cdk/config';
+import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export interface BucketProps {
-  name: string[],
-  lifecycleRules?: LifecycleRule[]
+  name: string[];
+  lifecycleRules?: LifecycleRule[];
 }
 
 export class UNSS3Bucket extends Construct {
@@ -17,7 +17,7 @@ export class UNSS3Bucket extends Construct {
 
     this.bucket = new Bucket(this, constructNamingHelper(...props.name, ` bucket`), {
       bucketName: namingHelper(...props.name),
-      
+
       // Encryption at rest (Uses Amazon S3-managed keys / SSE-S3)
       encryption: BucketEncryption.S3_MANAGED,
 
@@ -34,7 +34,7 @@ export class UNSS3Bucket extends Construct {
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
 
-      lifecycleRules: props.lifecycleRules
+      lifecycleRules: props.lifecycleRules,
     });
     applyCheckovSkipsS3Bucket(this.bucket);
   }

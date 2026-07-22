@@ -259,11 +259,11 @@ export class UNSFlexResource extends Construct {
     }
 
     //// =====================================================
-    // CloudWatch Alarms 
+    // CloudWatch Alarms
     //// =====================================================
-    
+
     this.apiGatewayAlarms = new UNSApiGatewayAlarmsConstruct(this, config, {
-      restApi: this.gateway.restApi, 
+      restApi: this.gateway.restApi,
       alertTopic: refs.alertTopic,
       group: this.serviceName,
     });
@@ -271,6 +271,6 @@ export class UNSFlexResource extends Construct {
       waf: this.gateway.waf,
       alertTopic: refs.alertTopic,
       group: this.serviceName,
-    })
+    });
   }
 }

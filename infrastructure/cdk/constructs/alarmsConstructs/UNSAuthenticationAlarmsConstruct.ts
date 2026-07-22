@@ -1,12 +1,18 @@
-import { MetricsLabels } from "@common/services";
-import { ComparisonOperator, Stats } from "aws-cdk-lib/aws-cloudwatch";
-import { Construct } from "constructs";
-import { EnvVars } from "infrastructure/cdk/config";
-import { AlarmPeriod, alarmPriority, numericThreshold, UNSAlarmsConstruct, UNSAlarmsProps } from "infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs";
+import { MetricsLabels } from '@common/services';
+import { ComparisonOperator, Stats } from 'aws-cdk-lib/aws-cloudwatch';
+import { Construct } from 'constructs';
+import { EnvVars } from 'infrastructure/cdk/config';
+import {
+  AlarmPeriod,
+  alarmPriority,
+  numericThreshold,
+  UNSAlarmsConstruct,
+  UNSAlarmsProps,
+} from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs';
 
 export const AuthenticationAlarmThreshold = {
-  DENIAL_RATE_PERCENTAGE: 0.1
-}
+  DENIAL_RATE_PERCENTAGE: 0.1,
+};
 
 export class UNSAuthenticationAlarmsConstruct extends UNSAlarmsConstruct {
   constructor(scope: Construct, config: EnvVars, props: UNSAlarmsProps) {
@@ -44,7 +50,11 @@ export class UNSAuthenticationAlarmsConstruct extends UNSAlarmsConstruct {
       id: constructNamingHelper('unknownCertificateSpikeAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'UnknownCertificateSpikeDetected'),
       description: `A spike in unknown certificates has been detected over a 5-minute window.`,
-      metric: this.customMetric(MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_UNKNOWN_CERTIFICATE_COUNT, Stats.SUM, AlarmPeriod.FIVE_MINUTES),
+      metric: this.customMetric(
+        MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_UNKNOWN_CERTIFICATE_COUNT,
+        Stats.SUM,
+        AlarmPeriod.FIVE_MINUTES
+      ),
       threshold: numericThreshold.FIVE_THRESHOLD,
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 5,
