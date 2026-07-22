@@ -65,9 +65,9 @@ jobs:
       - name: 🔨 Build bundles
         run: pnpm run build
 
-      - name: 🏗️ CDK Deploy
+      - name: 🏗️ CDK Plan
         run: |
-          pnpm run cdk:deploy
+          pnpm run cdk:diff
         env:
           region: ${{ vars.AWS_REGION }}
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
