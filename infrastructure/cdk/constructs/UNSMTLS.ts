@@ -7,6 +7,7 @@ import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCertificateAuthorityConstruct } from 'infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct';
 import { UNSClientCertificateConstruct } from 'infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
+import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSClientCertificateGeneratorConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSClientCertificateGeneratorConstruct';
 import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
 import { UNSs3ObjectConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSs3ObjectConstruct';
@@ -99,6 +100,14 @@ export class UNSMTLSCommon extends Construct {
       });
       common.kms.grantEncryptDecrypt(smWriterProvider.fn);
 
+      const mtlsConsumerKey = new UNSKMSConstruct(this, config, {
+        name: ['mtls', 'external', 'consumer'],
+        policies: {
+          root: true,
+          lambdas: true,
+          cloudwatch: true,
+        },
+      });
       for (const certificateDetails of getConsumers(config.env, config)) {
         const certificate = new UNSClientCertificateConstruct(
           this,
@@ -107,6 +116,7 @@ export class UNSMTLSCommon extends Construct {
           // Add references & providers
           {
             encryptionKey: common.kms,
+            encryptionConsumerKey: mtlsConsumerKey.key,
             certificateAuthorityArn: this.certificateAuthority.certificateAuthority.attrArn,
             csrProvider,
             dynamoDBWriterProvider,
