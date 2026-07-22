@@ -12,6 +12,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
   constructor(protected observability: ObservabilityService) {
     super(observability);
     this.client = new SSMClient({ region: 'eu-west-2' });
+    this.observability.tracer.captureAWSv3Client(this.client);
   }
   public async refreshCache(nextToken?: string): Promise<void> {
     this.observability.logger.info(`Refreshing namespace ${nextToken}`);

@@ -7,10 +7,11 @@ export class SMConfigurationService extends BaseConfigurableValueService {
   constructor(protected observability: ObservabilityService) {
     super(observability);
     this.client = new SecretsManagerClient({ region: 'eu-west-2' });
+    this.observability.tracer.captureAWSv3Client(this.client);
   }
 
   public async getParameter(secretId: string): Promise<string> {
-    this.observability.logger.info(`Retrieving secret`, { secretId }); 
+    this.observability.logger.info(`Retrieving secret`, { secretId });
     const secret = await this.client.send(
       new GetSecretValueCommand({
         // Allow the value to be a serialized JSON string
