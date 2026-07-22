@@ -47,6 +47,7 @@ export class UNSClientCertificateConstruct extends Construct {
 
     // Gets the consumers account id for that organization from ssm
     const consumerAccountID: string | undefined = config.ssm.certificateConsumers[props.subject.organization];
+    console.log(`Organization: ${props.subject.organization}, consumerAccountID is ${consumerAccountID === undefined ? undefined : 'exists'}`);
 
     // Create a placeholder Secret to securely capture the generated outputs
     this.privateKeySecret = new secretsmanager.Secret(this, constructNamingHelper('sm', 'private-key'), {
