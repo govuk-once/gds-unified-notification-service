@@ -45,6 +45,7 @@ export class UNSClientCertificateConstruct extends Construct {
     super(scope, id);
     const { constructNamingHelper } = config.utils;
 
+    // Gets the consumers account id for that organization from ssm
     const consumerAccountID: string | undefined = config.ssm.certificateConsumers[props.subject.organization];
 
     // Create a placeholder Secret to securely capture the generated outputs
@@ -65,7 +66,6 @@ export class UNSClientCertificateConstruct extends Construct {
     this.privateKeyCRT.grantWrite(refs.smWriterProvider.fn);
 
     // Allow external consumers to read secrets if organisation name matches
-
     if (consumerAccountID) {
       refs.encryptionConsumerKey.addToResourcePolicy(
         new PolicyStatement({
