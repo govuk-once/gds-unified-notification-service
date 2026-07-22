@@ -78,7 +78,7 @@ jobs:
 
       # Unit testing - all envs
       - name: 🧪 All Testing suites
-        if: ${{ inputs.ENVIRONMENT == 'production' }}
+        if: ${{ inputs.ENVIRONMENT != 'production' }}
         run: |
           VITEST_TREE_REPORT=true pnpm test
         env:
@@ -86,7 +86,7 @@ jobs:
 
       # End to end testing - Non production only, to avoid shipping test data into analytics
       - name: 🧪 Limited testing suites
-        if: ${{ inputs.ENVIRONMENT != 'production' }}
+        if: ${{ inputs.ENVIRONMENT == 'production' }}
         run: |
           VITEST_TREE_REPORT=true pnpm test:unit
         env:
