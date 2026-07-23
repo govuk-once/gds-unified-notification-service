@@ -25,8 +25,11 @@ export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisat
     });
 
     const results = await Promise.allSettled(promises);
-    const records = results.filter(result => result.status === "fulfilled").map(result => result.value).filter(record => record !== null);
+    const records = results
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value)
+      .filter((record) => record !== null);
 
-    return records
+    return records;
   }
 }

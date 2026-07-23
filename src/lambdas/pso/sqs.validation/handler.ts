@@ -16,7 +16,7 @@ import {
   ConfigurationService,
   MetricsLabels,
   ObservabilityService,
-  ProcessingQueueService
+  ProcessingQueueService,
 } from '@common/services';
 import { BoolParameters } from '@common/utils';
 import { IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
@@ -91,7 +91,7 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     this.contentValidationService!.validate(message.MessageBody);
 
     this.observability.metrics.addMetric(
-      MetricsLabels.VALIDATION_DURATION, 
+      MetricsLabels.VALIDATION_DURATION,
       MetricUnit.Milliseconds,
       performance.now() - start
     );

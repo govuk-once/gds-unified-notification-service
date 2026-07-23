@@ -66,7 +66,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
     this.observability.logger.info(`Processing using UDP adapter - mapping userID to externalUserID`, {
       userID: request.userID,
     });
-    
+
     this.observability.recordProviderHttpMetric(ProviderDimension.UDP, 'call');
 
     try {

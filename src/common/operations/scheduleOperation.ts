@@ -8,22 +8,16 @@ import { ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import type { Context, ScheduledEvent } from 'aws-lambda';
 
-export type IScheduleMiddleware = MiddyfiedHandler<
-  ScheduledEvent,
-  void,
-  Error,
-  Context,
-  Record<string, unknown>
->;
+export type IScheduleMiddleware = MiddyfiedHandler<ScheduledEvent, void, Error, Context, Record<string, unknown>>;
 
 export abstract class ScheduleOperation {
   public abstract operationId: string;
-  
+
   constructor(protected observability: ObservabilityService) {}
 
   // Storage for IOC injections
   protected dependencies: (() => HandlerDependencies<object>)[] = [];
-  
+
   public injectDependencies(dependencies?: () => HandlerDependencies<object>) {
     this.observability.logger.info(`IoC Injection setup!`);
     if (dependencies) {
@@ -73,7 +67,7 @@ export abstract class ScheduleOperation {
   }
 
   /**
-   * Configures and executes the Lambda handler, including 
+   * Configures and executes the Lambda handler, including
    * dependency injection, observability logging, and implementation invocation.
    */
   public handler(): MiddyfiedHandler<ScheduledEvent, void> {

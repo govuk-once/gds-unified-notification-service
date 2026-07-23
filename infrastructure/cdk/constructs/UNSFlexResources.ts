@@ -17,12 +17,12 @@ export class UNSFlexResource extends Construct {
   public readonly serviceName = 'flex';
   public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
-  
+
   public readonly alarms: {
-      apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
-      wafAlarms: UNSWAFAlarmsConstruct;
-      integrationAlarms: UNSIntegrationAlarmsConstruct;
-  }
+    apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
+    wafAlarms: UNSWAFAlarmsConstruct;
+    integrationAlarms: UNSIntegrationAlarmsConstruct;
+  };
   public readonly lambdas: {
     http: {
       getNotifications: UNSLambdaConstruct;
@@ -264,25 +264,25 @@ export class UNSFlexResource extends Construct {
     }
 
     //// =====================================================
-    // CloudWatch Alarms 
+    // CloudWatch Alarms
     //// =====================================================
-    
+
     this.alarms = {
       apiGatewayAlarms: new UNSApiGatewayAlarmsConstruct(this, config, {
-      restApi: this.gateway.restApi, 
-      alertTopic: refs.alertTopic,
-      group: this.serviceName,
-    }),
-    wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
-      waf: this.gateway.waf,
-      alertTopic: refs.alertTopic,
-      group: this.serviceName,
-    }),
-    integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
-      alertTopic: refs.alertTopic, 
-      group: this.serviceName,
-      lambdas: Object.entries(this.lambdas.http).map(([name, func]) => ({ name, func: func.fn })),
+        restApi: this.gateway.restApi,
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
       }),
-    }
+      wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
+        waf: this.gateway.waf,
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
+      }),
+      integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
+        alertTopic: refs.alertTopic,
+        group: this.serviceName,
+        lambdas: Object.entries(this.lambdas.http).map(([name, func]) => ({ name, func: func.fn })),
+      }),
+    };
   }
 }

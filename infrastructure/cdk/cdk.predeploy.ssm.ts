@@ -39,6 +39,9 @@ export const configurableParameters = {
   'alerts/slack/workspaceId': 'null',
   'alerts/slack/channelId': 'null',
 
+  // AccountId for consumer to generate certificates for
+  'certificate/consumers': '{}',
+
   // Configurations for FLEX - these values are serialized JSON
   'api/flex/apiKey': 'mockApiKey',
   'flex/account': 'null',

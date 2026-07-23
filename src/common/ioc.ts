@@ -8,17 +8,17 @@ import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@c
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
-    AnalyticsQueueService,
-    AnalyticsService,
-    CacheService,
-    CircuitBreakerService,
-    ConfigurationService,
-    ContentValidationService,
-    DispatchQueueService,
-    KnownMetrics,
-    NotificationService,
-    ObservabilityService,
-    ProcessingQueueService,
+  AnalyticsQueueService,
+  AnalyticsService,
+  CacheService,
+  CircuitBreakerService,
+  ConfigurationService,
+  ContentValidationService,
+  DispatchQueueService,
+  KnownMetrics,
+  NotificationService,
+  ObservabilityService,
+  ProcessingQueueService,
 } from '@common/services';
 import { AnalyticsExportService } from '@common/services/analyticsExportService';
 import { ProcessingService } from '@common/services/processingService';
@@ -136,7 +136,7 @@ export const iocGetSMNamespacedConfigurationService = ioc(
   'SMPrefixedConfigurationService',
   Mode.SINGLETON,
   () => new SMNamespacedConfigurationService(iocGetObservabilityService())
-)
+);
 
 export const iocGetCacheService = ioc(
   'CacheService',
@@ -193,7 +193,11 @@ export const iocGetOrganisationsDynamoRepository = ioc(
 
 // Services - API Integrations
 export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, () =>
-  new NotificationService(iocGetObservabilityService(), iocGetConfigurationService(), iocGetSMNamespacedConfigurationService()).initialize()
+  new NotificationService(
+    iocGetObservabilityService(),
+    iocGetConfigurationService(),
+    iocGetSMNamespacedConfigurationService()
+  ).initialize()
 );
 
 export const iocGetProcessingService = ioc('ProcessingService', Mode.TIMEBOUND_SINGLETON, () =>
@@ -247,10 +251,14 @@ export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBr
 export const iocGetContentValidationService = ioc(
   'ContentValidationService',
   Mode.SINGLETON,
-  async() => new ContentValidationService(iocGetObservabilityService(), iocGetConfigurationService(),
-    (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.Protocols)).split(','),
-    (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',')
-  ));
+  async () =>
+    new ContentValidationService(
+      iocGetObservabilityService(),
+      iocGetConfigurationService(),
+      (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.Protocols)).split(','),
+      (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',')
+    )
+);
 
 // Utility FN simplifying integration of dependencies which depend on config within handler
 export const initializeDependencies = async <ClassInstance extends object, ClassProperty extends keyof ClassInstance>(

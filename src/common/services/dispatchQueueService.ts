@@ -23,18 +23,10 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   }
 
   public addPublishingSuccessMetric(count: number) {
-    this.observability.metrics.addMetric(
-      MetricsLabels.QUEUE_DISPATCH_PUBLISHED_SUCCESSFULLY,
-      MetricUnit.Count,
-      count
-    );
+    this.observability.metrics.addMetric(MetricsLabels.QUEUE_DISPATCH_PUBLISHED_SUCCESSFULLY, MetricUnit.Count, count);
   }
 
   public addPublishingFailedMetric(count: number) {
-    this.observability.metrics.addMetric(
-      MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED,
-      MetricUnit.Count,
-      count
-    );
+    this.observability.metrics.addMetric(MetricsLabels.QUEUE_DISPATCH_PUBLISHED_FAILED, MetricUnit.Count, count);
   }
 }

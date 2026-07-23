@@ -1,28 +1,33 @@
-import { Duration, Stack } from "aws-cdk-lib";
-import { ComparisonOperator, Metric, Stats } from "aws-cdk-lib/aws-cloudwatch";
-import { CfnWebACL } from "aws-cdk-lib/aws-wafv2";
-import { Construct } from "constructs";
-import { EnvVars } from "infrastructure/cdk/config";
-import { AlarmPeriod, alarmPriority, UNSAlarmsConstruct, UNSAlarmsProps } from "infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs";
+import { Duration, Stack } from 'aws-cdk-lib';
+import { ComparisonOperator, Metric, Stats } from 'aws-cdk-lib/aws-cloudwatch';
+import { CfnWebACL } from 'aws-cdk-lib/aws-wafv2';
+import { Construct } from 'constructs';
+import { EnvVars } from 'infrastructure/cdk/config';
+import {
+  AlarmPeriod,
+  alarmPriority,
+  UNSAlarmsConstruct,
+  UNSAlarmsProps,
+} from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs';
 
 export const wafMetric = {
-  BLOCKED_REQUESTS: 'BlockedRequests'
-}
+  BLOCKED_REQUESTS: 'BlockedRequests',
+};
 
 export interface UNSWAFAlarmProps extends UNSAlarmsProps {
-  waf: CfnWebACL
+  waf: CfnWebACL;
 }
 
 export class UNSWAFAlarmsConstruct extends UNSAlarmsConstruct {
   constructor(scope: Construct, config: EnvVars, props: UNSWAFAlarmProps) {
     const { namingHelper, constructNamingHelper } = config.utils;
-    props.names = [...(props.names ?? []), 'waf']
+    props.names = [...(props.names ?? []), 'waf'];
     super(scope, config, props);
 
     const { group } = props;
-    
+
     // WAF Blocked Request Spike
-    const blockRequestMetric = this.constructWafMetric(props.waf, wafMetric.BLOCKED_REQUESTS , Stats.SUM)
+    const blockRequestMetric = this.constructWafMetric(props.waf, wafMetric.BLOCKED_REQUESTS, Stats.SUM);
     if (blockRequestMetric) {
       this.addAnomalyDetectionAlarm({
         id: constructNamingHelper('wafBlockRequestAlarm', group),
@@ -31,13 +36,18 @@ export class UNSWAFAlarmsConstruct extends UNSAlarmsConstruct {
         metric: blockRequestMetric,
         stdDevs: 3,
         comparisonOperator: ComparisonOperator.GREATER_THAN_UPPER_THRESHOLD,
-      })
+      });
     }
   }
 
-  private constructWafMetric(waf: CfnWebACL, metricName: string, statistic: string, period: Duration = AlarmPeriod.FIVE_MINUTES): Metric | undefined {
+  private constructWafMetric(
+    waf: CfnWebACL,
+    metricName: string,
+    statistic: string,
+    period: Duration = AlarmPeriod.FIVE_MINUTES
+  ): Metric | undefined {
     if (!waf.name) {
-      return undefined
+      return undefined;
     }
     return new Metric({
       namespace: 'AWS/WAFV2',
@@ -47,7 +57,7 @@ export class UNSWAFAlarmsConstruct extends UNSAlarmsConstruct {
         Region: Stack.of(this).region,
         Rule: 'ALL',
       },
-      statistic: statistic,                    
+      statistic: statistic,
       period: period,
     });
   }

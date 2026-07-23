@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as acmpca from 'aws-cdk-lib/aws-acmpca';
+import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
@@ -10,6 +11,7 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 
 export interface UNSClientCertificateConstructRefs {
   readonly encryptionKey: Key;
+  readonly encryptionConsumerKey: Key;
   readonly certificateAuthorityArn: string;
   readonly csrProvider: UNSClientCertificateGeneratorConstruct;
   readonly dynamoDBWriterProvider: UNSDynamoDBWriterConstruct;
@@ -43,12 +45,15 @@ export class UNSClientCertificateConstruct extends Construct {
     super(scope, id);
     const { constructNamingHelper } = config.utils;
 
+    // Gets the consumers account id for that organization from ssm
+    const consumerAccountID: string | undefined = config.ssm.certificateConsumers[props.subject.organization];
+
     // Create a placeholder Secret to securely capture the generated outputs
     this.privateKeySecret = new secretsmanager.Secret(this, constructNamingHelper('sm', 'private-key'), {
       secretName: `${config.prefix}/tls/${props.certificateId}/private-key`,
       description: `Generated RSA Private Key for ${props.certificateId}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      encryptionKey: refs.encryptionKey,
+      encryptionKey: consumerAccountID ? refs.encryptionConsumerKey : refs.encryptionKey,
     });
     this.privateKeySecret.grantWrite(refs.csrProvider.fn);
 
@@ -56,9 +61,40 @@ export class UNSClientCertificateConstruct extends Construct {
       secretName: `${config.prefix}/tls/${props.certificateId}/crt`,
       description: `Generated CRT file for ${props.certificateId}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      encryptionKey: refs.encryptionKey,
+      encryptionKey: consumerAccountID ? refs.encryptionConsumerKey : refs.encryptionKey,
     });
     this.privateKeyCRT.grantWrite(refs.smWriterProvider.fn);
+
+    // Allow external consumers to read secrets if organisation name matches
+    if (consumerAccountID) {
+      refs.encryptionConsumerKey.addToResourcePolicy(
+        new PolicyStatement({
+          sid: 'AllowExternalAccountToDecrypt',
+          effect: Effect.ALLOW,
+          principals: [new AccountPrincipal(consumerAccountID)],
+          actions: ['kms:Decrypt', 'kms:DescribeKey'],
+          resources: ['*'],
+        })
+      );
+      this.privateKeyCRT.addToResourcePolicy(
+        new PolicyStatement({
+          sid: 'AllowExternalAccountToReadSecret',
+          effect: Effect.ALLOW,
+          principals: [new AccountPrincipal(consumerAccountID)],
+          actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+          resources: ['*'],
+        })
+      );
+      this.privateKeySecret.addToResourcePolicy(
+        new PolicyStatement({
+          sid: 'AllowExternalAccountToReadSecret',
+          effect: Effect.ALLOW,
+          principals: [new AccountPrincipal(consumerAccountID)],
+          actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+          resources: ['*'],
+        })
+      );
+    }
 
     // Invoke the Custom Resource to generate and save keys to S3
     const tlsGenerationExecution = refs.csrProvider.use(this, {

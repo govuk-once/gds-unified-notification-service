@@ -23,11 +23,11 @@ export const StringParameters = {
   },
   AnalyticsExport: {
     LogGroup: {
-      Name: 'analytics/export/loggroup/name'
+      Name: 'analytics/export/loggroup/name',
     },
     Bucket: {
-      Name: 'analytics/export/bucket/name'
-    }
+      Name: 'analytics/export/bucket/name',
+    },
   },
   Config: {
     Cache: {

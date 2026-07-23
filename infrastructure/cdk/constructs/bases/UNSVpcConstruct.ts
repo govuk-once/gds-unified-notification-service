@@ -207,10 +207,12 @@ export class UNSVpcConstruct<
     if (config.isNonDevEnv) {
       const flowLogBucket = new UNSS3Bucket(this, config, {
         name: [...props.name, 'flow-log'],
-        lifecycleRules: [{
-          enabled: true,
-          expiration: config.expiration,
-        }]
+        lifecycleRules: [
+          {
+            enabled: true,
+            expiration: config.expiration,
+          },
+        ],
       });
 
       new FlowLog(this, namingHelper('flow-log', 's3'), {

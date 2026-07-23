@@ -8,9 +8,7 @@ export const httpErrorHandlerMiddleware = (
 ): MiddlewareObj<APIGatewayEvent, APIGatewayProxyStructuredResultV2, Error> => ({
   onError: (request) => {
     if (request.error instanceof BaseError) {
-      loggerCallback('Request failed', request.error.statusCode, request.error.errors,
-      request.context
-      );
+      loggerCallback('Request failed', request.error.statusCode, request.error.errors, request.context);
       request.response = {
         statusCode: request.error.statusCode,
         headers: { 'Content-Type': 'application/json' },

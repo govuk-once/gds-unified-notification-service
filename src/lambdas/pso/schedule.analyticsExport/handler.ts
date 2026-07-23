@@ -1,8 +1,8 @@
 import {
-    HandlerDependencies,
-    iocGetAnalyticsExportService,
-    iocGetConfigurationService,
-    iocGetObservabilityService,
+  HandlerDependencies,
+  iocGetAnalyticsExportService,
+  iocGetConfigurationService,
+  iocGetObservabilityService,
 } from '@common/ioc';
 import { ScheduleOperation } from '@common/operations/scheduleOperation';
 import { AnalyticsExportService, ConfigurationService, ObservabilityService } from '@common/services';

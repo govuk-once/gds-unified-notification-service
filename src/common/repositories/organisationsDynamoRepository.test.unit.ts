@@ -95,7 +95,7 @@ describe('OrganisationsDynamoRepository', () => {
   describe('GetOrganisations', () => {
     it('should return an organisation record for a notification', async () => {
       // Arrange
-      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord)
+      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord);
 
       // Act
       const result = await instance.getOrganisations([mockMessageRecord]);
@@ -106,7 +106,10 @@ describe('OrganisationsDynamoRepository', () => {
 
     it('should return an organisation record for multiple notifications', async () => {
       // Arrange
-      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord).mockResolvedValueOnce(mockOrganisationRecord_02);
+      instance.getRecord = vi
+        .fn()
+        .mockResolvedValueOnce(mockOrganisationRecord)
+        .mockResolvedValueOnce(mockOrganisationRecord_02);
 
       // Act
       const result = await instance.getOrganisations([mockMessageRecord, mockMessageRecord_02]);
@@ -117,7 +120,10 @@ describe('OrganisationsDynamoRepository', () => {
 
     it('should return organisation records for all successful get records and filter out any errors', async () => {
       // Arrange
-      instance.getRecord = vi.fn().mockResolvedValueOnce(mockOrganisationRecord).mockRejectedValueOnce(new Error("AWS Failure."));
+      instance.getRecord = vi
+        .fn()
+        .mockResolvedValueOnce(mockOrganisationRecord)
+        .mockRejectedValueOnce(new Error('AWS Failure.'));
 
       // Act
       const result = await instance.getOrganisations([mockMessageRecord, mockMessageRecord_02]);

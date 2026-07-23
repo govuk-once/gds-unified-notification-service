@@ -47,7 +47,6 @@ export abstract class APIHandler<
     }
   }
 
-
   public implementation(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _event: ITypedRequestEvent<InferredInputSchema>,
@@ -116,9 +115,9 @@ export abstract class APIHandler<
     return middy.use(
       httpErrorHandlerMiddleware((message: string, statusCode: number, errors: string[] | Error, context: Context) => {
         this.observability.logger.error(message, { statusCode: statusCode, errors: errors });
-        
+
         this.observability.recordHttpErrorResponse(statusCode, context?.functionName);
-      }),
+      })
     );
   }
 

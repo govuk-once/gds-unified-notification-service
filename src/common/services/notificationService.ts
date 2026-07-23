@@ -20,7 +20,7 @@ export class NotificationService {
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService,
+    protected smConfig: SMNamespacedConfigurationService
   ) {}
 
   async initialize() {
