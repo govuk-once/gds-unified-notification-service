@@ -281,7 +281,6 @@ export class UNSFlexResource extends Construct {
     integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
       alertTopic: refs.alertTopic, 
       group: this.serviceName,
-      circuitBreaker: false,
       lambdas: Object.entries(this.lambdas.http).map(([name, func]) => ({ name, func: func.fn })),
       }),
     }
