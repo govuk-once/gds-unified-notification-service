@@ -61,6 +61,12 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       hashKey: 'OrganisationID',
       rangeKey: null,
     }),
+    [StringParameters.Table.Subscriptions.Attributes]: JSON.stringify({
+      name: 'mockSubscriptionsDynamoRepositoryName',
+      attributes: [],
+      hashKey: 'Subscription',
+      rangeKey: 'PushID',
+    }),
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockDefaultSecrets = (): Record<string, string | Error> =>

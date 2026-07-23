@@ -1,4 +1,6 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -6,8 +8,6 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@project/lambdas/interfaces/IOrganisationRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

@@ -1,8 +1,8 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
+import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@project/lambdas/interfaces/IOrganisationRecord';
 
 export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisationRecord> {
   constructor(

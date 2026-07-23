@@ -6,6 +6,7 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -13,7 +14,6 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

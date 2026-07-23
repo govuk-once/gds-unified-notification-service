@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources';
+import { UNSGroupNotificationsResource } from 'infrastructure/cdk/constructs/UNSGroupNotificationsResource';
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
@@ -11,6 +12,7 @@ import { applyCheckovSkipsS3Bucket, findResource } from 'infrastructure/cdk/util
 export class UNSStack extends Stack {
   public readonly pso: UNSPSOResource;
   public readonly flex: UNSFlexResource;
+  public readonly groupNotifications: UNSGroupNotificationsResource;
 
   constructor(
     protected scope: Construct,
@@ -41,6 +43,7 @@ export class UNSStack extends Stack {
       },
     });
     this.flex = new UNSFlexResource(this, config, { refs: common, organisationsRef: organisations });
+    this.groupNotifications = new UNSGroupNotificationsResource(this, config, common);
 
     this.applyTags(this, config);
     this.applyCheckovSkips();

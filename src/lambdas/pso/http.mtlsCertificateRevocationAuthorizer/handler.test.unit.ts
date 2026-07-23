@@ -1,12 +1,12 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { IRequestEvent } from '@common/middlewares';
+import { MTLSRevocation } from '@common/repositories/interfaces/MTLSRevocationTable';
 import { MetricsLabels } from '@common/services';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { MTLSRevocation } from '@project/lambdas/interfaces/MTLSRevocationTable';
 import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
 import { Context } from 'aws-lambda';
 

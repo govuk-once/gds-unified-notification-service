@@ -1,10 +1,10 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@project/lambdas/interfaces/IOrganisationRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

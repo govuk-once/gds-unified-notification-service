@@ -4,10 +4,15 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
-import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import {
+  CampaignsDynamoRepository,
+  GroupStoreDynamoRepository,
+  MTLSRevocationDynamoRepository,
+  NotificationsDynamoRepository,
+  OrganisationsDynamoRepository,
+} from '@common/repositories';
+import {
+  AnalyticsExportService,
   AnalyticsQueueService,
   AnalyticsService,
   CacheService,
@@ -19,11 +24,10 @@ import {
   NotificationService,
   ObservabilityService,
   ProcessingQueueService,
+  ProcessingService,
+  SMConfigurationService,
+  SMNamespacedConfigurationService,
 } from '@common/services';
-import { AnalyticsExportService } from '@common/services/analyticsExportService';
-import { ProcessingService } from '@common/services/processingService';
-import { SMConfigurationService } from '@common/services/smConfigurationService';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { InMemoryTTLCache, StringParameters } from '@common/utils';
 
 enum Mode {
@@ -189,6 +193,13 @@ export const iocGetOrganisationsDynamoRepository = ioc(
   Mode.TIMEBOUND_SINGLETON,
   async () =>
     await new OrganisationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetGroupStoreDynamoRepository = ioc(
+  'GroupStoreDynamoRepository',
+  Mode.TIMEBOUND_SINGLETON,
+  async () =>
+    await new GroupStoreDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 // Services - API Integrations

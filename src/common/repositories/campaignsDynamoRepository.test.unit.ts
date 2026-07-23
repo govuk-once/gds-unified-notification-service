@@ -3,13 +3,13 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { iocGetCampaignsDynamoRepository } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
+import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces/ICampaignRecord';
 import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { ICampaignRecord, ICampaignRecordSchema } from '@project/lambdas/interfaces/ICampaignRecord';
 import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
