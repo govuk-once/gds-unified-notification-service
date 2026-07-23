@@ -17,7 +17,7 @@ export class UNSGroupNotificationsResource extends Construct {
     //// =====================================================
     this.groupStoreTable = new UNSDynamoDb(this, config, {
       name: ['groupStore'],
-      partitionKey: 'SubscriptionID',
+      partitionKey: 'GroupID',
       partitionKeyType: AttributeType.STRING,
       sortKey: 'PushID',
       sortKeyType: AttributeType.STRING,

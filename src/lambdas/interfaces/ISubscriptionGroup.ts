@@ -1,5 +1,5 @@
-export interface ISubscriptionGroup {
+export interface IGroup {
   namespace: string;
-  subscription: string;
+  group: string;
   subgroup?: string;
 }

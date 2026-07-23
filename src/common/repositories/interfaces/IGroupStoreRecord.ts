@@ -1,8 +1,8 @@
 export interface IGroupStoreRecord {
-  SubscriptionID: string;
+  GroupID: string;
   PushID: string;
   CompositeID: string;
   Namespace: string;
-  Subscription: string;
+  Group: string;
   Subgroup?: string;
 }

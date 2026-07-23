@@ -2,7 +2,7 @@ import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
-import { ISubscriptionGroup } from '@project/lambdas';
+import { IGroup } from '@project/lambdas';
 
 export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRecord> {
   constructor(
@@ -13,33 +13,33 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Subscriptions.Attributes);
+    await super.initialize(StringParameters.Table.GroupStore.Attributes);
     return this;
   }
 
-  public async addSubscription(subscriptionID: string, pushID: string, subscriptionGroup: ISubscriptionGroup) {
+  public async addToGroup(groupID: string, pushID: string, group: IGroup) {
     const record: IGroupStoreRecord = {
-      SubscriptionID: subscriptionID,
+      GroupID: groupID,
       PushID: pushID,
-      CompositeID: subscriptionGroup.subgroup
-        ? `${subscriptionGroup.namespace}/${subscriptionGroup.subscription}/${subscriptionGroup.subgroup}`
-        : `${subscriptionGroup.namespace}/${subscriptionGroup.subscription}`,
-      Subscription: subscriptionGroup.subscription,
-      Namespace: subscriptionGroup.namespace,
-      Subgroup: subscriptionGroup.subgroup,
+      CompositeID: group.subgroup
+        ? `${group.namespace}/${group.group}/${group.subgroup}`
+        : `${group.namespace}/${group.group}`,
+      Group: group.group,
+      Namespace: group.namespace,
+      Subgroup: group.subgroup,
     };
 
     await this.createRecord(record);
   }
 
-  public async getSubscriptions(pushID: string): Promise<ISubscriptionGroup[]> {
+  public async getUsersGroups(pushID: string): Promise<IGroup[]> {
     const records = await this.getRecords({ field: 'pushID', value: pushID });
 
     return records
       ? records.map((record) => {
           return {
             namespace: record.Namespace,
-            subscription: record.Subscription,
+            group: record.Group,
             subgroup: record.Subgroup,
           };
         })
