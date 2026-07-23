@@ -113,8 +113,10 @@ export abstract class APIHandler<
    */
   protected errorHandlingMiddlewares(middy: IMiddleware): IMiddleware {
     return middy.use(
-      httpErrorHandlerMiddleware((message: string, statusCode: number, errors: string[] | Error) => {
+      httpErrorHandlerMiddleware((message: string, statusCode: number, errors: string[] | Error, context: Context) => {
         this.observability.logger.error(message, { statusCode: statusCode, errors: errors });
+
+        this.observability.recordHttpErrorResponse(statusCode, context?.functionName);
       })
     );
   }
