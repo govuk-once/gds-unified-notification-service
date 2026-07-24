@@ -27,7 +27,7 @@ interface LambdaTarget {
 }
 
 interface UNSIntegrationAlarmsProps extends UNSAlarmsProps {
-  providers: ProviderTarget[];
+  providers?: ProviderTarget[];
   lambdas: LambdaTarget[];
 }
 
@@ -40,7 +40,7 @@ export class UNSIntegrationAlarmsConstruct extends UNSAlarmsConstruct {
     props.names = [...(props.names ?? []), 'integration'];
     super(scope, config, props);
 
-    const { group, providers, lambdas } = props;
+    const { group, providers = [], lambdas } = props;
 
     const namespace = `NOTIFICATIONS_${config.project}-${config.env}`.toUpperCase().replace('-', '_');
 
