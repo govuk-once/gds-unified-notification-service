@@ -128,6 +128,9 @@ export const config = {
     certificateConsumers: await fromSSMJSON<Record<string, string>>(`/${namespace}/certificate/consumers`, {}),
   },
 
+  // Feature flag for travel alerts
+  featureFlag: env !== 'prod',
+
   // VPC
   vpc: {
     cidr: process.env.cidr ?? '10.0.0.0/16',
