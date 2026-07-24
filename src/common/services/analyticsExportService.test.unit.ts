@@ -213,12 +213,14 @@ describe('AnalyticsExportService', () => {
   });
 
   describe('logStreamToS3Bucket', () => {
-    it('should export the log stream from cloudwatch log group to s3.', async () => {
+    it('should export the log stream from cloudwatch using the previous hours log group to s3.', async () => {
       // Arrange
       vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
+      const date = new Date('2026-01-01T12:30:00Z');
       vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
+      const logStreamName = '2026-01-01T11';
+      const fromTime = new Date('2026-01-01T10:30:00Z');
+      const toTime = new Date('2026-01-01T12:30:00Z');
 
       // Act
       await instance.logStreamToS3Bucket(date.toISOString());
@@ -230,8 +232,36 @@ describe('AnalyticsExportService', () => {
             taskName: `analytics-export-${logStreamName}`,
             logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
             logStreamNamePrefix: logStreamName,
-            from: date.getTime() - 2 * 60 * 60 * 1000,
-            to: date.getTime(),
+            from: fromTime.getTime(),
+            to: toTime.getTime(),
+            destination: mockParameterStore[StringParameters.AnalyticsExport.Bucket.Name],
+            destinationPrefix: logStreamName,
+          },
+        })
+      );
+    });
+
+    it('should export the log stream from cloudwatch using the previous hours log when it occurs across midnight.', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date('2026-01-01T00:30:00Z');
+      vi.setSystemTime(date);
+      const logStreamName = '2025-12-31T23';
+      const fromTime = new Date('2025-12-31T22:30:00Z');
+      const toTime = new Date('2026-01-01T00:30:00Z');
+
+      // Act
+      await instance.logStreamToS3Bucket(date.toISOString());
+
+      // Assert
+      expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: {
+            taskName: `analytics-export-${logStreamName}`,
+            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logStreamNamePrefix: logStreamName,
+            from: fromTime.getTime(),
+            to: toTime.getTime(),
             destination: mockParameterStore[StringParameters.AnalyticsExport.Bucket.Name],
             destinationPrefix: logStreamName,
           },

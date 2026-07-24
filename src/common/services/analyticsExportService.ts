@@ -26,7 +26,7 @@ export interface AnalyticsLog {
 }
 
 export class AnalyticsExportService {
-  private logGroupName: string;
+  private logGroupName!: string;
 
   private readonly logStreamCacheKeyPrefix = `analyticsExportService/LogStream`;
 
@@ -99,6 +99,7 @@ export class AnalyticsExportService {
   }
 
   public async logStreamToS3Bucket(timestamp: string) {
+    console.log(timestamp);
     this.observability.logger.debug(`Exporting log group to s3 bucket`, { timestamp });
     const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
 
@@ -107,7 +108,10 @@ export class AnalyticsExportService {
       this.observability.logger.error('Timestamp used is not a valid datetime format.', { timestamp });
       throw new ParsingFailedError();
     }
-    const logStreamName = timestamp.split(':').shift();
+
+    // Log stream for the hour before (e.g runtime 11:30 gets logstream at 10:00)
+    const datetime = new Date(timestamp);
+    const logStreamName = new Date(datetime.setHours(datetime.getHours() - 1)).toISOString().split(':').shift();
     const time = new Date(timestamp).getTime();
 
     // Export analytics from log group to s3 bucket
