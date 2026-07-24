@@ -100,18 +100,19 @@ export class AnalyticsExportService {
 
   public async logStreamToS3Bucket(timestamp: string) {
     this.observability.logger.debug(`Exporting log group to s3 bucket`, { timestamp });
-    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
 
-    // Determines the log stream name off the timestamp from event bridge
+    const time = Date.parse(timestamp);
     if (Number.isNaN(Date.parse(timestamp))) {
       this.observability.logger.error('Timestamp used is not a valid datetime format.', { timestamp });
       throw new ParsingFailedError();
     }
 
+    // Determines the log stream name off the timestamp from event bridge
     // Log stream for the hour before (e.g runtime 11:30 gets logstream at 10:00)
-    const datetime = new Date(timestamp);
-    const logStreamName = new Date(datetime.setHours(datetime.getHours() - 1)).toISOString().split(':').shift();
-    const time = new Date(timestamp).getTime();
+    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
+    const previousHourDate = new Date(time - 60 * 60 * 1000);
+
+    const logStreamName = previousHourDate.toISOString().split(':').shift();
 
     // Export analytics from log group to s3 bucket
     const input: CreateExportTaskCommandInput = {
