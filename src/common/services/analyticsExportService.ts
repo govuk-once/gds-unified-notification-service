@@ -26,7 +26,7 @@ export interface AnalyticsLog {
 }
 
 export class AnalyticsExportService {
-  private logGroupName: string;
+  private logGroupName!: string;
 
   private readonly logStreamCacheKeyPrefix = `analyticsExportService/LogStream`;
 
@@ -95,20 +95,24 @@ export class AnalyticsExportService {
 
     this.observability.logger.debug(`Adding analytics in csv format to log group`, { LogStream: logStreamName, log });
     await this.client.send(command);
-    this.observability.logger.debug(`Analytics was successful added to log group`, { LogStream: logStreamName });
+    this.observability.logger.info(`Analytics was successful added to log group`, { LogStream: logStreamName });
   }
 
   public async logStreamToS3Bucket(timestamp: string) {
     this.observability.logger.debug(`Exporting log group to s3 bucket`, { timestamp });
-    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
 
-    // Determines the log stream name off the timestamp from event bridge
+    const time = Date.parse(timestamp);
     if (Number.isNaN(Date.parse(timestamp))) {
       this.observability.logger.error('Timestamp used is not a valid datetime format.', { timestamp });
       throw new ParsingFailedError();
     }
-    const logStreamName = timestamp.split(':').shift();
-    const time = new Date(timestamp).getTime();
+
+    // Log stream for the hour before (e.g runtime 11:30 gets logstream at 10:00)
+    const previousHourDate = new Date(time - 60 * 60 * 1000);
+
+    // Determines the log stream name off the previous hour of the timestamp from event bridge
+    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
+    const logStreamName = previousHourDate.toISOString().split(':').shift();
 
     // Export analytics from log group to s3 bucket
     const input: CreateExportTaskCommandInput = {
@@ -123,12 +127,12 @@ export class AnalyticsExportService {
     };
     const command = new CreateExportTaskCommand(input);
 
-    this.observability.logger.debug(`Started export of log stream to s3 bucket`, {
+    this.observability.logger.info(`Started export of log stream to s3 bucket`, {
       LogStream: logStreamName,
       s3Bucket: exportBucketName,
     });
     await this.client.send(command);
-    this.observability.logger.debug(`Export of log stream to s3 bucket was successful`, {
+    this.observability.logger.info(`Export of log stream to s3 bucket was successful`, {
       LogStream: logStreamName,
       s3Bucket: exportBucketName,
     });
