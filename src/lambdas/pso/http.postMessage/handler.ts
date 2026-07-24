@@ -1,28 +1,26 @@
 import {
+  AnalyticsEventFromIMessage,
+  AnalyticsService,
   APIHandler,
+  ConfigurationService,
+  ContentValidationService,
   HandlerDependencies,
+  IMessageRecord,
   iocGetAnalyticsService,
   iocGetConfigurationService,
   iocGetContentValidationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
+  NotificationsDynamoRepository,
+  ObservabilityService,
+  ProcessingQueueService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { NotificationStateEnum } from '@common/models';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { NotificationsDynamoRepository } from '@common/repositories';
-import {
-  AnalyticsEventFromIMessage,
-  AnalyticsService,
-  ConfigurationService,
-  ContentValidationService,
-  ObservabilityService,
-  ProcessingQueueService,
-} from '@common/services';
-import { IMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
+import { IMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 

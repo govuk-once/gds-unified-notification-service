@@ -1,7 +1,7 @@
 import { NotificationDispatchedStateEnum, NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { IMessageRecord, IMessageRecordSchema } from '@common/repositories/interfaces/IMessageRecord';
+import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ObservabilityService } from '@common/services';
-import { IMessageRecord, IMessageRecordSchema } from '@project/lambdas/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@project/lambdas/interfaces/IOrganisationRecord';
 import z from 'zod';
 
 export const IFlexNotificationSchema = IMessageRecordSchema.pick({

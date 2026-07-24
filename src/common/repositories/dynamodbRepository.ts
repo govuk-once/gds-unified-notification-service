@@ -13,8 +13,8 @@ import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 
 export abstract class DynamodbRepository<RecordType extends object> {
-  private client: DynamoDB;
-  protected tableAttributes: IDynamoAttributes;
+  private client!: DynamoDB;
+  protected tableAttributes!: IDynamoAttributes;
 
   constructor(
     protected config: ConfigurationService,
@@ -294,10 +294,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async getRecords<RecordType>(
-    filter?: { field: string; value: string },
-    indexName?: string
-  ): Promise<RecordType[]> {
+  public async getRecords(filter?: { field: string; value: string }, indexName?: string): Promise<RecordType[]> {
     const params: ScanCommandInput = {
       TableName: this.tableAttributes.name,
       ...(filter && {

@@ -56,6 +56,7 @@ export class UNSCommon extends Construct {
   public readonly dynamodb: {
     readonly messages: UNSDynamoDb;
     readonly campaigns: UNSDynamoDb;
+    readonly groupStore?: UNSDynamoDb;
   };
 
   public readonly queues: {
@@ -185,7 +186,30 @@ export class UNSCommon extends Construct {
       globalSecondaryIndexes: [],
     });
 
-    this.dynamodb = { messages: messagesTable, campaigns: campaignsTable };
+    const groupStoreTable = config.featureFlag
+      ? new UNSDynamoDb(this, config, {
+          name: ['groupStore'],
+          partitionKey: 'GroupID',
+          partitionKeyType: AttributeType.STRING,
+          sortKey: 'PushID',
+          sortKeyType: AttributeType.STRING,
+
+          pointInTimeRecovery: true,
+          resources: {
+            kms: this.kms,
+          },
+          globalSecondaryIndexes: [
+            {
+              name: 'CompositeIDIndex',
+              hashKey: 'PushID',
+              rangeKey: 'CompositeID',
+              projectionType: ProjectionType.ALL,
+            },
+          ],
+        })
+      : undefined;
+
+    this.dynamodb = { messages: messagesTable, campaigns: campaignsTable, groupStore: groupStoreTable };
 
     //// =====================================================
     // ElastiCache (Valkey Serverless)
@@ -220,6 +244,7 @@ export class UNSCommon extends Construct {
       // DynamoDB Tables
       'table/inbound/attributes': this.dynamodb.messages.attributes,
       'table/campaigns/attributes': this.dynamodb.campaigns.attributes,
+      'table/groupstore/attributes': this.dynamodb.groupStore?.attributes,
 
       // Queues
       'queue/analytics/url': this.queues.analytics.queue.queueUrl,

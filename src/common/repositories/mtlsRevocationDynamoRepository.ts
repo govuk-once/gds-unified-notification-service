@@ -1,7 +1,7 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
+import { MTLSRevocation } from '@common/repositories/interfaces/MTLSRevocationTable';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
-import { MTLSRevocation } from '@project/lambdas/interfaces/MTLSRevocationTable';
 
 export class MTLSRevocationDynamoRepository extends DynamodbRepository<MTLSRevocation> {
   constructor(

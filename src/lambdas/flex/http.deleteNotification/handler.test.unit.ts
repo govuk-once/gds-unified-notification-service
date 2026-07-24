@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

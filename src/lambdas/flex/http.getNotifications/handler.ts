@@ -11,12 +11,12 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
+import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
 } from '@project/lambdas/interfaces/IFlexNotification';
-import { IMessageRecord } from '@project/lambdas/interfaces/IMessageRecord';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
