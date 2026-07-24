@@ -99,7 +99,6 @@ export class AnalyticsExportService {
   }
 
   public async logStreamToS3Bucket(timestamp: string) {
-    console.log(timestamp);
     this.observability.logger.debug(`Exporting log group to s3 bucket`, { timestamp });
     const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
 
