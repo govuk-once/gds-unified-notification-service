@@ -291,6 +291,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
         key: this.tableAttributes.hashKey,
         error: this.observability.formatError(error),
       });
+      throw error;
     }
   }
 

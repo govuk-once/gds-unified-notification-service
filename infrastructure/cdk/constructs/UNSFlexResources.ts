@@ -119,6 +119,21 @@ export class UNSFlexResource extends Construct {
       },
     });
 
+    // POST /groups
+    const postGroups = config.featureFlag ? new UNSLambdaConstruct(this, config, {
+      ...baseHTTP(`postGroups`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [config.namespace],
+        dynamodb: {
+          groupStore: refs.dynamodb.groupStore?.permissions.readOnlyById,
+        },
+      },
+    }) : undefined;
+
     this.lambdas = {
       http: {
         getNotifications,

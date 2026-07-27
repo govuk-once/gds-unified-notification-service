@@ -1,4 +1,5 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { GroupActionEnum } from '@common/models';
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
 import { StringParameters } from '@common/utils';
@@ -7,9 +8,10 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IGroup } from '@project/lambdas';
+import { IGroup, IModifyGroups } from '@project/lambdas';
 import { mockClient } from 'aws-sdk-client-mock';
 
+vi.mock('uuid');
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
@@ -60,35 +62,45 @@ describe('SubscriptionsDynamoRepository', () => {
     });
   });
 
-  describe('addToGroup', () => {
-    const mockSubscriptionGroup: IGroup = {
-      namespace: 'travel',
-      group: 'france',
-      subgroup: 'immediate',
-    };
+  describe('joinGroups', () => {
+    vi.mock('uuid', () => ({
+      uuid: () => mockGroupID,
+    }));
+    const mockJoinGroups: IModifyGroups = [
+      {
+        Namespace: 'travel',
+        Group: 'france',
+        Subgroup: 'immediate',
+        Action: GroupActionEnum.JOIN,
+      },
+    ];
 
     it('should add a user to a group using the namespace, group, and subgroup', async () => {
       // Arrange
-      const mockGroupStoreRecord: IGroupStoreRecord = {
-        PushID: mockPushID,
-        GroupID: mockGroupID,
-        CompositeID: `${mockSubscriptionGroup.namespace}/${mockSubscriptionGroup.group}/${mockSubscriptionGroup.subgroup}`,
-        Namespace: mockSubscriptionGroup.namespace,
-        Group: mockSubscriptionGroup.group,
-        Subgroup: mockSubscriptionGroup.subgroup,
-      };
-      instance.createRecord = vi.fn().mockResolvedValueOnce(undefined);
+
+      const mockGroupStoreRecord: IGroupStoreRecord[] = [
+        {
+          PushID: mockPushID,
+          GroupID: mockGroupID,
+          CompositeID: `${mockJoinGroups[0].Namespace}/${mockJoinGroups[0].Group}/${mockJoinGroups[0].Group}`,
+          Namespace: mockJoinGroups[0].Namespace,
+          Group: mockJoinGroups[0].Group,
+          Subgroup: mockJoinGroups[0].Group,
+        },
+      ];
+      instance.createRecordBatch = vi.fn().mockResolvedValueOnce(undefined);
 
       // Act
-      await instance.addToGroup(mockGroupID, mockPushID, mockSubscriptionGroup);
+      await instance.joinGroups(mockPushID, mockJoinGroups);
 
       // Assert
-      expect(instance.createRecord).toHaveBeenCalledWith(mockGroupStoreRecord);
+      expect(instance.createRecordBatch).toHaveBeenCalledWith(mockGroupStoreRecord);
     });
   });
 
   describe('getUsersGroups', () => {
-    const mockSubscriptionGroup: IGroup = {
+    const mockGroup: IGroup = {
+      groupID: mockGroupID,
       namespace: 'travel',
       group: 'france',
       subgroup: 'immediate',
@@ -100,10 +112,10 @@ describe('SubscriptionsDynamoRepository', () => {
         {
           PushID: mockPushID,
           GroupID: mockGroupID,
-          CompositeID: `${mockSubscriptionGroup.namespace}/${mockSubscriptionGroup.group}/${mockSubscriptionGroup.subgroup}`,
-          Namespace: mockSubscriptionGroup.namespace,
-          Group: mockSubscriptionGroup.group,
-          Subgroup: mockSubscriptionGroup.subgroup,
+          CompositeID: `${mockGroup.namespace}/${mockGroup.group}/${mockGroup.subgroup}`,
+          Namespace: mockGroup.namespace,
+          Group: mockGroup.group,
+          Subgroup: mockGroup.subgroup,
         },
       ];
       instance.getRecords = vi.fn().mockResolvedValueOnce(mockGroupStoreRecord);
@@ -112,7 +124,7 @@ describe('SubscriptionsDynamoRepository', () => {
       const result = await instance.getUsersGroups(mockPushID);
 
       // Assert
-      expect(result).toEqual([mockSubscriptionGroup]);
+      expect(result).toEqual([mockGroup]);
     });
 
     it('should return an empty array if a user has no groups', async () => {
