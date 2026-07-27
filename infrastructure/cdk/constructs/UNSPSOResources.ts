@@ -44,6 +44,8 @@ export class UNSPSOResource extends Construct {
       getNotificationStatus: UNSLambdaConstruct;
       getCampaignStatus: UNSLambdaConstruct;
       postMessage: UNSLambdaConstruct;
+      // Feature flagged
+      postGroupMessage?: UNSLambdaConstruct;
     };
     sqs: {
       validation: UNSLambdaConstruct;
@@ -363,6 +365,22 @@ export class UNSPSOResource extends Construct {
       },
     });
 
+    let postGroupMessage: UNSLambdaConstruct | undefined = undefined;
+    if (config.featureFlag.groups) {
+      postGroupMessage = new UNSLambdaConstruct(this, config, {
+        ...baseHTTP(`postGroupMessage`),
+        environment: {},
+        resources: {
+          kms: refs.kms,
+        },
+        iam: {
+          ssmNamespaces: [config.namespace],
+          sqsSend: [],
+          dynamodb: {},
+        },
+      });
+    }
+
     const validation = new UNSLambdaConstruct(this, config, {
       ...baseSQS(`validation`),
       environment: {},
@@ -476,6 +494,7 @@ export class UNSPSOResource extends Construct {
         getNotificationStatus,
         getCampaignStatus,
         postMessage,
+        postGroupMessage,
       },
       sqs: {
         validation,
@@ -531,6 +550,14 @@ export class UNSPSOResource extends Construct {
       .GET(`getNotificationStatus`, `/status/{notificationID}`, this.lambdas.http.getNotificationStatus.integration)
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, this.lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, this.lambdas.http.postMessage.integration);
+
+    if (this.lambdas.http.postGroupMessage) {
+      this.gateway = this.gateway.POST(
+        `postGroupMessage`,
+        `/v1/send-to-group`,
+        this.lambdas.http.postGroupMessage.integration
+      );
+    }
 
     for (const dependency of props.mtls.dependencies ?? []) {
       this.gateway.node.addDependency(dependency);

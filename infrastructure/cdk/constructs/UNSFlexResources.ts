@@ -29,6 +29,9 @@ export class UNSFlexResource extends Construct {
       getNotificationById: UNSLambdaConstruct;
       patchNotification: UNSLambdaConstruct;
       deleteNotification: UNSLambdaConstruct;
+      // Feature flagged
+      getGroups?: UNSLambdaConstruct;
+      modifyGroups?: UNSLambdaConstruct;
     };
   };
 
@@ -119,12 +122,43 @@ export class UNSFlexResource extends Construct {
       },
     });
 
+    // GET /v1/groups
+    const getGroups = new UNSLambdaConstruct(this, config, {
+      ...baseHTTP(`getGroups`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [config.namespace],
+        sqsSend: [],
+        dynamodb: {},
+      },
+    });
+    // POST /v1/groups
+    const modifyGroups = config.featureFlag.groups
+      ? new UNSLambdaConstruct(this, config, {
+          ...baseHTTP(`modifyGroups`),
+          environment: {},
+          resources: {
+            kms: refs.kms,
+          },
+          iam: {
+            ssmNamespaces: [config.namespace],
+            sqsSend: [],
+            dynamodb: {},
+          },
+        })
+      : undefined;
+
     this.lambdas = {
       http: {
         getNotifications,
         getNotificationById,
         patchNotification,
         deleteNotification,
+        getGroups,
+        modifyGroups,
       },
     };
 
@@ -206,6 +240,12 @@ export class UNSFlexResource extends Construct {
           '/notifications/{notificationID}',
           this.lambdas.http.deleteNotification.integration
         );
+      if (this.lambdas.http.getGroups) {
+        gateway.GET(`getGroups`, `/v1/groups`, this.lambdas.http.getGroups.integration);
+      }
+      if (this.lambdas.http.modifyGroups) {
+        gateway.POST(`modify`, `/v1/groups`, this.lambdas.http.modifyGroups.integration);
+      }
     }
 
     //// =====================================================
