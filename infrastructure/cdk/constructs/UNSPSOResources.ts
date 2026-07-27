@@ -582,10 +582,12 @@ export class UNSPSOResource extends Construct {
         config.utils.namingProvider()
       ).createDashboard(`pso-service`, {
         lambdas: [
-          ...Object.values(this.lambdas.http),
+          ...Object.values(this.lambdas.http).filter((fn) => fn !== undefined),
           ...Object.values(this.lambdas.sqs),
           ...Object.values(this.lambdas.authorizers),
-        ].map((x) => x.fn),
+        ]
+          .filter((x) => x !== undefined && x.fn !== undefined)
+          .map((x) => x.fn),
         name: config.utils.namingHelper(`pso-service`),
         restApis: [this.gateway.restApi],
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
@@ -665,7 +667,9 @@ export class UNSPSOResource extends Construct {
           { name: 'UDP', provider: ProviderDimension.UDP, direction: 'upstream' },
         ],
         lambdas: [
-          ...Object.entries(this.lambdas.http).map(([name, func]) => ({ name, func: func.fn })),
+          ...Object.entries(this.lambdas.http)
+            .filter(([, fn]) => fn !== undefined)
+            .map(([name, func]) => ({ name, func: func.fn })),
           ...Object.entries(this.lambdas.sqs).map(([name, func]) => ({ name, func: func.fn })),
           ...Object.entries(this.lambdas.authorizers).map(([name, func]) => ({ name, func: func.fn })),
           ...Object.entries(this.lambdas.schedule).map(([name, func]) => ({ name, func: func.fn })),

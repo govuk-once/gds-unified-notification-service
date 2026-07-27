@@ -1,4 +1,4 @@
-import { Duration } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import {
   Alarm,
   AnomalyDetectionAlarm,
@@ -97,6 +97,7 @@ export class UNSAlarmsConstruct extends Construct {
       datapointsToAlarm: props.datapointsToAlarm,
       treatMissingData: TreatMissingData.NOT_BREACHING,
     });
+    alarm.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     alarm.addAlarmAction(new SnsAction(this.props.alertTopic));
     this.alarms.push(alarm);
@@ -129,6 +130,7 @@ export class UNSAlarmsConstruct extends Construct {
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
       treatMissingData: TreatMissingData.NOT_BREACHING,
     });
+    alarm.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     alarm.addAlarmAction(new SnsAction(this.props.alertTopic));
     return alarm;
@@ -152,6 +154,7 @@ export class UNSAlarmsConstruct extends Construct {
       comparisonOperator: props.comparisonOperator,
       treatMissingData: TreatMissingData.NOT_BREACHING,
     });
+    alarm.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     alarm.addAlarmAction(new SnsAction(this.props.alertTopic));
     return alarm;

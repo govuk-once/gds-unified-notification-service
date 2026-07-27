@@ -209,7 +209,11 @@ export class UNSCommon extends Construct {
         })
       : undefined;
 
-    this.dynamodb = { messages: messagesTable, campaigns: campaignsTable, groupStore: groupStoreTable };
+    this.dynamodb = {
+      messages: messagesTable,
+      campaigns: campaignsTable,
+      groupStore: groupStoreTable,
+    };
 
     //// =====================================================
     // ElastiCache (Valkey Serverless)
@@ -244,7 +248,12 @@ export class UNSCommon extends Construct {
       // DynamoDB Tables
       'table/inbound/attributes': this.dynamodb.messages.attributes,
       'table/campaigns/attributes': this.dynamodb.campaigns.attributes,
-      'table/groupstore/attributes': this.dynamodb.groupStore?.attributes,
+      ...(config.featureFlag.groups && this.dynamodb.groupStore
+        ? {
+            'table/groupstore/attributes': this.dynamodb.groupStore?.attributes,
+          }
+        : {}),
+      //
 
       // Queues
       'queue/analytics/url': this.queues.analytics.queue.queueUrl,
