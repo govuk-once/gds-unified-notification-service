@@ -186,7 +186,7 @@ export class UNSCommon extends Construct {
       globalSecondaryIndexes: [],
     });
 
-    const groupStoreTable = config.featureFlag
+    const groupStoreTable = config.featureFlag.groups
       ? new UNSDynamoDb(this, config, {
           name: ['groupStore'],
           partitionKey: 'GroupID',

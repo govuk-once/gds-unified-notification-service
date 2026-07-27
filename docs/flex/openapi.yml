@@ -9,6 +9,12 @@ servers:
 security:
   - bearerAuth: []
 
+tags:
+  - name: MVP
+    description: Core feature sets that's currently enabled 
+  - name: Groups
+    description: Feature enabling joining to user groups
+
 paths:
   /notifications:
     get:
@@ -194,6 +200,95 @@ paths:
               schema:
                 $ref: '#/components/schemas/InternalServerError'
 
+
+
+  /v1/groups:
+    get:
+      summary: Get all of users groups
+      operationId: getGroups
+      tags:
+        - Groups
+      parameters:
+        - name: pushID
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Update accepted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+
+    post:
+      summary: Modify the current set of groups
+      operationId: modifyGroups
+      tags:
+        - Groups
+      parameters:
+        - name: pushID
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupModification'
+        required: true
+      responses:
+        '200':
+          description: Users current groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '400':
+          description: Bad Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -246,6 +341,37 @@ components:
                   type: string
                   description: Human readable identifier for the organisation that send the notification
 
+    Group:
+      type: object
+      required:
+        - Namespace
+        - Group
+
+      properties:
+        Namespace:
+          type: string
+          description: Namespace of the group 
+        Group:
+          type: string
+          description: Name of the group
+
+        Subgroup:
+          type: string
+          description: (Optional) Name of the subgroup
+          
+    GroupModification:
+      allOf:
+        - $ref: '#/components/schemas/Group'
+        - type: object
+          required:
+            - Action
+          properties:
+            Action:
+              type: string
+              enum:
+                - JOIN
+                - LEAVE
+              description: Action to perform as part of the group change
     Status:
       type: string
       enum:
