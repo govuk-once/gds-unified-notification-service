@@ -29,6 +29,7 @@ export class UNSFlexResource extends Construct {
       getNotificationById: UNSLambdaConstruct;
       patchNotification: UNSLambdaConstruct;
       deleteNotification: UNSLambdaConstruct;
+      postGroups?: UNSLambdaConstruct;
     };
   };
 
@@ -47,6 +48,7 @@ export class UNSFlexResource extends Construct {
     super(scope, 'flex');
 
     const { refs, organisationsRef } = props;
+
     //// =====================================================
     // Lambdas
     //// =====================================================
@@ -120,19 +122,22 @@ export class UNSFlexResource extends Construct {
     });
 
     // POST /groups
-    const postGroups = config.featureFlag ? new UNSLambdaConstruct(this, config, {
-      ...baseHTTP(`postGroups`),
-      environment: {},
-      resources: {
-        kms: refs.kms,
-      },
-      iam: {
-        ssmNamespaces: [config.namespace],
-        dynamodb: {
-          groupStore: refs.dynamodb.groupStore?.permissions.readOnlyById,
-        },
-      },
-    }) : undefined;
+    const postGroups =
+      config.featureFlag && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseHTTP(`postGroups`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              dynamodb: {
+                groupStore: refs.dynamodb.groupStore?.permissions.readOnlyById,
+              },
+            },
+          })
+        : undefined;
 
     this.lambdas = {
       http: {
@@ -140,6 +145,7 @@ export class UNSFlexResource extends Construct {
         getNotificationById,
         patchNotification,
         deleteNotification,
+        postGroups,
       },
     };
 
@@ -221,11 +227,15 @@ export class UNSFlexResource extends Construct {
           '/notifications/{notificationID}',
           this.lambdas.http.deleteNotification.integration
         );
+      if (this.lambdas.http.postGroups) {
+        gateway.POST('postGroups', 'v1/groups/{userID}', this.lambdas.http.postGroups.integration);
+      }
     }
 
     //// =====================================================
     // Xray Dashboards
     //// =====================================================
+
     this.dashboards = {
       service: new StandardServiceDashboardFactory(
         this,
@@ -244,6 +254,7 @@ export class UNSFlexResource extends Construct {
     //// =====================================================
     // Consumer configuration
     //// =====================================================
+
     const flexConsumerKMS = new UNSKMSConstruct(this, config, {
       name: ['kms', 'flex', 'consumer'],
       policies: {

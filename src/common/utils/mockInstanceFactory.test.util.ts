@@ -4,6 +4,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import {
   CampaignsDynamoRepository,
+  GroupStoreDynamoRepository,
   NotificationsDynamoRepository,
   OrganisationsDynamoRepository,
 } from '@common/repositories';
@@ -106,6 +107,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     observabilityMock
   ) as Mocked<OrganisationsDynamoRepository>;
+  const groupStoreDynamoRepositoryMock = new GroupStoreDynamoRepository(configurationServiceMock, observabilityMock);
 
   // Services
   const analyticsServiceMock = new AnalyticsService(
@@ -152,6 +154,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     mtlsRevocationDynamoRepositoryMock,
     campaignsDynamoRepositoryMock,
     organisationsDynamoRepositoryMock,
+    groupStoreDynamoRepositoryMock,
     // Services
     smConfigurationServiceMock,
     smNamespacedConfigurationServiceMock,
