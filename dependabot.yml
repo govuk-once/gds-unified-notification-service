@@ -1,7 +1,7 @@
 registries:
   codeartifact-feed:
     type: npm-registry
-    url: https://registry-prod-904690835784.d.codeartifact.eu-west-2.amazonaws.com/npm/registry-prod-repo
+    url: https://registry-prod-904690835784.d.codeartifact.eu-west-2.amazonaws.com/npm/registry-prod-repo/
     aws-region: eu-west-2
     domain: registry-prod
     domain-owner: '904690835784'
