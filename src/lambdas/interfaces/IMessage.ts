@@ -23,13 +23,28 @@ export const extractIdentifiers = (partial: IIdentifiableMessage) => ({
   OrganisationID: partial.OrganisationID,
 });
 
-// Message Fields Schemas
-export const IMessageSchema = IIdentifiableMessageSchema.extend({
-  UserID: z.string(),
+export const IMessageFields = z.object({
   NotificationTitle: z.string(),
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
   OrganisationID: z.string(),
 });
+
+// Message Fields Schemas
+export const IMessageSchema = z.object({
+  ...IIdentifiableMessageSchema.shape,
+  ...IMessageFields.shape,
+  UserID: z.string(),
+});
 export type IMessage = z.infer<typeof IMessageSchema>;
+
+// Group Message Fields Schemas
+export const IGroupMessageSchema = z.object({
+  ...IIdentifiableMessageSchema.omit({ NotificationID: true }).shape,
+  ...IMessageFields.shape,
+  Namespace: z.string(),
+  Group: z.string(),
+  Subgroup: z.string().optional(),
+});
+export type IGroupMessage = z.infer<typeof IGroupMessageSchema>;

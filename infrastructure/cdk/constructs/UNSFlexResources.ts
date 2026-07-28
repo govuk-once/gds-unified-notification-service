@@ -29,7 +29,9 @@ export class UNSFlexResource extends Construct {
       getNotificationById: UNSLambdaConstruct;
       patchNotification: UNSLambdaConstruct;
       deleteNotification: UNSLambdaConstruct;
-      postGroups?: UNSLambdaConstruct;
+      // Feature flagged
+      getGroups?: UNSLambdaConstruct;
+      modifyGroups?: UNSLambdaConstruct;
     };
   };
 
@@ -121,23 +123,34 @@ export class UNSFlexResource extends Construct {
       },
     });
 
-    // POST /groups
-    const postGroups =
-      config.featureFlag && refs.dynamodb.groupStore
-        ? new UNSLambdaConstruct(this, config, {
-            ...baseHTTP(`postGroups`),
-            environment: {},
-            resources: {
-              kms: refs.kms,
-            },
-            iam: {
-              ssmNamespaces: [config.namespace],
-              dynamodb: {
-                groupStore: refs.dynamodb.groupStore?.permissions.readOnlyById,
-              },
-            },
-          })
-        : undefined;
+    // GET /v1/groups
+    const getGroups = new UNSLambdaConstruct(this, config, {
+      ...baseHTTP(`getGroups`),
+      environment: {},
+      resources: {
+        kms: refs.kms,
+      },
+      iam: {
+        ssmNamespaces: [config.namespace],
+        sqsSend: [],
+        dynamodb: {},
+      },
+    });
+    // POST /v1/groups
+    const modifyGroups = config.featureFlag.groups
+      ? new UNSLambdaConstruct(this, config, {
+          ...baseHTTP(`modifyGroups`),
+          environment: {},
+          resources: {
+            kms: refs.kms,
+          },
+          iam: {
+            ssmNamespaces: [config.namespace],
+            sqsSend: [],
+            dynamodb: {},
+          },
+        })
+      : undefined;
 
     this.lambdas = {
       http: {
@@ -145,7 +158,8 @@ export class UNSFlexResource extends Construct {
         getNotificationById,
         patchNotification,
         deleteNotification,
-        postGroups,
+        getGroups,
+        modifyGroups,
       },
     };
 
@@ -227,8 +241,11 @@ export class UNSFlexResource extends Construct {
           '/notifications/{notificationID}',
           this.lambdas.http.deleteNotification.integration
         );
-      if (this.lambdas.http.postGroups) {
-        gateway.POST('postGroups', 'v1/groups/{userID}', this.lambdas.http.postGroups.integration);
+      if (this.lambdas.http.getGroups) {
+        gateway.GET(`getGroups`, `/v1/groups`, this.lambdas.http.getGroups.integration);
+      }
+      if (this.lambdas.http.modifyGroups) {
+        gateway.POST(`modify`, `/v1/groups`, this.lambdas.http.modifyGroups.integration);
       }
     }
 
