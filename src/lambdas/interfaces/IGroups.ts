@@ -1,6 +1,7 @@
-export interface IGroup {
-  groupID: string;
-  namespace: string;
-  group: string;
-  subgroup?: string;
+export interface IGroups {
+  GroupID: string;
+  CompositeID: string;
+  Namespace: string;
+  Group: string;
+  Subgroup?: string;
 }

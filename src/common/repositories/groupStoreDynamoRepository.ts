@@ -2,7 +2,7 @@ import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
-import { IGroup, IModifyGroups } from '@project/lambdas';
+import { IGroups, IModifyGroups } from '@project/lambdas';
 import { v4 as uuid } from 'uuid';
 
 export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRecord> {
@@ -18,12 +18,45 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     return this;
   }
 
-  public async joinGroups(pushID: string, groups: IModifyGroups) {
-    const record: IGroupStoreRecord[] = groups.map((g) => {
+  public async getUsersGroups(pushID: string): Promise<IGroups[]> {
+    const records = await this.getRecordsQuery({ field: 'PushID', value: pushID }, 'PushIDIndex');
+
+    return records
+      ? records.map((record) => {
+          return {
+            GroupID: record.GroupID,
+            CompositeID: record.CompositeID,
+            Namespace: record.Namespace,
+            Group: record.Group,
+            Subgroup: record.Subgroup,
+          };
+        })
+      : [];
+  }
+
+  public async joinGroups(pushID: string, groupsToJoin: IModifyGroups[]) {
+    if (groupsToJoin.length === 0) {
+      return;
+    }
+
+    const usersGroups = await this.getUsersGroups(pushID);
+    const record: IGroupStoreRecord[] = groupsToJoin.flatMap((g) => {
+      const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
+      const existingRecord = usersGroups.find((u) => u.CompositeID === compositeID);
+
+      if (existingRecord) {
+        this.observability.logger.warn('Request tried to join a group user is already part of', {
+          PushID: pushID,
+          CompositeID: compositeID,
+        });
+        return [];
+      }
+
       return {
         GroupID: uuid(),
         PushID: pushID,
         CompositeID: g.Subgroup ? `${g.Namespace}/${g.Group}/${g.Subgroup}` : `${g.Namespace}/${g.Group}`,
+        Date: new Date().toISOString(),
         Group: g.Group,
         Namespace: g.Namespace,
         Subgroup: g.Subgroup,
@@ -33,38 +66,23 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     await this.createRecordBatch(record);
   }
 
-  public async getUsersGroups(pushID: string): Promise<IGroup[]> {
-    const records = await this.getRecords({ field: 'pushID', value: pushID });
+  public async leaveGroups(pushID: string, groupsToLeave: IModifyGroups[]) {
+    if (groupsToLeave.length === 0) {
+      return;
+    }
 
-    return records
-      ? records.map((record) => {
-          return {
-            groupID: record.GroupID,
-            namespace: record.Namespace,
-            group: record.Group,
-            subgroup: record.Subgroup,
-          };
-        })
-      : [];
-  }
-
-  public async leaveGroups(pushID: string, groupsToLeave: IModifyGroups) {
     const usersGroups = await this.getUsersGroups(pushID);
-
-    const leaveKeys = new Set(groupsToLeave.map((g) => `${g.Namespace}/${g.Group}`));
-    const groupIdsToDelete = usersGroups.filter((u) => leaveKeys.has(`${u.namespace}/${u.group}`)).map((u) => u.group);
+    const leaveKeys = new Set(groupsToLeave.map((g) => this.buildCompositeId(g.Namespace, g.Group, g.Subgroup)));
+    const groupIDsToDelete = usersGroups.filter((u) => leaveKeys.has(u.CompositeID)).map((u) => u.GroupID);
 
     void Promise.allSettled(
-      groupIdsToDelete.map(async (id) => {
-        try {
-          await this.deleteRecord(id);
-        } catch (error) {
-          if (error instanceof Error && error.message === 'ResourceNotFoundException') {
-            return;
-          }
-          throw error;
-        }
+      groupIDsToDelete.map(async (id) => {
+        await this.deleteRecord(id);
       })
     );
+  }
+
+  private buildCompositeId(namespace: string, group: string, subgroup?: string) {
+    return subgroup ? `${namespace}/${group}/${subgroup}` : `${namespace}/${group}`;
   }
 }

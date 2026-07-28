@@ -322,10 +322,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async getRecordsQuery<RecordType>(
-    filter?: { field: string; value: string },
-    indexName?: string
-  ): Promise<RecordType[]> {
+  public async getRecordsQuery(filter?: { field: string; value: string }, indexName?: string): Promise<RecordType[]> {
     const params: QueryCommandInput = {
       TableName: this.tableAttributes.name,
       ...(filter && {
