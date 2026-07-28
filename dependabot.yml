@@ -7,3 +7,11 @@ registries:
     domain-owner: '904690835784'
     account-id: ${{ secrets.DEPENDABOT_CODEARTIFACT_ACCOUNT }}
     role-name: ${{ secrets.DEPENDABOT_CODEARTIFACT_ROLE_NAME }}
+
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    registries:
+      - codeartifact-feed
