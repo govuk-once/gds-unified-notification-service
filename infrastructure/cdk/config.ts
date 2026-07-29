@@ -66,7 +66,6 @@ const version = process.env.code_version ?? `sandbox@${new Date().toISOString().
 const namespace = [project, env].join(`-`).replace(`-prod`, ``);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
-const mtls = process.env.use_mtls == 'true';
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
@@ -102,9 +101,6 @@ export const config = {
   debugMode,
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
-
-  // mTLS config
-  mtls,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc
