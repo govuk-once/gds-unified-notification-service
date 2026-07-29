@@ -264,7 +264,9 @@ export class UNSFlexResource extends Construct {
         undefined,
         config.utils.namingProvider()
       ).createDashboard(`flex-service`, {
-        lambdas: Object.values(this.lambdas.http).map((x) => x.fn),
+        lambdas: Object.values(this.lambdas.http)
+          .filter((x) => x !== undefined)
+          .map((x) => x.fn),
         name: config.utils.namingHelper(`flex-service`),
         restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter((api) => api !== undefined),
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
@@ -327,7 +329,9 @@ export class UNSFlexResource extends Construct {
       integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
         alertTopic: refs.alertTopic,
         group: this.serviceName,
-        lambdas: Object.entries(this.lambdas.http).map(([name, func]) => ({ name, func: func.fn })),
+        lambdas: Object.entries(this.lambdas.http)
+          .filter(([, fn]) => fn !== undefined)
+          .map(([name, func]) => ({ name, func: func.fn })),
       }),
     };
   }

@@ -3,7 +3,7 @@ import { LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { ISecurityGroup, ISubnet, IVpc } from 'aws-cdk-lib/aws-ec2';
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
-import { ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { Code, CodeSigningConfig, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -59,17 +59,12 @@ export class UNSLambdaConstruct extends Construct {
   public readonly config: EnvVars;
   public readonly props: UNSLambdaConstructProps;
 
-  addPermissionsToRole(id: string, actions?: string[], resources?: string[]) {
+  addPermissionsToRole(actions?: string[], resources?: string[]) {
     if (actions && actions.length > 0 && resources && resources.length > 0) {
-      this.role.attachInlinePolicy(
-        new Policy(this, this.config.utils.constructNamingHelper(`iam`, `policy`, `to`, id), {
-          policyName: this.config.utils.namingHelper(`iam`, `policy`, `to`, id),
-          statements: [
-            new PolicyStatement({
-              actions: actions,
-              resources: resources,
-            }),
-          ],
+      this.role.addToPolicy(
+        new PolicyStatement({
+          actions: actions,
+          resources: resources,
         })
       );
     }
@@ -102,27 +97,24 @@ export class UNSLambdaConstruct extends Construct {
 
     // Allow writing to CW
     this.addPermissionsToRole(
-      `cwlogs`,
       ['logs:CreateLogStream', 'logs:PutLogEvents'],
       [this.logGroup.logGroupArn, ...(this.props.iam?.cloudwatch ?? [])]
     );
 
     // Allow export of CW
-    this.addPermissionsToRole(`cwlogsExport`, ['logs:CreateExportTask'], this.props.iam?.cloudwatchExport ?? []);
+    this.addPermissionsToRole(['logs:CreateExportTask'], this.props.iam?.cloudwatchExport ?? []);
 
     // Allow use of STS Assume Role
-    this.addPermissionsToRole(`roleAssumption`, ['sts:AssumeRole'], props.iam?.assumeableRolesArns);
+    this.addPermissionsToRole(['sts:AssumeRole'], props.iam?.assumeableRolesArns);
 
     // Allow use of SQS Target Queues & DLQ
     this.addPermissionsToRole(
-      `queue`,
       ['sqs:SendMessage'],
       [...(props.iam?.sqsSend ?? []), ...(props.resources.dlq ? [props.resources.dlq.queueArn] : [])]
     );
 
     // Allow use of SSM Namespaces
     this.addPermissionsToRole(
-      `ssm`,
       ['ssm:GetParameter', 'ssm:GetParametersByPath'],
       props.iam?.ssmNamespaces?.map(
         (namespace) => `arn:aws:ssm:${stack.env.region}:${stack.env.account}:parameter/${namespace}/*`
@@ -130,11 +122,10 @@ export class UNSLambdaConstruct extends Construct {
     );
 
     // Allow use of Secrets Manager
-    this.addPermissionsToRole(`sm`, ['secretsmanager:GetSecretValue'], props.iam?.sm);
+    this.addPermissionsToRole(['secretsmanager:GetSecretValue'], props.iam?.sm);
 
     // Allow use of KMS Encryption Keys
     this.addPermissionsToRole(
-      `kms`,
       ['kms:Decrypt', 'kms:GenerateDataKey'],
       [props.resources.kms.keyArn, ...(props.iam?.kms ?? [])]
     );
@@ -142,7 +133,6 @@ export class UNSLambdaConstruct extends Construct {
     // Allow use of DynamoDB Access Configurations, independent perms per table
     for (const [table, { arn, scan, read, write }] of Object.entries(props.iam?.dynamodb ?? {})) {
       this.addPermissionsToRole(
-        `dynamodb-${table}`,
         [
           ...(scan ? ['dynamodb:Query', 'dynamodb:Scan'] : []),
           ...(read ? ['dynamodb:GetItem'] : []),
@@ -155,10 +145,10 @@ export class UNSLambdaConstruct extends Construct {
     }
 
     // Allow connecting to ElastiCache
-    this.addPermissionsToRole(`elasticache`, ['elasticache:Connect'], props.iam?.elasticache);
+    this.addPermissionsToRole(['elasticache:Connect'], props.iam?.elasticache);
 
     // Allow write to s3 bucket
-    this.addPermissionsToRole(`s3bucket`, ['s3:PutObject'], props.iam?.s3);
+    this.addPermissionsToRole(['s3:PutObject'], props.iam?.s3);
 
     for (const managedPolicy of [
       // Common roles

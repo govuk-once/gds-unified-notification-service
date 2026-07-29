@@ -3,9 +3,6 @@
 # Defines what linker should be used for installing Node packages
 nodeLinker: hoisted
 
-# Defines the minimum number of minutes that must pass after a version is published before pnpm will install it
-minimumReleaseAge: 20160 # 14 days in minutes
-
 # Instruct pnpm to override any dependency in the dependency graph, including peer dependencies
 overrides:
   'semantic-release>@semantic-release/npm': '^13.1.5'
@@ -14,7 +11,7 @@ overrides:
   '@semantic-release/npm>ip-address': '10.2.0'
   'table>ajv': '^8.2.0'
   'vite>rollup': 'npm:@rollup/wasm-node'
-  'fast-uri': 3.1.3
+  'fast-uri': 3.1.4
   'js-yaml': 4.3.0
   'markdown-it>linkify-it': 5.0.2
   'aws-cdk-lib': 2.260.0
@@ -23,3 +20,9 @@ overrides:
 allowBuilds:
   esbuild: true
   msw: false
+
+# Defines the minimum number of minutes that must pass after a version is published before pnpm will install it
+minimumReleaseAge: 20160 # 14 days in minutes
+# Minimum release age exclusions - only for recommendations raised via dependabot
+minimumReleaseAgeExclude:
+  - fast-uri@3.1.4
