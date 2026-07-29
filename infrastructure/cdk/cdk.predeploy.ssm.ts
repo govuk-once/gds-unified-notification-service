@@ -7,6 +7,10 @@ import { DeleteParametersCommand, GetParameterCommand, PutParameterCommand, SSMC
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
 
+const featureFlagParameters = Object.fromEntries(
+  Object.entries(config.featureFlag).map(([flag, enabled]) => [`config/featureFlag/${flag}`, String(enabled)])
+) as Record<string, string>;
+
 export const configurableParameters = {
   // On/off
   'config/common/enabled': 'true',
@@ -51,6 +55,8 @@ export const configurableParameters = {
   'udp/config/sm': 'null',
   'udp/config/kms': 'null',
   'udp/config/role': 'null',
+
+  ...featureFlagParameters,
 };
 
 const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
