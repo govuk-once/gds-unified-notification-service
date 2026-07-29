@@ -77,7 +77,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
 
     void Promise.allSettled(
       groupIDsToDelete.map(async (id) => {
-        await this.deleteRecord(id);
+        await this.deleteRecord(id, pushID);
       })
     );
   }

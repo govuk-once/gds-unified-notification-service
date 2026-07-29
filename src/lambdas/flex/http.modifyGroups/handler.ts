@@ -90,7 +90,7 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
     // Get users groups to return
     const groups = await this.groupStoreDynamoRepository.getUsersGroups(pushID);
 
-    this.observability.logger.debug('Successful request - returning 204', {
+    this.observability.logger.debug('Successful request - returning 200', {
       pushID,
     });
 

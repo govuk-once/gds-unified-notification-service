@@ -219,7 +219,7 @@ describe('GroupStoreDynamoRepository', () => {
       await instance.leaveGroups(mockPushID, mockLeaveGroups);
 
       // Assert
-      expect(instance.deleteRecord).toHaveBeenCalledWith(mockGroupStoreRecord[0].GroupID);
+      expect(instance.deleteRecord).toHaveBeenCalledWith(mockGroupStoreRecord[0].GroupID, mockPushID);
     });
 
     it('should remove a user from a group using the namespace and group', async () => {
@@ -236,7 +236,18 @@ describe('GroupStoreDynamoRepository', () => {
       await instance.leaveGroups(mockPushID, mockLeaveGroupsNoSubgroup);
 
       // Assert
-      expect(instance.deleteRecord).toHaveBeenCalledWith(mockGroupStoreRecord[0].GroupID);
+      expect(instance.deleteRecord).toHaveBeenCalledWith(mockGroupStoreRecord[0].GroupID, mockPushID);
+    });
+
+    it('should complete the function successfully if no user groups were found', async () => {
+      // Arrange
+      instance.getUsersGroups = vi.fn().mockResolvedValueOnce([]);
+
+      // Act
+      await instance.leaveGroups(mockPushID, mockLeaveGroups);
+
+      // Assert
+      expect(instance.deleteRecord).not.toHaveBeenCalled();
     });
   });
 });
