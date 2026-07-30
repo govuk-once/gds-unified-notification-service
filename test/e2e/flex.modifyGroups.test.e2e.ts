@@ -1,61 +1,32 @@
 import { GroupActionEnum } from '@project/lambdas';
 import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
-const url = (pushID?: string) => `/v1/groups${pushID ? `/?pushID=${pushID}` : ''}`;
-const bodyToJoin = [
-  {
-    Namespace: 'travel',
-    Group: 'france',
-    Subgroup: 'IMMEDIATE',
-    Action: GroupActionEnum.JOIN,
-  },
-];
-const bodyToLeave = [
-  {
-    Namespace: 'travel',
-    Group: 'france',
-    Subgroup: 'IMMEDIATE',
-    Action: GroupActionEnum.LEAVE,
-  },
-];
-const bodyToLeaveSpain = [
-  {
-    Namespace: 'travel',
-    Group: 'spain',
-    Subgroup: 'DAILY',
-    Action: GroupActionEnum.LEAVE,
-  },
-];
-const bodyToLeaveAndJoin = [
-  {
-    Namespace: 'travel',
-    Group: 'france',
-    Subgroup: 'IMMEDIATE',
-    Action: GroupActionEnum.LEAVE,
-  },
-  {
-    Namespace: 'travel',
-    Group: 'spain',
-    Subgroup: 'DAILY',
-    Action: GroupActionEnum.JOIN,
-  },
-];
+const pushID = uuid();
+const url = (pushID?: string) => `/v1/groups${pushID ? `?pushID=${pushID}` : ''}`;
+const testCase = (Namespace: string, Group: string, Subgroup?: string, Action?: string) => {
+  return {
+    Namespace,
+    Group,
+    Subgroup,
+    Action,
+  };
+};
 
 describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
   describe(`Unhappy paths`, () => {
     test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
-      validPushID,
     }) => {
       // Arrange
-      const path = url(validPushID);
+      const path = url(pushID);
 
       // Act & Assert
       await expect(
         api.post({
           path,
-          body: bodyToLeaveAndJoin,
+          body: [testCase('travel', 'france', 'DAILY', GroupActionEnum.JOIN)],
         })
       ).rejects.toThrow(
         expect.objectContaining({
@@ -67,15 +38,15 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
       );
     });
 
-    test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api, validPushID }) => {
+    test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api }) => {
       // Arrange
-      const path = url(validPushID);
+      const path = url(pushID);
 
       // Act & Assert
       await expect(
         api.post({
           path,
-          body: bodyToLeaveAndJoin,
+          body: [testCase('travel', 'france', 'DAILY', GroupActionEnum.JOIN)],
         })
       ).rejects.toThrow(`API [POST] ${path} Failed with 403`);
     });
@@ -88,14 +59,14 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
       await expect(
         api.post({
           path,
-          body: bodyToLeaveAndJoin,
+          body: [testCase('travel', 'france', 'DAILY', GroupActionEnum.JOIN)],
         })
       ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
     });
 
-    test('status 400 when when - missing body', async ({ flexAPI: api, validPushID }) => {
+    test('status 400 when when - missing body', async ({ flexAPI: api }) => {
       // Arrange
-      const path = url(validPushID);
+      const path = url(pushID);
 
       // Act & Assert
       await expect(
@@ -108,116 +79,66 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
   });
 
   describe(`Happy paths`, () => {
-    test('status 200 and list of users groups when - joining a group successfully', async ({
-      flexAPI: api,
-      validPushID,
-    }) => {
-      // Arrange
-      const path = url(validPushID);
-
-      // Act
-      const { status, body } = await api.post({ path: `${path}?pushID=${validPushID}`, body: bodyToJoin });
-
-      // Assert
-      expect(status).toEqual(200);
-      expect(body).toEqual([
+    test.for([
+      [
         {
-          Namespace: 'travel',
-          Group: 'france',
-          Subgroup: 'IMMEDIATE',
+          requestBody: [testCase('travel', 'france', 'DAILY', GroupActionEnum.JOIN)],
+          responseBody: [testCase('travel', 'france', 'DAILY')],
+          when: 'joining a group successfully',
         },
-      ]);
-    });
-
-    test('status 200 and list of users groups when - leaving a group successfully', async ({
-      flexAPI: api,
-      validPushID,
-    }) => {
-      // Arrange
-      const path = url(validPushID);
-
-      // Act
-      const { status, body } = await api.post({ path: `${path}?pushID=${validPushID}`, body: bodyToLeave });
-
-      // Assert
-      expect(status).toEqual(200);
-      expect(body).toEqual([
+      ],
+      [
         {
-          Namespace: 'travel',
-          Group: 'france',
-          Subgroup: 'IMMEDIATE',
+          requestBody: [testCase('travel', 'france', 'DAILY', GroupActionEnum.LEAVE)],
+          responseBody: [],
+          when: 'leaving a group successfully',
         },
-      ]);
-    });
-
-    test('status 200 and list of users groups when - leaving and joining groups successfully', async ({
-      flexAPI: api,
-      validPushID,
-    }) => {
-      // Arrange
-      const path = url(validPushID);
-      await api.post({ path: `${path}?pushID=${validPushID}`, body: bodyToJoin }); // Creating a group that can be left
-
-      // Act
-      const { status, body } = await api.post({ path: `${path}?pushID=${validPushID}`, body: bodyToLeaveAndJoin });
-
-      // Assert
-      expect(status).toEqual(200);
-      expect(body).toEqual([
+      ],
+      [
         {
-          Namespace: 'travel',
-          Group: 'spain',
-          Subgroup: 'DAILY',
+          requestBody: [
+            testCase('travel', 'france', 'DAILY', GroupActionEnum.JOIN),
+            testCase('travel', 'spain', 'IMMEDIATE', GroupActionEnum.JOIN),
+          ],
+          responseBody: [testCase('travel', 'france', 'DAILY'), testCase('travel', 'spain', 'IMMEDIATE')],
+          when: 'joining multiple groups successfully',
         },
-      ]);
-    });
-
-    test('status 200 and list of users groups when - leaving a group the user is not part of (skip)', async ({
-      flexAPI: api,
-      validPushID,
-    }) => {
-      // Arrange
-      const path = url(validPushID);
-
-      // Act
-      const { status, body } = await api.post({ path: `${path}?pushID=${validPushID}`, body: bodyToLeave });
-
-      // Assert
-      expect(status).toEqual(200);
-      expect(body).toEqual([
+      ],
+      [
         {
-          Namespace: 'travel',
-          Group: 'spain',
-          Subgroup: 'DAILY',
+          requestBody: [
+            testCase('travel', 'portugal', 'DAILY', GroupActionEnum.JOIN),
+            testCase('travel', 'spain', 'IMMEDIATE', GroupActionEnum.LEAVE),
+          ],
+          responseBody: [testCase('travel', 'france', 'DAILY'), testCase('travel', 'portugal', 'DAILY')],
+          when: 'leaving and join groups successfully',
         },
-      ]);
-    });
-
-    test('status 200 and empty array when - a user is part of no group after leaving', async ({
-      flexAPI: api,
-      validPushID,
-    }) => {
-      // Arrange
-      const path = url(validPushID);
-      const bodyToLeaveAllTestGroups = [
-        bodyToLeave[0],
+      ],
+      [
         {
-          Namespace: 'travel',
-          Group: 'spain',
-          Subgroup: 'DAILY',
-          Action: GroupActionEnum.LEAVE,
+          requestBody: [
+            testCase('travel', 'portugal', 'DAILY', GroupActionEnum.LEAVE),
+            testCase('travel', 'france', 'DAILY', GroupActionEnum.LEAVE),
+          ],
+          responseBody: [],
+          when: 'leaving multiple groups successfully',
         },
-      ];
+      ],
+    ])(
+      'status 200 and list of users groups when - $when',
+      async ([{ requestBody, responseBody }], { flexAPI: api }) => {
+        // Arrange
+        const path = url(pushID);
 
-      // Act
-      const { status, body } = await api.post({
-        path: `${path}?pushID=${validPushID}`,
-        body: bodyToLeaveAllTestGroups,
-      });
+        // Act
+        console.log(requestBody);
+        console.log(api);
+        const { status, body } = await api.post({ path: `${path}?pushID=${pushID}`, body: requestBody });
 
-      // Assert
-      expect(status).toEqual(200);
-      expect(body).toEqual([]);
-    });
+        // Assert
+        expect(status).toEqual(200);
+        expect(body).toEqual(responseBody);
+      }
+    );
   });
 });

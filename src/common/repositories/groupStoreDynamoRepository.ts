@@ -40,28 +40,30 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     }
 
     const usersGroups = await this.getUsersGroups(pushID);
-    const record: IGroupStoreRecord[] = groupsToJoin.flatMap((g) => {
-      const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
-      const existingRecord = usersGroups.find((u) => u.CompositeID === compositeID);
+    const record: IGroupStoreRecord[] = groupsToJoin
+      .map((g) => {
+        const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
+        const existingRecord = usersGroups.find((u) => u.CompositeID === compositeID);
 
-      if (existingRecord) {
-        this.observability.logger.warn('Request tried to join a group user is already part of', {
+        if (existingRecord) {
+          this.observability.logger.warn('Request tried to join a group user is already part of', {
+            PushID: pushID,
+            CompositeID: compositeID,
+          });
+          return undefined;
+        }
+
+        return {
+          GroupID: uuid(),
           PushID: pushID,
-          CompositeID: compositeID,
-        });
-        return [];
-      }
-
-      return {
-        GroupID: uuid(),
-        PushID: pushID,
-        CompositeID: g.Subgroup ? `${g.Namespace}/${g.Group}/${g.Subgroup}` : `${g.Namespace}/${g.Group}`,
-        Date: new Date().toISOString(),
-        Group: g.Group,
-        Namespace: g.Namespace,
-        Subgroup: g.Subgroup,
-      };
-    });
+          CompositeID: g.Subgroup ? `${g.Namespace}/${g.Group}/${g.Subgroup}` : `${g.Namespace}/${g.Group}`,
+          Date: new Date().toISOString(),
+          Group: g.Group,
+          Namespace: g.Namespace,
+          Subgroup: g.Subgroup,
+        };
+      })
+      .filter((g) => g !== undefined);
 
     await this.createRecordBatch(record);
   }
@@ -75,7 +77,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     const leaveKeys = new Set(groupsToLeave.map((g) => this.buildCompositeId(g.Namespace, g.Group, g.Subgroup)));
     const groupIDsToDelete = usersGroups.filter((u) => leaveKeys.has(u.CompositeID)).map((u) => u.GroupID);
 
-    void Promise.allSettled(
+    await Promise.allSettled(
       groupIDsToDelete.map(async (id) => {
         await this.deleteRecord(id, pushID);
       })
