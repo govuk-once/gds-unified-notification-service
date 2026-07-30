@@ -282,18 +282,13 @@ export abstract class DynamodbRepository<RecordType extends object> {
       throw new ServiceMisconfigurationError(['Table requires a sort key to delete record, but none was provided']);
     }
 
-    const key: Record<string, unknown> = {
-      [this.tableAttributes.hashKey]: partitionKeyValue,
-    };
-
-    // Adds sort key to params if the table requires a sort key
-    if (this.tableAttributes.rangeKey && sortKeyValue) {
-      key[this.tableAttributes.rangeKey] = sortKeyValue;
-    }
-
     const params: DeleteItemCommandInput = {
       TableName: this.tableAttributes.name,
-      Key: marshall(key),
+      Key: marshall({
+        [this.tableAttributes.hashKey]: partitionKeyValue,
+        // Adds sort key to params if the table requires a sort key
+        ...(this.tableAttributes.rangeKey && sortKeyValue ? { [this.tableAttributes.rangeKey]: sortKeyValue } : {}),
+      }),
       ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
     };
 
