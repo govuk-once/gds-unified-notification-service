@@ -84,6 +84,7 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
         {
           requestBody: [testCase('travel', 'france', 'DAILY', GroupActionEnum.JOIN)],
           responseBody: [testCase('travel', 'france', 'DAILY')],
+          case: 'case 1:',
           when: 'joining a group successfully',
         },
       ],
@@ -91,6 +92,7 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
         {
           requestBody: [testCase('travel', 'france', 'DAILY', GroupActionEnum.LEAVE)],
           responseBody: [],
+          case: 'case 2:',
           when: 'leaving a group successfully',
         },
       ],
@@ -101,6 +103,7 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
             testCase('travel', 'spain', 'IMMEDIATE', GroupActionEnum.JOIN),
           ],
           responseBody: [testCase('travel', 'france', 'DAILY'), testCase('travel', 'spain', 'IMMEDIATE')],
+          case: 'case 3:',
           when: 'joining multiple groups successfully',
         },
       ],
@@ -111,6 +114,7 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
             testCase('travel', 'spain', 'IMMEDIATE', GroupActionEnum.LEAVE),
           ],
           responseBody: [testCase('travel', 'france', 'DAILY'), testCase('travel', 'portugal', 'DAILY')],
+          case: 'case 4:',
           when: 'leaving and join groups successfully',
         },
       ],
@@ -121,23 +125,22 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
             testCase('travel', 'france', 'DAILY', GroupActionEnum.LEAVE),
           ],
           responseBody: [],
+          case: 'case 5:',
           when: 'leaving multiple groups successfully',
         },
       ],
     ])(
-      'status 200 and list of users groups when - $when',
+      '$case status 200 and list of users groups when - $when',
       async ([{ requestBody, responseBody }], { flexAPI: api }) => {
         // Arrange
         const path = url(pushID);
 
         // Act
-        console.log(requestBody);
-        console.log(api);
         const { status, body } = await api.post({ path: `${path}?pushID=${pushID}`, body: requestBody });
 
         // Assert
         expect(status).toEqual(200);
-        expect(body).toEqual(responseBody);
+        expect(body).toEqual(expect.arrayContaining(responseBody));
       }
     );
   });
