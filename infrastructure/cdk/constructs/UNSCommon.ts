@@ -200,9 +200,9 @@ export class UNSCommon extends Construct {
           },
           globalSecondaryIndexes: [
             {
-              name: 'CompositeIDIndex',
+              name: 'PushIDIndex',
               hashKey: 'PushID',
-              rangeKey: 'CompositeID',
+              rangeKey: 'Date',
               projectionType: ProjectionType.ALL,
             },
           ],

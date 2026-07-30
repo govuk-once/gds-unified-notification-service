@@ -9,6 +9,7 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 
@@ -265,16 +266,28 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async deleteRecord(keyValue: string): Promise<void> {
+  public async deleteRecord(partitionKeyValue: string, sortKeyValue?: string): Promise<void> {
     this.observability.logger.info('Deleting record in table', {
       tableName: this.tableAttributes.name,
       key: this.tableAttributes.hashKey,
-      value: keyValue,
+      partitionKeyValue: partitionKeyValue,
+      sortKeyValue: sortKeyValue,
     });
+
+    if (sortKeyValue && !this.tableAttributes.rangeKey) {
+      throw new ServiceMisconfigurationError(['A sort key value has been used for a table with no sort key']);
+    }
+
+    if (this.tableAttributes.rangeKey && !sortKeyValue) {
+      throw new ServiceMisconfigurationError(['Table requires a sort key to delete record, but none was provided']);
+    }
+
     const params: DeleteItemCommandInput = {
       TableName: this.tableAttributes.name,
       Key: marshall({
-        [this.tableAttributes.hashKey]: keyValue,
+        [this.tableAttributes.hashKey]: partitionKeyValue,
+        // Adds sort key to params if the table requires a sort key
+        ...(this.tableAttributes.rangeKey && sortKeyValue ? { [this.tableAttributes.rangeKey]: sortKeyValue } : {}),
       }),
       ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
     };
@@ -291,6 +304,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
         key: this.tableAttributes.hashKey,
         error: this.observability.formatError(error),
       });
+      throw error;
     }
   }
 
@@ -321,10 +335,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async getRecordsQuery<RecordType>(
-    filter?: { field: string; value: string },
-    indexName?: string
-  ): Promise<RecordType[]> {
+  public async getRecordsQuery(filter?: { field: string; value: string }, indexName?: string): Promise<RecordType[]> {
     const params: QueryCommandInput = {
       TableName: this.tableAttributes.name,
       ...(filter && {

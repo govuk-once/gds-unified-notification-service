@@ -1,2 +1,2 @@
-export * from './NotificationStateEnum';
 export * from './CircuitBreakerStateEnum';
+export * from './NotificationStateEnum';

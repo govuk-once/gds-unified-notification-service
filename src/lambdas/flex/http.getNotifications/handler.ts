@@ -77,7 +77,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     }
 
     // Get notifications of user from dynamoDB
-    const notifications = await this.notificationsDynamoRepository.getRecordsQuery<IMessageRecord>(
+    const notifications = await this.notificationsDynamoRepository.getRecordsQuery(
       {
         field: 'ExternalUserID',
         value: externalUserID,
