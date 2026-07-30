@@ -126,7 +126,7 @@ export const config = {
 
   // Feature flag for travel alerts
   featureFlag: {
-    groups: env !== 'prod',
+    groups: false,
   },
 
   // VPC
