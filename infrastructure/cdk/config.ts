@@ -87,6 +87,11 @@ export const config = {
     CostCentre: 'ONCE-001',
     ManagedBy: 'CDK',
     Version: config.version,
+
+    Product: 'uns',
+    Component: 'platform-constructs',
+    DataClassification: 'OFFICIAL', // IS THIS ALL ASSETS?
+    Retain: env === 'prod' ? 'true' : 'false', // IS STAGING INCLUDED IN DEVELOPMENT STACK
   }),
 
   // Delete / retain policy - main environment resources should avoid deletion
