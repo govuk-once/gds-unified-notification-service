@@ -8,7 +8,7 @@ const url = (pushID?: string) => `/v1/groups${pushID ? `?pushID=${pushID}` : ''}
 const testCase = (Namespace: string, Group: string, Subgroup?: string, Action?: string) => ({
   Namespace,
   Group,
-  ...(Subgroup && { Subgroup }),
+  Subgroup,
   Action,
 });
 
@@ -103,7 +103,6 @@ describe('GET {{flex}}/groups?pushID={{pushID}} - Get groups', () => {
     ])('status 200 and $response', async ([{ groupRecord, responseBody, resetRecords }], { flexAPI: api }) => {
       // Arrange
       const path = url(pushID);
-      console.log(groupRecord);
       if (groupRecord) {
         await api.post({ path: `${path}`, body: groupRecord });
       }
