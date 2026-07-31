@@ -12,6 +12,9 @@ export const BoolParameters = {
     Dispatch: {
       Enabled: 'config/dispatch/enabled',
     },
+    FeatureFlags: {
+      DeepLinkUrl: 'config/featureFlag/deeplinkUrl',
+    },
   },
 } as const;
 

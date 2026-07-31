@@ -30,6 +30,9 @@ export const configurableParameters = {
   'config/dispatch/circuitBreaker/windowDuration': '60',
   'config/dispatch/circuitBreaker/rateLimitWhenOpen': '5',
 
+  // Feature Flags
+  'config/featureFlag/deepLinkUrl': String(config.featureFlag.deepLinkUrl),
+
   // Default values for url content control within the data
   'content/allowed/protocols': 'govuk:,https:',
   'content/allowed/urlHostnames': '*.gov.uk',
