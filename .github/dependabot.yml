@@ -1,0 +1,54 @@
+version: 2
+registries:
+  codeartifact-feed:
+    type: npm-registry
+    url: https://registry-prod-904690835784.d.codeartifact.eu-west-2.amazonaws.com/npm/registry-prod-repo/
+    aws-region: eu-west-2
+    domain: registry-prod
+    domain-owner: '904690835784'
+    account-id: ${{ secrets.DEPENDABOT_CODEARTIFACT_ACCOUNT }}
+    role-name: ${{ secrets.DEPENDABOT_CODEARTIFACT_ROLE_NAME }}
+
+updates:
+  # Enables version updates for pnpm
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    labels:
+      - 'npm dependency updates'
+    commit-message:
+      prefix: 'fix'
+      include: 'scope'
+    cooldown:
+      default-days: 7
+    groups:
+      dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'patch'
+          - 'minor'
+
+    registries:
+      - codeartifact-feed
+
+  # Enables version updates for github actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    labels:
+      - 'github actions updates'
+    commit-message:
+      prefix: 'fix'
+      include: 'scope'
+    cooldown:
+      default-days: 7
+    groups:
+      dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'patch'
+          - 'minor'
