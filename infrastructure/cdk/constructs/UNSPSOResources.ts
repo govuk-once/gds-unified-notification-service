@@ -34,6 +34,7 @@ export class UNSPSOResource extends Construct {
   public readonly queues: {
     incoming: UNSQueueConstruct;
     processing: UNSQueueConstruct;
+    groupProcessing?: UNSQueueConstruct;
     dispatch: UNSQueueConstruct;
     analytics: UNSQueueConstruct;
   };
@@ -122,6 +123,19 @@ export class UNSPSOResource extends Construct {
           maxRetries: 3,
         },
       }),
+      groupProcessing: config.featureFlag.groups
+        ? new UNSQueueConstruct(this, config, {
+            name: ['groupprocessing'],
+            tags: {},
+            messageRetentionSeconds: Duration.days(7).toSeconds(),
+            resources: {
+              kmsKey: refs.kms,
+            },
+            deadLetterQueue: {
+              maxRetries: 3,
+            },
+          })
+        : undefined,
       dispatch: new UNSQueueConstruct(this, config, {
         name: ['dispatch'],
         tags: {},
@@ -366,16 +380,17 @@ export class UNSPSOResource extends Construct {
     });
 
     let postGroupMessage: UNSLambdaConstruct | undefined = undefined;
-    if (config.featureFlag.groups && refs.dynamodb.groupStore) {
+    if (config.featureFlag.groups && refs.dynamodb.groupStore && this.queues.groupProcessing) {
       postGroupMessage = new UNSLambdaConstruct(this, config, {
         ...baseHTTP(`postGroupMessage`),
         environment: {},
         resources: {
           kms: refs.kms,
+          dlq: this.queues.groupProcessing.dlq,
         },
         iam: {
           ssmNamespaces: [config.namespace],
-          sqsSend: [],
+          sqsSend: [this.queues.groupProcessing.queue.queueArn],
           dynamodb: {
             messages: refs.dynamodb.groupStore.permissions.readOnly,
           },
@@ -607,6 +622,11 @@ export class UNSPSOResource extends Construct {
 
       // SQS Queue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,
+      ...(config.featureFlag.groups && this.queues.groupProcessing?.queue.queueUrl
+        ? {
+            'queue/groupprocessing/url': this.queues.groupProcessing?.queue.queueUrl,
+          }
+        : {}),
       'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export

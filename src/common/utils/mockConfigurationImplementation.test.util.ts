@@ -11,6 +11,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Config.Cache.User]: 'user',
     [StringParameters.Queue.Analytics.Url]: 'sqsurl/sqsanalytics',
     [StringParameters.Queue.Dispatch.Url]: 'sqsurl/sqsdispatch',
+    [StringParameters.Queue.GroupProcessing.Url]: 'sqsurl/sqsgroupprocessing',
     [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
