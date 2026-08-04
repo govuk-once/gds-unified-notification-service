@@ -1,31 +1,45 @@
 import {
   APIHandler,
   ConfigurationService,
+  ContentValidationService,
+  GroupStoreDynamoRepository,
   HandlerDependencies,
   iocGetConfigurationService,
+  iocGetContentValidationService,
+  iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { IGroupMessageSchema } from '@project/lambdas/interfaces';
+import { IGroupMessage, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
-import { v4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
-const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
-const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string() })).or(z.object());
+const requestBodySchema = z
+  .array(
+    IGroupMessageSchema.omit({ OrganisationID: true }).extend({ GroupNotificationID: z.string().optional() }).strict()
+  )
+  .min(1);
+const responseBodySchema = z
+  .array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }))
+  .or(z.object());
 
 /**
 * Sample post body:
     {
-      "DepartmentID": "DEP01",
-      "CampaignID:" "CAM_ID"
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
+      "Namespace": "travel",
+      "Group": "france",
+      "Subgroup": "immediate",
+      "GroupNotificationID": "TO_GROUP_ID"
+      "CampaignID:" "CAM_ID",
       "NotificationTitle": "You have a new Notification",
       "NotificationBody": "Here is the Notification body."
+      "MessageTitle": "You have a new Message",
+      "MessageBody": "Open Notification Centre to read your notifications",
+      "DeeplinkURL": "myappid://path/to/page"
     }
  */
 
@@ -33,6 +47,9 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+
+  public contentValidationService!: ContentValidationService;
+  public groupStoreDynamoRepository!: GroupStoreDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -43,7 +60,6 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     this.injectDependencies(dependencies);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
@@ -56,20 +72,39 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
     }
 
+    const messages: IGroupMessage[] = event.body.map((body) => ({
+      ...body,
+      GroupNotificationID: body.GroupNotificationID ?? uuid(),
+      OrganisationID: organisationID,
+    }));
+
+    // Pre-validate all messages & reject request when one of them contains unsupported url
+    for (const message of messages) {
+      this.contentValidationService.validate(message.MessageBody);
+    }
+
+    const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
+    for (const message of messages) {
+      const pushIds = await this.groupStoreDynamoRepository.getUsersInGroup(
+        message.Namespace,
+        message.Group,
+        message.Subgroup
+      );
+      responses.push({ GroupNotificationID: message.GroupNotificationID, UsersInGroup: pushIds.length });
+    }
+
     // Return placeholder status
     return {
-      body: event.body.map((x) => {
-        return {
-          GroupNotificationID: v4(),
-        };
-      }),
+      body: responses.map((response) => ({
+        GroupNotificationID: response.GroupNotificationID,
+        UsersInGroup: response.UsersInGroup,
+      })),
       statusCode: 202,
     };
   }
 }
 
-export const handler = new PostGroupMessage(
-  iocGetConfigurationService(),
-  iocGetObservabilityService(),
-  () => ({})
-).handler();
+export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  contentValidationService: iocGetContentValidationService(),
+  groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
+})).handler();

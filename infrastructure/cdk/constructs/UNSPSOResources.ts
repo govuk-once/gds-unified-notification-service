@@ -366,7 +366,7 @@ export class UNSPSOResource extends Construct {
     });
 
     let postGroupMessage: UNSLambdaConstruct | undefined = undefined;
-    if (config.featureFlag.groups) {
+    if (config.featureFlag.groups && refs.dynamodb.groupStore) {
       postGroupMessage = new UNSLambdaConstruct(this, config, {
         ...baseHTTP(`postGroupMessage`),
         environment: {},
@@ -376,7 +376,9 @@ export class UNSPSOResource extends Construct {
         iam: {
           ssmNamespaces: [config.namespace],
           sqsSend: [],
-          dynamodb: {},
+          dynamodb: {
+            messages: refs.dynamodb.groupStore.permissions.readOnly,
+          },
         },
       });
     }

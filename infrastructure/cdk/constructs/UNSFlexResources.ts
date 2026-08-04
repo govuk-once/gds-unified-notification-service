@@ -124,18 +124,24 @@ export class UNSFlexResource extends Construct {
     });
 
     // GET /v1/groups
-    const getGroups = new UNSLambdaConstruct(this, config, {
-      ...baseHTTP(`getGroups`),
-      environment: {},
-      resources: {
-        kms: refs.kms,
-      },
-      iam: {
-        ssmNamespaces: [config.namespace],
-        sqsSend: [],
-        dynamodb: {},
-      },
-    });
+    const getGroups =
+      config.featureFlag.groups && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseHTTP(`getGroups`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [],
+              dynamodb: {
+                groupstore: refs.dynamodb.groupStore.permissions.readAndWrite,
+              },
+            },
+          })
+        : undefined;
+
     // POST /v1/groups
     const modifyGroups =
       config.featureFlag.groups && refs.dynamodb.groupStore

@@ -129,6 +129,22 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
           when: 'leaving multiple groups successfully',
         },
       ],
+      [
+        {
+          requestBody: [testCase('driving', 'weather', undefined, GroupActionEnum.JOIN)],
+          responseBody: [],
+          case: 'case 5:',
+          when: 'joining a group without a subgroup',
+        },
+      ],
+      [
+        {
+          requestBody: [testCase('driving', 'weather', undefined, GroupActionEnum.LEAVE)],
+          responseBody: [],
+          case: 'case 5:',
+          when: 'leaving a group without a subgroup',
+        },
+      ],
     ])(
       '$case status 200 and list of users groups when - $when',
       async ([{ requestBody, responseBody }], { flexAPI: api }) => {
@@ -136,7 +152,7 @@ describe('POST {{flex}}/groups?pushID={{pushID}} - Modify groups', () => {
         const path = url(pushID);
 
         // Act
-        const { status, body } = await api.post({ path: `${path}?pushID=${pushID}`, body: requestBody });
+        const { status, body } = await api.post({ path: `${path}`, body: requestBody });
 
         // Assert
         expect(status).toEqual(200);
