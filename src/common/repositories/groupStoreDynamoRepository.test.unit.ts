@@ -113,6 +113,76 @@ describe('GroupStoreDynamoRepository', () => {
     });
   });
 
+  describe('getUsersInGroup', () => {
+    it('should fetch a list of user in a group based on its namespace, group, and subgroup', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(new Date());
+      const mockGroupStoreRecord: IGroupStoreRecord[] = [
+        {
+          PushID: mockPushID,
+          GroupID: mockGroupID,
+          CompositeID: mockGroup.CompositeID,
+          Date: date.toISOString(),
+          Namespace: mockGroup.Namespace,
+          Group: mockGroup.Group,
+          Subgroup: mockGroup.Subgroup,
+        },
+      ];
+      instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(mockGroupStoreRecord);
+
+      // Act
+      const result = await instance.getUsersInGroup(mockGroup.Namespace, mockGroup.Group, mockGroup.Subgroup);
+
+      // Assert
+      expect(result).toEqual([mockGroupStoreRecord[0].PushID]);
+      expect(instance.getRecordsQuery).toHaveBeenCalledWith(
+        { field: 'CompositeID', value: `${mockGroup.Namespace}/${mockGroup.Group}/${mockGroup.Subgroup}` },
+        'CompositeIDIndex'
+      );
+    });
+
+    it('should fetch a list of user in a group based on its namespace and group but no subgroup', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(new Date());
+      const mockGroupStoreRecord: IGroupStoreRecord[] = [
+        {
+          PushID: mockPushID,
+          GroupID: mockGroupID,
+          CompositeID: mockGroup.CompositeID,
+          Date: date.toISOString(),
+          Namespace: mockGroup.Namespace,
+          Group: mockGroup.Group,
+        },
+      ];
+      instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(mockGroupStoreRecord);
+
+      // Act
+      const result = await instance.getUsersInGroup(mockGroup.Namespace, mockGroup.Group);
+
+      // Assert
+      expect(result).toEqual([mockGroupStoreRecord[0].PushID]);
+      expect(instance.getRecordsQuery).toHaveBeenCalledWith(
+        { field: 'CompositeID', value: `${mockGroup.Namespace}/${mockGroup.Group}` },
+        'CompositeIDIndex'
+      );
+    });
+
+    it('should return an empty array if a user has no groups', async () => {
+      // Arrange
+      instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(null);
+
+      // Act
+      const result = await instance.getUsersInGroup(mockGroup.Namespace, mockGroup.Group, mockGroup.Subgroup);
+
+      // Assert
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('joinGroups', () => {
     const mockJoinGroups: IModifyGroups[] = [
       {
