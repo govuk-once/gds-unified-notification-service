@@ -1,11 +1,9 @@
 import {
   APIHandler,
-  CacheService,
   ConfigurationService,
   ContentValidationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
-  iocGetCacheService,
   iocGetConfigurationService,
   iocGetContentValidationService,
   iocGetGroupStoreDynamoRepository,
@@ -51,7 +49,6 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   public responseBodySchema = responseBodySchema;
 
   public contentValidationService!: ContentValidationService;
-  public cacheService!: CacheService;
   public groupStoreDynamoRepository!: GroupStoreDynamoRepository;
 
   constructor(
@@ -97,12 +94,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 
     // Return placeholder status
     return {
-      body: response
-        ? Array.from(response, ([key, value]) => ({
-            GroupNotificationID: key,
-            UsersInGroup: value,
-          }))
-        : [],
+      body: Array.from(response, ([key, value]) => ({
+        GroupNotificationID: key,
+        UsersInGroup: value,
+      })),
       statusCode: 202,
     };
   }
@@ -110,6 +105,5 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   contentValidationService: iocGetContentValidationService(),
-  cacheService: iocGetCacheService().connect(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
 })).handler();
