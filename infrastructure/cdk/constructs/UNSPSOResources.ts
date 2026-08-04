@@ -386,7 +386,6 @@ export class UNSPSOResource extends Construct {
         environment: {},
         resources: {
           kms: refs.kms,
-          dlq: this.queues.groupProcessing.dlq,
         },
         iam: {
           ssmNamespaces: [config.namespace],
