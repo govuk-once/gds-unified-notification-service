@@ -144,7 +144,7 @@ describe('GetGroups Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 
@@ -159,7 +159,7 @@ describe('GetGroups Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 });

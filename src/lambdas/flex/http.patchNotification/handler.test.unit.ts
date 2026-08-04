@@ -171,13 +171,13 @@ describe('PatchNotification Handler', () => {
 
     // Assert
     expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
-      'NotificationID has not been provided - returning 400'
+      'notificationID has not been provided - returning 400'
     );
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['NotificationID has not been provided'],
+      Errors: ['notificationID has not been provided'],
     });
   });
 

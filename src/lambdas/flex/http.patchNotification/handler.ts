@@ -79,13 +79,13 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
     const externalUserID = event.queryStringParameters?.externalUserID ?? event.queryStringParameters?.pushID;
 
     if (notificationID == undefined) {
-      this.observability.logger.debug('NotificationID has not been provided - returning 400');
-      throw new BadRequestError(['NotificationID has not been provided']);
+      this.observability.logger.debug('notificationID has not been provided - returning 400');
+      throw new BadRequestError(['notificationID has not been provided']);
     }
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('PushID has not been provided - returning 400');
-      throw new BadRequestError(['PushID has not been provided.']);
+      this.observability.logger.debug('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided.']);
     }
 
     // Confirm existence & ownership
