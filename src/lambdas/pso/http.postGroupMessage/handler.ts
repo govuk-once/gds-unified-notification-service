@@ -15,7 +15,6 @@ import {
   type ITypedRequestResponse,
 } from '@common';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { splitIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
@@ -82,10 +81,6 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       OrganisationID: organisationID,
     }));
 
-    // Retrieve the configuration of the number of workers to processes the group message
-    // const workers = await this.config.getNumericParameter(NumericParameters.GroupProcessing.Workers);
-    const workers = 5;
-
     // Pre-validate all messages & reject request when one of them contains unsupported url
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
@@ -96,21 +91,7 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       messages.map(async (m) => {
         // Retrieve and store the PushIDs for the group in elasticache
         const pushIDs = await this.groupStoreDynamoRepository.getUsersInGroup(m.Namespace, m.Group, m.Subgroup);
-        const pushIDBatches = splitIntoChunks(pushIDs, workers);
-
-        // Splits PushIDs into chunks and assigns a group ingest key
-        let numberOfUsers = 0;
-        const messageToPublish = [];
-        for (let i = 0; i < pushIDBatches.length; i++) {
-          const cacheKey = `groupIngestion/${m.GroupNotificationID}/${i + 1}`;
-          messageToPublish.push({ ...m, cacheKey });
-          await this.cacheService.store(cacheKey, pushIDBatches[i]);
-          numberOfUsers += pushIDBatches[i].length;
-        }
-
-        // Requeue message which passed validation and split into batches to the group processing queue
-        this.observability.logger.info('Requeuing validated group message to process queue.', m.GroupNotificationID);
-        response.set(m.GroupNotificationID, numberOfUsers);
+        response.set(m.GroupNotificationID, pushIDs.length);
       })
     );
 
