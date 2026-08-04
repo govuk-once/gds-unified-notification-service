@@ -1,19 +1,25 @@
 import {
   APIHandler,
+  CacheService,
   ConfigurationService,
   ContentValidationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
+  iocGetCacheService,
   iocGetConfigurationService,
   iocGetContentValidationService,
+  iocGetGroupProcessingQueueService,
   iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
+  NumericParameters,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { IGroupMessage, IGroupMessageSchema } from '@project/lambdas/interfaces';
+import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
+import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
 import z from 'zod';
@@ -48,8 +54,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public contentValidationService!: ContentValidationService;
-  public groupStoreDynamoRepository!: GroupStoreDynamoRepository;
+  public readonly contentValidationService!: ContentValidationService;
+  public readonly cacheService!: CacheService;
+  public readonly groupProcessingQueue!: GroupProcessingQueueService;
+  public readonly groupStoreDynamoRepository!: GroupStoreDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -83,6 +91,9 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       this.contentValidationService.validate(message.MessageBody);
     }
 
+    // Get the number of workers to be used to process the group message
+    const numberOfWorkers = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerCount);
+
     const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
     for (const message of messages) {
       const pushIds = await this.groupStoreDynamoRepository.getUsersInGroup(
@@ -90,6 +101,23 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
         message.Group,
         message.Subgroup
       );
+      const chunksOfPushIDs = splitArrayIntoChunks(pushIds, numberOfWorkers);
+
+      const batch: IGroupMessageMetadata[] = [];
+      for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID += 1) {
+        const chunk = chunksOfPushIDs[workerID];
+        const elastiCacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
+        await this.cacheService.store(elastiCacheKey, chunk);
+
+        batch.push({
+          GroupMessage: message,
+          GroupNotificationID: message.GroupNotificationID,
+          WorkerID: workerID,
+          ElastiCacheKey: elastiCacheKey,
+        });
+      }
+
+      await this.groupProcessingQueue.publishMessageBatch(batch);
       responses.push({ GroupNotificationID: message.GroupNotificationID, UsersInGroup: pushIds.length });
     }
 
@@ -106,5 +134,7 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   contentValidationService: iocGetContentValidationService(),
+  cacheService: iocGetCacheService().connect(),
+  groupProcessingQueue: iocGetGroupProcessingQueueService(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
 })).handler();

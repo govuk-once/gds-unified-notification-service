@@ -2,6 +2,7 @@ import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk
 import { SerializationError } from '@common/models/Errors/BadRequestError';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services/observabilityService';
+import { v4 as uuid } from 'uuid';
 
 export const serializeRecordBodyToJson = <InputType>(body: InputType, observability: ObservabilityService): string => {
   if (typeof body === 'string') {
@@ -18,8 +19,8 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
 
 export abstract class QueueService<InputType> {
   protected abstract queueName: string;
-  protected client: SQSClient;
-  protected sqsQueueUrl: string;
+  protected client!: SQSClient;
+  protected sqsQueueUrl!: string;
 
   constructor(protected observability: ObservabilityService) {}
 
@@ -74,7 +75,7 @@ export abstract class QueueService<InputType> {
       }
 
       const entries = message.map((body, index) => ({
-        Id: (body as { NotificationID: string })?.NotificationID,
+        Id: uuid(),
         DelaySeconds: delaySeconds,
         MessageBody: serializeRecordBodyToJson<InputType>(body, this.observability),
       }));

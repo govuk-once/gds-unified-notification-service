@@ -3,9 +3,9 @@ import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
-import { IGroupMessage } from '@project/lambdas/interfaces/IMessage';
+import { IGroupMessageMetadata } from '@project/lambdas';
 
-export class GroupProcessingQueueService extends QueueService<IGroupMessage> {
+export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
   protected queueName: string = 'groupprocessing';
   constructor(
     protected config: ConfigurationService,

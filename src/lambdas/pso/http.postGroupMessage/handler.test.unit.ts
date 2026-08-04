@@ -5,6 +5,7 @@ import {
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PostGroupMessage } from '@project/lambdas/pso/http.postGroupMessage/handler';
 import { Context } from 'aws-lambda';
+import { v4 as uuid } from 'uuid';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -12,6 +13,13 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
+
+const { mockGroupNotificationID } = vi.hoisted(() => {
+  return { mockGroupNotificationID: 'GENERATED_GROUP_ID' };
+});
+vi.mock('uuid', () => ({
+  v4: vi.fn(),
+}));
 
 describe('PostGroupMessage Handler', () => {
   let instance: PostGroupMessage;
@@ -74,12 +82,21 @@ describe('PostGroupMessage Handler', () => {
     // Mocking retrieving store apiKey
     instance = new PostGroupMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
+      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
       groupStoreDynamoRepository: Promise.resolve(serviceMocks.groupStoreDynamoRepositoryMock),
+      groupProcessingQueue: Promise.resolve(serviceMocks.groupProcessingQueueServiceMock),
     }));
     handler = instance.handler();
 
     const mockPushID = '57d7fb1a-f069-46cf-af16-6ebdc599a679';
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValueOnce([mockPushID]);
+    serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
+    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    vi.mocked(uuid as () => string)
+      .mockReset()
+      .mockReturnValueOnce(mockGroupNotificationID);
   });
 
   it('should have the correct operationId', () => {
@@ -113,6 +130,90 @@ describe('PostGroupMessage Handler', () => {
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
       { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+    ]);
+  });
+
+  it('should return a status 202 and generate a GroupNotificationID if none is provided.', async () => {
+    // Arrange
+    const mockEventNoGroupNotificationID = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockGroupMessage, GroupNotificationID: undefined }]),
+    };
+
+    // Act
+    const result = await handler(mockEventNoGroupNotificationID, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ GroupNotificationID: mockGroupNotificationID, UsersInGroup: 1 }]);
+  });
+
+  it('should split pushIDs into chunks based on worker number, add elasticache keys for each chunk, and send the chunks in a batch message with the group message.', async () => {
+    // Arrange
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi
+      .fn()
+      .mockResolvedValueOnce(['push_1', 'push_2', 'push_3', 'push_4', 'push_5', 'push_6']);
+
+    // Act
+    await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+      1,
+      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+      ['push_1', 'push_2']
+    );
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+      2,
+      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+      ['push_3']
+    );
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+      3,
+      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+      ['push_4']
+    );
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+      4,
+      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+      ['push_5']
+    );
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+      5,
+      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+      ['push_6']
+    );
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenLastCalledWith([
+      {
+        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
+        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        WorkerID: 0,
+        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+      },
+      {
+        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
+        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        WorkerID: 1,
+        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+      },
+      {
+        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
+        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        WorkerID: 2,
+        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+      },
+      {
+        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
+        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        WorkerID: 3,
+        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+      },
+      {
+        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
+        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        WorkerID: 4,
+        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+      },
     ]);
   });
 

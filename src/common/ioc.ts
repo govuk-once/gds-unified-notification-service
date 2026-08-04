@@ -28,6 +28,7 @@ import {
   SMConfigurationService,
   SMNamespacedConfigurationService,
 } from '@common/services';
+import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { InMemoryTTLCache, StringParameters } from '@common/utils';
 
 enum Mode {
@@ -153,6 +154,13 @@ export const iocGetProcessingQueueService = ioc(
   'ProcessingQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () => await new ProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+);
+
+export const iocGetGroupProcessingQueueService = ioc(
+  'GroupProcessingQueueService',
+  Mode.TIMEBOUND_SINGLETON,
+  async () =>
+    await new GroupProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
 );
 
 export const iocGetDispatchQueueService = ioc(
