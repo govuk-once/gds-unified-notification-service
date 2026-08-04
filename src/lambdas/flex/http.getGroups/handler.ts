@@ -1,10 +1,13 @@
 import {
+  GroupStoreDynamoRepository,
   HandlerDependencies,
   iocGetConfigurationService,
+  iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import type { Context } from 'aws-lambda';
@@ -23,6 +26,9 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
   public operationId: string = 'getGroups';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+
+  public groupStoreDynamoRepository!: GroupStoreDynamoRepository;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
@@ -32,7 +38,6 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
     this.injectDependencies(asyncDependencies);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
@@ -43,11 +48,33 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
       requestId: context.awsRequestId,
     });
 
+    // Validate
+    const pushID = event.queryStringParameters?.pushID;
+    if (!pushID) {
+      this.observability.logger.debug('PushID has not been provided - returning 400');
+      throw new BadRequestError(['PushID has not been provided']);
+    }
+
+    // Get users groups to return
+    const groups = await this.groupStoreDynamoRepository.getUsersGroups(pushID);
+
+    this.observability.logger.debug('Successful request - returning 200', {
+      pushID,
+    });
+
     return {
-      body: [],
+      body: groups.map((g) => {
+        return {
+          Namespace: g.Namespace,
+          Group: g.Group,
+          Subgroup: g.Subgroup,
+        };
+      }),
       statusCode: 200,
     };
   }
 }
 
-export const handler = new GetGroups(iocGetConfigurationService(), iocGetObservabilityService(), () => ({})).handler();
+export const handler = new GetGroups(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
+})).handler();

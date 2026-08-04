@@ -22,16 +22,21 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     const records = await this.getRecordsQuery({ field: 'PushID', value: pushID }, 'PushIDIndex');
 
     return records
-      ? records.map((record) => {
-          return {
-            GroupID: record.GroupID,
-            CompositeID: record.CompositeID,
-            Namespace: record.Namespace,
-            Group: record.Group,
-            Subgroup: record.Subgroup,
-          };
-        })
+      ? records.map((record) => ({
+          GroupID: record.GroupID,
+          CompositeID: record.CompositeID,
+          Namespace: record.Namespace,
+          Group: record.Group,
+          Subgroup: record.Subgroup,
+        }))
       : [];
+  }
+
+  public async getUsersInGroup(namespace: string, group: string, subgroup?: string): Promise<string[]> {
+    const compositeID = this.buildCompositeId(namespace, group, subgroup);
+    const records = await this.getRecordsQuery({ field: 'CompositeID', value: compositeID }, 'CompositeIDIndex');
+
+    return records ? records.map((record) => record.PushID) : [];
   }
 
   public async joinGroups(pushID: string, groupsToJoin: IModifyGroups[]) {

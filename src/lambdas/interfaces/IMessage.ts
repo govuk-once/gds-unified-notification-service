@@ -41,7 +41,8 @@ export type IMessage = z.infer<typeof IMessageSchema>;
 
 // Group Message Fields Schemas
 export const IGroupMessageSchema = z.object({
-  ...IIdentifiableMessageSchema.omit({ NotificationID: true }).shape,
+  GroupNotificationID: z.string(),
+  CampaignID: z.string().optional(),
   ...IMessageFields.shape,
   Namespace: z.string(),
   Group: z.string(),
