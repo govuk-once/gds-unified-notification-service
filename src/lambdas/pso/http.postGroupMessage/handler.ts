@@ -83,20 +83,21 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       this.contentValidationService.validate(message.MessageBody);
     }
 
-    const response: Map<string, number> = new Map();
-    await Promise.allSettled(
-      messages.map(async (m) => {
-        // Retrieve and store the PushIDs for the group in elasticache
-        const pushIDs = await this.groupStoreDynamoRepository.getUsersInGroup(m.Namespace, m.Group, m.Subgroup);
-        response.set(m.GroupNotificationID, pushIDs.length);
-      })
-    );
+    const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
+    for (const message of messages) {
+      const pushIds = await this.groupStoreDynamoRepository.getUsersInGroup(
+        message.Namespace,
+        message.Group,
+        message.Subgroup
+      );
+      responses.push({ GroupNotificationID: message.GroupNotificationID, UsersInGroup: pushIds.length });
+    }
 
     // Return placeholder status
     return {
-      body: Array.from(response, ([key, value]) => ({
-        GroupNotificationID: key,
-        UsersInGroup: value,
+      body: responses.map((response) => ({
+        GroupNotificationID: response.GroupNotificationID,
+        UsersInGroup: response.UsersInGroup,
       })),
       statusCode: 202,
     };
