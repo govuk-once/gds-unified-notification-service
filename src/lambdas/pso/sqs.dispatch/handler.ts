@@ -23,7 +23,11 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import { extractIdentifiers, IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 
@@ -61,16 +65,16 @@ const requestBodySchema = IProcessedMessageSchema;
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
+export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, typeof IIdentifiableMessageSchema> {
   public operationId: string = 'dispatch';
   protected enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
   public requestBodySchema = requestBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public analyticsService: AnalyticsService;
-  public notificationsService: NotificationService;
-  public cacheService: CacheService;
-  public circuitBreakerService: CircuitBreakerService;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public analyticsService!: AnalyticsService;
+  public notificationsService!: NotificationService;
+  public cacheService!: CacheService;
+  public circuitBreakerService!: CircuitBreakerService;
 
   constructor(
     public config: ConfigurationService,

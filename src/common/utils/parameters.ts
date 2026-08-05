@@ -111,6 +111,7 @@ export const NumericParameters = {
   Group: {
     Dispatch: {
       WorkerCount: 'group/dispatch/workerCount',
+      WorkerBatchSize: 'group/dispatch/workerBatchSize',
     },
   },
 } as const;

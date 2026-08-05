@@ -44,6 +44,7 @@ export const configurableParameters = {
 
   // Group Notifications
   'group/dispatch/workerCount': '5',
+  'group/dispatch/workerBatchSize': '100',
 
   // AccountId for consumer to generate certificates for
   'certificate/consumers': '{}',

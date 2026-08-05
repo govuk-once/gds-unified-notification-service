@@ -1,3 +1,4 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
@@ -7,6 +8,8 @@ import {
   iocGetObservabilityService,
   iocGetProcessingService,
 } from '@common/ioc';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
@@ -16,13 +19,15 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { extractIdentifiers, IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
-import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
-import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { BoolParameters } from '@common/utils';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+  IMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
+import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 
 const requestBodySchema = IMessageSchema;
 
@@ -56,15 +61,15 @@ const requestBodySchema = IMessageSchema;
   ]
 }
  */
-export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
+export class Processing extends BatchQueueOperation<typeof requestBodySchema, typeof IIdentifiableMessageSchema> {
   public operationId: string = 'processing';
   public requestBodySchema = requestBodySchema;
   protected enableConfig: string = BoolParameters.Config.Processing.Enabled;
 
-  public analyticsService: AnalyticsService;
-  public notificationsRepository: NotificationsDynamoRepository;
-  public dispatchQueue: DispatchQueueService;
-  public processingService: ProcessingService;
+  public analyticsService!: AnalyticsService;
+  public notificationsRepository!: NotificationsDynamoRepository;
+  public dispatchQueue!: DispatchQueueService;
+  public processingService!: ProcessingService;
 
   constructor(
     public config: ConfigurationService,

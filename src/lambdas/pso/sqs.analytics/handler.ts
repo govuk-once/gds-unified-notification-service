@@ -42,14 +42,14 @@ const requestBodySchema = IAnalyticsSchema;
 }
  */
 
-export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
+export class Analytics extends BatchQueueOperation<typeof requestBodySchema, typeof IIdentifiableMessageSchema> {
   public operationId: string = 'analytics';
   public requestBodySchema = requestBodySchema;
 
-  public cache: CacheService;
-  public notifications: NotificationsDynamoRepository;
-  public campaigns: CampaignsDynamoRepository;
-  public analyticsExportService: AnalyticsExportService;
+  public cache!: CacheService;
+  public notifications!: NotificationsDynamoRepository;
+  public campaigns!: CampaignsDynamoRepository;
+  public analyticsExportService!: AnalyticsExportService;
 
   constructor(
     protected config: ConfigurationService,
