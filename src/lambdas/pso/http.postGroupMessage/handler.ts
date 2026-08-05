@@ -75,7 +75,6 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     this.observability.logger.info('Received request', { event });
 
     const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-
     if (!organisationID) {
       throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
     }
@@ -124,11 +123,17 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
         });
       }
 
+      this.observability.logger.debug(
+        'Requeuing validated group message to group process queue.',
+        message.GroupNotificationID
+      );
       await this.groupProcessingQueue.publishMessageBatch(batch);
       responses.push({ GroupNotificationID: message.GroupNotificationID, UsersInGroup: pushIds.length });
     }
 
-    // Return placeholder status
+    this.observability.logger.info('Successful request - returning 202', {
+      responses,
+    });
     return {
       body: responses.map((response) => ({
         GroupNotificationID: response.GroupNotificationID,
