@@ -105,6 +105,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       const batch: IGroupMessageMetadata[] = [];
       for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID += 1) {
         const chunk = chunksOfPushIDs[workerID];
+        if (chunk.length === 0) {
+          break;
+        }
+
         const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
         await this.cacheService.store(cacheKey, chunk);
 
