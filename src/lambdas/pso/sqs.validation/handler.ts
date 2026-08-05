@@ -24,38 +24,6 @@ import { SQSRecord } from 'aws-lambda';
 
 const requestBodySchema = IMessageSchema;
 
-/**
- * Lambda handling incoming messages from a dedicated SQS Queue
- * - Validates input
- *   - Stores valid messages into notifications dynamodb
- * - Fires analytics events
- * - Pushes valid messages into processing queue
- * 
- * Sample event:
-{
-  "Records": [
-    {
-      "messageId": "mockMessageId",
-      "receiptHandle": "mockReceiptHandle",
-      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be1b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
-      "attributes": {
-        "ApproximateReceiveCount": "2",
-        "SentTimestamp": "202601021513",
-        "SenderId": "mockSenderId",
-        "ApproximateFirstReceiveTimestamp": "202601021513"
-      },
-      "messageAttributes": {},
-      "md5OfBody": "{{{md5_of_body}}}",
-      "eventSource": "aws:sqs",
-      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
-      "awsRegion": "us-east-1"
-    }
-  ]
-}
-
-Sample SQS Body (for pushing messages from portal)
-{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
- */
 export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'validation';
   protected enableConfig: string = BoolParameters.Config.Validation.Enabled;

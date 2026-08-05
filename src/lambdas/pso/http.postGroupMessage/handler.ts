@@ -27,22 +27,6 @@ const responseBodySchema = z
   .array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }))
   .or(z.object());
 
-/**
-* Sample post body:
-    {
-      "Namespace": "travel",
-      "Group": "france",
-      "Subgroup": "immediate",
-      "GroupNotificationID": "TO_GROUP_ID"
-      "CampaignID:" "CAM_ID",
-      "NotificationTitle": "You have a new Notification",
-      "NotificationBody": "Here is the Notification body."
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
-      "DeeplinkURL": "myappid://path/to/page"
-    }
- */
-
 export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;

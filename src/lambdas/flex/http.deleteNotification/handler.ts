@@ -19,24 +19,6 @@ import z from 'zod';
 const requestBodySchema = z.any();
 const responseBodySchema = z.any();
 
-/* Lambda Request Example
-{
-  "headers": {
-    "x-api-key": "mockApiKey"
-  },
-  "requestContext": {
-    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000
-  },
-  "pathParameters": {
-    "notificationID": "12342"
-  },
-  "queryStringParameters": {
-    "externalUserID": "USER_ID"
-  } 
-}
-*/
-
 export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'deleteNotification';
   public requestBodySchema = requestBodySchema;

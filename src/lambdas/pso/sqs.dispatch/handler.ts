@@ -29,36 +29,6 @@ import { SQSRecord } from 'aws-lambda';
 
 const requestBodySchema = IProcessedMessageSchema;
 
-/**
- * 
- * Lambda handling processing of validated messages
- * - Validates input 
- * - Performs a user ID look up
- * - Fires analytics events: PROCESSING, PROCESSED, PROCESSING_FAILED
- * - Pushes valid messages into dispatch queue
- * 
- * Sample event:
-{
-  "Records": [
-    {
-      "messageId": "mockMessageId",
-      "receiptHandle": "mockReceiptHandle",
-      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"ExternalUserID\":\"test_id_01\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
-      "attributes": {
-        "ApproximateReceiveCount": "2",
-        "SentTimestamp": "202601021513",
-        "SenderId": "mockSenderId",
-        "ApproximateFirstReceiveTimestamp": "202601021513"
-      },
-      "messageAttributes": {},
-      "md5OfBody": "{{{md5_of_body}}}",
-      "eventSource": "aws:sqs",
-      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
-      "awsRegion": "us-east-1"
-    }
-  ]
-}
- */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
 export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {

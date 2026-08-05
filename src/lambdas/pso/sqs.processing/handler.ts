@@ -26,36 +26,6 @@ import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 
 const requestBodySchema = IMessageSchema;
 
-/**
- * 
- * Lambda handling processing of validated messages
- * - Validates input 
- * - Performs a user ID look up
- * - Fires analytics events: PROCESSING, PROCESSED, PROCESSING_FAILED
- * - Pushes valid messages into dispatch queue
- * 
- * Sample event:
-{
-  "Records": [
-    {
-      "messageId": "mockMessageId",
-      "receiptHandle": "mockReceiptHandle",
-      "body": "{\"NotificationID\":\"1234\",\"DepartmentID\":\"DEP01\",\"UserID\":\"UserID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
-      "attributes": {
-        "ApproximateReceiveCount": "2",
-        "SentTimestamp": "202601021513",
-        "SenderId": "mockSenderId",
-        "ApproximateFirstReceiveTimestamp": "202601021513"
-      },
-      "messageAttributes": {},
-      "md5OfBody": "{{{md5_of_body}}}",
-      "eventSource": "aws:sqs",
-      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
-      "awsRegion": "us-east-1"
-    }
-  ]
-}
- */
 export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'processing';
   public requestBodySchema = requestBodySchema;

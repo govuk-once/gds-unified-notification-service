@@ -24,27 +24,6 @@ const requestBodySchema = z.object({
 });
 const responseBodySchema = z.any();
 
-/* Lambda Request Example
-{
-  "headers": {
-    "x-api-key": "mockApiKey"
-  },
-  "requestContext": {
-    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000
-  },
-  "pathParemters": {
-    "id": "12342"
-  },
-  "queryStringParameters": {
-    "externalUserID": "USER_ID"
-  } 
-  "body": {
-    "status": "READ"  
-  }
-}
-*/
-
 export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'patchNotification';
   public requestBodySchema = requestBodySchema;

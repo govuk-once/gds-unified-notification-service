@@ -14,12 +14,6 @@ import type { APIGatewayAuthorizerResult, Context } from 'aws-lambda';
 import { createHash } from 'node:crypto';
 import z from 'zod';
 
-/**
- * Purpose of this authorizer lambda is to confirm that certificate supplied within the request context
- * (already validated by API Gateway to be signed by the CA and not expired) has not been revoked.
- *
- * Data regarding revocation is stored in the dynamodb
- */
 export class MtlsCertificateRevocationAuthorizer extends APIHandler {
   public operationId: string = 'mtlsApiGatewayAuthorizer';
   public requestBodySchema = z.any();
