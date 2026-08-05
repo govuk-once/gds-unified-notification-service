@@ -42,6 +42,9 @@ export const configurableParameters = {
   'alerts/slack/workspaceId': 'null',
   'alerts/slack/channelId': 'null',
 
+  // Group Notifications
+  'group/dispatch/workerCount': '5',
+
   // AccountId for consumer to generate certificates for
   'certificate/consumers': '{}',
 

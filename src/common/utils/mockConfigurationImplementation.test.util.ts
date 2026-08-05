@@ -35,6 +35,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
     [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
     [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
+    [NumericParameters.Group.Dispatch.WorkerCount]: `5`,
     // Nested objects
     [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],

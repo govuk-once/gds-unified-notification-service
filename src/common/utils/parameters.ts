@@ -108,6 +108,11 @@ export const NumericParameters = {
     HalfOpenAfter: 'config/dispatch/circuitBreaker/halfOpenAfter',
     RateLimitWhenOpen: 'config/dispatch/circuitBreaker/rateLimitWhenOpen',
   },
+  Group: {
+    Dispatch: {
+      WorkerCount: 'group/dispatch/workerCount',
+    },
+  },
 } as const;
 
 export const EnumParameters = {
