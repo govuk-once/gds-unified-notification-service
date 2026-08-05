@@ -42,6 +42,19 @@
       {
         "verifyReleaseCmd": "echo \"semVer=${nextRelease.version}\" >> $GITHUB_OUTPUT"
       }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": false,
+        "failComment": false
+      }
     ]
   ]
 }
