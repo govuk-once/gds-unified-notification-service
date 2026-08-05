@@ -50,7 +50,7 @@ describe('GroupProcessingQueueService', () => {
     GroupMessage: mockGroupMessage,
     GroupNotificationID: mockGroupMessage.GroupNotificationID,
     WorkerID: 0,
-    ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+    CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
   };
 
   beforeEach(async () => {

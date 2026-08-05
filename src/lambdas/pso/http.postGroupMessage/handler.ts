@@ -106,14 +106,21 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       const batch: IGroupMessageMetadata[] = [];
       for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID += 1) {
         const chunk = chunksOfPushIDs[workerID];
-        const elastiCacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
-        await this.cacheService.store(elastiCacheKey, chunk);
+        const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
+        await this.cacheService.store(cacheKey, chunk);
 
         batch.push({
           GroupMessage: message,
           GroupNotificationID: message.GroupNotificationID,
           WorkerID: workerID,
-          ElastiCacheKey: elastiCacheKey,
+          CacheKey: cacheKey,
+        });
+
+        // Log to verify the CacheKey has been correctly stored and configured
+        const elasticacheValue = await this.cacheService.get(cacheKey);
+        this.observability.logger.debug(`CacheKey and amount of pushIDs in the batch`, {
+          cacheKey,
+          batchLength: (elasticacheValue as string[]).length,
         });
       }
 

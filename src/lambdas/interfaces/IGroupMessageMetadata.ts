@@ -4,5 +4,5 @@ export interface IGroupMessageMetadata {
   GroupMessage: IGroupMessage;
   GroupNotificationID: string;
   WorkerID: number;
-  ElastiCacheKey: string;
+  CacheKey: string;
 }

@@ -54,6 +54,7 @@ describe('PostGroupMessage Handler', () => {
 
   // Mock the event
   let mockEvent: EventType;
+  const mockPushID = '57d7fb1a-f069-46cf-af16-6ebdc599a679';
 
   beforeEach(() => {
     // Reset all mock
@@ -88,9 +89,14 @@ describe('PostGroupMessage Handler', () => {
     }));
     handler = instance.handler();
 
-    const mockPushID = '57d7fb1a-f069-46cf-af16-6ebdc599a679';
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValueOnce([mockPushID]);
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
+    serviceMocks.cacheServiceMock.get
+      .mockResolvedValueOnce([mockPushID])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -150,9 +156,20 @@ describe('PostGroupMessage Handler', () => {
 
   it('should split pushIDs into chunks based on worker number, add elasticache keys for each chunk, and send the chunks in a batch message with the group message.', async () => {
     // Arrange
+    const chunk_1 = ['push_1', 'push_2'];
+    const chunk_2 = ['push_3'];
+    const chunk_3 = ['push_4'];
+    const chunk_4 = ['push_5'];
+    const chunk_5 = ['push_6'];
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi
       .fn()
       .mockResolvedValueOnce(['push_1', 'push_2', 'push_3', 'push_4', 'push_5', 'push_6']);
+    serviceMocks.cacheServiceMock.get
+      .mockResolvedValueOnce(chunk_1)
+      .mockResolvedValueOnce(chunk_2)
+      .mockResolvedValueOnce(chunk_3)
+      .mockResolvedValueOnce(chunk_4)
+      .mockResolvedValueOnce(chunk_5);
 
     // Act
     await handler(mockEvent, mockContext);
@@ -161,58 +178,58 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       1,
       `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
-      ['push_1', 'push_2']
+      chunk_1
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       2,
       `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
-      ['push_3']
+      chunk_2
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       3,
       `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
-      ['push_4']
+      chunk_3
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       4,
       `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
-      ['push_5']
+      chunk_4
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       5,
       `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
-      ['push_6']
+      chunk_5
     );
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenLastCalledWith([
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 0,
-        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 1,
-        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 2,
-        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 3,
-        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 4,
-        ElastiCacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
       },
     ]);
   });
