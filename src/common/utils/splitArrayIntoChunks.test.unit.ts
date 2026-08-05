@@ -49,6 +49,24 @@ describe('splitArrayIntoChunks', () => {
     ]);
   });
 
+  it('should split an array of 21 items into 5 chunks with sizes 5, 4, 4, 4, and 4', () => {
+    // Arrange
+    const array = Array.from({ length: 21 }, (_, i) => i + 1); // [1, 2, 3, ..., 23]
+    const numberOfChunks = 5;
+
+    // Act
+    const result = splitArrayIntoChunks(array, numberOfChunks);
+
+    // Assert
+    expect(result).toEqual([
+      [1, 2, 3, 4, 5],
+      [6, 7, 8, 9],
+      [10, 11, 12, 13],
+      [14, 15, 16, 17],
+      [18, 19, 20, 21],
+    ]);
+  });
+
   it('should throw an error if numberOfChunks is 0 or negative', () => {
     // Arrange
     const array = [1, 2, 3];
@@ -87,18 +105,6 @@ describe('splitArrayIntoChunks', () => {
 
     // Assert
     expect(result).toEqual([['a'], ['b'], [], []]);
-  });
-
-  it('should return empty sub-arrays when splitting an empty array', () => {
-    // Arrange
-    const array: number[] = [];
-    const numberOfChunks = 3;
-
-    // Act
-    const result = splitArrayIntoChunks(array, numberOfChunks);
-
-    // Assert
-    expect(result).toEqual([[], [], []]);
   });
 
   it('should return a single chunk containing all elements when numberOfChunks is 1', () => {

@@ -7,3 +7,4 @@ export * from './IMessage';
 export * from './IModifyGroups';
 export * from './INotificationStatus';
 export * from './IProcessedMessage';
+

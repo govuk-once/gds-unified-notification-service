@@ -89,14 +89,9 @@ describe('PostGroupMessage Handler', () => {
     }));
     handler = instance.handler();
 
-    serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValueOnce([mockPushID]);
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValue([mockPushID]);
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
-    serviceMocks.cacheServiceMock.get
-      .mockResolvedValueOnce([mockPushID])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+    serviceMocks.cacheServiceMock.get.mockResolvedValue([mockPushID]);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -128,7 +123,7 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).not.toHaveBeenCalled();
   });
 
-  it('should return a status 202 and list of GroupNotificationID and the number of users it is sent to.', async () => {
+  it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to.', async () => {
     // Act
     const result = await handler(mockEvent, mockContext);
 
@@ -137,6 +132,8 @@ describe('PostGroupMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([
       { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
     ]);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
   });
 
   it('should return a status 202 and generate a GroupNotificationID if none is provided.', async () => {
@@ -152,6 +149,36 @@ describe('PostGroupMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([{ GroupNotificationID: mockGroupNotificationID, UsersInGroup: 1 }]);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to for multiple messages.', async () => {
+    // Arrange
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi
+      .fn()
+      .mockResolvedValueOnce([mockPushID])
+      .mockResolvedValueOnce([mockPushID]);
+    const GroupNotificationID_2 = 'To_Group_2';
+    const mockEventWithTwoMessages = {
+      ...mockEvent,
+      body: JSON.stringify([
+        mockGroupMessage,
+        { ...mockGroupMessage, GroupNotificationID: GroupNotificationID_2, Group: 'spain' },
+      ]),
+    };
+
+    // Act
+    const result = await handler(mockEventWithTwoMessages, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+      { GroupNotificationID: GroupNotificationID_2, UsersInGroup: 1 },
+    ]);
+    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(2);
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(2);
   });
 
   it('should split pushIDs into chunks based on worker number, add elasticache keys for each chunk, and send the chunks in a batch message with the group message.', async () => {
