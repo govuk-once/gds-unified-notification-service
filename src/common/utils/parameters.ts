@@ -61,6 +61,9 @@ export const StringParameters = {
     Dispatch: {
       Url: 'queue/dispatch/url',
     },
+    GroupProcessing: {
+      Url: 'queue/groupprocessing/url',
+    },
     Incoming: {
       Url: 'queue/incoming/url',
     },
