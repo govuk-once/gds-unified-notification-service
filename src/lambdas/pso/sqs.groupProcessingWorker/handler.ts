@@ -1,17 +1,19 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
+  iocGetAnalyticsService,
   iocGetCacheService,
   iocGetConfigurationService,
   iocGetDispatchQueueService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
+import { NotificationStateEnum } from '@common/models';
 import { InternalServerError } from '@common/models/Errors/InternalServerError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
-import { GroupStoreDynamoRepository } from '@common/repositories';
+import { NotificationsDynamoRepository } from '@common/repositories';
 import {
+  AnalyticsService,
   CacheService,
   ConfigurationService,
   DispatchQueueService,
@@ -20,7 +22,6 @@ import {
 } from '@common/services';
 import { NumericParameters } from '@common/utils';
 import { IGroupMessageMetadataSchema } from '@project/lambdas/interfaces';
-import { extractIdentifiers, IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
@@ -57,19 +58,20 @@ const requestBodySchema = IGroupMessageMetadataSchema;
   ]
 }
  */
-export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
+export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'groupProcessingWorker';
   public requestBodySchema = requestBodySchema;
   //protected enableConfig: string = BoolParameters.Config.GroupProcessingWorker.Enabled;
 
-  public groupStoreRepository!: GroupStoreDynamoRepository;
-  public cacheService!: CacheService;
-  public dispatchQueue!: DispatchQueueService;
+  public readonly analyticsService!: AnalyticsService;
+  public readonly cacheService!: CacheService;
+  public readonly dispatchQueue!: DispatchQueueService;
+  public readonly notificationsRepository!: NotificationsDynamoRepository;
 
   constructor(
     public config: ConfigurationService,
     observability: ObservabilityService,
-    dependencies?: () => HandlerDependencies<Processing>
+    dependencies?: () => HandlerDependencies<GroupProcessingWorker>
   ) {
     super(config, observability);
     this.injectDependencies(dependencies);
@@ -104,9 +106,9 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
     });
 
     // Build group messages to users -
-    const messages: IProcessedMessage[] = [];
+    const processedMessages: IProcessedMessage[] = [];
     for (const pushID of pushIDs) {
-      messages.push({
+      processedMessages.push({
         NotificationID: uuid(),
         OrganisationID: groupMessage.OrganisationID,
         ExternalUserID: pushID,
@@ -118,38 +120,30 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
       });
     }
 
-    this.observability.logger.info(`UDP Result:`, { result });
-    const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
-
-    // Update stored rows in notifications message
-    this.observability.logger.info(`Updating entry with timestamp`, extractIdentifiers(processedMessages));
+    // Add record of group notifications to message table
+    this.observability.logger.info(`Adding record of notification to message table`);
 
     // Store External User ID and mark record as processed
-    await this.notificationsRepository.updateRecord({
-      ...extractIdentifiers(processedMessages),
-      ExternalUserID: processedMessages.ExternalUserID,
-      ProcessedDateTime: new Date().toISOString(),
-    });
+    await this.notificationsRepository.createRecordBatch(
+      processedMessages.map((body) => ({
+        ...body,
+        ProcessedDateTime: new Date().toISOString(),
+        Events: [],
+      }))
+    );
+
+    // Create analytics event for successful processing of group message
+    await this.analyticsService.publishMultipleEvents(processedMessages, NotificationStateEnum.PROCESSED);
 
     // Push processed messages to Dispatch queue
-    await this.dispatchQueue.publishMessage(processedMessages);
+    await this.dispatchQueue.publishMessageBatch(processedMessages);
   };
 
-  protected async onStart(identifiableRecord: IIdentifiableMessage): Promise<void> {
-    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSING);
-  }
+  protected async onStart(): Promise<void> {}
 
-  protected async onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void> {
-    await this.analyticsService.publishEvent(
-      identifiableRecord,
-      NotificationStateEnum.PROCESSING_FAILED,
-      this.observability.formatError(error)
-    );
-  }
+  protected async onError(): Promise<void> {}
 
-  protected async onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void> {
-    await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.PROCESSED);
-  }
+  protected async onSuccess(): Promise<void> {}
 
   protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
@@ -161,8 +155,9 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
 }
 
 // IoC
-export const handler = new Processing(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  notificationsRepository: iocGetNotificationDynamoRepository(),
+export const handler = new GroupProcessingWorker(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
+  analyticsService: iocGetAnalyticsService(),
   cacheService: iocGetCacheService().connect(),
   dispatchQueue: iocGetDispatchQueueService(),
+  notificationsRepository: iocGetNotificationDynamoRepository(),
 })).handler();

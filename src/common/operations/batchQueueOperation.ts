@@ -5,7 +5,7 @@ import { ContentValidationError, UnidentifiableRecordError } from '@common/model
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
 import { BoolParameters, errorFormatter } from '@common/utils';
-import { IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambdas';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodType } from 'zod';
 
@@ -21,12 +21,12 @@ type BaseFields = z.infer<typeof RequiredSchema>;
  * for retry in the trigger queue, or throws an Error if the entire batch fails.
  * After 3 failed retry attempts, records are routed to the DLQ.
  */
-export abstract class BatchQueueOperation<
-  InputSchema extends ZodType = ZodAny,
-  IdentifiableRecordSchema extends ZodType = ZodAny,
-> extends QueueHandler<z.infer<InputSchema>, PartialItemFailureResponse> {
-  protected enableConfig: string;
-  protected requestBodySchema: ZodType<z.infer<InputSchema> & BaseFields>;
+export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> extends QueueHandler<
+  z.infer<InputSchema>,
+  PartialItemFailureResponse
+> {
+  protected enableConfig!: string;
+  protected requestBodySchema!: ZodType<z.infer<InputSchema> & BaseFields>;
 
   public contentValidationService: ContentValidationService | undefined;
 
@@ -41,20 +41,20 @@ export abstract class BatchQueueOperation<
    * Executes analytics or custom logic, if necessary, for a verified identifiable record.
    * @param identifiableRecord - The verified identifiable record payload.
    */
-  protected abstract onStart(identifiableRecord: IdentifiableRecord): Promise<void>;
+  protected abstract onStart(identifiableRecord: IIdentifiableMessage): Promise<void>;
 
   /**
    * Executes analytics, or custom logic, if necessary, when record handling fails.
    * @param identifiableRecord - The verified identifiable record payload.
    * @param error - The error thrown during record handling.
    */
-  protected abstract onError(identifiableRecord: IdentifiableRecord, error: unknown): Promise<void>;
+  protected abstract onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void>;
 
   /**
    * Executes analytics or custom logic, if necessary, for a record after record handling.
    * @param identifiableRecord - The verified identifiable record payload.
    */
-  protected abstract onSuccess(identifiableRecord: IdentifiableRecord): Promise<void>;
+  protected abstract onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void>;
 
   /**
    * Publishes metrics tracking the total number of failed records in a batch.
@@ -75,7 +75,7 @@ export abstract class BatchQueueOperation<
    * @param record - The individual SQS record to process.
    * @returns Object containing the extracted identifiable fields.
    */
-  protected async validateIdentifiableRecord(record: SQSRecord): Promise<IdentifiableRecord> {
+  protected async validateIdentifiableRecord(record: SQSRecord): Promise<IIdentifiableMessage> {
     const parsedResult = await SqsRecordSchema.extend({
       body: IIdentifiableMessageSchema,
     }).safeParseAsync(record);

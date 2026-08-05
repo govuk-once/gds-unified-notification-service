@@ -23,11 +23,7 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import {
-  extractIdentifiers,
-  IIdentifiableMessage,
-  IIdentifiableMessageSchema,
-} from '@project/lambdas/interfaces/IMessage';
+import { extractIdentifiers, IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 
@@ -65,7 +61,7 @@ const requestBodySchema = IProcessedMessageSchema;
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, typeof IIdentifiableMessageSchema> {
+export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'dispatch';
   protected enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
   public requestBodySchema = requestBodySchema;

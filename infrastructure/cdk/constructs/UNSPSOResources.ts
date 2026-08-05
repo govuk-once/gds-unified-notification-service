@@ -458,7 +458,7 @@ export class UNSPSOResource extends Construct {
               ssmNamespaces: [config.namespace],
               sqsSend: [this.queues.dispatch.queue.queueArn],
               dynamodb: {
-                messages: refs.dynamodb.groupStore.permissions.readAndWrite,
+                messages: refs.dynamodb.messages.permissions.readAndWrite,
               },
               elasticache: refs.elasticache.arns,
             },

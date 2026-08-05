@@ -1,4 +1,4 @@
-import { IGroupMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IGroupMessageSchema } from '@project/lambdas/interfaces/IGroupMessage';
 import z from 'zod';
 
 export const IGroupMessageMetadataSchema = z.object({

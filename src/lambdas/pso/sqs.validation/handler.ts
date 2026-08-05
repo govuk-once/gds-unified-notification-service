@@ -23,6 +23,7 @@ import { IIdentifiableMessage, IIdentifiableMessageSchema, IMessageSchema } from
 import { SQSRecord } from 'aws-lambda';
 
 const requestBodySchema = IMessageSchema;
+const identifiableRecordSchema = IIdentifiableMessageSchema;
 
 /**
  * Lambda handling incoming messages from a dedicated SQS Queue
@@ -56,7 +57,7 @@ const requestBodySchema = IMessageSchema;
 Sample SQS Body (for pushing messages from portal)
 {"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
-export class Validation extends BatchQueueOperation<typeof requestBodySchema, typeof IIdentifiableMessageSchema> {
+export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'validation';
   protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
   public requestBodySchema = requestBodySchema;

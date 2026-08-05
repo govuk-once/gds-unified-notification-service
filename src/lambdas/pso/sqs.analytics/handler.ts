@@ -42,7 +42,7 @@ const requestBodySchema = IAnalyticsSchema;
 }
  */
 
-export class Analytics extends BatchQueueOperation<typeof requestBodySchema, typeof IIdentifiableMessageSchema> {
+export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'analytics';
   public requestBodySchema = requestBodySchema;
 
