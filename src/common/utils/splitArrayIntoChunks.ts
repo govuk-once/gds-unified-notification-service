@@ -1,5 +1,9 @@
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+
 export const splitArrayIntoChunks = <T>(array: T[], numberOfChunks: number): T[][] => {
-  if (numberOfChunks <= 0) return [];
+  if (numberOfChunks <= 0) {
+    throw new ServiceMisconfigurationError(['The number of chunks to split array is not a positive integer.']);
+  }
 
   const total = array.length;
   const baseSize = Math.floor(total / numberOfChunks);
