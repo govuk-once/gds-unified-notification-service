@@ -27,38 +27,6 @@ import z from 'zod';
 const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
-/**
- * Lambda handling incoming messages from a api request
- * - Validates input against zod schema
- *   - Stores messages into notifications dynamodb
- * - Fires analytics events
- * - Pushes messages into processing queue
- * 
- * Sample event received by Lambda from API Gateway
-{
-  "body":"[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
-  "headers": {
-    "Content-Type": "application/json"
-  },
-  "requestContext": {
-    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000,
-    "authorizer": {."Organization": "ORG01" }
-  }
-}
-* Sample post body:
-    {
-      "NotificationID": "200f6248-ed5b-4b73-be0b-4e9a2f8636e0",
-      "DepartmentID": "DEP01",
-      "UserID": "USER_ID",
-      "CampaignID:" "CAM_ID"
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
-      "NotificationTitle": "You have a new Notification",
-      "NotificationBody": "Here is the Notification body."
-    }
- */
-
 export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'postMessage';
   public requestBodySchema = requestBodySchema;
