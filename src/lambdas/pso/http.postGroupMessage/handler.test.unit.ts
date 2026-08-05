@@ -26,7 +26,7 @@ describe('PostGroupMessage Handler', () => {
   let mockParameterStore = mockDefaultConfig();
 
   // Mock Message Body
-  const mockMessage = {
+  const mockGroupMessage = {
     Namespace: 'travel',
     Group: 'france',
     Subgroup: 'immediate',
@@ -59,7 +59,7 @@ describe('PostGroupMessage Handler', () => {
     );
 
     mockEvent = {
-      body: JSON.stringify([mockMessage]),
+      body: JSON.stringify([mockGroupMessage]),
       headers: {
         'x-api-key': 'mockApiKey',
         'Content-Type': `application/json`,
@@ -112,7 +112,7 @@ describe('PostGroupMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockMessage.GroupNotificationID, UsersInGroup: 1 },
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
     ]);
   });
 
@@ -126,7 +126,7 @@ describe('PostGroupMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockMessage.GroupNotificationID, UsersInGroup: 0 },
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 0 },
     ]);
   });
 
@@ -135,7 +135,7 @@ describe('PostGroupMessage Handler', () => {
     const result = await handler(
       {
         ...mockEvent,
-        body: JSON.stringify([{ ...mockMessage, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
+        body: JSON.stringify([{ ...mockGroupMessage, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
       },
       mockContext
     );
@@ -147,7 +147,7 @@ describe('PostGroupMessage Handler', () => {
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
     // Act
     const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessage, MessageBody: 'https://example.com' }]) },
+      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, MessageBody: 'https://example.com' }]) },
       mockContext
     );
 
@@ -163,7 +163,7 @@ describe('PostGroupMessage Handler', () => {
   it('should validate messages that contain valid markdown.', async () => {
     // Arrange
     const mockMarkdownMessage = {
-      ...mockMessage,
+      ...mockGroupMessage,
       MessageBody:
         'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
     };
@@ -178,14 +178,14 @@ describe('PostGroupMessage Handler', () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockMessage.GroupNotificationID, UsersInGroup: 1 },
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
     ]);
   });
 
   it('should reject messages that contain invalid markdown.', async () => {
     // Arrange
     const mockInvalidMarkdownMessage = {
-      ...mockMessage,
+      ...mockGroupMessage,
       MessageBody: '    const x = 10;\n    const y = 20;',
     };
     const mockEventInvalidMarkdown = {
