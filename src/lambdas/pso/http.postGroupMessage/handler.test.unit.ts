@@ -183,6 +183,9 @@ describe('PostGroupMessage Handler', () => {
 
   it('should split pushIDs into chunks based on worker number, add elasticache keys for each chunk, and send the chunks in a batch message with the group message.', async () => {
     // Arrange
+    vi.useFakeTimers();
+    const date = new Date('2026-01-01T12:30:00Z');
+    vi.setSystemTime(date);
     const chunk_1 = ['push_1', 'push_2'];
     const chunk_2 = ['push_3'];
     const chunk_3 = ['push_4'];
@@ -233,30 +236,45 @@ describe('PostGroupMessage Handler', () => {
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 0,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 1,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 2,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 3,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 4,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
     ]);
   });

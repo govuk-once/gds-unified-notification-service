@@ -117,6 +117,9 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
           GroupNotificationID: message.GroupNotificationID,
           WorkerID: workerID,
           CacheKey: cacheKey,
+          APIGWExtendedID: event.requestContext.requestId,
+          ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+          ValidatedDateTime: new Date().toISOString(),
         });
 
         // Log to verify the CacheKey has been correctly stored and configured

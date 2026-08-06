@@ -42,7 +42,7 @@ const requestBodySchema = IGroupMessageMetadataSchema;
     {
       "messageId": "mockMessageId",
       "receiptHandle": "mockReceiptHandle",
-      "body": "{\n\"GroupMessage\": {\n    \"Namespace\": \"namespace\",\n    \"Group\": \"group\",\n    \"Subgroup\": \"subgroup\",\n    \"GroupNotificationID\": \"1234\",\n    \"OrganisationID\": \"ORG_01\",\n    \"NotificationTitle\": \"Travel Alert Update\",\n    \"NotificationBody\": \"You have a new message in the message center.\",\n    \"MessageTitle\": \"MOCK_LONG_TITLE\",\n    \"MessageBody\": \"MOCK_LONG_MESSAGE\"\n  },\n\"GroupNotificationID\": \"1234\",\n\"WorkerID\": 0,\n\"CacheKey\": \"Worker/GroupProcessingWorker/1234/0\"\n}",
+      "body": "{\n\"GroupMessage\": {\n    \"Namespace\": \"namespace\",\n    \"Group\": \"group\",\n    \"Subgroup\": \"subgroup\",\n    \"GroupNotificationID\": \"1234\",\n    \"OrganisationID\": \"ORG_01\",\n    \"NotificationTitle\": \"Travel Alert Update\",\n    \"NotificationBody\": \"You have a new message in the message center.\",\n    \"MessageTitle\": \"MOCK_LONG_TITLE\",\n    \"MessageBody\": \"MOCK_LONG_MESSAGE\"\n  },\n\"GroupNotificationID\": \"1234\",\n\"WorkerID\": 0,\n\"CacheKey\": \"Worker/GroupProcessingWorker/1234/0\",\n\"APIGWExtendedID\": \"requestId\",\n\"ReceivedDateTime\": \"2026-08-01T:12:00:00.000Z\",\n\"ValidatedDateTime\": \"2026-08-01T:12:00:00.600Z\"\n}",
       "attributes": {
         "ApproximateReceiveCount": "2",
         "SentTimestamp": "202601021513",
@@ -147,7 +147,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
 
   protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
-      MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING,
+      MetricsLabels.BATCH_ITEM_FAILURES_GROUP_PROCESSING,
       MetricUnit.Count,
       batchItemFailuresCount
     );

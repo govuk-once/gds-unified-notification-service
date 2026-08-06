@@ -6,6 +6,9 @@ export const IGroupMessageMetadataSchema = z.object({
   GroupNotificationID: z.string(),
   WorkerID: z.number(),
   CacheKey: z.string(),
+  APIGWExtendedID: z.string().optional(),
+  ReceivedDateTime: z.string().optional(),
+  ValidatedDateTime: z.string().optional(),
 });
 
 export type IGroupMessageMetadata = z.infer<typeof IGroupMessageMetadataSchema>;
