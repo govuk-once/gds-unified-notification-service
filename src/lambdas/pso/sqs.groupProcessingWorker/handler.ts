@@ -5,6 +5,7 @@ import {
   iocGetCacheService,
   iocGetConfigurationService,
   iocGetDispatchQueueService,
+  iocGetGroupProcessingQueueService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
@@ -20,13 +21,19 @@ import {
   MetricsLabels,
   ObservabilityService,
 } from '@common/services';
-import { NumericParameters } from '@common/utils';
-import { IGroupMessageMetadataSchema } from '@project/lambdas/interfaces';
+import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { BoolParameters, NumericParameters } from '@common/utils';
+import { IGroupMessageMetadataSchema, IIdentifiableGroupMessageSchema } from '@project/lambdas/interfaces';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
+import z from 'zod';
 
 const requestBodySchema = IGroupMessageMetadataSchema;
+const identifiableRecordSchema = z.object({
+  GroupMessage: IIdentifiableGroupMessageSchema,
+  GroupNotificationID: z.string(),
+});
 
 /**
  * 
@@ -35,6 +42,7 @@ const requestBodySchema = IGroupMessageMetadataSchema;
  * - Retrieves pushIDs of users in batch from elasticache
  * - Builds message template using the group message and the pushIDs
  * - Pushes group messages into dispatch queue
+ * - Requeues any unprocessed pushIDs
  * 
  * Sample event:
 {
@@ -60,12 +68,15 @@ const requestBodySchema = IGroupMessageMetadataSchema;
  */
 export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBodySchema> {
   public operationId: string = 'groupProcessingWorker';
-  public requestBodySchema = requestBodySchema;
-  //protected enableConfig: string = BoolParameters.Config.GroupProcessingWorker.Enabled;
+  protected enableConfig: string = BoolParameters.Config.GroupProcessingWorker.Enabled;
+
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
 
   public readonly analyticsService!: AnalyticsService;
   public readonly cacheService!: CacheService;
   public readonly dispatchQueue!: DispatchQueueService;
+  public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly notificationsRepository!: NotificationsDynamoRepository;
 
   constructor(
@@ -86,6 +97,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     const workerBatchSize = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
+    this.observability.logger.debug(`Retrieving list of pushIDs to process from cache.`);
     const unprocessedPushIDs = await this.cacheService.get<string[]>(cacheKey);
     if (!unprocessedPushIDs) {
       throw new InternalServerError([
@@ -94,15 +106,18 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
       ]);
     }
 
-    const pushIDs = unprocessedPushIDs.slice(0, workerBatchSize);
-    const cacheValue = unprocessedPushIDs.slice(workerBatchSize);
-    await this.cacheService.store(cacheKey, cacheValue);
+    this.observability.logger.debug(`Splicing list of pushIDs to a max size of worker batch size.`);
+    const pushIDs = unprocessedPushIDs.splice(0, workerBatchSize);
+    this.observability.logger.debug('The amount of pushIDs to be processed in this batch', {
+      pushIDsLength: pushIDs.length,
+    });
 
-    // Log to verify the CacheKey has been correctly updated
-    const elasticacheValue = await this.cacheService.get(cacheKey);
-    this.observability.logger.debug(`CacheKey and amount of pushIDs in the batch`, {
+    // Updating cache with unprocessed pushIDs and verifying it has been updated
+    await this.cacheService.store(cacheKey, unprocessedPushIDs);
+    const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
+    this.observability.logger.debug(`CacheKey and the amount unprocessed pushIDs to send to group processing queue`, {
       cacheKey,
-      batchLength: (elasticacheValue as string[]).length,
+      batchLength: elasticacheValue?.length,
     });
 
     // Build group messages to users -
@@ -121,29 +136,50 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     }
 
     // Add record of group notifications to message table
-    this.observability.logger.info(`Adding record of notification to message table`);
-
-    // Store External User ID and mark record as processed
+    this.observability.logger.debug(`Adding record of notification to message table`);
     await this.notificationsRepository.createRecordBatch(
       processedMessages.map((body) => ({
         ...body,
+        APIGWExtendedID: data.body.APIGWExtendedID,
+        ReceivedDateTime: data.body.ReceivedDateTime,
+        ValidatedDateTime: data.body.ValidatedDateTime,
         ProcessedDateTime: new Date().toISOString(),
         Events: [],
       }))
     );
 
     // Create analytics event for successful processing of group message
+    this.observability.logger.debug('Creating analytics events for each processed message');
     await this.analyticsService.publishMultipleEvents(processedMessages, NotificationStateEnum.PROCESSED);
 
     // Push processed messages to Dispatch queue
+    this.observability.logger.info('Successful processed batch of pushIDs, sending to dispatch queue');
     await this.dispatchQueue.publishMessageBatch(processedMessages);
+
+    // Requeue if any pushIDs are unprocessed
+    if (unprocessedPushIDs.length > 0) {
+      this.observability.logger.debug('Requeue unprocessed pushIDs', {
+        cacheKey,
+        LengthPushIDs: unprocessedPushIDs.length,
+      });
+      await this.groupProcessingQueue.publishMessage(data.body);
+    }
   };
 
-  protected async onStart(): Promise<void> {}
+  protected async onStart(): Promise<void> {
+    this.observability.metrics.addMetric(MetricsLabels.GROUP_PROCESSING_WORKER_STARTED, MetricUnit.Count, 1);
+    await Promise.resolve();
+  }
 
-  protected async onError(): Promise<void> {}
+  protected async onError(): Promise<void> {
+    this.observability.metrics.addMetric(MetricsLabels.GROUP_PROCESSING_WORKER_FAILED, MetricUnit.Count, 1);
+    await Promise.resolve();
+  }
 
-  protected async onSuccess(): Promise<void> {}
+  protected async onSuccess(): Promise<void> {
+    this.observability.metrics.addMetric(MetricsLabels.GROUP_PROCESSING_WORKER_COMPLETED, MetricUnit.Count, 1);
+    await Promise.resolve();
+  }
 
   protected batchItemFailureMetric(batchItemFailuresCount: number) {
     this.observability.metrics.addMetric(
@@ -159,5 +195,6 @@ export const handler = new GroupProcessingWorker(iocGetConfigurationService(), i
   analyticsService: iocGetAnalyticsService(),
   cacheService: iocGetCacheService().connect(),
   dispatchQueue: iocGetDispatchQueueService(),
+  groupProcessingQueue: iocGetGroupProcessingQueueService(),
   notificationsRepository: iocGetNotificationDynamoRepository(),
 })).handler();

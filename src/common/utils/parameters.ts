@@ -9,6 +9,9 @@ export const BoolParameters = {
     Processing: {
       Enabled: 'config/processing/enabled',
     },
+    GroupProcessingWorker: {
+      Enabled: 'config/groupProcessingWorker/enabled',
+    },
     Dispatch: {
       Enabled: 'config/dispatch/enabled',
     },

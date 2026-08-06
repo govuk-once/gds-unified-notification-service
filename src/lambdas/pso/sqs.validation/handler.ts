@@ -21,9 +21,10 @@ import {
 import { BoolParameters } from '@common/utils';
 import { IIdentifiableMessage, IIdentifiableMessageSchema, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 const requestBodySchema = IMessageSchema;
-const identifiableRecordSchema = IIdentifiableMessageSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
 /**
  * Lambda handling incoming messages from a dedicated SQS Queue
@@ -57,10 +58,12 @@ const identifiableRecordSchema = IIdentifiableMessageSchema;
 Sample SQS Body (for pushing messages from portal)
 {"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
  */
-export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
+export class Validation extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public operationId: string = 'validation';
   protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
-  public requestBodySchema = requestBodySchema;
+
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
 
   public analyticsService!: AnalyticsService;
   public notificationsRepository!: NotificationsDynamoRepository;
@@ -82,6 +85,7 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
     const data = await this.validateRecord(record);
     const message = data.body;
 
+    // TODO: Remove error message as queue to queue does not use mTLS
     if (!message.OrganisationID) {
       throw new Error(
         `OrganisationID is missing from ${message.NotificationID}. It must be stamped from the mTLS certificate.`

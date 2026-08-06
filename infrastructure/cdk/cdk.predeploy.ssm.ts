@@ -12,6 +12,7 @@ export const configurableParameters = {
   'config/common/enabled': 'true',
   'config/validation/enabled': 'true',
   'config/processing/enabled': 'true',
+  'config/groupProcessingWorker/enabled': 'true',
   'config/dispatch/enabled': 'true',
 
   // Processing

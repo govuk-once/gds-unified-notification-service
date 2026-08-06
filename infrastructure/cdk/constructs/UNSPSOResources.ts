@@ -456,7 +456,11 @@ export class UNSPSOResource extends Construct {
             },
             iam: {
               ssmNamespaces: [config.namespace],
-              sqsSend: [this.queues.dispatch.queue.queueArn],
+              sqsSend: [
+                this.queues.groupProcessing.queue.queueArn,
+                this.queues.dispatch.queue.queueArn,
+                this.queues.analytics.queue.queueArn,
+              ],
               dynamodb: {
                 messages: refs.dynamodb.messages.permissions.readAndWrite,
               },

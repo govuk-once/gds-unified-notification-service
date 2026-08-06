@@ -20,11 +20,18 @@ import {
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
 import { BoolParameters } from '@common/utils';
-import { extractIdentifiers, IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+  IMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 const requestBodySchema = IMessageSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
 /**
  * 
@@ -56,10 +63,12 @@ const requestBodySchema = IMessageSchema;
   ]
 }
  */
-export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
-  public operationId: string = 'processing';
-  public requestBodySchema = requestBodySchema;
-  protected enableConfig: string = BoolParameters.Config.Processing.Enabled;
+export class Processing extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
+  public readonly operationId: string = 'processing';
+  protected readonly enableConfig: string = BoolParameters.Config.Processing.Enabled;
+
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
 
   public analyticsService!: AnalyticsService;
   public notificationsRepository!: NotificationsDynamoRepository;
