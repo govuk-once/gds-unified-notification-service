@@ -166,19 +166,19 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   protected async onStart(): Promise<void> {
     this.observability.metrics.addMetric(MetricsLabels.GROUP_PROCESSING_WORKER_STARTED, MetricUnit.Count, 1);
-    await Promise.resolve();
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   protected async onError(): Promise<void> {
     this.observability.metrics.addMetric(MetricsLabels.GROUP_PROCESSING_WORKER_FAILED, MetricUnit.Count, 1);
-    await Promise.resolve();
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   protected async onSuccess(): Promise<void> {
     this.observability.metrics.addMetric(MetricsLabels.GROUP_PROCESSING_WORKER_COMPLETED, MetricUnit.Count, 1);
-    await Promise.resolve();
   }
 
   protected batchItemFailureMetric(batchItemFailuresCount: number) {
