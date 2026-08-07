@@ -107,6 +107,18 @@ describe('splitArrayIntoChunks', () => {
     expect(result).toEqual([['a'], ['b'], [], []]);
   });
 
+  it('should return empty sub-arrays if array is empty', () => {
+    // Arrange
+    const array: string[] = [];
+    const numberOfChunks = 2;
+
+    // Act
+    const result = splitArrayIntoChunks(array, numberOfChunks);
+
+    // Assert
+    expect(result).toEqual([[], []]);
+  });
+
   it('should return a single chunk containing all elements when numberOfChunks is 1', () => {
     // Arrange
     const array = [10, 20, 30];
