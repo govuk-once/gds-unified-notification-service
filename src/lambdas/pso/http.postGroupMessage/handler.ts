@@ -105,6 +105,7 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       const batch: IGroupMessageMetadata[] = [];
       for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID += 1) {
         const chunk = chunksOfPushIDs[workerID];
+        // If the chunk is empty, break the loop to avoid creating an empty cache entry and batch message
         if (chunk.length === 0) {
           break;
         }
