@@ -13,6 +13,18 @@ import {
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import {
+  AllowedMethods,
+  CachePolicy,
+  CfnDistribution,
+  CfnTrustStore,
+  Distribution,
+  OriginRequestHeaderBehavior,
+  OriginRequestPolicy,
+  PriceClass,
+  ViewerProtocolPolicy,
+} from 'aws-cdk-lib/aws-cloudfront';
+import { HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
@@ -129,14 +141,6 @@ export class UNSAPIGatewayGateway extends Construct {
               certificate: certificate,
               securityPolicy: SecurityPolicy.TLS_1_2,
               endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
-              ...(props.mtls && mtlsTruststoreBucket
-                ? {
-                    mtls: {
-                      bucket: mtlsTruststoreBucket,
-                      key: props.mtls.truststore.replace(`s3://`, ``).split(`/`).slice(1).join(`/`),
-                    },
-                  }
-                : {}),
             }
           : undefined,
       disableExecuteApiEndpoint: fullDomain && certificate && rootDomain ? true : false,
@@ -158,14 +162,17 @@ export class UNSAPIGatewayGateway extends Construct {
     config: EnvVars,
     props: UNSAPIGatewayGatewayProps,
     fullDomain: string | null,
-    hostedZone: route53.IHostedZone | null
+    hostedZone: route53.IHostedZone | null,
+    distribution?: Distribution
   ) {
     // Provision Route 53 A-Record for Custom Domain mappings
     if (fullDomain && hostedZone) {
       new route53.ARecord(this, config.utils.namingHelper(...props.name, 'domain'), {
         zone: hostedZone,
         recordName: fullDomain,
-        target: route53.RecordTarget.fromAlias(new route53targets.ApiGateway(this.restApi)),
+        target: distribution
+          ? route53.RecordTarget.fromAlias(new route53targets.CloudFrontTarget(distribution))
+          : route53.RecordTarget.fromAlias(new route53targets.ApiGateway(this.restApi)),
       });
     }
   }
@@ -186,7 +193,11 @@ export class UNSAPIGatewayGateway extends Construct {
       // Use custom authorizer if one is set
       authorizer: authorizer ?? this.props.authorizer,
       // Otherwise: Use IAM authorization if we are a private API gateway
-      authorizationType: this.props.iam?.allowOnlyFromKnownSources ? AuthorizationType.IAM : undefined,
+      authorizationType: this.props.iam?.allowOnlyFromKnownSources
+        ? AuthorizationType.IAM
+        : this.props.mtls
+          ? AuthorizationType.CUSTOM
+          : undefined,
       // If usage plan defaults are in place - all endpoints require an API key
       apiKeyRequired: this.props.usagePlanDefaults !== undefined,
     });
@@ -346,7 +357,7 @@ export class UNSAPIGatewayGateway extends Construct {
     this.props = props;
 
     // Extract preconfigured values
-    const { fullDomain, hostedZone, domainConfig } = this.domainConfig(config, props);
+    const { fullDomain, hostedZone, domainConfig, certificate } = this.domainConfig(config, props);
 
     // Initialize API Gateway RestApi
     const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
@@ -373,7 +384,6 @@ export class UNSAPIGatewayGateway extends Construct {
         cacheClusterEnabled: false,
 
         accessLogDestination: new LogGroupLogDestination(loggroup),
-
         accessLogFormat: AccessLogFormat.custom(
           JSON.stringify({
             requestId: AccessLogField.contextRequestId(),
@@ -402,6 +412,9 @@ export class UNSAPIGatewayGateway extends Construct {
 
       // Conditional custom domain name setup
       ...domainConfig,
+
+      // Enforce disabled execute api endpoints when using mtls
+      ...(props.mtls ? { disableExecuteApiEndpoint: true } : {}),
     });
 
     this.restApi.deploymentStage.node.addDependency(loggroup);
@@ -445,10 +458,66 @@ export class UNSAPIGatewayGateway extends Construct {
       }
     }
 
+    // Cloudfront definition for mtls
+    let distribution: Distribution | undefined = undefined;
+    if (props.mtls) {
+      distribution = new Distribution(this, 'ApiDistribution', {
+        priceClass: PriceClass.PRICE_CLASS_100,
+        defaultBehavior: {
+          origin: new HttpOrigin(this.restApi.domainName?.domainNameAliasDomainName as string, {
+            customHeaders: {
+              'x-origin-header': `SENSIBLY_RANDOMISED_VALUE`,
+            },
+          }),
+          viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: AllowedMethods.ALLOW_ALL,
+          cachePolicy: CachePolicy.CACHING_DISABLED,
+          compress: false,
+          smoothStreaming: false,
+
+          originRequestPolicy: new OriginRequestPolicy(this, 'mtlsHeaderPolicy', {
+            originRequestPolicyName: constructNamingHelper('mtls-cert-headers'),
+            headerBehavior: OriginRequestHeaderBehavior.all(
+              'CloudFront-Viewer-Cert-Subject',
+              'CloudFront-Viewer-Cert-Pem',
+              'CloudFront-Viewer-Cert-Validity'
+            ),
+          }),
+        },
+        certificate: acm.Certificate.fromCertificateArn(
+          this,
+          namingHelper(`restapi`, ...props.name, `global-cert`),
+          config.ssm.certificateArnCloudfront
+        ),
+        domainNames: fullDomain ? [fullDomain] : [],
+      });
+
+      // Configure trust store & Viewer mTLS config in CloudFront
+      const trustStore = new CfnTrustStore(this, 'ClientTrustStore', {
+        name: 'api-client-trust-store',
+        caCertificatesBundleSource: {
+          caCertificatesBundleS3Location: {
+            bucket: props.mtls.truststore.replace(`s3://`, ``).split(`/`).shift()!,
+            key: props.mtls.truststore.replace(`s3://`, ``).split(`/`).pop()!,
+            region: 'eu-west-2',
+          },
+        },
+      });
+      const cfnDistribution = distribution.node.defaultChild as CfnDistribution;
+      cfnDistribution.addPropertyOverride('DistributionConfig.ViewerMtlsConfig', {
+        Mode: 'required',
+        TrustStoreConfig: {
+          TrustStoreId: trustStore.attrId,
+          AdvertiseTrustStoreCaNames: true, // Solicits trusted CAs during TLS handshake
+          IgnoreCertificateExpiry: false, // Set to true only during CA rotation transitions
+        },
+      });
+    }
+
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
     this.waf = this.constructWAF(config, props);
-    this.constructRoute53Entries(config, props, fullDomain, hostedZone);
+    this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
 
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [

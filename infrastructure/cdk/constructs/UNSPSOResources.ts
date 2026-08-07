@@ -1,11 +1,11 @@
 import { Duration, Stack } from 'aws-cdk-lib';
-import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
+import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -531,7 +531,16 @@ export class UNSPSOResource extends Construct {
 
     // Define authorizer
     const authorizer = new RequestAuthorizer(this, config.utils.namingHelper(`mtlsRequestAuthorizer`), {
-      identitySources: [IdentitySource.context(`identity.clientCert.clientCertPem`)],
+      identitySources: [
+        // Identifying CloudFront source
+        IdentitySource.header(`x-origin-header`),
+        // Usage plan key
+        IdentitySource.header(`x-api-key`),
+        // mTLS headers are required
+        IdentitySource.header('CloudFront-Viewer-Cert-Subject'),
+        IdentitySource.header('CloudFront-Viewer-Cert-Pem'),
+        IdentitySource.header('CloudFront-Viewer-Cert-Validity'),
+      ],
       handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
       resultsCacheTtl: Duration.seconds(0),
     });

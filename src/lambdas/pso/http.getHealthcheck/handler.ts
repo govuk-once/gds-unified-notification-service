@@ -27,11 +27,12 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async implementation(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     _event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.info(`Event received`, { _event, _context });
     // Return placeholder status
     return {
       body: {
