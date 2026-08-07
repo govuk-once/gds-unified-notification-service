@@ -6,7 +6,7 @@ export const IMessageRecordSchema = z.object({
   NotificationID: z.string(),
   DepartmentID: z.string().optional(),
   OrganisationID: z.string(), // Derived from the mTLS certificate
-  UserID: z.string(), // ID Supplied by PSO's
+  UserID: z.string().optional(), // ID Supplied by PSO's
   ExternalUserID: z.string().optional(), // ID Resolved via UDP using PSO's UserID
   CampaignID: z.string().optional(),
 

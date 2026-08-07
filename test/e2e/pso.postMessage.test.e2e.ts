@@ -79,6 +79,123 @@ describe('Post /send', () => {
         })
       ).rejects.toThrow(`API [POST] ${path} Failed with 403`);
     });
+
+    test('status 400 when - the message has no userID', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithNoUserID = [
+        {
+          NotificationID: notificationID,
+          CampaignID: 'testCampaignID',
+          DepartmentID: 'testDepartmentID',
+          NotificationTitle: 'End 2 End Test',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path: '/send', body: messagesWithNoUserID });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.UserID.'])
+      );
+    });
+
+    test('status 400 when - the message has no notificationTitle.', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithNoNotificationTitle = [
+        {
+          NotificationID: notificationID,
+          CampaignID: 'testCampaignID',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationTitle });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationTitle.'])
+      );
+    });
+
+    test('status 400 when - the message has no notificationBody', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithNoNotificationBody = [
+        {
+          NotificationID: notificationID,
+          CampaignID: 'testCampaignID',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationBody });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationBody.'])
+      );
+    });
+
+    test('status 400 when - the message has invalid url in markdown', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
+        {
+          NotificationID: notificationID,
+          CampaignID: 'testCampaignID',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['https://example.com is using example.com hostname which is not on the allow list'])
+      );
+    });
+
+    test('status 400 when - the message has invalid markdown', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
+        {
+          NotificationID: notificationID,
+          CampaignID: 'testCampaignID',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: '    const x = 10;\n    const y = 20;',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Message body contains markdown elements which are not valid: code_block'])
+      );
+    });
   });
 
   describe(`Happy paths`, () => {
@@ -183,122 +300,5 @@ describe('Post /send', () => {
     // Assert
     expect(result.status).toBe(202);
     expect(result.body).toEqual([{ NotificationID: notificationID }]);
-  });
-
-  test('status 400 when - the message has no userID', async ({ psoAPI }) => {
-    // Arrange
-    const messagesWithNoUserID = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
-
-    // Act
-    const result = psoAPI.post({ path: '/send', body: messagesWithNoUserID });
-
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.UserID.'])
-    );
-  });
-
-  test('status 400 when - the message has no notificationTitle.', async ({ psoAPI }) => {
-    // Arrange
-    const messagesWithNoNotificationTitle = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
-
-    // Act
-    const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationTitle });
-
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationTitle.'])
-    );
-  });
-
-  test('status 400 when - the message has no notificationBody', async ({ psoAPI }) => {
-    // Arrange
-    const messagesWithNoNotificationBody = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
-
-    // Act
-    const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationBody });
-
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected string, received undefined → at 0.NotificationBody.'])
-    );
-  });
-
-  test('status 400 when - the message has invalid url in markdown', async ({ psoAPI }) => {
-    // Arrange
-    const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
-      },
-    ];
-
-    // Act
-    const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
-
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['https://example.com is using example.com hostname which is not on the allow list'])
-    );
-  });
-
-  test('status 400 when - the message has invalid markdown', async ({ psoAPI }) => {
-    // Arrange
-    const messagesWithInvalidMarkdown: Omit<IMessage, 'OrganisationID'>[] = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        DepartmentID: 'testDepartmentID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: '    const x = 10;\n    const y = 20;',
-      },
-    ];
-
-    // Act
-    const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
-
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Message body contains markdown elements which are not valid: code_block'])
-    );
   });
 });

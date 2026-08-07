@@ -422,7 +422,7 @@ describe('Dispatch QueueHandler', () => {
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
-      `Supplied message does not contain NotificationID or DepartmentID, rejecting record`,
+      `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
         error: expect.stringContaining('body.NotificationID'),
         raw: mockUnidentifiableEvent.Records[0].body,
