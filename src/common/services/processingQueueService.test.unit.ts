@@ -12,7 +12,6 @@ import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util'
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-import { v4 as uuid } from 'uuid';
 
 expect.extend({
   toHaveReceivedCommandWith,
@@ -22,13 +21,6 @@ vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
-
-const { mockBatchID, mockBatchID_2 } = vi.hoisted(() => {
-  return { mockBatchID: '13e7b174-91b9-495d-9865-f634f61f0bb0', mockBatchID_2: '41aaea1a-6110-44a1-99ad-26d24e8f3390' };
-});
-vi.mock('uuid', () => ({
-  v4: vi.fn(),
-}));
 
 describe('ProcessingQueueService', () => {
   let processingQueueService: ProcessingQueueService;
@@ -63,12 +55,6 @@ describe('ProcessingQueueService', () => {
 
     processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
     await processingQueueService.initialize();
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    vi.mocked(uuid as () => string)
-      .mockReset()
-      .mockReturnValueOnce(mockBatchID)
-      .mockReturnValueOnce(mockBatchID_2);
   });
 
   describe('getQueueName', () => {
@@ -158,7 +144,7 @@ describe('ProcessingQueueService', () => {
           QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
           Entries: [
             {
-              Id: mockBatchID,
+              Id: '0',
               DelaySeconds: 0,
               MessageBody: JSON.stringify(mockMessageBody),
             },
@@ -199,8 +185,8 @@ describe('ProcessingQueueService', () => {
       };
 
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({
-        Successful: [{ MessageId: 'message_0', Id: mockBatchID, MD5OfMessageBody: 'X' }],
-        Failed: [{ Id: mockBatchID_2, SenderFault: false, Code: 'MockCode' }],
+        Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
+        Failed: [{ Id: '1', SenderFault: false, Code: 'MockCode' }],
       });
 
       // Act
@@ -214,20 +200,27 @@ describe('ProcessingQueueService', () => {
           QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
           Entries: [
             {
-              Id: mockBatchID,
+              Id: '0',
               DelaySeconds: 0,
               MessageBody: JSON.stringify(mockMessageBody_0),
             },
             {
-              Id: mockBatchID_2,
+              Id: '1',
               DelaySeconds: 0,
               MessageBody: JSON.stringify(mockMessageBody_1),
             },
           ],
         })
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages', {
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages in batch', {
         failedMessageCount: 1,
+        failures: [
+          {
+            Code: 'MockCode',
+            Id: '1',
+            SenderFault: false,
+          },
+        ],
       });
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
@@ -249,13 +242,10 @@ describe('ProcessingQueueService', () => {
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
     });
 
-    it('should use NotificationID from the message body as the batch entry Id', async () => {
+    it('should use the index of the for loop of the batch processing as the batch entry Id', async () => {
       // Arrange
-      vi.mock('uuid', () => ({
-        v4: vi.fn().mockReturnValueOnce(mockBatchID),
-      }));
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({
-        Successful: [{ MessageId: 'message_0', Id: mockBatchID, MD5OfMessageBody: 'X' }],
+        Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
       // Act
@@ -264,28 +254,23 @@ describe('ProcessingQueueService', () => {
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
         QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
-        Entries: [
-          {
-            Id: mockBatchID,
-            DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockMessageBody),
-          },
-        ],
+        Entries: expect.arrayContaining([
+          expect.objectContaining({
+            Id: '0',
+          }),
+        ]),
       });
     });
 
     it('should split messages into batches of 10 when more than 10 messages are sent', async () => {
       // Arrange
-      vi.mock('uuid', () => ({
-        v4: vi.fn().mockReturnValueOnce(mockBatchID),
-      }));
       const mockMessageList: IMessage[] = Array.from({ length: 11 }, (_, i) => ({
         ...mockMessageBody,
         NotificationID: `notifiction-${i}`,
         UserId: i,
       }));
       sqsMock.on(SendMessageBatchCommand).resolves({
-        Successful: [{ MessageId: 'message_0', Id: mockBatchID, MD5OfMessageBody: 'X' }],
+        Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
       // Act

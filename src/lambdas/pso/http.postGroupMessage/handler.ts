@@ -105,11 +105,16 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       const batch: IGroupMessageMetadata[] = [];
       for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID += 1) {
         const chunk = chunksOfPushIDs[workerID];
+        // If the chunk is empty, break the loop to avoid creating an empty cache entry and batch message
         if (chunk.length === 0) {
           break;
         }
 
         const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
+        this.observability.logger.debug('Storing list of pushIDs to process in cache for group processing worker.', {
+          cacheKey,
+          pushIDsLength: chunk.length,
+        });
         await this.cacheService.store(cacheKey, chunk);
 
         batch.push({
@@ -120,10 +125,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
         });
 
         // Log to verify the CacheKey has been correctly stored and configured
-        const elasticacheValue = await this.cacheService.get(cacheKey);
-        this.observability.logger.debug(`CacheKey and amount of pushIDs in the batch`, {
+        const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
+        this.observability.logger.debug(`Verifying CacheKey and length of pushIDs for the batch in the cache.`, {
           cacheKey,
-          batchLength: (elasticacheValue as string[]).length,
+          batchLength: elasticacheValue?.length,
         });
       }
 
