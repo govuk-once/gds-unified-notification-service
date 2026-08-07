@@ -106,6 +106,7 @@ export const config = {
     // These values are created by the Infra team and are always present in each AWS acc
     hostedZoneName: (await fromSSM('/infra/dns/hostedzonename', null))!,
     certificateArnRegional: (await fromSSM('/infra/acm/certificatearnregional', null))!,
+    certificateArnCloudfront: (await fromSSM('/infra/acm/certificatearncloudfront', null))!,
 
     flex: {
       account: await fromSSMJSON<string | null>(`/${namespace}/flex/account`, null),
