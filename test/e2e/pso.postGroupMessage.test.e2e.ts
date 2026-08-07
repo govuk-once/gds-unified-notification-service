@@ -88,6 +88,91 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
         })
       ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
     });
+
+    test('status 400 when when - missing body', async ({ psoAPI: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+          body: {},
+        })
+      ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when when - missing namespace', async ({ psoAPI: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+          body: [
+            {
+              ...mockGroupMessage,
+              Namespace: undefined,
+            },
+          ],
+        })
+      ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when when - missing group', async ({ psoAPI: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+          body: [
+            {
+              ...mockGroupMessage,
+              Group: undefined,
+            },
+          ],
+        })
+      ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when when - missing NotificationTitle', async ({ psoAPI: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+          body: [
+            {
+              ...mockGroupMessage,
+              NotificationTitle: undefined,
+            },
+          ],
+        })
+      ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when when - missing NotificationBody', async ({ psoAPI: api }) => {
+      // Arrange
+      const path = url();
+
+      // Act & Assert
+      await expect(
+        api.post({
+          path,
+          body: [
+            {
+              ...mockGroupMessage,
+              NotificationBody: undefined,
+            },
+          ],
+        })
+      ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
   });
 
   describe(`Happy paths`, () => {

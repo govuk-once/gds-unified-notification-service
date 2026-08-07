@@ -21,17 +21,10 @@ import { GroupProcessingQueueService } from '@common/services/groupProcessingQue
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
-import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
-const requestBodySchema = z
-  .array(
-    IGroupMessageSchema.omit({ OrganisationID: true }).extend({ GroupNotificationID: z.string().optional() }).strict()
-  )
-  .min(1);
-const responseBodySchema = z
-  .array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }))
-  .or(z.object());
+const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
+const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
 
 /**
 * Sample post body:
@@ -81,7 +74,6 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 
     const messages: IGroupMessage[] = event.body.map((body) => ({
       ...body,
-      GroupNotificationID: body.GroupNotificationID ?? uuid(),
       OrganisationID: organisationID,
     }));
 
