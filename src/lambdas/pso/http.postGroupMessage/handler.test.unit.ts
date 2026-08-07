@@ -123,7 +123,7 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).not.toHaveBeenCalled();
   });
 
-  it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to.', async () => {
+  it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to', async () => {
     // Act
     const result = await handler(mockEvent, mockContext);
 
@@ -136,7 +136,7 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
   });
 
-  it('should return a status 202 and generate a GroupNotificationID if none is provided.', async () => {
+  it('should return a status 202 and generate a GroupNotificationID if none is provided', async () => {
     // Arrange
     const mockEventNoGroupNotificationID = {
       ...mockEvent,
@@ -261,7 +261,7 @@ describe('PostGroupMessage Handler', () => {
     ]);
   });
 
-  it('should return a status 202 and list of GroupNotificationID and the number of users being 0 if there are no users in a group.', async () => {
+  it('should return a status 202 and response, as well as not storing anything in cache when there are no users in the group', async () => {
     // Arrange
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValueOnce([]);
 
@@ -273,6 +273,7 @@ describe('PostGroupMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([
       { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 0 },
     ]);
+    expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
   });
 
   it('should NOT throw an error when called with a group message containing deeplink that is on the allowlist', async () => {
@@ -305,7 +306,7 @@ describe('PostGroupMessage Handler', () => {
     });
   });
 
-  it('should validate messages that contain valid markdown.', async () => {
+  it('should validate messages that contain valid markdown', async () => {
     // Arrange
     const mockMarkdownMessage = {
       ...mockGroupMessage,
@@ -327,7 +328,7 @@ describe('PostGroupMessage Handler', () => {
     ]);
   });
 
-  it('should reject messages that contain invalid markdown.', async () => {
+  it('should reject messages that contain invalid markdown', async () => {
     // Arrange
     const mockInvalidMarkdownMessage = {
       ...mockGroupMessage,
