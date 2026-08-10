@@ -206,19 +206,29 @@ describe('GroupStoreDynamoRepository', () => {
     ];
     const mockCompositeID = `${mockJoinGroups[0].Namespace}/${mockJoinGroups[0].Group}/${mockJoinGroups[0].Subgroup}`;
 
-    it('should add a user to a group using the namespace, group, and subgroup', async () => {
+    it("should add a user to a group using the namespace, group, and subgroup, then update the user's group list", async () => {
       // Act
       vi.useFakeTimers();
       vi.setSystemTime(new Date(date));
+      const usersGroups: IGroups[] = [];
 
       // Arrange
-      await instance.joinGroups(mockPushID, mockJoinGroups);
+      const result = await instance.joinGroups(mockPushID, mockJoinGroups, usersGroups);
 
       // Assert
       expect(instance.createRecordBatch).toHaveBeenCalledWith(mockGroupStoreRecord);
+      expect(result).toEqual([
+        {
+          GroupID: mockGroupID,
+          CompositeID: mockCompositeID,
+          Namespace: mockJoinGroups[0].Namespace,
+          Group: mockJoinGroups[0].Group,
+          Subgroup: mockJoinGroups[0].Subgroup,
+        },
+      ]);
     });
 
-    it('should add a user to a group using the namespace and group if no subgroup is provided', async () => {
+    it("should add a user to a group using the namespace and group if no subgroup is provided, then update the user's group list", async () => {
       // Arrange
       vi.useFakeTimers();
       vi.setSystemTime(new Date(date));
@@ -226,12 +236,22 @@ describe('GroupStoreDynamoRepository', () => {
         { ...mockGroupStoreRecord[0], CompositeID: `travel/france`, Subgroup: undefined },
       ];
       const mockJoinGroupsNoSubgroup = [{ ...mockJoinGroups[0], Subgroup: undefined }];
+      const usersGroups: IGroups[] = [];
 
       // Act
-      await instance.joinGroups(mockPushID, mockJoinGroupsNoSubgroup);
+      const result = await instance.joinGroups(mockPushID, mockJoinGroupsNoSubgroup, usersGroups);
 
       // Assert
       expect(instance.createRecordBatch).toHaveBeenCalledWith(mockGroupStoreRecordNoSubgroup);
+      expect(result).toEqual([
+        {
+          GroupID: mockGroupID,
+          CompositeID: `travel/france`,
+          Namespace: mockJoinGroupsNoSubgroup[0].Namespace,
+          Group: mockJoinGroupsNoSubgroup[0].Group,
+          Subgroup: mockJoinGroupsNoSubgroup[0].Subgroup,
+        },
+      ]);
     });
 
     it('should compare the users existing groups to the join request and log if the user is already part of that group', async () => {
@@ -245,14 +265,39 @@ describe('GroupStoreDynamoRepository', () => {
           Subgroup: mockJoinGroups[0].Subgroup,
         },
       ]);
+      const usersGroups: IGroups[] = [
+        {
+          GroupID: mockGroupID,
+          CompositeID: `${mockJoinGroups[0].Namespace}/${mockJoinGroups[0].Group}/${mockJoinGroups[0].Subgroup}`,
+          Namespace: mockJoinGroups[0].Namespace,
+          Group: mockJoinGroups[0].Group,
+          Subgroup: mockJoinGroups[0].Subgroup,
+        },
+      ];
 
       // Act
-      await instance.joinGroups(mockPushID, mockJoinGroups);
+      await instance.joinGroups(mockPushID, mockJoinGroups, usersGroups);
 
       // Assert
       expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
         'Request tried to join a group user is already part of',
         { PushID: mockPushID, CompositeID: mockCompositeID }
+      );
+    });
+
+    it('should complete the function successfully if no groups to join were provided', async () => {
+      // Arrange
+      const usersGroups: IGroups[] = [];
+
+      // Act
+      const result = await instance.joinGroups(mockPushID, [], usersGroups);
+
+      // Assert
+      expect(instance.createRecordBatch).not.toHaveBeenCalled();
+      expect(result).toEqual(usersGroups);
+      expect(observabilityMock.logger.debug).toHaveBeenCalledWith(
+        'No groups to join provided - returning usersGroups',
+        { pushID: mockPushID }
       );
     });
   });
@@ -283,41 +328,85 @@ describe('GroupStoreDynamoRepository', () => {
       // Arrange
       vi.useFakeTimers();
       vi.setSystemTime(new Date(date));
-      instance.getUsersGroups = vi.fn().mockResolvedValueOnce(mockGroupStoreRecord);
+      const usersGroups: IGroups[] = [
+        {
+          GroupID: mockGroupID,
+          CompositeID: `${mockLeaveGroups[0].Namespace}/${mockLeaveGroups[0].Group}/${mockLeaveGroups[0].Subgroup}`,
+          Namespace: mockLeaveGroups[0].Namespace,
+          Group: mockLeaveGroups[0].Group,
+          Subgroup: mockLeaveGroups[0].Subgroup,
+        },
+      ];
 
       // Act
-      await instance.leaveGroups(mockPushID, mockLeaveGroups);
+      const result = await instance.leaveGroups(mockPushID, mockLeaveGroups, usersGroups);
 
       // Assert
       expect(instance.deleteRecord).toHaveBeenCalledWith(mockGroupStoreRecord[0].GroupID, mockPushID);
+      expect(result).toEqual([]);
     });
 
     it('should remove a user from a group using the namespace and group', async () => {
       // Arrange
       vi.useFakeTimers();
       vi.setSystemTime(new Date(date));
-      const mockGroupStoreRecordNoSubgroup = [
-        { ...mockGroupStoreRecord[0], CompositeID: `travel/france`, Subgroup: undefined },
-      ];
       const mockLeaveGroupsNoSubgroup = [{ ...mockLeaveGroups[0], Subgroup: undefined }];
-      instance.getUsersGroups = vi.fn().mockResolvedValueOnce(mockGroupStoreRecordNoSubgroup);
+      const usersGroups: IGroups[] = [
+        {
+          GroupID: mockGroupID,
+          CompositeID: `travel/france`,
+          Namespace: mockLeaveGroupsNoSubgroup[0].Namespace,
+          Group: mockLeaveGroupsNoSubgroup[0].Group,
+          Subgroup: mockLeaveGroupsNoSubgroup[0].Subgroup,
+        },
+      ];
 
       // Act
-      await instance.leaveGroups(mockPushID, mockLeaveGroupsNoSubgroup);
+      const result = await instance.leaveGroups(mockPushID, mockLeaveGroupsNoSubgroup, usersGroups);
 
       // Assert
       expect(instance.deleteRecord).toHaveBeenCalledWith(mockGroupStoreRecord[0].GroupID, mockPushID);
+      expect(result).toEqual([]);
     });
 
     it('should complete the function successfully if no user groups were found', async () => {
       // Arrange
-      instance.getUsersGroups = vi.fn().mockResolvedValueOnce([]);
+      const usersGroups: IGroups[] = [];
 
       // Act
-      await instance.leaveGroups(mockPushID, mockLeaveGroups);
+      const result = await instance.leaveGroups(mockPushID, mockLeaveGroups, usersGroups);
 
       // Assert
       expect(instance.deleteRecord).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+      expect(observabilityMock.logger.debug).toHaveBeenCalledWith(
+        'No user groups found for pushID - returning empty array',
+        { pushID: mockPushID }
+      );
+    });
+
+    it('should complete the function successfully if no groups to leave were provided', async () => {
+      // Arrange
+      const usersGroups: IGroups[] = [
+        {
+          GroupID: mockGroupID,
+          CompositeID: `${mockLeaveGroups[0].Namespace}/${mockLeaveGroups[0].Group}/${mockLeaveGroups[0].Subgroup}`,
+          Namespace: mockLeaveGroups[0].Namespace,
+          Group: mockLeaveGroups[0].Group,
+          Subgroup: mockLeaveGroups[0].Subgroup,
+        },
+      ];
+
+      // Act
+      const result = await instance.leaveGroups(mockPushID, [], usersGroups);
+
+      // Assert
+      expect(instance.deleteRecord).not.toHaveBeenCalled();
+      expect(result).toEqual(usersGroups);
+      expect(observabilityMock.logger.debug).toHaveBeenCalledWith(
+        'No groups to leave provided - returning usersGroups',
+        { pushID: mockPushID }
+      );
     });
   });
 });
