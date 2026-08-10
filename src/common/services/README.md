@@ -1,0 +1,81 @@
+## Services
+
+`src/common/services` is the shared business/integration layer. Lambda handlers (`src/lambdas/**`, see [`src/lambdas/README.md`](../../lambdas/README.md)) stay thin - they extend one of the operation base classes in [`src/common/operations`](../operations) and delegate to these services for everything that talks to AWS, an external provider, or enforces a business rule. Services are composed together (and into handlers) via a small IoC container rather than being `new`'d up ad-hoc.
+
+### IoC as a shared layer
+
+[`src/common/ioc.ts`](../ioc.ts) is a lightweight, hand-rolled dependency injection container - there's no external DI framework. Its core primitive is the `ioc(key, mode, fn)` factory, which wraps a constructor function and memoizes its result according to one of three modes:
+
+```ts
+enum Mode {
+  SINGLETON, // built once per lambda execution environment, reused forever
+  TIMEBOUND_SINGLETON, // like SINGLETON, but rebuilt once a 60s TTL (InMemoryTTLCache) expires
+  NEW_INSTANCE, // always constructs a fresh instance
+}
+```
+
+- **`SINGLETON`** is used for cheap, config-independent dependencies that never need to change within a warm Lambda invocation - `ObservabilityService`, `Logger`, `Tracer`, `Metrics`, `ConfigurationService`, `CloudWatchLogsClient`.
+- **`TIMEBOUND_SINGLETON`** is used for anything whose behaviour depends on SSM/Secrets Manager config (queue URLs, feature-flagged adapters, DynamoDB table config) - e.g. `iocGetProcessingQueueService`, `iocGetNotificationService`, every `*DynamoRepository`. The TTL lets config changes propagate without needing to fully cold-start every function.
+- **`NEW_INSTANCE`** / parameterized keys are used where the cache key itself needs to vary per call - `iocGetCircuitBreakerService(platform)` builds the memoization key as `` `CircuitBreakerService:${platform}` `` so each downstream platform (OneSignal, UDP, ...) gets its own breaker instance.
+
+Every dependency is exposed as an `iocGetXxx` function that, when called, resolves (and if necessary constructs) its own dependencies by calling other `iocGetXxx` functions - this is what forms the DI graph. For example:
+
+```ts
+export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, () =>
+  new NotificationService(
+    iocGetObservabilityService(),
+    iocGetConfigurationService(),
+    iocGetSMNamespacedConfigurationService()
+  ).initialize()
+);
+```
+
+Nothing is constructed at module-load time - resolution is lazy and only happens when a handler actually asks for it.
+
+Handlers pull these resolved instances in via `injectDependencies` / `initializeDependencies` rather than calling `iocGetXxx` directly in their constructor. Every operation base class (`APIHandler` in [`httpOperation.ts`](../operations/httpOperation.ts), `ScheduleOperation` in [`scheduleOperation.ts`](../operations/scheduleOperation.ts), and the SQS equivalents in [`queueOperation.ts`](../operations/queueOperation.ts) / [`batchQueueOperation.ts`](../operations/batchQueueOperation.ts)) exposes:
+
+- `injectDependencies(() => HandlerDependencies<T>)` - called once, from the concrete lambda's constructor, to register a map of `{ property: Promise<value> }` (using `iocGetXxx()` calls) to be resolved onto `this`.
+- `initializeDependencies(target, dependencies)` - called by the base class on every single invocation (inside `.handler()`), which `await`s each registered promise and assigns it onto the instance property of the same name.
+
+This means dependencies are re-resolved (and, for `TIMEBOUND_SINGLETON`s, potentially rebuilt) on every invocation, while still being cheap thanks to memoization - a handler never has to know whether a dependency is a true singleton, a time-bound one, or brand new each time.
+
+### Service classes & the approaches they use
+
+| Category | Class(es) | Notes |
+| --- | --- | --- |
+| Observability | [`ObservabilityService`](./observabilityService.ts) | Wraps AWS Lambda Powertools `Logger`/`Metrics`/`Tracer` behind a single typed dependency (`KnownMetrics` constrains `addMetric` to the `MetricsLabels` enum so metric names can't drift). Injected into almost every other service. Also owns cross-cutting helpers like `formatError` and `recordProviderHttpMetric`/`recordHttpErrorResponse`. |
+| Configuration | [`BaseConfigurableValueService`](./baseConfigurableValueService.ts) (abstract) → [`ConfigurationService`](./configurationService.ts) (SSM Parameter Store, prefixed by `PREFIX` env var, in-memory TTL cache), [`SMConfigurationService`](./smConfigurationService.ts) (Secrets Manager) → [`SMNamespacedConfigurationService`](./smNamespacedConfigurationService.ts) (same, but namespaces the secret ID by `PREFIX`) | The base class centralises typed parameter parsing (`getParameterAsType` with a zod schema, plus `getBooleanParameter`/`getNumericParameter`/`getEnumParameter` built on top of it) so every config source shares the same coercion/validation behaviour. |
+| Queues (SQS) | [`QueueService<T>`](./queueService.ts) (abstract, generic) → [`ProcessingQueueService`](./processingQueueService.ts), [`DispatchQueueService`](./dispatchQueueService.ts), [`AnalyticsQueueService`](./analyticsQueueService.ts), [`GroupProcessingQueueService`](./groupProcessingQueueService.ts) | The base class implements `publishMessage`/`publishMessageBatch` (auto-chunked into batches of 10) once. Each subclass only sets its `queueName`, resolves its own SQS URL from `ConfigurationService` in `initialize()`, and implements the abstract `addPublishingSuccessMetric`/`addPublishingFailedMetric` hooks so success/failure counts land under the right `MetricsLabels`. |
+| Caching / rate limiting | [`CacheService`](./cacheService.ts), [`CircuitBreakerService`](./circuitBreakerService.ts) | `CacheService` connects to ElastiCache Serverless (Redis) using a SigV4-presigned auth token instead of a static password (`generateSigV4`), and provides `store`/`get` (with a factory + TTL fallback), `increment`, and `rateLimit`. `CircuitBreakerService` is built entirely on top of `CacheService` - a Redis-backed sliding-window breaker keyed per external `platform` (see the IoC section above), exposing a single `use(fn)` wrapper that runs `checkCircuit` → `fn()` → `recordSuccess`/`recordFailure` automatically. |
+| Content validation | [`ContentValidationService`](./contentValidationService.ts) | Pure logic, no AWS calls - parses message bodies with `markdown-it` against an explicit allow-list of token types, and validates any URLs found against configurable allowed protocols/hostnames. |
+| Dispatch / processing "routers" | [`NotificationService`](./notificationService.ts), [`ProcessingService`](./processingService.ts) | Strategy pattern: `initialize()` reads an SSM enum parameter (`EnumParameters.Config.Dispatch.Adapter` / `...Processing.Adapter`) and picks a concrete adapter accordingly (`OneSignal`/`VOID`, `UDP`/`VOID`), then `send()` just delegates to `this.adapter.send(...)` while recording timing/count metrics around the call. Adding a new provider means adding a new adapter, not changing this class. |
+| Adapters | [`adapters/`](./adapters) - `NotificationAdapterOneSignal`, `NotificationAdapterVoid`, `ProcessingAdapterUDP`, `ProcessingAdapterPrefixbased`, `ProcessingAdapterVoid` | Each implements the `NotificationAdapter` / `ProcessingAdapter` interface from [`interfaces/`](./interfaces) and owns its own `FetchService` client + provider-specific error mapping (`observability.recordProviderHttpMetric`, translating provider errors into the shared `@common/models/Errors` domain errors, e.g. `NoDispatchIdFound`, `NoLinkingIdFound`). The `Void` adapters are no-op implementations used when a downstream integration is disabled via config. |
+| HTTP clients | [`FetchService`](./FetchService.ts) → [`FetchSigV4Service`](./FetchSigV4Service.ts) | `FetchService` is a small typed wrapper around the native `fetch` (base URL/headers/timeout handling, JSON (de)serialization, a `FetchErrorResponse`/`FetchTimeoutError` error model with an `isFetchResponseError` type guard). `FetchSigV4Service` extends it to additionally sign every request with SigV4 (optionally assuming a cross-account `roleArn`) - used by adapters that call an IAM-authenticated API Gateway endpoint (e.g. `ProcessingAdapterUDP`). |
+| Analytics | [`AnalyticsService`](./analyticsService.ts), [`AnalyticsQueueService`](./analyticsQueueService.ts) (a `QueueService`), [`AnalyticsExportService`](./analyticsExportService.ts) | `AnalyticsService` turns notification lifecycle state into analytics events and fans them onto `AnalyticsQueueService`, incrementing a per-`NotificationStateEnum` metric. `AnalyticsExportService` is a separate concern - it writes analytics as CSV into CloudWatch Logs and periodically exports a log group to S3 for long-term storage (see the `schedule.analyticsExport` lambda). |
+
+### X-Ray tracing & AWS SDK v3 client capture
+
+Tracing is layered, and each layer is populated at a different point:
+
+1. **Per-invocation Lambda segment.** Every operation base class (`APIHandler`, `ScheduleOperation`, the SQS operations) wires the AWS Lambda Powertools middy middleware `captureLambdaHandler(this.observability.tracer)` into its `observabilityMiddlewares()`, alongside `injectLambdaContext` and `logMetrics`. This automatically opens/closes the top-level X-Ray segment for the invocation - no service code needs to do this itself.
+
+2. **AWS SDK v3 client capture.** Any service that owns an AWS SDK v3 client instruments it immediately after construction, so every AWS API call the client makes becomes its own child segment automatically:
+
+   ```ts
+   this.client = new SSMClient({ region: 'eu-west-2' });
+   this.observability.tracer.captureAWSv3Client(this.client);
+   ```
+
+   This convention is applied consistently - `QueueService.initialize()`, `ConfigurationService`'s constructor, `SMConfigurationService`'s constructor (inherited by `SMNamespacedConfigurationService`), and `AnalyticsExportService.initialize()` all do this. **When adding a new service that constructs an AWS SDK v3 client, call `tracer.captureAWSv3Client(client)` right after construction** so it shows up in traces - `CacheService`'s Redis client is the one exception, since `redis` isn't an AWS SDK v3 client and isn't captured this way.
+
+3. **Custom subsegments for business logic.** For work that isn't itself an AWS SDK call but is still worth its own timeline entry (e.g. "how long did the actual provider dispatch take, separate from the SQS/DynamoDB calls around it"), use the `segment()` helper in [`src/common/utils/otel.ts`](../utils/otel.ts). It opens a named child subsegment via `tracer.getSegment()?.addNewSubsegment(name)`, runs the callback (which receives the `Subsegment` so it can add annotations/metadata), and always closes the subsegment and restores the parent - including on error, where it also attaches the error to the subsegment before rethrowing:
+
+   ```ts
+   const result = await segment(this.observability.tracer, `Dispatching`, async (segment) => {
+     segment.addMetadata(`NotificationID`, request.NotificationID);
+     segment.addAnnotation(`Start`, true);
+     return await this.adapter.send(request);
+   });
+   ```
+
+   See [`NotificationService.send()`](./notificationService.ts) for the reference usage.

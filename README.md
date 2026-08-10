@@ -7,17 +7,17 @@ This service is ran with AWS using serverless architecture.
 
 ### Built With
 
-- Node.js v22.21.1 (LTS) & pnpm v10.26.0
-- Checkov v3.2.490
+- Node.js v22.21.1 (LTS) & pnpm v11.9.0
+- Checkov (latest, managed via [mise](./mise.toml))
 - AWS CDK
 
 Recommending using [Mise-en-place](https://mise.jdx.dev/getting-started.html) [configuration](./mise.toml) defines all of the dependencies and utilities needed for development.
 
-[fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm) should work too as [./node-version](./.node-version) file defined the version
+[fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm) should work too as [.node-version](./.node-version) file defines the version
 
 ## Installation
 
-1. Ensure you have fnm/nvm and tfenv
+1. Ensure you have fnm/nvm installed
 
 2. Clone the repository:
 
@@ -34,7 +34,7 @@ fnm use # or nvm use  # or mise install
 4. Install dependencies:
 
 ```sh
-pnpm run install
+pnpm install
 ```
 
 5. Initialize CDK - relies on gds-cli being already configured
@@ -86,7 +86,7 @@ After the initial setup is completed, another 2 commands can be used to release 
 
 ```sh
 pnpm run development:sandbox:release
-pnpm run development:sandbox:release:plan
+pnpm run development:sandbox:plan
 ```
 
 Both versions will convert TS bundles into JS, and execute CDK.
@@ -120,10 +120,10 @@ VITEST_DETAILED_COVERAGE=true pnpm run test:coverage
 env=dev pnpm run test:e2e
 ```
 
-We also have some additional flags that can adjust the way
-
 End to end testing require mTLS authentication to be setup locally, to test both PSO and FLEX endpoints. To setup the correct authentication, run the developer setup script to setup this authentication.
 Make sure these credentials are not added to git.
+
+Read more on the conventions used for each suite: [unit testing](./src/README.md) / [end to end testing](./test/e2e/README.md).
 
 ## Pre-commit hooks
 
@@ -137,7 +137,7 @@ Read more in : [./.husky/README.md](./.husky/README.md)
 ## Github Actions
 
 This repository is using Github Actions to support pull request review process and releasing to non production environments.
-Read more [./.github/README.md](./.github/README-Pipelines.md)
+Read more [./.github/README-Pipelines.md](./.github/README-Pipelines.md)
 
 ## Github Pages
 
@@ -147,12 +147,24 @@ This repository is automatically updating the following API pages on release to 
 
 - Flex API - https://govuk-once.github.io/gds-unified-notification-service/flex/ -
 
+## Documentation
+
+Deeper guides live in [`docs/`](./docs):
+
+- [Environment Setup](./docs/environment-setup.md)
+- [Developer Reference](./docs/developer-reference.md) - handler patterns, middleware, errors, repositories, services
+- [Infrastructure Development Guide](./docs/infrastructure-development.md) - CDK stack, constructs, naming, mTLS, alarms
+- [Deployment Guide](./docs/deployment.md)
+- [Releases and Versioning](./docs/releases.md)
+- [Runbooks](./docs/runbooks/README.md)
+- [Documentation Guide](./docs/documentation-guide.md) - conventions for writing documentation in this repo
+
 ## Dependency management
 
 In order to keep dependencies up to date & ensure the platform maintains high level of security, a minor utility is available via:
 
 ```sh
-pnpm upgrade
+pnpm run upgrade
 ```
 
 ## Contact
