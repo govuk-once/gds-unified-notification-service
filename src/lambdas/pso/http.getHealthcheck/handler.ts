@@ -27,9 +27,7 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async implementation(
-     
     _event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
-     
     _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info(`Event received`, { _event, _context });
