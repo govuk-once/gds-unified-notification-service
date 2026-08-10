@@ -33,6 +33,7 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import * as shield from 'aws-cdk-lib/aws-shield';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
@@ -246,8 +247,8 @@ export class UNSAPIGatewayGateway extends Construct {
   //// =====================================================
   // Waf
   //// =====================================================
-  constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
-    // WAFv2 Protection configuration builder
+  constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps, secret: Secret | null) {
+    // WAFv2 Protection configuration builder - this was protects the API Gateway itself
     const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
       name: config.utils.namingHelper(...props.name, 'waf'),
       scope: 'REGIONAL',
@@ -259,8 +260,35 @@ export class UNSAPIGatewayGateway extends Construct {
         sampledRequestsEnabled: true,
       },
       rules: [
+        // When integrating with CloudFront - use shared token value between the instances to limit traffic
+        ...(secret !== null
+          ? [
+              {
+                name: 'RequireOriginSecret',
+                priority: 1,
+                visibilityConfig: {
+                  cloudWatchMetricsEnabled: true,
+                  sampledRequestsEnabled: false,
+                  metricName: 'RequireOriginSecret',
+                },
+                action: {
+                  allow: {},
+                },
+                statement: {
+                  byteMatchStatement: {
+                    fieldToMatch: {
+                      singleHeader: { Name: 'x-origin-verify' },
+                    },
+                    positionalConstraint: 'EXACTLY',
+                    searchString: secret.secretValueFromJson('token').unsafeUnwrap(),
+                    textTransformations: [{ priority: 0, type: 'NONE' }],
+                  },
+                },
+              },
+            ]
+          : []),
         managedWafRule({
-          priority: 1,
+          priority: 5,
           managedRuleName: 'AWSManagedRulesCommonRuleSet',
           metricName: `${config.prefix}-aws-common-rule-set`,
           name: config.utils.namingHelper(...props.name, 'aws-common-rule-set'),
@@ -271,13 +299,6 @@ export class UNSAPIGatewayGateway extends Construct {
           metricName: `${config.prefix}-aws-bad-input-rule-metric`,
           name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
         }),
-        // This rule while sensible rejects E2E tests from GH Actions
-        // managedWafRule({
-        //   priority: 100,
-        //   managedRuleName: 'AWSManagedRulesAnonymousIpList',
-        //   metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
-        //   name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
-        // }),
       ],
     });
 
@@ -468,13 +489,26 @@ export class UNSAPIGatewayGateway extends Construct {
 
     // Cloudfront definition for mtls
     let distribution: Distribution | undefined = undefined;
+
+    // Templated secret with username and password fields
+    let originHeaderSecret: Secret | null = null;
+
     if (props.mtls) {
+      originHeaderSecret = new Secret(this, 'originHeaderSecret', {
+        secretName: `${config.prefix}/apigw/${props.name.join('-')}/private-key`,
+        generateSecretString: {
+          secretStringTemplate: JSON.stringify({}),
+          generateStringKey: 'token',
+          passwordLength: 64,
+          excludeCharacters: '/@"',
+        },
+      });
       distribution = new Distribution(this, 'ApiDistribution', {
         priceClass: PriceClass.PRICE_CLASS_100,
         defaultBehavior: {
           origin: new HttpOrigin(this.restApi.domainName?.domainNameAliasDomainName as string, {
             customHeaders: {
-              'x-origin-header': `SENSIBLY_RANDOMISED_VALUE`,
+              'x-origin-header': originHeaderSecret.secretValueFromJson('token').unsafeUnwrap(),
             },
           }),
           viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -525,7 +559,7 @@ export class UNSAPIGatewayGateway extends Construct {
 
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
-    this.waf = this.constructWAF(config, props);
+    this.waf = this.constructWAF(config, props, originHeaderSecret);
     this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
 
     // Shield Advanced protection for the CloudFront distribution - staging & production only
