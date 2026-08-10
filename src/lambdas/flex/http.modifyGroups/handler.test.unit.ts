@@ -2,7 +2,6 @@ import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFact
 import { ModifyGroups } from '@project/lambdas/flex/http.modifyGroups/handler';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas/interfaces';
 import { Context } from 'aws-lambda';
-import { v4 as uuid } from 'uuid';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -43,6 +42,15 @@ describe('ModifyGroups Handler', () => {
       Action: GroupActionEnum.LEAVE,
     },
   ];
+  const mockUsersGroups: IGroups[] = [
+    {
+      GroupID: 'GROUP-01',
+      CompositeID: `travel/spain/IMMEDIATE`,
+      Namespace: 'travel',
+      Group: 'spain',
+      Subgroup: 'IMMEDIATE',
+    },
+  ];
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -68,9 +76,6 @@ describe('ModifyGroups Handler', () => {
 
     handler = instance.handler();
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValue(undefined);
-    serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValue(undefined);
-    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -86,18 +91,10 @@ describe('ModifyGroups Handler', () => {
     'should accept valid action enums (upper and lowercased) and return 200 - %s, while rejecting any other',
     async (enumValue: string, expectedStatusCode: number) => {
       // Arrange
-      const groupRecord = [
-        {
-          PushID: mockPushID,
-          GroupID: '6c7a3c23-879e-46c6-90ed-a9a2876aedea',
-          CompositeID: `travel/france/IMMEDIATE`,
-          Date: '2026-01-01T00:00:00',
-          Namespace: 'travel',
-          Group: 'france',
-          Subgroup: 'IMMEDIATE',
-        },
-      ];
-      serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValue(groupRecord);
+      // Ignore true functionality of the joinGroups and leaveGroups methods, as we are only testing the enum validation
+      serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce([]);
+      serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValueOnce([]);
+      serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValueOnce([]);
       const mockEventWithEnum = {
         ...mockEvent,
         body: JSON.stringify([
@@ -127,6 +124,9 @@ describe('ModifyGroups Handler', () => {
         Action: GroupActionEnum.LEAVE,
       },
     ];
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce(mockUsersGroups);
+    serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValueOnce([]);
+    serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValueOnce([]);
 
     // Act
     await handler(mockEvent, mockContext);
@@ -134,7 +134,8 @@ describe('ModifyGroups Handler', () => {
     // Assert
     expect(serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups).toHaveBeenCalledWith(
       mockPushID,
-      mockModifyGroupsRequest
+      mockModifyGroupsRequest,
+      mockUsersGroups
     );
   });
 
@@ -148,6 +149,18 @@ describe('ModifyGroups Handler', () => {
         Action: GroupActionEnum.JOIN,
       },
     ];
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce(mockUsersGroups);
+    serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValueOnce(mockUsersGroups);
+    serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValueOnce([
+      mockUsersGroups[0],
+      {
+        GroupID: 'GROUP-02',
+        CompositeID: `travel/france/IMMEDIATE`,
+        Namespace: 'travel',
+        Group: 'france',
+        Subgroup: 'IMMEDIATE',
+      },
+    ]);
 
     // Act
     await handler(mockEvent, mockContext);
@@ -155,22 +168,24 @@ describe('ModifyGroups Handler', () => {
     // Assert
     expect(serviceMocks.groupStoreDynamoRepositoryMock.joinGroups).toHaveBeenCalledWith(
       mockPushID,
-      mockModifyGroupsRequest
+      mockModifyGroupsRequest,
+      mockUsersGroups
     );
   });
 
   it('should return a list of users groups once it has left and joined all requested groups', async () => {
     // Arrange
-    const mockUsersGroups: IGroups[] = [
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce(mockUsersGroups);
+    serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValueOnce([]);
+    serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValueOnce([
       {
-        GroupID: uuid(),
+        GroupID: 'GROUP-02',
         CompositeID: `travel/france/IMMEDIATE`,
         Namespace: 'travel',
         Group: 'france',
         Subgroup: 'IMMEDIATE',
       },
-    ];
-    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce(mockUsersGroups);
+    ]);
 
     // Act
     const result = await handler(mockEvent, mockContext);
