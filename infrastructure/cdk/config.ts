@@ -137,6 +137,10 @@ export const config = {
     zones: (process.env.availability_zones ?? `a,b,c`).split(`,`),
   },
 
+  global: {
+    region: 'us-east-1',
+  },
+
   // Only used in sandbox environments to avoid resource duplication
   sandbox: {
     shared: {

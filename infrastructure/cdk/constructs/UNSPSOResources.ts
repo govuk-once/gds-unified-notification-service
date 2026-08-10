@@ -86,6 +86,9 @@ export class UNSPSOResource extends Construct {
         truststorePath: string;
         dependencies: Construct[];
       };
+      waf: {
+        cloudfrontWebAclArn: string;
+      };
     }
   ) {
     const { constructNamingHelper, namingHelper } = config.utils;
@@ -552,6 +555,9 @@ export class UNSPSOResource extends Construct {
       domain: 'pso',
       mtls: {
         truststore: props.mtls.truststorePath,
+      },
+      waf: {
+        cloudfrontWebAclArn: props.waf.cloudfrontWebAclArn,
       },
       resources: {
         kms: refs.kms,

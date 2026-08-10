@@ -33,11 +33,13 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as shield from 'aws-cdk-lib/aws-shield';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { managedWafRule } from 'infrastructure/cdk/utils/waf';
 
 type UsageAllowance = {
   // Values are per second
@@ -62,6 +64,12 @@ export interface UNSAPIGatewayGatewayProps {
 
   readonly mtls?: {
     readonly truststore: string;
+  };
+
+  readonly waf?: {
+    // ARN of a CLOUDFRONT scoped WAFv2 Web ACL (must come from a us-east-1 stack) to
+    // associate with this gateway's CloudFront distribution, if one is created.
+    readonly cloudfrontWebAclArn?: string;
   };
 
   readonly resources: {
@@ -93,6 +101,7 @@ export class UNSAPIGatewayGateway extends Construct {
   public readonly restApi: RestApi;
   public readonly props: UNSAPIGatewayGatewayProps;
   public readonly waf: wafv2.CfnWebACL;
+  public readonly shieldProtection?: shield.CfnProtection;
 
   //// =====================================================
   // Domain
@@ -237,25 +246,6 @@ export class UNSAPIGatewayGateway extends Construct {
   //// =====================================================
   // Waf
   //// =====================================================
-  managedRule(ruleProps: { priority: number; name: string; managedRuleName: string; metricName: string }) {
-    return {
-      name: ruleProps.name,
-      priority: ruleProps.priority,
-      statement: {
-        managedRuleGroupStatement: {
-          vendorName: 'AWS',
-          name: ruleProps.managedRuleName,
-        },
-      },
-      overrideAction: { none: {} },
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: ruleProps.metricName,
-        sampledRequestsEnabled: true,
-      },
-    };
-  }
-
   constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
     // WAFv2 Protection configuration builder
     const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
@@ -269,20 +259,20 @@ export class UNSAPIGatewayGateway extends Construct {
         sampledRequestsEnabled: true,
       },
       rules: [
-        this.managedRule({
+        managedWafRule({
           priority: 1,
           managedRuleName: 'AWSManagedRulesCommonRuleSet',
           metricName: `${config.prefix}-aws-common-rule-set`,
           name: config.utils.namingHelper(...props.name, 'aws-common-rule-set'),
         }),
-        this.managedRule({
+        managedWafRule({
           priority: 10,
           managedRuleName: 'AWSManagedRulesKnownBadInputsRuleSet',
           metricName: `${config.prefix}-aws-bad-input-rule-metric`,
           name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
         }),
         // This rule while sensible rejects E2E tests from GH Actions
-        // this.managedRule({
+        // managedWafRule({
         //   priority: 100,
         //   managedRuleName: 'AWSManagedRulesAnonymousIpList',
         //   metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
@@ -310,6 +300,24 @@ export class UNSAPIGatewayGateway extends Construct {
     });
 
     return webAcl;
+  }
+
+  //// =====================================================
+  // Shield Advanced - Enabled only on Staging/Prod
+  //// =====================================================
+  constructShieldProtection(config: EnvVars, props: UNSAPIGatewayGatewayProps, distribution: Distribution) {
+    const protection = new shield.CfnProtection(this, config.utils.namingHelper(...props.name, 'shield-protection'), {
+      name: config.utils.namingHelper(...props.name, 'shield-protection'),
+      resourceArn: distribution.distributionArn,
+      applicationLayerAutomaticResponseConfiguration: props.waf?.cloudfrontWebAclArn
+        ? {
+            action: { block: {} },
+            status: 'ENABLED',
+          }
+        : undefined,
+    });
+
+    return protection;
   }
 
   //// =====================================================
@@ -490,6 +498,7 @@ export class UNSAPIGatewayGateway extends Construct {
           config.ssm.certificateArnCloudfront
         ),
         domainNames: fullDomain ? [fullDomain] : [],
+        webAclId: props.waf?.cloudfrontWebAclArn,
       });
 
       // Configure trust store & Viewer mTLS config in CloudFront
@@ -518,6 +527,11 @@ export class UNSAPIGatewayGateway extends Construct {
     this.constructPrivatePolicies(config, props);
     this.waf = this.constructWAF(config, props);
     this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
+
+    // Shield Advanced protection for the CloudFront distribution - staging & production only
+    if (distribution && config.isNonDevEnv) {
+      this.shieldProtection = this.constructShieldProtection(config, props, distribution);
+    }
 
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [
