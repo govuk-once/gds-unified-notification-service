@@ -85,7 +85,6 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
     const data = await this.validateRecord(record);
     const message = data.body;
 
-    // TODO: Remove error message as queue to queue does not use mTLS
     if (!message.OrganisationID) {
       throw new Error(
         `OrganisationID is missing from ${message.NotificationID}. It must be stamped from the mTLS certificate.`
