@@ -23,11 +23,17 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import { extractIdentifiers, IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
 import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 const requestBodySchema = IProcessedMessageSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
 /**
  * 
@@ -61,16 +67,18 @@ const requestBodySchema = IProcessedMessageSchema;
  */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
-  public operationId: string = 'dispatch';
-  protected enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
-  public requestBodySchema = requestBodySchema;
+export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
+  public readonly operationId: string = 'dispatch';
+  protected readonly enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public analyticsService: AnalyticsService;
-  public notificationsService: NotificationService;
-  public cacheService: CacheService;
-  public circuitBreakerService: CircuitBreakerService;
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
+
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public analyticsService!: AnalyticsService;
+  public notificationsService!: NotificationService;
+  public cacheService!: CacheService;
+  public circuitBreakerService!: CircuitBreakerService;
 
   constructor(
     public config: ConfigurationService,

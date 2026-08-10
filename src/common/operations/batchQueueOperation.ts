@@ -5,7 +5,6 @@ import { ContentValidationError, UnidentifiableRecordError } from '@common/model
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
 import { BoolParameters, errorFormatter } from '@common/utils';
-import { IIdentifiableMessage, IIdentifiableMessageSchema } from '@project/lambdas/interfaces/IMessage';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodType } from 'zod';
 
@@ -21,12 +20,14 @@ type BaseFields = z.infer<typeof RequiredSchema>;
  * for retry in the trigger queue, or throws an Error if the entire batch fails.
  * After 3 failed retry attempts, records are routed to the DLQ.
  */
-export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> extends QueueHandler<
-  z.infer<InputSchema>,
-  PartialItemFailureResponse
-> {
-  protected enableConfig: string;
-  protected requestBodySchema: ZodType<z.infer<InputSchema> & BaseFields>;
+export abstract class BatchQueueOperation<
+  InputSchema extends ZodType = ZodAny,
+  IdentifiableRecordSchema extends ZodType = ZodAny,
+> extends QueueHandler<z.infer<InputSchema>, PartialItemFailureResponse> {
+  protected enableConfig!: string;
+
+  protected requestBodySchema!: ZodType<z.infer<InputSchema> & BaseFields>;
+  protected identifiableRecordSchema!: ZodType<z.infer<IdentifiableRecordSchema>>;
 
   public contentValidationService: ContentValidationService | undefined;
 
@@ -41,20 +42,20 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
    * Executes analytics or custom logic, if necessary, for a verified identifiable record.
    * @param identifiableRecord - The verified identifiable record payload.
    */
-  protected abstract onStart(identifiableRecord: IIdentifiableMessage): Promise<void>;
+  protected abstract onStart(identifiableRecord: z.infer<IdentifiableRecordSchema>): Promise<void>;
 
   /**
    * Executes analytics, or custom logic, if necessary, when record handling fails.
    * @param identifiableRecord - The verified identifiable record payload.
    * @param error - The error thrown during record handling.
    */
-  protected abstract onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void>;
+  protected abstract onError(identifiableRecord: z.infer<IdentifiableRecordSchema>, error: unknown): Promise<void>;
 
   /**
    * Executes analytics or custom logic, if necessary, for a record after record handling.
    * @param identifiableRecord - The verified identifiable record payload.
    */
-  protected abstract onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void>;
+  protected abstract onSuccess(identifiableRecord: z.infer<IdentifiableRecordSchema>): Promise<void>;
 
   /**
    * Publishes metrics tracking the total number of failed records in a batch.
@@ -75,13 +76,13 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
    * @param record - The individual SQS record to process.
    * @returns Object containing the extracted identifiable fields.
    */
-  protected async validateIdentifiableRecord(record: SQSRecord): Promise<IIdentifiableMessage> {
+  protected async validateRequiredFields(record: SQSRecord): Promise<z.infer<IdentifiableRecordSchema>> {
     const parsedResult = await SqsRecordSchema.extend({
-      body: IIdentifiableMessageSchema,
+      body: this.identifiableRecordSchema,
     }).safeParseAsync(record);
 
     if (!parsedResult.success) {
-      const errorMsg = `Supplied message does not contain NotificationID or DepartmentID, rejecting record`;
+      const errorMsg = `Supplied message does not contain required record fields, rejecting record`;
       this.observability.logger.error(errorMsg, {
         raw: record.body,
         error: parsedResult.error ? z.prettifyError(parsedResult.error) : {},
@@ -145,7 +146,7 @@ export abstract class BatchQueueOperation<InputSchema extends ZodType = ZodAny> 
    * @param record - The individual SQS record to orchestrate.
    */
   protected recordHandlerWrapper = async (record: SQSRecord) => {
-    const identifiableRecord = await this.validateIdentifiableRecord(record);
+    const identifiableRecord = await this.validateRequiredFields(record);
 
     await this.onStart(identifiableRecord);
     try {

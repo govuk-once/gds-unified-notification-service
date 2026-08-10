@@ -123,7 +123,7 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).not.toHaveBeenCalled();
   });
 
-  it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to.', async () => {
+  it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to', async () => {
     // Act
     const result = await handler(mockEvent, mockContext);
 
@@ -136,7 +136,7 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
   });
 
-  it('should return a status 202 and generate a GroupNotificationID if none is provided.', async () => {
+  it('should return a status 202 and generate a GroupNotificationID if none is provided', async () => {
     // Arrange
     const mockEventNoGroupNotificationID = {
       ...mockEvent,
@@ -183,6 +183,9 @@ describe('PostGroupMessage Handler', () => {
 
   it('should split pushIDs into chunks based on worker number, add elasticache keys for each chunk, and send the chunks in a batch message with the group message.', async () => {
     // Arrange
+    vi.useFakeTimers();
+    const date = new Date('2026-01-01T12:30:00Z');
+    vi.setSystemTime(date);
     const chunk_1 = ['push_1', 'push_2'];
     const chunk_2 = ['push_3'];
     const chunk_3 = ['push_4'];
@@ -233,35 +236,50 @@ describe('PostGroupMessage Handler', () => {
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 0,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 1,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 2,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 3,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
         GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
         GroupNotificationID: mockGroupMessage.GroupNotificationID,
         WorkerID: 4,
         CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
     ]);
   });
 
-  it('should return a status 202 and list of GroupNotificationID and the number of users being 0 if there are no users in a group.', async () => {
+  it('should return a status 202 and response, as well as not storing anything in cache when there are no users in the group', async () => {
     // Arrange
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValueOnce([]);
 
@@ -273,6 +291,7 @@ describe('PostGroupMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([
       { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 0 },
     ]);
+    expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
   });
 
   it('should NOT throw an error when called with a group message containing deeplink that is on the allowlist', async () => {
@@ -305,7 +324,7 @@ describe('PostGroupMessage Handler', () => {
     });
   });
 
-  it('should validate messages that contain valid markdown.', async () => {
+  it('should validate messages that contain valid markdown', async () => {
     // Arrange
     const mockMarkdownMessage = {
       ...mockGroupMessage,
@@ -327,7 +346,7 @@ describe('PostGroupMessage Handler', () => {
     ]);
   });
 
-  it('should reject messages that contain invalid markdown.', async () => {
+  it('should reject messages that contain invalid markdown', async () => {
     // Arrange
     const mockInvalidMarkdownMessage = {
       ...mockGroupMessage,
