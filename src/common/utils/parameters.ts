@@ -61,6 +61,9 @@ export const StringParameters = {
     Dispatch: {
       Url: 'queue/dispatch/url',
     },
+    GroupProcessing: {
+      Url: 'queue/groupprocessing/url',
+    },
     Incoming: {
       Url: 'queue/incoming/url',
     },
@@ -104,6 +107,11 @@ export const NumericParameters = {
     WindowDuration: 'config/dispatch/circuitBreaker/windowDuration',
     HalfOpenAfter: 'config/dispatch/circuitBreaker/halfOpenAfter',
     RateLimitWhenOpen: 'config/dispatch/circuitBreaker/rateLimitWhenOpen',
+  },
+  Group: {
+    Dispatch: {
+      WorkerCount: 'group/dispatch/workerCount',
+    },
   },
 } as const;
 

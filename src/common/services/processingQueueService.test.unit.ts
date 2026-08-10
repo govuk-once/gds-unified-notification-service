@@ -138,13 +138,13 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0] as SendMessageCommand;
+      const command = sqsMock.call(0).args[0];
       expect(command.input).toEqual(
         expect.objectContaining({
           QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
           Entries: [
             {
-              Id: mockMessageBody.NotificationID,
+              Id: '0',
               DelaySeconds: 0,
               MessageBody: JSON.stringify(mockMessageBody),
             },
@@ -185,31 +185,42 @@ describe('ProcessingQueueService', () => {
       };
 
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({
-        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
-        Failed: [{ Id: mockMessageBody.NotificationID, SenderFault: false, Code: 'MockCode' }],
+        Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
+        Failed: [{ Id: '1', SenderFault: false, Code: 'MockCode' }],
       });
 
       // Act
       await processingQueueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
 
       // Assert
-      expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
-        QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
-        Entries: [
+      expect(sqsMock.calls()).toHaveLength(1);
+      const command = sqsMock.call(0).args[0];
+      expect(command.input).toEqual(
+        expect.objectContaining({
+          QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
+          Entries: [
+            {
+              Id: '0',
+              DelaySeconds: 0,
+              MessageBody: JSON.stringify(mockMessageBody_0),
+            },
+            {
+              Id: '1',
+              DelaySeconds: 0,
+              MessageBody: JSON.stringify(mockMessageBody_1),
+            },
+          ],
+        })
+      );
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages in batch', {
+        failedMessageCount: 1,
+        failures: [
           {
-            Id: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-            DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockMessageBody_0),
-          },
-          {
-            Id: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-            DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockMessageBody_1),
+            Code: 'MockCode',
+            Id: '1',
+            SenderFault: false,
           },
         ],
-      });
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages', {
-        failedMessageCount: 1,
       });
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
@@ -231,10 +242,10 @@ describe('ProcessingQueueService', () => {
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
     });
 
-    it('should use NotificationID from the message body as the batch entry Id', async () => {
+    it('should use the index of the for loop of the batch processing as the batch entry Id', async () => {
       // Arrange
       sqsMock.on(SendMessageBatchCommand).resolvesOnce({
-        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
+        Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
       // Act
@@ -243,13 +254,11 @@ describe('ProcessingQueueService', () => {
       // Assert
       expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
         QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
-        Entries: [
-          {
-            Id: mockMessageBody.NotificationID,
-            DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockMessageBody),
-          },
-        ],
+        Entries: expect.arrayContaining([
+          expect.objectContaining({
+            Id: '0',
+          }),
+        ]),
       });
     });
 
@@ -261,7 +270,7 @@ describe('ProcessingQueueService', () => {
         UserId: i,
       }));
       sqsMock.on(SendMessageBatchCommand).resolves({
-        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
+        Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
       // Act
@@ -274,9 +283,6 @@ describe('ProcessingQueueService', () => {
 
       expect(firstBatch.Entries).toHaveLength(10);
       expect(secondBatch.Entries).toHaveLength(1);
-
-      expect(firstBatch.Entries![0].Id).toBe('notifiction-0');
-      expect(secondBatch.Entries![0].Id).toBe('notifiction-10');
     });
   });
 });

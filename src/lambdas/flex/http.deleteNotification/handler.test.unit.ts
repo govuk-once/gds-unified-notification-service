@@ -135,7 +135,7 @@ describe('DeleteNotification Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['NotificationID has not been provided'],
+      Errors: ['notificationID has not been provided'],
     });
   });
 
@@ -152,7 +152,7 @@ describe('DeleteNotification Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 
@@ -171,7 +171,7 @@ describe('DeleteNotification Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 
@@ -190,7 +190,7 @@ describe('DeleteNotification Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 

@@ -198,12 +198,12 @@ describe('ModifyGroups Handler', () => {
     const result = await handler(mockMissingIdEvent, mockContext);
 
     // Assert
-    expect(observabilityMocks.logger.debug).toHaveBeenCalledWith('PushID has not been provided - returning 400');
+    expect(observabilityMocks.logger.debug).toHaveBeenCalledWith('pushID has not been provided - returning 400');
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 

@@ -51,8 +51,8 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
     // Validate
     const pushID = event.queryStringParameters?.pushID;
     if (!pushID) {
-      this.observability.logger.debug('PushID has not been provided - returning 400');
-      throw new BadRequestError(['PushID has not been provided']);
+      this.observability.logger.debug('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided']);
     }
 
     // Get users groups to return

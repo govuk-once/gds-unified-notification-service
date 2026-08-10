@@ -11,6 +11,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [StringParameters.Config.Cache.User]: 'user',
     [StringParameters.Queue.Analytics.Url]: 'sqsurl/sqsanalytics',
     [StringParameters.Queue.Dispatch.Url]: 'sqsurl/sqsdispatch',
+    [StringParameters.Queue.GroupProcessing.Url]: 'sqsurl/sqsgroupprocessing',
     [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
     [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
     [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
@@ -34,6 +35,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
     [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
     [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
+    [NumericParameters.Group.Dispatch.WorkerCount]: `5`,
     // Nested objects
     [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],
