@@ -9,8 +9,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IGroupMessageMetadata } from '@project/lambdas';
-import { IGroupMessage } from '@project/lambdas/interfaces/IMessage';
+import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 

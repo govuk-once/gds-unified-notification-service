@@ -9,6 +9,9 @@ export const BoolParameters = {
     Processing: {
       Enabled: 'config/processing/enabled',
     },
+    GroupProcessingWorker: {
+      Enabled: 'config/groupProcessingWorker/enabled',
+    },
     Dispatch: {
       Enabled: 'config/dispatch/enabled',
     },
@@ -111,6 +114,7 @@ export const NumericParameters = {
   Group: {
     Dispatch: {
       WorkerCount: 'group/dispatch/workerCount',
+      WorkerBatchSize: 'group/dispatch/workerBatchSize',
     },
   },
 } as const;

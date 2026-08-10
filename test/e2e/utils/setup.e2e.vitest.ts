@@ -26,7 +26,7 @@ let psoApiKey = '';
 
 let httpsAgent: Agent;
 
-beforeAll(async () => {
+const prepareBeforeAll = async () => {
   try {
     if (!psoUrl || !flexUrl) {
       throw new Error(
@@ -131,13 +131,14 @@ beforeAll(async () => {
     console.error('Error setting up HTTPS Agent for end to end tests:', error);
     throw error;
   }
-});
+};
+
+beforeAll(async () => await prepareBeforeAll());
 
 // Add clients to test implementation for e2d
-export const test = baseTest
-  // Creates an axios client for PSO requests
-  .extend('psoAPI', ({}) => {
-    return new FetchService({
+export const testFixtures = () => {
+  return {
+    psoAPI: new FetchService({
       baseUrl: `https://${psoUrl}`,
       defaultHeaders: {
         'x-api-key': psoApiKey,
@@ -146,52 +147,40 @@ export const test = baseTest
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
-    });
-  })
-  .extend('psoAPIWithoutAPIKey', ({}) => {
-    return new FetchService({
+    }),
+    psoAPIWithoutAPIKey: new FetchService({
       baseUrl: `https://${psoUrl}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
-    });
-  })
-  .extend('psoAPIWithoutMTLSCert', ({}) => {
-    return new FetchService({
+    }),
+    psoAPIWithoutMTLSCert: new FetchService({
       baseUrl: `https://${psoUrl}`,
       defaultHeaders: {
         'x-api-key': psoApiKey,
       },
       defaultTimeout: 60000,
-    });
-  })
-  .extend('psoAPIUsingInsecureProtocol', ({}) => {
-    return new FetchService({
+    }),
+    psoAPIUsingInsecureProtocol: new FetchService({
       baseUrl: `http://${psoUrl}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
-    });
-  })
-  .extend('flexAPI', ({}) => {
-    return new FetchService({
+    }),
+    flexAPI: new FetchService({
       baseUrl: `https://${flexUrl}`,
       defaultHeaders: {
         'x-api-key': flexApiKey,
       },
       defaultTimeout: 60000,
-    });
-  })
-  .extend('flexAPIWithoutAPIKey', ({}) => {
-    return new FetchService({
+    }),
+    flexAPIWithoutAPIKey: new FetchService({
       baseUrl: `https://${flexUrl}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
-    });
-  })
-  .extend('flexAPIUsingInsecureProtocol', ({}) => {
-    return new FetchService({
+    }),
+    flexAPIUsingInsecureProtocol: new FetchService({
       baseUrl: `http://${flexUrl}`,
       defaultTimeout: 60000,
       defaultHeaders: {
@@ -200,7 +189,31 @@ export const test = baseTest
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
-    });
+    }),
+  };
+};
+export const test = baseTest
+  // Creates an axios client for PSO requests
+  .extend('psoAPI', ({}) => {
+    return testFixtures().psoAPI;
+  })
+  .extend('psoAPIWithoutAPIKey', ({}) => {
+    return testFixtures().psoAPIWithoutAPIKey;
+  })
+  .extend('psoAPIWithoutMTLSCert', ({}) => {
+    return testFixtures().psoAPIWithoutMTLSCert;
+  })
+  .extend('psoAPIUsingInsecureProtocol', ({}) => {
+    return testFixtures().psoAPIUsingInsecureProtocol;
+  })
+  .extend('flexAPI', ({}) => {
+    return testFixtures().flexAPI;
+  })
+  .extend('flexAPIWithoutAPIKey', ({}) => {
+    return testFixtures().flexAPIWithoutAPIKey;
+  })
+  .extend('flexAPIUsingInsecureProtocol', ({}) => {
+    return testFixtures().flexAPIUsingInsecureProtocol;
   })
   .extend(`mockNotificationID`, () => ({
     valid: 'd4e04ac4-5696-45b7-8e8c-0060883a84f5',
