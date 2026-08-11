@@ -70,12 +70,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     // Mock event
     mockEmptyEvent = {} as unknown as typeof mockEmptyEvent;
     mockEventWithCertificate = {
-      requestContext: {
-        identity: {
-          clientCert: {
-            clientCertPem: `MOCK_CERTIFICATE_CONTENT`,
-          },
-        },
+      headers: {
+        'CloudFront-Viewer-Cert-PEM': `MOCK_CERTIFICATE_CONTENT`,
       },
     } as unknown as typeof mockEventWithCertificate;
   });

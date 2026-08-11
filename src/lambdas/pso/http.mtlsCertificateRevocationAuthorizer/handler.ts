@@ -25,7 +25,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
   public requestBodySchema = z.any();
   public responseBodySchema = z.any();
 
-  public mtlsRevocationDynamoRepository: MTLSRevocationDynamoRepository;
+  public mtlsRevocationDynamoRepository!: MTLSRevocationDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
@@ -77,7 +77,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
     this.observability.logger.debug(`Event received`, _event);
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_COUNT, MetricUnit.Count, 1);
 
-    const perm = _event['headers']['CloudFront-Viewer-Cert-PEM'];
+    const perm = _event?.headers?.['CloudFront-Viewer-Cert-PEM'];
 
     if (perm == undefined) {
       this.observability.logger.error(`Request without client cert perm has been presented`);
