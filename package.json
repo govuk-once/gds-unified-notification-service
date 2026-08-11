@@ -96,7 +96,7 @@
     "@middy/http-error-handler": "^6.4.5",
     "@middy/http-event-normalizer": "^6.4.5",
     "@middy/http-header-normalizer": "^6.4.5",
-    "@middy/http-json-body-parser": "^6.4.5",
+    "@middy/http-json-body-parser": "^7.7.2",
     "@middy/http-urlencode-body-parser": "^6.4.5",
     "@middy/secrets-manager": "^6.4.5",
     "@smithy/hash-node": "^4.4.16",
