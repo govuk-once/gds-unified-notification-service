@@ -1,11 +1,15 @@
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FetchService } from '@common/services/FetchService';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
 
+import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { NotificationStateEnum } from '@common/models';
+import { StringParameters } from '@common/utils';
+import { IMessage } from '@project/lambdas';
 import { Agent } from 'undici';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
@@ -23,6 +27,8 @@ const psoUrl = domainName(`pso`);
 const flexUrl = domainName(`flex`);
 let flexApiKey = '';
 let psoApiKey = '';
+let incomingQueueUrl = '';
+let sqsClient: SQSClient;
 
 let httpsAgent: Agent;
 
@@ -45,8 +51,11 @@ const prepareBeforeAll = async () => {
       );
     }
 
-    // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
     const smClient = new SecretsManagerClient({ region: 'eu-west-2' });
+    const ssmClient = new SSMClient({ region: 'eu-west-2' });
+    sqsClient = new SQSClient({ region: 'eu-west-2' });
+
+    // Retrieve mTLS certificates from secrets for authenticating PSO APIs
 
     // Fetch dev certificates
     const secrets = await smClient.send(
@@ -127,6 +136,19 @@ const prepareBeforeAll = async () => {
     if (!httpsAgent) {
       throw new Error('HTTPS Agent failed to initialize, cannot run end to end tests.');
     }
+
+    // Fetch validation queue url from parameter store
+    const incomingQueueUrlParameter = await ssmClient.send(
+      new GetParameterCommand({
+        Name: `/${config.prefix}/${StringParameters.Queue.Incoming.Url}`,
+        WithDecryption: true,
+      })
+    );
+
+    if (!incomingQueueUrlParameter.Parameter?.Value) {
+      throw new Error('Incoming queue url was not returned from parameter store.');
+    }
+    incomingQueueUrl = incomingQueueUrlParameter.Parameter.Value;
   } catch (error) {
     console.error('Error setting up HTTPS Agent for end to end tests:', error);
     throw error;
@@ -168,6 +190,13 @@ export const testFixtures = () => {
       defaultHeaders: {},
       defaultTimeout: 60000,
     }),
+    psoQueueClient: async (messageRequest: Partial<IMessage>) => {
+      const message = new SendMessageCommand({
+        QueueUrl: incomingQueueUrl,
+        MessageBody: JSON.stringify(messageRequest),
+      });
+      return await sqsClient.send(message);
+    },
     flexAPI: new FetchService({
       baseUrl: `https://${flexUrl}`,
       defaultHeaders: {
@@ -206,6 +235,9 @@ export const test = baseTest
   .extend('psoAPIUsingInsecureProtocol', ({}) => {
     return testFixtures().psoAPIUsingInsecureProtocol;
   })
+  .extend('psoQueueClient', ({}) => {
+    return testFixtures().psoQueueClient;
+  })
   .extend('flexAPI', ({}) => {
     return testFixtures().flexAPI;
   })
@@ -226,12 +258,14 @@ export const test = baseTest
       ({
         dev: `dNVRHHR-Ik3vzs_QBsIv2WB7nCr-sROc6jIXxOqPRQQ`,
       })[config.env] ?? 'cde456'
-  );
+  )
+  .extend('incomingQueueUrl', ({}) => incomingQueueUrl);
 
 export const checkStatus = async (psoAPI: FetchService, notificationID: string) => {
   const result = await psoAPI.get({ path: `/status/${notificationID}` });
   expect(result.body).toEqual(
     expect.toBeOneOf([
+      // Valid API Call
       expect.arrayContaining(
         [
           NotificationStateEnum.VALIDATED_API_CALL,
@@ -241,6 +275,34 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
           // NotificationStateEnum.DISPATCHING,
           // NotificationStateEnum.DISPATCHED,
         ].map((Status) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          expect.objectContaining({
+            Status,
+            NotificationID: notificationID,
+          })
+        )
+      ),
+      // Valid queue to queue
+      expect.arrayContaining(
+        [
+          NotificationStateEnum.VALIDATING,
+          NotificationStateEnum.VALIDATED,
+          NotificationStateEnum.PROCESSING,
+          // Need a way to void test notification while adapter is not VOID.
+          // NotificationStateEnum.PROCESSED,
+          // NotificationStateEnum.DISPATCHING,
+          // NotificationStateEnum.DISPATCHED,
+        ].map((Status) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          expect.objectContaining({
+            Status,
+            NotificationID: notificationID,
+          })
+        )
+      ),
+      // Invalid queue to queue
+      expect.arrayContaining(
+        [NotificationStateEnum.VALIDATING, NotificationStateEnum.VALIDATION_FAILED].map((Status) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           expect.objectContaining({
             Status,

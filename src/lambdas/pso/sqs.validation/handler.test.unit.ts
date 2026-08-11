@@ -112,6 +112,7 @@ describe('Validation QueueHandler', () => {
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
+    vi.useRealTimers();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
@@ -122,6 +123,7 @@ describe('Validation QueueHandler', () => {
     // Mocking successful completion of service functions
     serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
 
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -244,17 +246,30 @@ describe('Validation QueueHandler', () => {
     expect(serviceMocks.processingQueueServiceMock.publishMessage).toHaveBeenCalledWith(mockMessageBody);
   });
 
-  it('should store data in the notifications message table', async () => {
+  it('should store data in the messages table and update with the message wants validated', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+
     // Act
     await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        ...mockMessageBody,
-        ReceivedDateTime: '202601021513',
+        NotificationID: mockEvent.Records[0].body.NotificationID,
+        DepartmentID: mockEvent.Records[0].body.DepartmentID,
+        UserID: mockEvent.Records[0].body.UserID,
+        CampaignID: mockEvent.Records[0].body.CampaignID,
+        ReceivedDateTime: date.toISOString(),
+        Events: [],
       })
     );
+    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith({
+      ...mockEvent.Records[0].body,
+      ValidatedDateTime: date.toISOString(),
+    });
   });
 
   it('should validate messages with valid markdown.', async () => {

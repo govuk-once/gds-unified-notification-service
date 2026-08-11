@@ -84,6 +84,7 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
     // Validate Incoming messages
     const data = await this.validateRecord(record);
     const message = data.body;
+    await this.notificationsRepository.updateRecord(message);
 
     if (!message.OrganisationID) {
       throw new Error(
@@ -91,21 +92,18 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
       );
     }
 
-    // Pre-validate message & reject request when one of them contains unsupported url or invalid markdown
+    // Validate message & reject request when one of them contains un supported url or invalid markdown
     this.contentValidationService!.validate(message.MessageBody);
-
     this.observability.metrics.addMetric(
       MetricsLabels.VALIDATION_DURATION,
       MetricUnit.Milliseconds,
       performance.now() - start
     );
 
-    await this.notificationsRepository.createRecord({
+    // Creates an initial record in notifications table, so analytics events can be added.
+    await this.notificationsRepository.updateRecord({
       ...message,
-      OrganisationID: message.OrganisationID,
-      ReceivedDateTime: data.attributes.ApproximateFirstReceiveTimestamp,
       ValidatedDateTime: new Date().toISOString(),
-      Events: [],
     });
 
     // Publish analytics
@@ -116,6 +114,15 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
   };
 
   protected async onStart(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    await this.notificationsRepository.createRecord({
+      NotificationID: identifiableRecord.NotificationID,
+      DepartmentID: identifiableRecord.DepartmentID,
+      OrganisationID: identifiableRecord.OrganisationID,
+      UserID: identifiableRecord.UserID,
+      CampaignID: identifiableRecord.CampaignID,
+      ReceivedDateTime: new Date().toISOString(),
+      Events: [],
+    });
     await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
   }
 

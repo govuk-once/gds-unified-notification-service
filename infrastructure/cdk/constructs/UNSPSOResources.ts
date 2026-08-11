@@ -652,6 +652,7 @@ export class UNSPSOResource extends Construct {
       'table/mtls/attributes': props.mtls.revocationTableAttributes,
 
       // SQS Queue refs
+      'queue/incoming/url': this.queues.incoming.queue.queueUrl,
       'queue/processing/url': this.queues.processing.queue.queueUrl,
       ...(config.featureFlag.groups && this.queues.groupProcessing?.queue.queueUrl
         ? {
