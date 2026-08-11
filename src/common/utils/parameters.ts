@@ -9,6 +9,9 @@ export const BoolParameters = {
     Processing: {
       Enabled: 'config/processing/enabled',
     },
+    GroupProcessingWorker: {
+      Enabled: 'config/groupProcessingWorker/enabled',
+    },
     Dispatch: {
       Enabled: 'config/dispatch/enabled',
     },
@@ -107,6 +110,12 @@ export const NumericParameters = {
     WindowDuration: 'config/dispatch/circuitBreaker/windowDuration',
     HalfOpenAfter: 'config/dispatch/circuitBreaker/halfOpenAfter',
     RateLimitWhenOpen: 'config/dispatch/circuitBreaker/rateLimitWhenOpen',
+  },
+  Group: {
+    Dispatch: {
+      WorkerCount: 'group/dispatch/workerCount',
+      WorkerBatchSize: 'group/dispatch/workerBatchSize',
+    },
   },
 } as const;
 

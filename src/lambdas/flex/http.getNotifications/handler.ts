@@ -11,7 +11,6 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import {
   IFlexNotificationSchema,
@@ -72,8 +71,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('PushID has not been provided - returning 400');
-      throw new BadRequestError(['PushID has not been provided.']);
+      this.observability.logger.debug('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided.']);
     }
 
     // Get notifications of user from dynamoDB

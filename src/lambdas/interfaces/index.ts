@@ -1,5 +1,7 @@
 export * from './IAnalyticsSchema';
 export * from './IFlexNotification';
+export * from './IGroupMessage';
+export * from './IGroupMessageMetadata';
 export * from './IGroups';
 export * from './IMessage';
 export * from './IModifyGroups';

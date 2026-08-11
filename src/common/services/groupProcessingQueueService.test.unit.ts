@@ -9,7 +9,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IGroupMessage } from '@project/lambdas/interfaces/IMessage';
+import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
 import { mockClient } from 'aws-sdk-client-mock';
 import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
 
@@ -44,6 +44,12 @@ describe('GroupProcessingQueueService', () => {
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new Notification',
     NotificationBody: 'Here is the Notification body.',
+  };
+  const mockGroupMessageMetadata: IGroupMessageMetadata = {
+    GroupMessage: mockGroupMessage,
+    GroupNotificationID: mockGroupMessage.GroupNotificationID,
+    WorkerID: 0,
+    CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
   };
 
   beforeEach(async () => {
@@ -90,7 +96,7 @@ describe('GroupProcessingQueueService', () => {
       });
 
       // Act
-      await groupProcessingQueueService.publishMessage(mockGroupMessage);
+      await groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
 
       // Assert
       expect(sqsMock.calls()).toHaveLength(1);
@@ -99,7 +105,7 @@ describe('GroupProcessingQueueService', () => {
         expect.objectContaining({
           QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
           DelaySeconds: 0,
-          MessageBody: JSON.stringify(mockGroupMessage),
+          MessageBody: JSON.stringify(mockGroupMessageMetadata),
         })
       );
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
@@ -115,7 +121,7 @@ describe('GroupProcessingQueueService', () => {
       sqsMock.on(SendMessageCommand).rejectsOnce(error);
 
       // Act
-      const result = groupProcessingQueueService.publishMessage(mockGroupMessage);
+      const result = groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
 
       // Assert
       await expect(result).rejects.toThrow(error);

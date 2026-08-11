@@ -75,14 +75,14 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle missing path param
     if (notificationID == undefined) {
-      this.observability.logger.info('NotificationID has not been provided - returning 400');
-      throw new BadRequestError(['NotificationID has not been provided']);
+      this.observability.logger.info('notificationID has not been provided - returning 400');
+      throw new BadRequestError(['notificationID has not been provided']);
     }
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('PushID has not been provided - returning 400');
-      throw new BadRequestError(['PushID has not been provided']);
+      this.observability.logger.debug('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided']);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);

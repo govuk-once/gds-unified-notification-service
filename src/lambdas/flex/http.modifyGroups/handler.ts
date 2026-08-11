@@ -71,31 +71,34 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
     // Validate
     const pushID = event.queryStringParameters?.pushID;
     if (!pushID) {
-      this.observability.logger.debug('PushID has not been provided - returning 400');
-      throw new BadRequestError(['PushID has not been provided']);
+      this.observability.logger.debug('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided']);
     }
 
+    // Get users current groups
+    let usersGroups = await this.groupStoreDynamoRepository.getUsersGroups(pushID);
+
     // Leave groups
-    await this.groupStoreDynamoRepository.leaveGroups(
+    const groupsToLeave = event.body.filter((g) => g.Action === GroupActionEnum.LEAVE);
+    this.observability.logger.debug('Leaving groups', {
       pushID,
-      event.body.filter((g) => g.Action === GroupActionEnum.LEAVE)
-    );
+      groupsToLeave,
+    });
+    usersGroups = await this.groupStoreDynamoRepository.leaveGroups(pushID, groupsToLeave, usersGroups);
 
     // Join Groups
-    await this.groupStoreDynamoRepository.joinGroups(
+    const groupsToJoin = event.body.filter((g) => g.Action === GroupActionEnum.JOIN);
+    this.observability.logger.debug('Joining groups', {
       pushID,
-      event.body.filter((g) => g.Action === GroupActionEnum.JOIN)
-    );
-
-    // Get users groups to return
-    const groups = await this.groupStoreDynamoRepository.getUsersGroups(pushID);
+      groupsToJoin,
+    });
+    usersGroups = await this.groupStoreDynamoRepository.joinGroups(pushID, groupsToJoin, usersGroups);
 
     this.observability.logger.debug('Successful request - returning 200', {
       pushID,
     });
-
     return {
-      body: groups.map((g) => {
+      body: usersGroups.map((g) => {
         return {
           Namespace: g.Namespace,
           Group: g.Group,

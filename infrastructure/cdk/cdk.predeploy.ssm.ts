@@ -12,6 +12,7 @@ export const configurableParameters = {
   'config/common/enabled': 'true',
   'config/validation/enabled': 'true',
   'config/processing/enabled': 'true',
+  'config/groupProcessingWorker/enabled': 'true',
   'config/dispatch/enabled': 'true',
 
   // Processing
@@ -41,6 +42,10 @@ export const configurableParameters = {
   // Alert configuration
   'alerts/slack/workspaceId': 'null',
   'alerts/slack/channelId': 'null',
+
+  // Group Notifications
+  'group/dispatch/workerCount': '5',
+  'group/dispatch/workerBatchSize': '100',
 
   // AccountId for consumer to generate certificates for
   'certificate/consumers': '{}',

@@ -18,15 +18,15 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
 
 export abstract class QueueService<InputType> {
   protected abstract queueName: string;
-  protected client: SQSClient;
-  protected sqsQueueUrl: string;
+  protected client!: SQSClient;
+  protected sqsQueueUrl!: string;
 
   constructor(protected observability: ObservabilityService) {}
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {
     if (this.sqsQueueUrl == undefined) {
-      this.observability.logger.error(`Failed to fetch SQS Queue URL for queue ${this.queueName}`);
+      this.observability.logger.error(`Failed to fetch SQS Queue URL for queue`, { queueName: this.queueName });
       throw new ServiceMisconfigurationError();
     }
     this.client = new SQSClient({ region: 'eu-west-2' });
@@ -43,7 +43,8 @@ export abstract class QueueService<InputType> {
   public abstract addPublishingFailedMetric(count: number): void;
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
-    this.observability.logger.info(`Publishing message to queue: ${this.getQueueName()}`, {
+    this.observability.logger.info(`Publishing message to queue'`, {
+      queueName: this.getQueueName(),
       sqsMessageBody: messageBody,
     });
 
@@ -66,41 +67,49 @@ export abstract class QueueService<InputType> {
     }
   }
 
-  public async publishMessageBatch(message: InputType[], delaySeconds = 0) {
-    try {
-      while (message.length > 10) {
-        const subset = message.splice(0, 10);
-        await this.publishMessageBatch(subset);
-      }
+  public async publishMessageBatch(messages: InputType[], delaySeconds = 0) {
+    if (messages.length === 0) {
+      this.observability.logger.info('No messages to publish to queue', { queueName: this.getQueueName() });
+      return;
+    }
 
-      const entries = message.map((body, index) => ({
-        Id: (body as { NotificationID: string })?.NotificationID,
+    const batchSize = 10;
+    for (let i = 0; i < messages.length; i += batchSize) {
+      const chunk = messages.slice(i, i + batchSize);
+
+      // Adds an index to show which chunk of the batch is being processed
+      const entries = chunk.map((body, index) => ({
+        Id: index.toString(),
         DelaySeconds: delaySeconds,
         MessageBody: serializeRecordBodyToJson<InputType>(body, this.observability),
       }));
 
-      const command = new SendMessageBatchCommand({
-        QueueUrl: this.sqsQueueUrl,
-        Entries: entries,
-      });
-      const response = await this.client.send(command);
-
-      if (response.Successful) {
-        this.observability.logger.info('Successfully published messages', {
-          successfulMessageCount: response.Successful.length,
+      try {
+        const command = new SendMessageBatchCommand({
+          QueueUrl: this.sqsQueueUrl,
+          Entries: entries,
         });
-        this.addPublishingSuccessMetric(response.Successful.length);
-      }
-      if (response.Failed) {
-        this.observability.logger.error('Failed to publish messages', { failedMessageCount: response.Failed.length });
-        this.addPublishingFailedMetric(response.Failed.length);
-      }
-    } catch (error) {
-      this.observability.logger.error('Error publishing to SQS', {
-        error: this.observability.formatError(error),
-      });
+        const response = await this.client.send(command);
 
-      throw error;
+        if (response.Successful?.length) {
+          this.observability.logger.info('Successfully published messages', {
+            successfulMessageCount: response.Successful.length,
+          });
+          this.addPublishingSuccessMetric(response.Successful.length);
+        }
+        if (response.Failed?.length) {
+          this.observability.logger.error('Failed to publish messages in batch', {
+            failedMessageCount: response.Failed.length,
+            failures: response.Failed,
+          });
+          this.addPublishingFailedMetric(response.Failed.length);
+        }
+      } catch (error) {
+        this.observability.logger.error('Error publishing to SQS', {
+          error: this.observability.formatError(error),
+        });
+        throw error;
+      }
     }
   }
 }

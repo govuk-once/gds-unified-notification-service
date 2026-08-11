@@ -25,6 +25,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [BoolParameters.Config.Common.Enabled]: `true`,
     [BoolParameters.Config.Dispatch.Enabled]: `true`,
     [BoolParameters.Config.Processing.Enabled]: `true`,
+    [BoolParameters.Config.GroupProcessingWorker.Enabled]: `true`,
     [BoolParameters.Config.Validation.Enabled]: `true`,
     // Enums
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
@@ -35,6 +36,8 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
     [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
     [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
+    [NumericParameters.Group.Dispatch.WorkerCount]: `5`,
+    [NumericParameters.Group.Dispatch.WorkerBatchSize]: `100`,
     // Nested objects
     [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],

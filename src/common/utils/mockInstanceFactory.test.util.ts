@@ -21,6 +21,7 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
+import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
@@ -81,6 +82,10 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     observabilityMock
   ) as Mocked<ProcessingQueueService>;
+  const groupProcessingQueueServiceMock = new GroupProcessingQueueService(
+    configurationServiceMock,
+    observabilityMock
+  ) as Mocked<GroupProcessingQueueService>;
   const dispatchQueueServiceMock = new DispatchQueueService(
     configurationServiceMock,
     observabilityMock
@@ -147,6 +152,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   return {
     // Queue
     processingQueueServiceMock,
+    groupProcessingQueueServiceMock,
     dispatchQueueServiceMock,
     analyticsQueueServiceMock,
     // DynamoDB
