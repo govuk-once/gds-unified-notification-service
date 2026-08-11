@@ -44,6 +44,7 @@ sequenceDiagram
 - Checkov GitHub Action: This step uses Checkov, a popular open-source tool for evaluating cloud infrastructure configurations, to analyze the CDK code and report on any potential security or compliance issues. The results are likely displayed as a GitHub Action status check.
 
 - Run SonarQube Scan: Finally, this step runs a SonarQube scan to analyze the code for quality and security issues. SonarQube provides detailed reports on code smells, bugs, vulnerabilities, and other metrics to help you maintain high-quality software development practices.
+
 </details>
 
 ### Release
