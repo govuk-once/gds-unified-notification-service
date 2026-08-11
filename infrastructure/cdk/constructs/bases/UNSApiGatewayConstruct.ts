@@ -386,7 +386,7 @@ export class UNSAPIGatewayGateway extends Construct {
     this.props = props;
 
     // Extract preconfigured values
-    const { fullDomain, hostedZone, domainConfig, certificate } = this.domainConfig(config, props);
+    const { fullDomain, hostedZone, domainConfig } = this.domainConfig(config, props);
 
     // Initialize API Gateway RestApi
     const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
@@ -493,7 +493,7 @@ export class UNSAPIGatewayGateway extends Construct {
     // Templated secret with username and password fields
     let originHeaderSecret: Secret | null = null;
 
-    if (props.mtls) {
+    if (props.mtls && this.restApi.domainName?.domainNameAliasDomainName) {
       originHeaderSecret = new Secret(this, 'originHeaderSecret', {
         secretName: `${config.prefix}/apigw/${props.name.join('-')}/private-key`,
         generateSecretString: {
@@ -506,7 +506,7 @@ export class UNSAPIGatewayGateway extends Construct {
       distribution = new Distribution(this, 'ApiDistribution', {
         priceClass: PriceClass.PRICE_CLASS_100,
         defaultBehavior: {
-          origin: new HttpOrigin(this.restApi.domainName?.domainNameAliasDomainName as string, {
+          origin: new HttpOrigin(this.restApi.domainName?.domainNameAliasDomainName, {
             customHeaders: {
               'x-origin-header': originHeaderSecret.secretValueFromJson('token').unsafeUnwrap(),
             },
@@ -526,11 +526,13 @@ export class UNSAPIGatewayGateway extends Construct {
             ),
           }),
         },
-        certificate: acm.Certificate.fromCertificateArn(
-          this,
-          namingHelper(`restapi`, ...props.name, `global-cert`),
-          config.ssm.certificateArnCloudfront
-        ),
+        certificate: config.ssm.certificateArnCloudfront
+          ? acm.Certificate.fromCertificateArn(
+              this,
+              namingHelper(`restapi`, ...props.name, `global-cert`),
+              config.ssm.certificateArnCloudfront
+            )
+          : undefined,
         domainNames: fullDomain ? [fullDomain] : [],
         webAclId: props.waf?.cloudfrontWebAclArn,
       });
