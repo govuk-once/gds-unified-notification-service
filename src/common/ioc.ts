@@ -71,7 +71,14 @@ export const iocGetLogger = ioc(
     new Logger({
       serviceName: process.env.SERVICE_NAME ?? 'undefined',
       logLevel: (process.env.LOG_LEVEL ?? 'INFO') as
-        undefined | 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'SILENT' | 'CRITICAL',
+        | undefined
+        | 'TRACE'
+        | 'DEBUG'
+        | 'INFO'
+        | 'WARN'
+        | 'ERROR'
+        | 'SILENT'
+        | 'CRITICAL',
       correlationIdSearchFn: search,
       // Prevent accidental logging of message contents
       jsonReplacerFn: (key, value) => {
