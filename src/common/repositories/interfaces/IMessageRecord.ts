@@ -29,6 +29,8 @@ export const IMessageRecordSchema = z.object({
 
   // Events - appended via analytics handler
   Events: z.array(IAnalyticsSchema),
+
+  DeeplinkURL: z.string().optional(),
 });
 
 export type IMessageRecord = z.infer<typeof IMessageRecordSchema>;

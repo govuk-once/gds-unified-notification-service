@@ -1,5 +1,6 @@
 import {
   APIHandler,
+  BoolParameters,
   CacheService,
   ConfigurationService,
   ContentValidationService,
@@ -78,8 +79,16 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     }));
 
     // Pre-validate all messages & reject request when one of them contains unsupported url
+    const featureEnabledDeepLinkUrl = await this.config.getParameter(BoolParameters.Config.FeatureFlags.DeepLinkUrl);
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
+      if (featureEnabledDeepLinkUrl) {
+        this.contentValidationService.validateUrls(message.DeeplinkURL);
+      } else {
+        if (message.DeeplinkURL) {
+          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL, received undefined → at .']);
+        }
+      }
     }
 
     // Get the number of workers to be used to process the group message

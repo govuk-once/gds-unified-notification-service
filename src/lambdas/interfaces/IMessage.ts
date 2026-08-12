@@ -29,6 +29,7 @@ export const IMessageFields = z.object({
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
   OrganisationID: z.string(),
+  DeeplinkURL: z.string().optional(),
 });
 
 // Message Fields Schemas
