@@ -51,6 +51,7 @@ export class UNSPSOResource extends Construct {
     sqs: {
       validation: UNSLambdaConstruct;
       processing: UNSLambdaConstruct;
+      groupProcessingWorker?: UNSLambdaConstruct;
       dispatch: UNSLambdaConstruct;
       analytics: UNSLambdaConstruct;
     };
@@ -446,6 +447,34 @@ export class UNSPSOResource extends Construct {
       },
     });
 
+    const groupProcessingWorker =
+      config.featureFlag.groups && this.queues.groupProcessing && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseSQS(`groupProcessingWorker`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+              dlq: this.queues.groupProcessing.dlq,
+              vpc: basePrivateVPC,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [
+                this.queues.groupProcessing.queue.queueArn,
+                this.queues.dispatch.queue.queueArn,
+                this.queues.analytics.queue.queueArn,
+              ],
+              dynamodb: {
+                messages: refs.dynamodb.messages.permissions.readAndWrite,
+              },
+              elasticache: refs.elasticache.arns,
+            },
+            triggers: {
+              queues: [this.queues.groupProcessing.queue],
+            },
+          })
+        : undefined;
+
     const dispatch = new UNSLambdaConstruct(this, config, {
       ...baseSQS(`dispatch`),
       environment: {},
@@ -520,6 +549,7 @@ export class UNSPSOResource extends Construct {
       sqs: {
         validation,
         processing,
+        groupProcessingWorker,
         dispatch,
         analytics,
       },

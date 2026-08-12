@@ -36,7 +36,7 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
  * 
  * Sample event received by Lambda from API Gateway
 {
-  "body":"[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
+  "body": "[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -64,10 +64,10 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public analyticsService: AnalyticsService;
-  public contentValidationService: ContentValidationService;
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public processingQueue: ProcessingQueueService;
+  public analyticsService!: AnalyticsService;
+  public contentValidationService!: ContentValidationService;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public processingQueue!: ProcessingQueueService;
 
   constructor(
     protected config: ConfigurationService,
@@ -103,12 +103,10 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     // Publish analytics & push items to the processing queue
     this.observability.logger.info('Publishing analytics events for validated messages.');
     await this.analyticsService.publishMultipleEvents(
-      messages.map(
-        (body): AnalyticsEventFromIMessage => ({
-          ...body,
-          APIGWExtendedID: event.requestContext.requestId,
-        })
-      ),
+      messages.map((body): AnalyticsEventFromIMessage => ({
+        ...body,
+        APIGWExtendedID: event.requestContext.requestId,
+      })),
       NotificationStateEnum.VALIDATED_API_CALL
     );
 
@@ -119,15 +117,13 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     // Create a record of message in Dynamodb
     this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
-      messages.map(
-        (body): IMessageRecord => ({
-          ...body,
-          APIGWExtendedID: event.requestContext.requestId,
-          ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
-          ValidatedDateTime: new Date().toISOString(),
-          Events: [],
-        })
-      )
+      messages.map((body): IMessageRecord => ({
+        ...body,
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: new Date().toISOString(),
+        Events: [],
+      }))
     );
 
     // Return placeholder status
