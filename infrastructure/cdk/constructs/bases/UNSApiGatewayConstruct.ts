@@ -13,6 +13,18 @@ import {
   SecurityPolicy,
 } from 'aws-cdk-lib/aws-apigateway';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import {
+  AllowedMethods,
+  CachePolicy,
+  CfnDistribution,
+  CfnTrustStore,
+  Distribution,
+  OriginRequestHeaderBehavior,
+  OriginRequestPolicy,
+  PriceClass,
+  ViewerProtocolPolicy,
+} from 'aws-cdk-lib/aws-cloudfront';
+import { HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
@@ -21,11 +33,14 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import * as shield from 'aws-cdk-lib/aws-shield';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 
 import { EnvVars } from 'infrastructure/cdk/config';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { managedWafRule } from 'infrastructure/cdk/utils/waf';
 
 type UsageAllowance = {
   // Values are per second
@@ -50,6 +65,12 @@ export interface UNSAPIGatewayGatewayProps {
 
   readonly mtls?: {
     readonly truststore: string;
+  };
+
+  readonly waf?: {
+    // ARN of a CLOUDFRONT scoped WAFv2 Web ACL (must come from a us-east-1 stack) to
+    // associate with this gateway's CloudFront distribution, if one is created.
+    readonly cloudfrontWebAclArn?: string;
   };
 
   readonly resources: {
@@ -81,6 +102,7 @@ export class UNSAPIGatewayGateway extends Construct {
   public readonly restApi: RestApi;
   public readonly props: UNSAPIGatewayGatewayProps;
   public readonly waf: wafv2.CfnWebACL;
+  public readonly shieldProtection?: shield.CfnProtection;
 
   //// =====================================================
   // Domain
@@ -129,14 +151,6 @@ export class UNSAPIGatewayGateway extends Construct {
               certificate: certificate,
               securityPolicy: SecurityPolicy.TLS_1_2,
               endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
-              ...(props.mtls && mtlsTruststoreBucket
-                ? {
-                    mtls: {
-                      bucket: mtlsTruststoreBucket,
-                      key: props.mtls.truststore.replace(`s3://`, ``).split(`/`).slice(1).join(`/`),
-                    },
-                  }
-                : {}),
             }
           : undefined,
       disableExecuteApiEndpoint: fullDomain && certificate && rootDomain ? true : false,
@@ -158,14 +172,17 @@ export class UNSAPIGatewayGateway extends Construct {
     config: EnvVars,
     props: UNSAPIGatewayGatewayProps,
     fullDomain: string | null,
-    hostedZone: route53.IHostedZone | null
+    hostedZone: route53.IHostedZone | null,
+    distribution?: Distribution
   ) {
     // Provision Route 53 A-Record for Custom Domain mappings
     if (fullDomain && hostedZone) {
       new route53.ARecord(this, config.utils.namingHelper(...props.name, 'domain'), {
         zone: hostedZone,
         recordName: fullDomain,
-        target: route53.RecordTarget.fromAlias(new route53targets.ApiGateway(this.restApi)),
+        target: distribution
+          ? route53.RecordTarget.fromAlias(new route53targets.CloudFrontTarget(distribution))
+          : route53.RecordTarget.fromAlias(new route53targets.ApiGateway(this.restApi)),
       });
     }
   }
@@ -186,7 +203,11 @@ export class UNSAPIGatewayGateway extends Construct {
       // Use custom authorizer if one is set
       authorizer: authorizer ?? this.props.authorizer,
       // Otherwise: Use IAM authorization if we are a private API gateway
-      authorizationType: this.props.iam?.allowOnlyFromKnownSources ? AuthorizationType.IAM : undefined,
+      authorizationType: this.props.iam?.allowOnlyFromKnownSources
+        ? AuthorizationType.IAM
+        : this.props.mtls
+          ? AuthorizationType.CUSTOM
+          : undefined,
       // If usage plan defaults are in place - all endpoints require an API key
       apiKeyRequired: this.props.usagePlanDefaults !== undefined,
     });
@@ -226,27 +247,8 @@ export class UNSAPIGatewayGateway extends Construct {
   //// =====================================================
   // Waf
   //// =====================================================
-  managedRule(ruleProps: { priority: number; name: string; managedRuleName: string; metricName: string }) {
-    return {
-      name: ruleProps.name,
-      priority: ruleProps.priority,
-      statement: {
-        managedRuleGroupStatement: {
-          vendorName: 'AWS',
-          name: ruleProps.managedRuleName,
-        },
-      },
-      overrideAction: { none: {} },
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: ruleProps.metricName,
-        sampledRequestsEnabled: true,
-      },
-    };
-  }
-
-  constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
-    // WAFv2 Protection configuration builder
+  constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps, secret: Secret | null) {
+    // WAFv2 Protection configuration builder - this was protects the API Gateway itself
     const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
       name: config.utils.namingHelper(...props.name, 'waf'),
       scope: 'REGIONAL',
@@ -258,25 +260,45 @@ export class UNSAPIGatewayGateway extends Construct {
         sampledRequestsEnabled: true,
       },
       rules: [
-        this.managedRule({
-          priority: 1,
+        // When integrating with CloudFront - use shared token value between the instances to limit traffic
+        ...(secret !== null
+          ? [
+              {
+                name: 'RequireOriginSecret',
+                priority: 1,
+                visibilityConfig: {
+                  cloudWatchMetricsEnabled: true,
+                  sampledRequestsEnabled: false,
+                  metricName: 'RequireOriginSecret',
+                },
+                action: {
+                  allow: {},
+                },
+                statement: {
+                  byteMatchStatement: {
+                    fieldToMatch: {
+                      singleHeader: { Name: 'x-origin-verify' },
+                    },
+                    positionalConstraint: 'EXACTLY',
+                    searchString: secret.secretValueFromJson('token').unsafeUnwrap(),
+                    textTransformations: [{ priority: 0, type: 'NONE' }],
+                  },
+                },
+              },
+            ]
+          : []),
+        managedWafRule({
+          priority: 5,
           managedRuleName: 'AWSManagedRulesCommonRuleSet',
           metricName: `${config.prefix}-aws-common-rule-set`,
           name: config.utils.namingHelper(...props.name, 'aws-common-rule-set'),
         }),
-        this.managedRule({
+        managedWafRule({
           priority: 10,
           managedRuleName: 'AWSManagedRulesKnownBadInputsRuleSet',
           metricName: `${config.prefix}-aws-bad-input-rule-metric`,
           name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
         }),
-        // This rule while sensible rejects E2E tests from GH Actions
-        // this.managedRule({
-        //   priority: 100,
-        //   managedRuleName: 'AWSManagedRulesAnonymousIpList',
-        //   metricName: `${config.prefix}-anonymous-ip-list-rule-metric`,
-        //   name: config.utils.namingHelper(...props.name, 'anonymous-ip-list-rule-metric'),
-        // }),
       ],
     });
 
@@ -299,6 +321,24 @@ export class UNSAPIGatewayGateway extends Construct {
     });
 
     return webAcl;
+  }
+
+  //// =====================================================
+  // Shield Advanced - Enabled only on Staging/Prod
+  //// =====================================================
+  constructShieldProtection(config: EnvVars, props: UNSAPIGatewayGatewayProps, distribution: Distribution) {
+    const protection = new shield.CfnProtection(this, config.utils.namingHelper(...props.name, 'shield-protection'), {
+      name: config.utils.namingHelper(...props.name, 'shield-protection'),
+      resourceArn: distribution.distributionArn,
+      applicationLayerAutomaticResponseConfiguration: props.waf?.cloudfrontWebAclArn
+        ? {
+            action: { block: {} },
+            status: 'ENABLED',
+          }
+        : undefined,
+    });
+
+    return protection;
   }
 
   //// =====================================================
@@ -373,7 +413,6 @@ export class UNSAPIGatewayGateway extends Construct {
         cacheClusterEnabled: false,
 
         accessLogDestination: new LogGroupLogDestination(loggroup),
-
         accessLogFormat: AccessLogFormat.custom(
           JSON.stringify({
             requestId: AccessLogField.contextRequestId(),
@@ -402,6 +441,9 @@ export class UNSAPIGatewayGateway extends Construct {
 
       // Conditional custom domain name setup
       ...domainConfig,
+
+      // Enforce disabled execute api endpoints when using mtls
+      ...(props.mtls ? { disableExecuteApiEndpoint: true } : {}),
     });
 
     this.restApi.deploymentStage.node.addDependency(loggroup);
@@ -445,10 +487,87 @@ export class UNSAPIGatewayGateway extends Construct {
       }
     }
 
+    // Cloudfront definition for mtls
+    let distribution: Distribution | undefined = undefined;
+
+    // Templated secret with username and password fields
+    let originHeaderSecret: Secret | null = null;
+
+    if (props.mtls && this.restApi.domainName?.domainNameAliasDomainName) {
+      originHeaderSecret = new Secret(this, 'originHeaderSecret', {
+        secretName: `${config.prefix}/apigw/${props.name.join('-')}/private-key`,
+        generateSecretString: {
+          secretStringTemplate: JSON.stringify({}),
+          generateStringKey: 'token',
+          passwordLength: 64,
+          excludeCharacters: '/@"',
+        },
+      });
+      distribution = new Distribution(this, 'ApiDistribution', {
+        priceClass: PriceClass.PRICE_CLASS_100,
+        defaultBehavior: {
+          origin: new HttpOrigin(this.restApi.domainName?.domainNameAliasDomainName, {
+            customHeaders: {
+              'x-origin-header': originHeaderSecret.secretValueFromJson('token').unsafeUnwrap(),
+            },
+          }),
+          viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: AllowedMethods.ALLOW_ALL,
+          cachePolicy: CachePolicy.CACHING_DISABLED,
+          compress: false,
+          smoothStreaming: false,
+
+          originRequestPolicy: new OriginRequestPolicy(this, 'mtlsHeaderPolicy', {
+            originRequestPolicyName: constructNamingHelper('mtls-cert-headers'),
+            headerBehavior: OriginRequestHeaderBehavior.all(
+              'CloudFront-Viewer-Cert-Subject',
+              'CloudFront-Viewer-Cert-Pem',
+              'CloudFront-Viewer-Cert-Validity'
+            ),
+          }),
+        },
+        certificate: config.ssm.certificateArnCloudfront
+          ? acm.Certificate.fromCertificateArn(
+              this,
+              namingHelper(`restapi`, ...props.name, `global-cert`),
+              config.ssm.certificateArnCloudfront
+            )
+          : undefined,
+        domainNames: fullDomain ? [fullDomain] : [],
+        webAclId: props.waf?.cloudfrontWebAclArn,
+      });
+
+      // Configure trust store & Viewer mTLS config in CloudFront
+      const trustStore = new CfnTrustStore(this, 'ClientTrustStore', {
+        name: 'api-client-trust-store',
+        caCertificatesBundleSource: {
+          caCertificatesBundleS3Location: {
+            bucket: props.mtls.truststore.replace(`s3://`, ``).split(`/`).shift()!,
+            key: props.mtls.truststore.replace(`s3://`, ``).split(`/`).pop()!,
+            region: 'eu-west-2',
+          },
+        },
+      });
+      const cfnDistribution = distribution.node.defaultChild as CfnDistribution;
+      cfnDistribution.addPropertyOverride('DistributionConfig.ViewerMtlsConfig', {
+        Mode: 'required',
+        TrustStoreConfig: {
+          TrustStoreId: trustStore.attrId,
+          AdvertiseTrustStoreCaNames: true, // Solicits trusted CAs during TLS handshake
+          IgnoreCertificateExpiry: false, // Set to true only during CA rotation transitions
+        },
+      });
+    }
+
     // Construct relevant sub resources
     this.constructPrivatePolicies(config, props);
-    this.waf = this.constructWAF(config, props);
-    this.constructRoute53Entries(config, props, fullDomain, hostedZone);
+    this.waf = this.constructWAF(config, props, originHeaderSecret);
+    this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
+
+    // Shield Advanced protection for the CloudFront distribution - staging & production only
+    if (distribution && config.isNonDevEnv) {
+      this.shieldProtection = this.constructShieldProtection(config, props, distribution);
+    }
 
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [

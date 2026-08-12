@@ -25,7 +25,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
   public requestBodySchema = z.any();
   public responseBodySchema = z.any();
 
-  public mtlsRevocationDynamoRepository: MTLSRevocationDynamoRepository;
+  public mtlsRevocationDynamoRepository!: MTLSRevocationDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
@@ -44,7 +44,12 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
     return middy;
   }
 
-  protected createPolicyResponse(resource: string, effect: 'Allow' | 'Deny', context?: Record<string, string>) {
+  protected createPolicyResponse(
+    resource: string,
+    effect: 'Allow' | 'Deny',
+    context?: Record<string, string>,
+    usageIdentifierKey?: string
+  ) {
     const authorizerResult: APIGatewayAuthorizerResult = {
       principalId: 'MtlsCertificateRevocationAuthorizer',
       policyDocument: {
@@ -58,10 +63,9 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
         ],
       },
       context: context ?? {},
+      usageIdentifierKey: usageIdentifierKey,
     };
 
-    // TODO: Create a dedicate authorizer handler, and organize existing handlers a bit more
-    // Overwrite the typing, since http wrapper expects response wrapper
     return authorizerResult as unknown as ITypedRequestResponse<z.ZodAny>;
   }
 
@@ -70,23 +74,24 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _context: Context
   ): Promise<ITypedRequestResponse<z.ZodAny>> {
-    this.observability.logger.info(`Event received`, _event);
+    this.observability.logger.debug(`Event received`, _event);
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_COUNT, MetricUnit.Count, 1);
 
-    if (_event?.requestContext?.identity?.clientCert?.clientCertPem == undefined) {
-      // TODO Add extra logging & alerting - this should never occur, and would indicate misconfiguration - and clientCertPem is only undefined if the mtls has been disabled
+    const perm = _event?.headers?.['CloudFront-Viewer-Cert-PEM'];
+
+    if (perm == undefined) {
+      this.observability.logger.error(`Request without client cert perm has been presented`);
       this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_COUNT, MetricUnit.Count, 1);
       return this.createPolicyResponse(_event.methodArn, 'Deny');
     }
 
     // Generate ID based on certificate contents
-    const certificateId = createHash('sha256')
-      .update((_event.requestContext.identity.clientCert?.clientCertPem ?? 'undefined').trim())
-      .digest('hex');
+    const certificateId = createHash('sha256').update(decodeURIComponent(perm).trim()).digest('hex');
     const certificateRecord = await this.mtlsRevocationDynamoRepository.getRecord(certificateId);
 
     // No certificate found
     if (certificateRecord == undefined) {
+      this.observability.logger.error(`Request denied as the certicate has no record in DynamoDB`);
       this.observability.metrics.addMetric(
         MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_UNKNOWN_CERTIFICATE_COUNT,
         MetricUnit.Count,
@@ -99,6 +104,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     // Certificate has been revoked
     if (certificateRecord.Revoked) {
+      this.observability.logger.error(`Request denied as the certicate has been revoked`);
       this.observability.metrics.addMetric(
         MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_REVOKED_CERTIFICATE_COUNT,
         MetricUnit.Count,
@@ -107,8 +113,11 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
       return this.createPolicyResponse(_event.methodArn, 'Deny');
     }
 
-    // Certificate has no organization
+    // Certificate has no organization linked to it
     if (!certificateRecord.Organization) {
+      this.observability.logger.error(
+        `Request denied as the certificate has no organization within DynamoDB record - this usually means a data error and needs to be addressed`
+      );
       this.observability.metrics.addMetric(
         MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_NO_ORGANIZATION_COUNT,
         MetricUnit.Count,
@@ -119,7 +128,12 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     // Allow only if the certificate record states that certificate has not been revoked
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_ALLOWED_COUNT, MetricUnit.Count, 1);
-    return this.createPolicyResponse(_event.methodArn, 'Allow', { Organization: certificateRecord.Organization });
+    return this.createPolicyResponse(
+      _event.methodArn,
+      'Allow',
+      { Organization: certificateRecord.Organization },
+      _event.headers['x-api-key']
+    );
   }
 }
 
