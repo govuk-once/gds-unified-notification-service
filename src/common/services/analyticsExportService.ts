@@ -18,7 +18,7 @@ import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 export interface AnalyticsLog {
   EventID: string;
   EventTimestamp: string;
-  OrganisationID: string;
+  OrganisationID?: string;
   DepartmentID?: string;
   NotificationID: string;
   CampaignID?: string;

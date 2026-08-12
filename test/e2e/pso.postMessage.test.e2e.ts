@@ -184,7 +184,7 @@ describe('Post /send', () => {
           NotificationTitle: 'End 2 End Test',
           NotificationBody: 'This is an end 2 end test!',
           MessageTitle: 'End 2 End Test Message Title',
-          MessageBody: '    const x = 10;\n    const y = 20;',
+          MessageBody: 'This is <u>underlined html</u> text which is invalid.',
         },
       ];
 
@@ -193,7 +193,17 @@ describe('Post /send', () => {
 
       // Assert
       await expect(result).rejects.toMatchObject(
-        BadRequestAxiosError(['Message body contains markdown elements which are not valid: code_block'])
+        BadRequestAxiosError(['Message body contains markdown elements which are not valid: html_inline'])
+      );
+    });
+
+    test('status 400 when - the request has no body', async ({ psoAPI }) => {
+      // Act
+      const result = psoAPI.post({ path: '/send' });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Invalid input: expected array, received null → at .'])
       );
     });
   });
@@ -268,16 +278,6 @@ describe('Post /send', () => {
         },
       ]);
     });
-  });
-
-  test('status 400 when - the request has no body', async ({ psoAPI }) => {
-    // Act
-    const result = psoAPI.post({ path: '/send' });
-
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected array, received null → at .'])
-    );
   });
 
   test('status 202 when - the message has no departmentID', async ({ psoAPI }) => {

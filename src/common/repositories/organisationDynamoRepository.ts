@@ -18,7 +18,9 @@ export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisat
   }
 
   public async getOrganisations(notifications: IMessageRecord[]): Promise<IOrganisationRecord[]> {
-    const uniqueOrganisationsIDs = Array.from(new Set(notifications.map((x) => x.OrganisationID)));
+    const uniqueOrganisationsIDs = Array.from(new Set(notifications.map((x) => x.OrganisationID))).filter(
+      (x) => x !== undefined
+    );
     const promises = uniqueOrganisationsIDs.map(async (organisationID) => {
       const organisationRecord = await this.getRecord(organisationID);
       return organisationRecord;
