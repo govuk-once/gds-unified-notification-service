@@ -1,8 +1,22 @@
-import { test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
+import { NotificationStateEnum } from '@common/models';
+import { md5ToUuidV4 } from '@common/utils/checksumString';
+import { IGroupMessage } from '@project/lambdas';
+import { checkStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
 import { expect } from 'vitest';
 
 const url = () => `/v1/send-to-group`;
-const mockGroupMessage = {
+const buildNotificationID = (pushID: string, groupMessage: Omit<IGroupMessage, 'OrganisationID'>) => {
+  return md5ToUuidV4({
+    PushID: pushID,
+    NotificationTitle: groupMessage.NotificationTitle,
+    NotificationBody: groupMessage.NotificationBody,
+    MessageTitle: groupMessage.MessageTitle,
+    MessageBody: groupMessage.MessageBody,
+    GroupNotificationID: groupMessage.GroupNotificationID,
+  });
+};
+
+const mockGroupMessage: Omit<IGroupMessage, 'OrganisationID'> = {
   Namespace: 'test',
   Group: 'end2end',
   Subgroup: 'immediate',
@@ -14,17 +28,17 @@ const mockGroupMessage = {
   NotificationBody: 'Here is the Notification body.',
 };
 
+const pushIDs = [
+  `a53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `b53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `c53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `d53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `e53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+];
+
 beforeAll(async () => {
   // Setup a user in some group to be able to send a message to that group
   const flexApi = testFixtures().flexAPI;
-
-  const pushIDUsers = [
-    `a53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `b53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `c53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `d53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `e53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-  ];
   const group = [
     {
       Namespace: 'test',
@@ -34,7 +48,7 @@ beforeAll(async () => {
     },
   ];
 
-  for (const pushID of pushIDUsers) {
+  for (const pushID of pushIDs) {
     await flexApi.post({ path: `/v1/groups?pushID=${pushID}`, body: group });
   }
 });
@@ -194,6 +208,44 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
           UsersInGroup: 5,
         },
       ]);
+    });
+
+    test('processed and dispatch status - sending a group message', async ({ psoAPI: api }) => {
+      // Arrange
+      const path = url();
+      const notificationIDs = pushIDs.map((p) => buildNotificationID(p, mockGroupMessage));
+
+      // Act
+      const result = await api.post({
+        path,
+        body: [mockGroupMessage],
+      });
+
+      // Assert
+      expect(result.status).toBe(202);
+      for (const notificationID of notificationIDs) {
+        const status = await vi.waitFor(() => checkStatus(api, notificationID), {
+          timeout: 30000,
+          interval: 2000,
+        });
+        expect(status).toEqual(
+          expect.arrayContaining(
+            [
+              NotificationStateEnum.PROCESSING,
+              NotificationStateEnum.PROCESSED,
+              NotificationStateEnum.DISPATCHING,
+              // Need a way to void test notification while adapter is not VOID.
+              // NotificationStateEnum.DISPATCHED,
+            ].map((Status) =>
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+              expect.objectContaining({
+                Status,
+                NotificationID: notificationID,
+              })
+            )
+          )
+        );
+      }
     });
 
     test('status 202 and number of users in group when - sending a group message with no users', async ({

@@ -14,7 +14,6 @@ import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFact
 import { IGroupMessageMetadata, IProcessedMessage } from '@project/lambdas/interfaces';
 import { GroupProcessingWorker } from '@project/lambdas/pso/sqs.groupProcessingWorker/handler';
 import { Context } from 'aws-lambda';
-import { v4 as uuid } from 'uuid';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -22,10 +21,6 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
-
-vi.mock('uuid', () => ({
-  v4: vi.fn(),
-}));
 
 describe('GroupProcessingWorker QueueHandler', () => {
   let instance: GroupProcessingWorker;
@@ -154,8 +149,6 @@ describe('GroupProcessingWorker QueueHandler', () => {
     ],
   } as unknown as QueueEvent<IGroupMessageMetadata>;
 
-  const mockNotificationID_1 = '11f42512-67b8-43b4-9dd5-55a75be13f4d';
-
   beforeEach(async () => {
     // Reset all mocks
     vi.resetAllMocks();
@@ -175,11 +168,6 @@ describe('GroupProcessingWorker QueueHandler', () => {
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([]);
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    vi.mocked(uuid as () => string)
-      .mockReset()
-      .mockReturnValueOnce(mockNotificationID_1);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
     instance = new GroupProcessingWorker(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -217,10 +205,11 @@ describe('GroupProcessingWorker QueueHandler', () => {
     }
   );
 
-  it('creates a batch of message using the pushID with the message body and metadata and sends it to the dispatch queue', async () => {
+  it('creates a batch of message using the pushID, checksum NotificationID, message body, and metadata, then sends it to the dispatch queue', async () => {
     // Arrange
+    const notificationID = '7773dc26-71f9-4e95-a5f6-6dcb2c5af299';
     const expectedProcessedMessage: IProcessedMessage = {
-      NotificationID: mockNotificationID_1,
+      NotificationID: notificationID,
       CampaignID: 'CAM_ID',
       OrganisationID: 'ORG01',
       ExternalUserID: 'pushID_1',
@@ -268,10 +257,11 @@ describe('GroupProcessingWorker QueueHandler', () => {
     );
   });
 
-  it('creates records in the notification dynamo db for the processed messages', async () => {
+  it('creates records in the notification dynamo db with a checksum of the fields as the NotificationID for the processed messages', async () => {
     // Arrange
+    const notificationID = '7773dc26-71f9-4e95-a5f6-6dcb2c5af299';
     const expectedProcessedMessage: IMessageRecord = {
-      NotificationID: mockNotificationID_1,
+      NotificationID: notificationID,
       CampaignID: 'CAM_ID',
       OrganisationID: 'ORG01',
       ExternalUserID: 'pushID_1',
@@ -297,8 +287,9 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates an analytics event when a group message is successfully processed', async () => {
     // Arrange
+    const notificationID = '7773dc26-71f9-4e95-a5f6-6dcb2c5af299';
     const expectedProcessedMessage: IProcessedMessage = {
-      NotificationID: mockNotificationID_1,
+      NotificationID: notificationID,
       CampaignID: 'CAM_ID',
       OrganisationID: 'ORG01',
       ExternalUserID: 'pushID_1',
