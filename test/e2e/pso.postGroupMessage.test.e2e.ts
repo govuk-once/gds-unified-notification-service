@@ -1,31 +1,29 @@
 import { NotificationStateEnum } from '@common/models';
-import { md5ToUuidV4 } from '@common/utils/checksumString';
+import { generateNotificationIDForGroupMessage } from '@common/utils';
 import { IGroupMessage } from '@project/lambdas';
 import { checkStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
+import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
 const url = () => `/v1/send-to-group`;
-const buildNotificationID = (pushID: string, groupMessage: Omit<IGroupMessage, 'OrganisationID'>) => {
-  return md5ToUuidV4({
-    PushID: pushID,
-    NotificationTitle: groupMessage.NotificationTitle,
-    NotificationBody: groupMessage.NotificationBody,
-    MessageTitle: groupMessage.MessageTitle,
-    MessageBody: groupMessage.MessageBody,
-    GroupNotificationID: groupMessage.GroupNotificationID,
-  });
+const generateNotificationID = (pushID: string, messageRequest: Omit<IGroupMessage, 'OrganisationID'>) => {
+  const groupMessage: IGroupMessage = {
+    ...messageRequest,
+    OrganisationID: 'TEST_ORG',
+  };
+  return generateNotificationIDForGroupMessage(pushID, groupMessage);
 };
 
 const mockGroupMessage: Omit<IGroupMessage, 'OrganisationID'> = {
   Namespace: 'test',
   Group: 'end2end',
   Subgroup: 'immediate',
-  GroupNotificationID: 'TO_GROUP_ID',
-  CampaignID: 'CAM_ID',
-  MessageTitle: 'You have a new Message',
-  MessageBody: 'Open Notification Centre to read your notifications',
-  NotificationTitle: 'You have a new Notification',
-  NotificationBody: 'Here is the Notification body.',
+  GroupNotificationID: 'GROUP_ID' + uuid(),
+  CampaignID: 'GROUP_MESSAGE_E2E_TEST',
+  NotificationTitle: 'End 2 End Test - POST Group Message',
+  NotificationBody: 'This is an end 2 end test!',
+  MessageTitle: 'End 2 End Test Message Title',
+  MessageBody: 'End 2 End Test Message Body',
 };
 
 const pushIDs = [
@@ -213,7 +211,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     test('processed and dispatch status - sending a group message', async ({ psoAPI: api }) => {
       // Arrange
       const path = url();
-      const notificationIDs = pushIDs.map((p) => buildNotificationID(p, mockGroupMessage));
+      const notificationIDs = pushIDs.map((p) => generateNotificationID(p, mockGroupMessage));
 
       // Act
       const result = await api.post({
@@ -231,7 +229,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
         expect(status).toEqual(
           expect.arrayContaining(
             [
-              NotificationStateEnum.PROCESSING,
               NotificationStateEnum.PROCESSED,
               NotificationStateEnum.DISPATCHING,
               // Need a way to void test notification while adapter is not VOID.

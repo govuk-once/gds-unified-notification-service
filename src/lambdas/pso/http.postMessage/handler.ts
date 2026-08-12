@@ -103,12 +103,10 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     // Publish analytics & push items to the processing queue
     this.observability.logger.info('Publishing analytics events for validated messages.');
     await this.analyticsService.publishMultipleEvents(
-      messages.map(
-        (body): AnalyticsEventFromIMessage => ({
-          ...body,
-          APIGWExtendedID: event.requestContext.requestId,
-        })
-      ),
+      messages.map((body): AnalyticsEventFromIMessage => ({
+        ...body,
+        APIGWExtendedID: event.requestContext.requestId,
+      })),
       NotificationStateEnum.VALIDATED_API_CALL
     );
 
@@ -119,15 +117,13 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     // Create a record of message in Dynamodb
     this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
-      messages.map(
-        (body): IMessageRecord => ({
-          ...body,
-          APIGWExtendedID: event.requestContext.requestId,
-          ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
-          ValidatedDateTime: new Date().toISOString(),
-          Events: [],
-        })
-      )
+      messages.map((body): IMessageRecord => ({
+        ...body,
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: new Date().toISOString(),
+        Events: [],
+      }))
     );
 
     // Return placeholder status

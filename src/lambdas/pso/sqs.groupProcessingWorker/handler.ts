@@ -23,7 +23,7 @@ import {
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import { md5ToUuidV4 } from '@common/utils/checksumString';
+import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
 import { IGroupMessageMetadataSchema, IIdentifiableGroupMessageSchema } from '@project/lambdas/interfaces';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
@@ -123,14 +123,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     // Build group messages to users -
     const processedMessages: IProcessedMessage[] = [];
     for (const pushID of pushIDs) {
-      const notificationID = md5ToUuidV4({
-        PushID: pushID,
-        GroupNotificationID: groupMessage.GroupNotificationID,
-        NotificationTitle: groupMessage.NotificationTitle,
-        NotificationBody: groupMessage.NotificationBody,
-        MessageTitle: groupMessage.MessageTitle,
-        MessageBody: groupMessage.MessageBody,
-      });
+      const notificationID = generateNotificationIDForGroupMessage(pushID, groupMessage);
       processedMessages.push({
         NotificationID: notificationID,
         OrganisationID: groupMessage.OrganisationID,

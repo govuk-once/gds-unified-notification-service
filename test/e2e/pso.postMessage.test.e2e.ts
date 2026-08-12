@@ -16,10 +16,10 @@ describe('Post /send', () => {
     messageRequest = [
       {
         NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
+        CampaignID: 'MESSAGE_API_E2E_TEST',
         DepartmentID: 'testDepartmentID',
         UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
+        NotificationTitle: 'End 2 End Test - POST Message',
         NotificationBody: 'This is an end 2 end test!',
         MessageTitle: 'End 2 End Test Message Title',
         MessageBody: 'End 2 End Test Message Body',
