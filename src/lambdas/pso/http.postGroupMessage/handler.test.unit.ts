@@ -385,7 +385,7 @@ describe('PostGroupMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected DeeplinkURL, received undefined → at .'],
+      Errors: ['Invalid input: unexpected DeeplinkURL at .'],
     });
   });
 });

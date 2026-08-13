@@ -106,7 +106,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
         this.contentValidationService.validateUrls(message.DeeplinkURL);
       } else {
         if (message.DeeplinkURL) {
-          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL, received undefined → at .']);
+          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
         }
       }
     }
