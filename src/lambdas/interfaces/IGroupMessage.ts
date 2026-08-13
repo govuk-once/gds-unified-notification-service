@@ -6,6 +6,7 @@ import z from 'zod';
 export const IIdentifiableGroupMessageSchema = z.object({
   // Generate GroupNotificationIDs if not provided
   GroupNotificationID: z.string().default(() => uuid()),
+  OrganisationID: z.string(),
   CampaignID: z.string().optional(),
   Namespace: z.string(),
   Group: z.string(),

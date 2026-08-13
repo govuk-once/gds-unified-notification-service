@@ -23,8 +23,11 @@ import {
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { BoolParameters, NumericParameters } from '@common/utils';
-import { IGroupMessageMetadataSchema, IIdentifiableGroupMessageSchema } from '@project/lambdas/interfaces';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import {
+  IGroupMessageMetadataSchema,
+  IIdentifiableGroupMessageSchema,
+  IProcessedMessage,
+} from '@project/lambdas/interfaces';
 import { SQSRecord } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
 import z from 'zod';

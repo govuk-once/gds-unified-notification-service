@@ -45,8 +45,8 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = IFlexNotificationSchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public organisationsDynamoRepository: OrganisationsDynamoRepository;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -85,7 +85,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new BadRequestError(['pushID has not been provided']);
     }
 
-    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
+    const notification = await this.notificationsDynamoRepository.getProcessedMessageByID(notificationID);
 
     // Handle not found or hidden notifications
     if (!notification) {

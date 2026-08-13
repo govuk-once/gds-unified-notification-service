@@ -20,11 +20,11 @@ import {
 } from '@common';
 import { NotificationStateEnum } from '@common/models';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { IMessageSchema } from '@project/lambdas/interfaces';
+import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
+const requestBodySchema = z.array(IValidateMessageSchema.strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
 /**
@@ -85,17 +85,16 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     this.observability.logger.info('Received request', { event });
 
     const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-
     if (!organisationID) {
       throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
     }
 
-    const messages = event.body.map((body) => ({
+    const messages: IMessage[] = event.body.map((body) => ({
       ...body,
       OrganisationID: organisationID,
     }));
 
-    // Pre-validate all messages & reject request when one of them contains unsupported url
+    // Validate all message bodies contents & reject request when one of them contains unsupported url
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
     }
