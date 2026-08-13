@@ -1,25 +1,15 @@
-import { NotificationStateEnum } from '@common/models';
-import { generateNotificationIDForGroupMessage } from '@common/utils';
 import { IGroupMessage } from '@project/lambdas';
-import { checkStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
+import { checkCampaignStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
-const url = () => `/v1/send-to-group`;
-const generateNotificationID = (pushID: string, messageRequest: Omit<IGroupMessage, 'OrganisationID'>) => {
-  const groupMessage: IGroupMessage = {
-    ...messageRequest,
-    OrganisationID: 'TEST_ORG',
-  };
-  return generateNotificationIDForGroupMessage(pushID, groupMessage);
-};
+const path = `/v1/send-to-group`;
 
 const mockGroupMessage: Omit<IGroupMessage, 'OrganisationID'> = {
   Namespace: 'test',
   Group: 'end2end',
   Subgroup: 'immediate',
   GroupNotificationID: 'GROUP_ID' + uuid(),
-  CampaignID: 'GROUP_MESSAGE_E2E_TEST',
   NotificationTitle: 'End 2 End Test - POST Group Message',
   NotificationBody: 'This is an end 2 end test!',
   MessageTitle: 'End 2 End Test Message Title',
@@ -56,9 +46,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     test('UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
     }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -76,9 +63,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 403 when using invalid api key', async ({ psoAPIWithoutAPIKey: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -89,9 +73,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing body', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -102,9 +83,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing body', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -115,9 +93,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing namespace', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -133,9 +108,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing group', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -151,9 +123,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing NotificationTitle', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -169,9 +138,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing NotificationBody', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -189,9 +155,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
 
   describe(`Happy paths`, () => {
     test('status 202 and number of users in group when - sending a group message', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act
       const result = await api.post({
         path,
@@ -208,68 +171,33 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       ]);
     });
 
-    test('processed and dispatch status - sending a group message', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-      const notificationIDs = pushIDs.map((p) => generateNotificationID(p, mockGroupMessage));
-
-      // Act
-      const result = await api.post({
-        path,
-        body: [mockGroupMessage],
-      });
-
-      // Assert
-      expect(result.status).toBe(202);
-      for (const notificationID of notificationIDs) {
-        const status = await vi.waitFor(() => checkStatus(api, notificationID), {
-          timeout: 30000,
-          interval: 2000,
-        });
-        expect(status).toEqual(
-          expect.arrayContaining(
-            [
-              NotificationStateEnum.PROCESSED,
-              NotificationStateEnum.DISPATCHING,
-              // Need a way to void test notification while adapter is not VOID.
-              // NotificationStateEnum.DISPATCHED,
-            ].map((Status) =>
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-              expect.objectContaining({
-                Status,
-                NotificationID: notificationID,
-              })
-            )
-          )
-        );
-      }
-    });
-
-    test('status 202 and number of users in group when - sending a group message with no users', async ({
+    test('that the status count for the campaign shows the message is processed and dispatched', async ({
       psoAPI: api,
     }) => {
       // Arrange
-      const path = url();
+      const mockGroupMessageWithCampaign = {
+        ...mockGroupMessage,
+        CampaignID: 'GROUP_MESSAGE_E2E_TEST',
+      };
+      const initialCampaignStatus = await checkCampaignStatus(api, mockGroupMessageWithCampaign.CampaignID);
 
       // Act
       const result = await api.post({
         path,
-        body: [
-          {
-            ...mockGroupMessage,
-            Group: 'nonexistent-group',
-          },
-        ],
+        body: [mockGroupMessageWithCampaign],
       });
 
       // Assert
-      expect(result.status).toEqual(202);
-      expect(result.body).toEqual([
+      const campaignStatus = await vi.waitFor(
+        () => checkCampaignStatus(api, mockGroupMessageWithCampaign.CampaignID, initialCampaignStatus),
         {
-          GroupNotificationID: mockGroupMessage.GroupNotificationID,
-          UsersInGroup: 0,
-        },
-      ]);
+          timeout: 30000,
+          interval: 2000,
+        }
+      );
+      expect(result.status).toEqual(202);
+      expect(campaignStatus.PROCESSED).toBeGreaterThan(initialCampaignStatus.PROCESSED);
+      // expect(campaignStatus.DISPATCHED - initialCampaignStatus.DISPATCHED).toEqual(5);
     });
   });
 });

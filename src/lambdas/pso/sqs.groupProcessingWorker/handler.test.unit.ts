@@ -207,7 +207,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates a batch of message using the pushID, checksum NotificationID, message body, and metadata, then sends it to the dispatch queue', async () => {
     // Arrange
-    const notificationID = '7773dc26-71f9-4e95-a5f6-6dcb2c5af299';
+    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
     const expectedProcessedMessage: IProcessedMessage = {
       NotificationID: notificationID,
       CampaignID: 'CAM_ID',
@@ -259,7 +259,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates records in the notification dynamo db with a checksum of the fields as the NotificationID for the processed messages', async () => {
     // Arrange
-    const notificationID = '7773dc26-71f9-4e95-a5f6-6dcb2c5af299';
+    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
     const expectedProcessedMessage: IMessageRecord = {
       NotificationID: notificationID,
       CampaignID: 'CAM_ID',
@@ -287,7 +287,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates an analytics event when a group message is successfully processed', async () => {
     // Arrange
-    const notificationID = '7773dc26-71f9-4e95-a5f6-6dcb2c5af299';
+    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
     const expectedProcessedMessage: IProcessedMessage = {
       NotificationID: notificationID,
       CampaignID: 'CAM_ID',

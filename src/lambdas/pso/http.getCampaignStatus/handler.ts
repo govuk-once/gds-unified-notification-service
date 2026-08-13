@@ -10,24 +10,12 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { CampaignsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
+import { campaignStatusSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.object({
-  CampaignID: z.string(),
-  DepartmentID: z.string(),
-  ProcessingSummary: z.object({
-    RECEIVED: z.number(),
-    PROCESSED: z.number(),
-    DISPATCHED: z.number(),
-  }),
-  UsageSummary: z.object({
-    READ: z.number(),
-    MARKED_AS_UNREAD: z.number(),
-    HIDDEN: z.number(),
-  }),
-});
+const responseBodySchema = campaignStatusSchema;
 
 /**
  * Sample event received by Lambda from API Gateway
@@ -51,7 +39,7 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public campaignsDynamoRepository: CampaignsDynamoRepository;
+  public campaignsDynamoRepository!: CampaignsDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,

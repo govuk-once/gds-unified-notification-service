@@ -15,6 +15,7 @@ export function md5ToUuidV4<T extends object>(input: T): string {
 export function generateNotificationIDForGroupMessage(pushID: string, groupMessage: IGroupMessage): string {
   return md5ToUuidV4({
     PushID: pushID,
+    OrganisationID: groupMessage.OrganisationID,
     GroupNotificationID: groupMessage.GroupNotificationID,
     NotificationTitle: groupMessage.NotificationTitle,
     NotificationBody: groupMessage.NotificationBody,
