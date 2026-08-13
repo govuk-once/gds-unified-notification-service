@@ -19,6 +19,7 @@ export const IMessageRecordSchema = z.object({
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
+  DeeplinkURL: z.string().optional(),
 
   // Event timestamps - triggered during handler logic
   ReceivedDateTime: z.string().optional(),
@@ -29,8 +30,6 @@ export const IMessageRecordSchema = z.object({
 
   // Events - appended via analytics handler
   Events: z.array(IAnalyticsSchema),
-
-  DeeplinkURL: z.string().optional(),
 });
 
 export type IMessageRecord = z.infer<typeof IMessageRecordSchema>;
