@@ -1,30 +1,32 @@
-import { test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
+import { IGroupMessage } from '@project/lambdas';
+import { checkCampaignStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
+import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
-const url = () => `/v1/send-to-group`;
-const mockGroupMessage = {
+const path = `/v1/send-to-group`;
+
+const mockGroupMessage: Omit<IGroupMessage, 'OrganisationID'> = {
   Namespace: 'test',
   Group: 'end2end',
   Subgroup: 'immediate',
-  GroupNotificationID: 'TO_GROUP_ID',
-  CampaignID: 'CAM_ID',
-  MessageTitle: 'You have a new Message',
-  MessageBody: 'Open Notification Centre to read your notifications',
-  NotificationTitle: 'You have a new Notification',
-  NotificationBody: 'Here is the Notification body.',
+  GroupNotificationID: 'GROUP_ID' + uuid(),
+  NotificationTitle: 'End 2 End Test - POST Group Message',
+  NotificationBody: 'This is an end 2 end test!',
+  MessageTitle: 'End 2 End Test Message Title',
+  MessageBody: 'End 2 End Test Message Body',
 };
+
+const pushIDs = [
+  `a53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `b53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `c53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `d53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+  `e53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
+];
 
 beforeAll(async () => {
   // Setup a user in some group to be able to send a message to that group
   const flexApi = testFixtures().flexAPI;
-
-  const pushIDUsers = [
-    `a53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `b53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `c53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `d53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-    `e53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
-  ];
   const group = [
     {
       Namespace: 'test',
@@ -34,7 +36,7 @@ beforeAll(async () => {
     },
   ];
 
-  for (const pushID of pushIDUsers) {
+  for (const pushID of pushIDs) {
     await flexApi.post({ path: `/v1/groups?pushID=${pushID}`, body: group });
   }
 });
@@ -44,9 +46,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     test('UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
     }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -64,9 +63,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 403 when using invalid api key', async ({ psoAPIWithoutAPIKey: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -77,9 +73,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing body', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -90,9 +83,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing body', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -103,9 +93,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing namespace', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -121,9 +108,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing group', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -139,9 +123,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing NotificationTitle', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -157,9 +138,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
     });
 
     test('status 400 when when - missing NotificationBody', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -177,9 +155,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
 
   describe(`Happy paths`, () => {
     test('status 202 and number of users in group when - sending a group message', async ({ psoAPI: api }) => {
-      // Arrange
-      const path = url();
-
       // Act
       const result = await api.post({
         path,
@@ -196,31 +171,33 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       ]);
     });
 
-    test('status 202 and number of users in group when - sending a group message with no users', async ({
+    test('that the status count for the campaign shows the message is processed and dispatched', async ({
       psoAPI: api,
     }) => {
       // Arrange
-      const path = url();
+      const mockGroupMessageWithCampaign = {
+        ...mockGroupMessage,
+        CampaignID: 'GROUP_MESSAGE_E2E_TEST',
+      };
+      const initialCampaignStatus = await checkCampaignStatus(api, mockGroupMessageWithCampaign.CampaignID);
 
       // Act
       const result = await api.post({
         path,
-        body: [
-          {
-            ...mockGroupMessage,
-            Group: 'nonexistent-group',
-          },
-        ],
+        body: [mockGroupMessageWithCampaign],
       });
 
       // Assert
-      expect(result.status).toEqual(202);
-      expect(result.body).toEqual([
+      const campaignStatus = await vi.waitFor(
+        () => checkCampaignStatus(api, mockGroupMessageWithCampaign.CampaignID, initialCampaignStatus),
         {
-          GroupNotificationID: mockGroupMessage.GroupNotificationID,
-          UsersInGroup: 0,
-        },
-      ]);
+          timeout: 30000,
+          interval: 2000,
+        }
+      );
+      expect(result.status).toEqual(202);
+      expect(campaignStatus.PROCESSED).toBeGreaterThan(initialCampaignStatus.PROCESSED);
+      // expect(campaignStatus.DISPATCHED - initialCampaignStatus.DISPATCHED).toEqual(5);
     });
   });
 });

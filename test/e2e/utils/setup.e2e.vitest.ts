@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FetchService } from '@common/services/FetchService';
+import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
+import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
-
-import { Agent } from 'undici';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -236,7 +237,7 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
         [
           NotificationStateEnum.VALIDATED_API_CALL,
           NotificationStateEnum.PROCESSING,
-          // Need a way to void test notification while adapter is not VOID.
+          // TODO: Need a way to void test notification while adapter is not VOID.
           // NotificationStateEnum.PROCESSED,
           // NotificationStateEnum.DISPATCHING,
           // NotificationStateEnum.DISPATCHED,
@@ -253,4 +254,31 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
   const status = result.body as INotificationStatus[];
   expect(status).toBeDefined();
   return status;
+};
+
+export const checkCampaignStatus = async (
+  psoAPI: FetchService,
+  campaignID: string,
+  initialState?: { PROCESSED: number; DISPATCHED: number }
+) => {
+  const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
+  expect(result.body).toEqual(
+    expect.objectContaining({
+      CampaignID: campaignID,
+      ProcessingSummary: expect.objectContaining({
+        PROCESSED: expect.any(Number),
+        // TODO: Need a way to void test notification while adapter is not VOID.
+        // DISPATCHED: expect.any(Number),
+      }),
+    })
+  );
+  if (initialState) {
+    const campaignStatus = result.body as CampaignStatus;
+    expect(campaignStatus.ProcessingSummary.PROCESSED).toBeGreaterThan(initialState.PROCESSED);
+    // TODO: Need a way to void test notification while adapter is not VOID.
+    // expect(campaignStatus.ProcessingSummary.DISPATCHED - initialState.DISPATCHED).toEqual(pushIDLength)
+  }
+  const campaignStatus = result.body as CampaignStatus;
+  expect(campaignStatus).toBeDefined();
+  return campaignStatus.ProcessingSummary;
 };

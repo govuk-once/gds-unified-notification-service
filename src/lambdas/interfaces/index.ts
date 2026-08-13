@@ -1,4 +1,5 @@
 export * from './IAnalyticsSchema';
+export * from './ICampaignStatus';
 export * from './IFlexNotification';
 export * from './IGroupMessage';
 export * from './IGroupMessageMetadata';
