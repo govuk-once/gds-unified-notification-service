@@ -71,7 +71,7 @@ export class ContentValidationService {
     return input;
   }
 
-  private validateUrls(input: string | undefined) {
+  public validateUrls(input: string | undefined) {
     if (input == undefined || input == '') {
       return input;
     }

@@ -19,6 +19,7 @@ export const IMessageRecordSchema = z.object({
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
+  DeeplinkURL: z.string().optional(),
 
   // Event timestamps - triggered during handler logic
   ReceivedDateTime: z.string().optional(),

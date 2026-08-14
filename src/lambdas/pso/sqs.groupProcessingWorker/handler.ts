@@ -23,13 +23,13 @@ import {
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { BoolParameters, NumericParameters } from '@common/utils';
+import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
 import {
   IGroupMessageMetadataSchema,
   IIdentifiableGroupMessageSchema,
   IProcessedMessage,
 } from '@project/lambdas/interfaces';
 import { SQSRecord } from 'aws-lambda';
-import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
 const requestBodySchema = IGroupMessageMetadataSchema;
@@ -97,6 +97,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
 
     const groupMessage = data.body.GroupMessage;
     const cacheKey = data.body.CacheKey;
+    const receivedDateTime = data.body.ReceivedDateTime;
     const workerBatchSize = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
@@ -126,8 +127,9 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     // Build group messages to users -
     const processedMessages: IProcessedMessage[] = [];
     for (const pushID of pushIDs) {
+      const notificationID = generateNotificationIDForGroupMessage(pushID, groupMessage);
       processedMessages.push({
-        NotificationID: uuid(),
+        NotificationID: notificationID,
         OrganisationID: groupMessage.OrganisationID,
         ExternalUserID: pushID,
         CampaignID: groupMessage.CampaignID,
