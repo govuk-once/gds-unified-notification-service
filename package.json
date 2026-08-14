@@ -65,7 +65,7 @@
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
     "msw": "^2.14.6",
-    "npm": "^11.16.0",
+    "npm": "^12.0.2",
     "npm-check-updates": "^21.0.1",
     "once-platform-constructs": "^1.2.0",
     "prettier": "3.9.6",
