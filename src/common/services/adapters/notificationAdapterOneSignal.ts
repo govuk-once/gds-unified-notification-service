@@ -26,10 +26,10 @@ interface OneSignalPushNotificationResponse {
 }
 
 export class NotificationAdapterOneSignal implements NotificationAdapter {
-  public client: FetchService;
-  protected key: string;
-  protected appId: string;
-  protected deeplinkTemplate: string;
+  public client!: FetchService;
+  protected key!: string;
+  protected appId!: string;
+  protected deeplinkTemplate!: string;
 
   constructor(
     protected observability: ObservabilityService,
@@ -76,7 +76,9 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           target_channel: 'push',
           include_aliases: { external_id: [request.ExternalUserID] },
           data: {
-            deeplink: this.deeplinkTemplate.replace('{id}', request.NotificationID),
+            deeplink: request.DeeplinkURL
+              ? request.DeeplinkURL
+              : this.deeplinkTemplate.replace('{id}', request.NotificationID),
           },
         },
       });
