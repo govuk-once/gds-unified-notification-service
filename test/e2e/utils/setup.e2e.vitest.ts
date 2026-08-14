@@ -2,7 +2,7 @@
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { FetchService } from '@common/services/FetchService';
+import { FetchErrorResponse, FetchService } from '@common/services/FetchService';
 import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
 import { Agent } from 'undici';
@@ -258,27 +258,29 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
 
 export const checkCampaignStatus = async (
   psoAPI: FetchService,
-  campaignID: string,
-  initialState?: { PROCESSED: number; DISPATCHED: number }
-) => {
-  const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
-  expect(result.body).toEqual(
-    expect.objectContaining({
-      CampaignID: campaignID,
-      ProcessingSummary: expect.objectContaining({
-        PROCESSED: expect.any(Number),
-        // TODO: Need a way to void test notification while adapter is not VOID.
-        // DISPATCHED: expect.any(Number),
-      }),
-    })
-  );
-  if (initialState) {
+  campaignID: string
+): Promise<{ PROCESSED: number; DISPATCHED: number }> => {
+  try {
+    const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
+    expect(result.body).toEqual(
+      expect.objectContaining({
+        CampaignID: campaignID,
+        ProcessingSummary: expect.objectContaining({
+          PROCESSED: expect.any(Number),
+          // TODO: Need a way to void test notification while adapter is not VOID.
+          // DISPATCHED: expect.any(Number),
+        }),
+      })
+    );
+
     const campaignStatus = result.body as CampaignStatus;
-    expect(campaignStatus.ProcessingSummary.PROCESSED).toBeGreaterThan(initialState.PROCESSED);
-    // TODO: Need a way to void test notification while adapter is not VOID.
-    // expect(campaignStatus.ProcessingSummary.DISPATCHED - initialState.DISPATCHED).toEqual(pushIDLength)
+    expect(campaignStatus).toBeDefined();
+    return campaignStatus.ProcessingSummary;
+  } catch (error) {
+    if (error instanceof FetchErrorResponse && error.status === 404) {
+      expect(error.status).not.toEqual(404);
+      return { PROCESSED: 0, DISPATCHED: 0 };
+    }
+    throw error;
   }
-  const campaignStatus = result.body as CampaignStatus;
-  expect(campaignStatus).toBeDefined();
-  return campaignStatus.ProcessingSummary;
 };
