@@ -154,6 +154,32 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
   });
 
   describe(`Happy paths`, () => {
+    test('that the status count for the campaign shows the message is processed and dispatched', async ({
+      psoAPI: api,
+    }) => {
+      // Arrange
+      const campaignID = `GROUP_MESSAGE_E2E_TEST_${new Date().toISOString()}`;
+      const mockGroupMessageWithCampaign = {
+        ...mockGroupMessage,
+        CampaignID: campaignID,
+      };
+
+      // Act
+      const result = await api.post({
+        path,
+        body: [mockGroupMessageWithCampaign],
+      });
+
+      // Assert
+      const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
+        timeout: 30000,
+        interval: 2000,
+      });
+      expect(result.status).toEqual(202);
+      expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
+      // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
+    });
+
     test('status 202 and number of users in group when - sending a group message', async ({ psoAPI: api }) => {
       // Act
       const result = await api.post({
@@ -169,35 +195,6 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
           UsersInGroup: 5,
         },
       ]);
-    });
-
-    test('that the status count for the campaign shows the message is processed and dispatched', async ({
-      psoAPI: api,
-    }) => {
-      // Arrange
-      const mockGroupMessageWithCampaign = {
-        ...mockGroupMessage,
-        CampaignID: 'GROUP_MESSAGE_E2E_TEST',
-      };
-      const initialCampaignStatus = await checkCampaignStatus(api, mockGroupMessageWithCampaign.CampaignID);
-
-      // Act
-      const result = await api.post({
-        path,
-        body: [mockGroupMessageWithCampaign],
-      });
-
-      // Assert
-      const campaignStatus = await vi.waitFor(
-        () => checkCampaignStatus(api, mockGroupMessageWithCampaign.CampaignID, initialCampaignStatus),
-        {
-          timeout: 30000,
-          interval: 2000,
-        }
-      );
-      expect(result.status).toEqual(202);
-      expect(campaignStatus.PROCESSED).toBeGreaterThan(initialCampaignStatus.PROCESSED);
-      // expect(campaignStatus.DISPATCHED - initialCampaignStatus.DISPATCHED).toEqual(5);
     });
   });
 });
