@@ -1,10 +1,10 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { mTLSRevocationSchema } from '@common/repositories/interfaces/MTLSRevocationTable';
+import { mTLSRevocationRecordSchema } from '@common/repositories/interfaces/MTLSRevocationTable';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 
-export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mTLSRevocationSchema> {
-  protected recordSchema = mTLSRevocationSchema;
+export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mTLSRevocationRecordSchema> {
+  protected recordSchema = mTLSRevocationRecordSchema;
 
   constructor(
     protected config: ConfigurationService,
