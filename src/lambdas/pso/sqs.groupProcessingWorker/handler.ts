@@ -97,7 +97,6 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
 
     const groupMessage = data.body.GroupMessage;
     const cacheKey = data.body.CacheKey;
-    const receivedDateTime = data.body.ReceivedDateTime;
     const workerBatchSize = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
