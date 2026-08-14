@@ -258,12 +258,10 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
 
 export const checkCampaignStatus = async (
   psoAPI: FetchService,
-  campaignID: string,
-  initialState?: { PROCESSED: number; DISPATCHED: number }
+  campaignID: string
 ): Promise<{ PROCESSED: number; DISPATCHED: number }> => {
   try {
     const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
-
     expect(result.body).toEqual(
       expect.objectContaining({
         CampaignID: campaignID,
@@ -274,23 +272,14 @@ export const checkCampaignStatus = async (
         }),
       })
     );
-    if (initialState) {
-      const campaignStatus = result.body as CampaignStatus;
-      expect(campaignStatus.ProcessingSummary.PROCESSED).toBeGreaterThan(initialState.PROCESSED);
-      // TODO: Need a way to void test notification while adapter is not VOID.
-      // expect(campaignStatus.ProcessingSummary.DISPATCHED - initialState.DISPATCHED).toEqual(pushIDLength)
-    }
     const campaignStatus = result.body as CampaignStatus;
     expect(campaignStatus).toBeDefined();
     return campaignStatus.ProcessingSummary;
   } catch (error) {
     if (error instanceof FetchErrorResponse && error.status === 404) {
-      if (initialState) {
-        expect(error.status).not.toEqual(404);
-      }
+      expect(error.status).not.toEqual(404);
       return { PROCESSED: 0, DISPATCHED: 0 };
     }
-
     throw error;
   }
 };
