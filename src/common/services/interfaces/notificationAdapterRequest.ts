@@ -3,4 +3,5 @@ export interface NotificationAdapterRequest {
   ExternalUserID: string;
   NotificationTitle: string;
   NotificationBody: string;
+  DeeplinkURL?: string;
 }

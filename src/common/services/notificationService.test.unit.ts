@@ -1,7 +1,7 @@
 // Unbound methods are allowed as that's how vi.mocked works
 import { BadGatewayError } from '@common/models/Errors';
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
-import { EnumParameters, StringParameters } from '@common/utils';
+import { BoolParameters, EnumParameters, StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockDefaultSecrets,
@@ -152,6 +152,31 @@ describe('NotificationService', () => {
       expect(postSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           body: expect.objectContaining({ data: { deeplink: 'govuk://notifications?id=test01' } }),
+          path: '/notifications?c=push',
+        })
+      );
+    });
+
+    it('Sends a request to onesignal with an explicit deeplink', async () => {
+      // Arrange
+      mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'true';
+      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
+      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+
+      await instance.initialize();
+      const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
+
+      // Act
+      await instance.send({
+        ...mockRequest,
+        DeeplinkURL: 'govuk://travel?country=spain',
+      });
+
+      // Assert
+      expect(postSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({ data: { deeplink: 'govuk://travel?country=spain' } }),
           path: '/notifications?c=push',
         })
       );
