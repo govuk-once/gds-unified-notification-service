@@ -1,6 +1,6 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import {
-  IMessageRecord,
+  IMessageRecordSchema,
   IProcessedMessageRecord,
   IProcessedMessageRecordSchema,
 } from '@common/repositories/interfaces/IMessageRecord';
@@ -8,7 +8,11 @@ import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 
-export class NotificationsDynamoRepository extends DynamodbRepository<IMessageRecord> {
+const recordSchema = IMessageRecordSchema;
+
+export class NotificationsDynamoRepository extends DynamodbRepository<typeof recordSchema> {
+  protected recordSchema = recordSchema;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService

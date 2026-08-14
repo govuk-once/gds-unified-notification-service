@@ -1,10 +1,12 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
+import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 import { IProcessedMessage } from '@project/lambdas';
 
-export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisationRecord> {
+export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {
+  protected recordSchema = IOrganisationRecordSchema;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService

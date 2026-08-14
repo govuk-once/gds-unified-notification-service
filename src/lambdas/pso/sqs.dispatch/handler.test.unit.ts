@@ -372,6 +372,8 @@ describe('Dispatch QueueHandler', () => {
   });
 
   it('should return and error and trigger analytics for failure events for invalid messages.', async () => {
+    // Arrange
+
     // Act
     const result = handler(mockFailedEvent, mockContext);
 
