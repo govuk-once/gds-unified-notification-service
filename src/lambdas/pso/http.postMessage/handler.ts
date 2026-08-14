@@ -2,6 +2,7 @@ import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
   APIHandler,
+  BoolParameters,
   ConfigurationService,
   ContentValidationService,
   HandlerDependencies,
@@ -96,8 +97,18 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     }));
 
     // Pre-validate all messages & reject request when one of them contains unsupported url
+    const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.DeepLinkUrl
+    );
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
+      if (featureEnabledDeepLinkUrl) {
+        this.contentValidationService.validateUrls(message.DeeplinkURL);
+      } else {
+        if (message.DeeplinkURL) {
+          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
+        }
+      }
     }
 
     // Publish analytics & push items to the processing queue

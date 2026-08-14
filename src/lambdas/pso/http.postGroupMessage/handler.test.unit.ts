@@ -1,3 +1,4 @@
+import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
@@ -366,6 +367,25 @@ describe('PostGroupMessage Handler', () => {
       Status: 400,
       HttpError: 'BadRequest',
       Errors: ['Message body contains markdown elements which are not valid: code_block'],
+    });
+  });
+
+  it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
+
+    // Act
+    const result = await handler(
+      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, DeeplinkURL: 'https://example.com' }]) },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: unexpected DeeplinkURL at .'],
     });
   });
 });
