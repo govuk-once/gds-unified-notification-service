@@ -82,14 +82,22 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
       BoolParameters.Config.FeatureFlags.DeepLinkUrl
     );
+    const featureEnabledMessageRetention = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.MessageRetention
+    );
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
+
       if (featureEnabledDeepLinkUrl) {
         this.contentValidationService.validateUrls(message.DeeplinkURL);
       } else {
         if (message.DeeplinkURL) {
           throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
         }
+      }
+
+      if (!featureEnabledMessageRetention && message.ExpiresInDays) {
+        throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
       }
     }
 

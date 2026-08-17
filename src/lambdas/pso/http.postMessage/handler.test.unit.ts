@@ -358,4 +358,23 @@ describe('PostMessage Handler', () => {
       Errors: ['Invalid input: unexpected DeeplinkURL at .'],
     });
   });
+
+  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+
+    // Act
+    const result = await handler(
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]) },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
+    });
+  });
 });

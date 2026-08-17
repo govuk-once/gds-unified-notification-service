@@ -434,4 +434,23 @@ describe('PostGroupMessage Handler', () => {
       })
     );
   });
+
+  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+
+    // Act
+    const result = await handler(
+      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: 25 }]) },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
+    });
+  });
 });
