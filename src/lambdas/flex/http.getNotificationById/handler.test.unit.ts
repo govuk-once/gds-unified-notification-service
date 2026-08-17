@@ -78,6 +78,7 @@ describe('GetNotificationById Handler', () => {
   const mockOrganisationRecord: IOrganisationRecord = {
     OrganisationID: organisationID,
     DisplayName: displayName,
+    OrganisationConfig: {},
   };
 
   beforeEach(() => {

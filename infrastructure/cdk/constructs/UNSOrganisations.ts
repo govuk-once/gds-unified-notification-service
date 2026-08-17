@@ -38,7 +38,7 @@ export class UNSOrganisationsCommon extends Construct {
     });
     common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
 
-    for (const [OrganisationID, { DisplayName }] of Object.entries(orgMetadata)) {
+    for (const [OrganisationID, { DisplayName, OrganisationConfig }] of Object.entries(orgMetadata)) {
       // Create an organisation record
       dynamoDBWriterProvider.createRecord(
         this,
@@ -46,6 +46,7 @@ export class UNSOrganisationsCommon extends Construct {
         {
           OrganisationID: OrganisationID,
           DisplayName: DisplayName,
+          OrganisationConfig: OrganisationConfig,
         },
         OrganisationID
       );

@@ -5,9 +5,12 @@ import {
   IMiddleware,
   iocGetMTLSRevocationDynamoRepository,
   iocGetObservabilityService,
+  iocGetOrganisationsDynamoRepository,
+  OrganisationsDynamoRepository,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import type { APIGatewayAuthorizerResult, Context } from 'aws-lambda';
@@ -25,7 +28,8 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
   public requestBodySchema = z.any();
   public responseBodySchema = z.any();
 
-  public mtlsRevocationDynamoRepository: MTLSRevocationDynamoRepository;
+  public mtlsRevocationDynamoRepository!: MTLSRevocationDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
@@ -119,10 +123,20 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     // Allow only if the certificate record states that certificate has not been revoked
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_ALLOWED_COUNT, MetricUnit.Count, 1);
-    return this.createPolicyResponse(_event.methodArn, 'Allow', { Organization: certificateRecord.Organization });
+
+    const organisationRecord = await this.organisationsDynamoRepository.getRecord(certificateRecord?.Organization);
+    if (!organisationRecord) {
+      throw new ServiceMisconfigurationError(['There is no organisation record for this organisation']);
+    }
+
+    return this.createPolicyResponse(_event.methodArn, 'Allow', {
+      Organization: certificateRecord.Organization,
+      ...Object.fromEntries(Object.entries(organisationRecord.OrganisationConfig).map(([key, value]) => [key, value])),
+    });
   }
 }
 
 export const handler = new MtlsCertificateRevocationAuthorizer(iocGetObservabilityService(), () => ({
   mtlsRevocationDynamoRepository: iocGetMTLSRevocationDynamoRepository(),
+  organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
 })).handler();

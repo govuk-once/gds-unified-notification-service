@@ -44,12 +44,12 @@ export class UNSFlexResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
-      organisationsRef: UNSOrganisationsCommon;
+      orgs: UNSOrganisationsCommon;
     }
   ) {
     super(scope, 'flex');
 
-    const { refs, organisationsRef } = props;
+    const { refs, orgs } = props;
 
     //// =====================================================
     // Lambdas
@@ -70,7 +70,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnly,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -86,7 +86,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });

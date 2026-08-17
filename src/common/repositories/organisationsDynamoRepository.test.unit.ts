@@ -30,6 +30,7 @@ describe('OrganisationsDynamoRepository', () => {
   const mockOrganisationRecord: IOrganisationRecord = {
     OrganisationID: mockOrganisationID,
     DisplayName: 'ORG',
+    OrganisationConfig: {},
   };
 
   const mockMessageRecord: IMessageRecord = {
@@ -48,6 +49,7 @@ describe('OrganisationsDynamoRepository', () => {
   const mockOrganisationRecord_02: IOrganisationRecord = {
     OrganisationID: mockOrganisationID_02,
     DisplayName: 'OTHER_ORG',
+    OrganisationConfig: {},
   };
   const mockMessageRecord_02: IMessageRecord = {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
