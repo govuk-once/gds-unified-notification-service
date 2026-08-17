@@ -128,10 +128,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
       messages.map((body): IMessageRecord => ({
-        ...body,
+        ...{ ...body, ExpiresInDays: undefined },
         APIGWExtendedID: event.requestContext.requestId,
         ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: body.ExpiresInDays,
         Events: [],
       }))
     );

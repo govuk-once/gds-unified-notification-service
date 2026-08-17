@@ -19,6 +19,7 @@ export const IMessageFields = z.object({
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
   DeeplinkURL: z.string().optional(),
+  ExpiresInDays: z.int().positive().optional(),
 });
 
 // Pre-validated Message Schema

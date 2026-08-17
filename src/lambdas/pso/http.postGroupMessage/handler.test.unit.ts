@@ -388,4 +388,50 @@ describe('PostGroupMessage Handler', () => {
       Errors: ['Invalid input: unexpected DeeplinkURL at .'],
     });
   });
+
+  it('should reject any notification where the ExpiresInDays is a negative', async () => {
+    // Arrange
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: -1 }]),
+    };
+
+    // Act
+    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Too small: expected number to be >0 → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
+
+  it('should reject any notification where the ExpiresInDays is a float', async () => {
+    // Arrange
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: 0.5 }]),
+    };
+
+    // Act
+    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Invalid input: expected int, received number → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
 });

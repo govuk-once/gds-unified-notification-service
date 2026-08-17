@@ -28,6 +28,9 @@ export const IMessageRecordSchema = z.object({
   DispatchedDateTime: z.string().optional(),
   ExpirationDateTime: z.string().optional(),
 
+  // Configurations
+  RequestedDaysToExpire: z.int().positive().optional(),
+
   // Events - appended via analytics handler
   Events: z.array(IAnalyticsSchema),
 });
