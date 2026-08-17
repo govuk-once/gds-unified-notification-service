@@ -131,7 +131,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     return this.createPolicyResponse(_event.methodArn, 'Allow', {
       Organization: certificateRecord.Organization,
-      ...Object.fromEntries(Object.entries(organisationRecord.OrganisationConfig).map(([key, value]) => [key, value])),
+      OrganisationConfig: JSON.stringify(organisationRecord.OrganisationConfig),
     });
   }
 }
