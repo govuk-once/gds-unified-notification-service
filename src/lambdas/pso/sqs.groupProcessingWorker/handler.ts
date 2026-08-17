@@ -24,8 +24,11 @@ import {
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { BoolParameters, NumericParameters } from '@common/utils';
 import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
-import { IGroupMessageMetadataSchema, IIdentifiableGroupMessageSchema } from '@project/lambdas/interfaces';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import {
+  IGroupMessageMetadataSchema,
+  IIdentifiableGroupMessageSchema,
+  IProcessedMessage,
+} from '@project/lambdas/interfaces';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
