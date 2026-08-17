@@ -137,19 +137,38 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
     });
 
-    test('status 400 when when - missing NotificationBody', async ({ psoAPI: api }) => {
-      // Act & Assert
-      await expect(
-        api.post({
-          path,
-          body: [
-            {
-              ...mockGroupMessage,
-              NotificationBody: undefined,
-            },
-          ],
-        })
-      ).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    test('status 400 when when - the message has an invalid ExpireInDays (negative)', async ({ psoAPI: api }) => {
+      // Arrange
+      const mockMessageBodyWithInvalidExpiresInDay = {
+        ...mockGroupMessage,
+        ExpiresInDays: -1,
+      };
+
+      // Act
+      const result = api.post({
+        path,
+        body: mockMessageBodyWithInvalidExpiresInDay,
+      });
+
+      // Assert
+      await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when when - the message has an invalid ExpireInDays (float)', async ({ psoAPI: api }) => {
+      // Arrange
+      const mockMessageBodyWithInvalidExpiresInDay = {
+        ...mockGroupMessage,
+        ExpiresInDays: 0.5,
+      };
+
+      // Act
+      const result = api.post({
+        path,
+        body: mockMessageBodyWithInvalidExpiresInDay,
+      });
+
+      // Assert
+      await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
     });
   });
 

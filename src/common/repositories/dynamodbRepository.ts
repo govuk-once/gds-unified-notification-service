@@ -450,16 +450,28 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
 
   // Generates expiration field that can be injected as partial into create/update calls
   // When expirationAttribute is not set, or expirationDurationInSeconds is 0 - empty object is returned instead
-  protected createExpirationDatePartial(): Partial<z.infer<RecordSchema>> {
-    return this.tableAttributes.expirationAttribute &&
+  protected createExpirationDatePartial(expirationInDays?: number): Partial<z.infer<RecordSchema>> {
+    if (this.tableAttributes.expirationAttribute && expirationInDays) {
+      return {
+        [this.tableAttributes.expirationAttribute]: new Date(
+          Date.now() + expirationInDays * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      } as Partial<z.infer<RecordSchema>>;
+    }
+
+    if (
+      this.tableAttributes.expirationAttribute &&
       this.tableAttributes.expirationDurationInSeconds &&
       this.tableAttributes.expirationDurationInSeconds > 0
-      ? ({
-          [this.tableAttributes.expirationAttribute]: new Date(
-            Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
-          ).toISOString(),
-        } as Partial<z.infer<RecordSchema>>)
-      : {};
+    ) {
+      return {
+        [this.tableAttributes.expirationAttribute]: new Date(
+          Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
+        ).toISOString(),
+      } as Partial<z.infer<RecordSchema>>;
+    }
+
+    return {};
   }
 
   // Allows overwriting logic before triggers
@@ -467,7 +479,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     return {
       ...record,
       // Dynamically inject expiration date if table calls for it
-      ...this.createExpirationDatePartial(),
+      ...this.createExpirationDatePartial(Number(record.RequestedDaysToExpire)),
     };
   }
 
