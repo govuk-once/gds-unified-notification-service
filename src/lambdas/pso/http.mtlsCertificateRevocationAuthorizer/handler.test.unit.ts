@@ -227,4 +227,23 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     // Assert
     expect(result).toEqual(expectAllowPolicyWithHeaders);
   });
+
+  it('should return a service misconfigured error if there is no organisation record for the orgID provided', async () => {
+    // Arrange
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      Organization: mockOrganisationID,
+      Revoked: false,
+    } as unknown as MTLSRevocation);
+    organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce(null);
+
+    // Act
+    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+
+    // Assert
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 500,
+      HttpError: 'InternalServerError',
+      Errors: ['There is no organisation record for this organisation'],
+    });
+  });
 });
