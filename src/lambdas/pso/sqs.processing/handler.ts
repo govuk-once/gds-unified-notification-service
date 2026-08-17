@@ -20,13 +20,13 @@ import {
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
 import { BoolParameters } from '@common/utils';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
   IMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 

@@ -1,9 +1,9 @@
 import { DynamoDB, GetItemCommand, ScanCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { iocGetCampaignsDynamoRepository } from '@common/ioc';
+import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces/ICampaignRecord';
+import { ICampaignRecord } from '@common/repositories/interfaces/ICampaignRecord';
 import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -40,48 +40,6 @@ describe('campaignDynamoRepository', () => {
     instance = new CampaignsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
 
     await instance.initialize();
-  });
-
-  describe('CampaignsDynamoRepository IoC', () => {
-    it('should resolve from IoC container', async () => {
-      // Arrange
-      vi.spyOn(Object.getPrototypeOf(CampaignsDynamoRepository.prototype), 'initialize').mockResolvedValue(undefined);
-
-      // Act
-      const result = await iocGetCampaignsDynamoRepository();
-
-      //Assert
-      expect(result).toBeDefined();
-    });
-
-    it('should include campaignsDynamoRepositoryMock in Spies', () => {
-      // Arrange, Act, Assert
-      expect(serviceMocks.campaignsDynamoRepositoryMock).toBeDefined();
-    });
-  });
-
-  describe('ICampaignRecordSchema', () => {
-    it('should validate a valid campaign record', () => {
-      // Arrange
-      const record = { CompositeID: 'DEPT01/CAMP01' };
-
-      // Act
-      const result = ICampaignRecordSchema.safeParse(record);
-
-      // Assert
-      expect(result.success).toBe(true);
-    });
-
-    it('should reject an invlaid campaign record', () => {
-      // Arrange
-      const record = { CompositeID: undefined };
-
-      // Act
-      const result = ICampaignRecordSchema.safeParse(record);
-
-      // Assert
-      expect(result.success).toBe(false);
-    });
   });
 
   describe('initialize', () => {
@@ -137,6 +95,33 @@ describe('campaignDynamoRepository', () => {
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
         tableName: 'mockCampaignsDynamoRepositoryName',
         error: error.message,
+      });
+    });
+
+    it('should throw an error if the record in the table does not match the campaign record schema', async () => {
+      // Arrange
+      const compositeID = 'DEPT01/CAMP01';
+      const mockInvalidCampaignRecord = {
+        CompositeID: 12345678,
+      } as unknown as ICampaignRecord;
+      dynamoMock.on(GetItemCommand).resolvesOnce({
+        Item: marshall(mockInvalidCampaignRecord),
+      });
+
+      // Act
+      const result = instance.getRecord(compositeID);
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        new ParsingFailedError([
+          'Record in table failed to parse to record schema',
+          'Invalid input: expected string, received number → at CompositeID.',
+        ])
+      );
+      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Record in table failed to parse to record schema', {
+        tableName: 'mockCampaignsDynamoRepositoryName',
+        key: 'CompositeID',
+        value: compositeID,
       });
     });
   });

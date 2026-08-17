@@ -1,5 +1,5 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
@@ -35,7 +35,7 @@ describe('GetNotificationById Handler', () => {
   const organisationID = 'ORG01';
   const displayName = 'ORG';
 
-  const mockDbRecord: IMessageRecord = {
+  const mockDbRecord: IProcessedMessageRecord = {
     NotificationID: notificationID,
     DepartmentID: 'DEP01',
     UserID: 'UserID',
@@ -57,11 +57,15 @@ describe('GetNotificationById Handler', () => {
         OrganisationID: 'ORG_ID',
       },
     ],
-    DispatchedDateTime: '2026-02-13',
+    ReceivedDateTime: '2026-01-01T12:00:00.000Z',
+    ValidatedDateTime: '2026-01-01T12:00:01.000Z',
+    ProcessedDateTime: '2026-01-01T12:00:02.000Z',
+    DispatchedDateTime: '2026-01-01T12:00:03.000Z',
+    ExpirationDateTime: '2100-01-31T12:00:00.000Z',
   };
 
   const mockResponse: IFlexNotification = {
-    DispatchedDateTime: '2026-02-13',
+    DispatchedDateTime: '2026-01-01T12:00:03.000Z',
     MessageBody: 'Open Notification Centre to read your notifications',
     MessageTitle: 'You have a new Message',
     NotificationBody: 'Here is the Notification body.',
@@ -110,7 +114,7 @@ describe('GetNotificationById Handler', () => {
     handler = instance.handler();
 
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue(mockDbRecord);
     serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([mockOrganisationRecord]);
   });
 
@@ -158,7 +162,7 @@ describe('GetNotificationById Handler', () => {
     await handler(mockEvent, mockContext);
 
     // Assert
-    expect(serviceMocks.notificationsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
+    expect(serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID).toHaveBeenCalledWith(
       mockEvent.pathParameters.notificationID
     );
   });
@@ -185,7 +189,7 @@ describe('GetNotificationById Handler', () => {
 
   it('should return 404 for expired notification notification from getRecord call', async () => {
     // Arrange
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue({
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue({
       ...mockDbRecord,
       ExpirationDateTime: new Date(0).toISOString(),
     });
