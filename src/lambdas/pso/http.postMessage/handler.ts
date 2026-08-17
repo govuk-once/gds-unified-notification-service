@@ -13,6 +13,7 @@ import {
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
+  IOrganisationConfigSchema,
   NotificationsDynamoRepository,
   ObservabilityService,
   ProcessingQueueService,
@@ -21,6 +22,7 @@ import {
 } from '@common';
 import { NotificationStateEnum } from '@common/models';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -88,6 +90,15 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
     if (!organisationID) {
       throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
+    }
+
+    const rawConfig = event.requestContext.authorizer?.OrganisationConfig as string | undefined;
+    if (!rawConfig) {
+      throw new ServiceMisconfigurationError(['Organisation Config is missing from request context authorizer']);
+    }
+    const { data: organisationConfig, error } = IOrganisationConfigSchema.safeParse(JSON.parse(rawConfig));
+    if (error) {
+      throw new ServiceMisconfigurationError(['Organisation Config is misconfigured']);
     }
 
     const messages: IMessage[] = event.body.map((body) => ({

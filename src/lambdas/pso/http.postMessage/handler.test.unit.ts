@@ -68,7 +68,14 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: { Organization: 'ORG01' },
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: false,
+            },
+          }),
+        },
       },
     } as unknown as EventType;
 
@@ -104,16 +111,9 @@ describe('PostMessage Handler', () => {
   it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
     // Arrange
     const organisationID = 'ORG01';
-    const authorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        ...mockEvent.requestContext,
-        authorizer: { Organization: organisationID },
-      },
-    } as unknown as EventType;
 
     // Act
-    await handler(authorizedEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
@@ -124,7 +124,7 @@ describe('PostMessage Handler', () => {
         {
           ...mockMessageBody,
           OrganisationID: organisationID,
-          APIGWExtendedID: authorizedEvent.requestContext.requestId,
+          APIGWExtendedID: mockEvent.requestContext.requestId,
         },
       ],
       NotificationStateEnum.VALIDATED_API_CALL
@@ -134,7 +134,7 @@ describe('PostMessage Handler', () => {
     ]);
   });
 
-  it('should return 400 when mTLS certificate does not resolve an organsation', async () => {
+  it('should return 400 when mTLS certificate does not resolve an organisation', async () => {
     // Arrange
     const noAuthorizedEvent = {
       ...mockEvent,
