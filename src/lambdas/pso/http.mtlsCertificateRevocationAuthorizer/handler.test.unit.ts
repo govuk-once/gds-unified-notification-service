@@ -25,12 +25,13 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   const observabilityMocks = observabilitySpies();
   const serviceMocks = ServiceSpies(observabilityMocks);
-  const { mtlsRevocationDynamoRepositoryMock, configurationServiceMock } = serviceMocks;
+  const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock, configurationServiceMock } =
+    serviceMocks;
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  const mockDepartmentID = 'DEPO1';
+  const mockOrganisationID = 'ORG01';
   const expectedAllowPolicy = expect.objectContaining({
     policyDocument: expect.objectContaining({
       Statement: [
@@ -60,6 +61,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
     instance = new MtlsCertificateRevocationAuthorizer(observabilityMocks, () => ({
       mtlsRevocationDynamoRepository: mtlsRevocationDynamoRepositoryMock.initialize(),
+      organisationsDynamoRepository: organisationsDynamoRepositoryMock.initialize(),
     }));
 
     // Mock AWS Lambda Context
@@ -180,10 +182,15 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   it('should allow request with existing certificate that has not been revoked', async () => {
     // Arrange
-    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({
-      Organization: mockDepartmentID,
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      Organization: mockOrganisationID,
       Revoked: false,
     } as unknown as MTLSRevocation);
+    organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      DisplayName: 'TestOrganisation',
+      OrganisationID: mockOrganisationID,
+      OrganisationConfig: {},
+    });
 
     // Act
     const result = await instance.handler()(mockEventWithCertificate, mockContext);
@@ -195,5 +202,29 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       MetricUnit.Count,
       1
     );
+  });
+
+  it('should inject organisation config into headers after request has been allowed', async () => {
+    // Arrange
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      Organization: mockOrganisationID,
+      Revoked: false,
+    } as unknown as MTLSRevocation);
+    organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      DisplayName: 'TestOrganisation',
+      OrganisationID: mockOrganisationID,
+      OrganisationConfig: {},
+    });
+    const expectAllowPolicyWithHeaders = expect.objectContaining({
+      context: expect.objectContaining({
+        Organization: mockOrganisationID,
+      }),
+    });
+
+    // Act
+    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+
+    // Assert
+    expect(result).toEqual(expectAllowPolicyWithHeaders);
   });
 });
