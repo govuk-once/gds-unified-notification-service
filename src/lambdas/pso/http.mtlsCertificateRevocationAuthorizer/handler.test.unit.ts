@@ -189,7 +189,11 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
       DisplayName: 'TestOrganisation',
       OrganisationID: mockOrganisationID,
-      OrganisationConfig: {},
+      OrganisationConfig: {
+        MessageRetention: {
+          Allowed: false,
+        },
+      },
     });
 
     // Act
@@ -213,7 +217,11 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
       DisplayName: 'TestOrganisation',
       OrganisationID: mockOrganisationID,
-      OrganisationConfig: {},
+      OrganisationConfig: {
+        MessageRetention: {
+          Allowed: false,
+        },
+      },
     });
     const expectAllowPolicyWithHeaders = expect.objectContaining({
       context: expect.objectContaining({
