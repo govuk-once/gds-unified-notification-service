@@ -23,6 +23,7 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
@@ -81,6 +82,7 @@ export class UNSPSOResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
+      orgs: UNSOrganisationsCommon;
       mtls: {
         revocationTableArn: string;
         revocationTableAttributes: object;
@@ -320,6 +322,7 @@ export class UNSPSOResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           revocationTable: UNSDynamoDb.createPermissionMapping(props.mtls.revocationTableArn, true, false, false),
+          organisations: props.orgs.organisationsTable.permissions.readOnly,
         },
         // Sandbox use case: Allow authorizer to use decrypt on mtls tables
         kms: config.isMainEnv ? [] : [config.sandbox.shared.kms],
