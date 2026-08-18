@@ -31,7 +31,8 @@ export const IOrganisationConfigSchema = z.object({
           });
         }
       }
-    }),
+    })
+    .optional(),
 });
 export type IOrganisationConfig = z.infer<typeof IOrganisationConfigSchema>;
 

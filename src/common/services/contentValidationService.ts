@@ -1,4 +1,5 @@
 import { ContentValidationError } from '@common/models/Errors/BadRequestError';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { IOrganisationConfig } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
@@ -152,6 +153,12 @@ export class ContentValidationService {
   }
 
   public validateExpirationForOrganisation(expiresInDays: number, organisationConfig: IOrganisationConfig) {
+    if (!organisationConfig.MessageRetention) {
+      throw new ServiceMisconfigurationError([
+        'Organisation Config is misconfigured, Message Retention is missing from Organisation Config',
+      ]);
+    }
+
     const { Allowed, Min, Max } = organisationConfig.MessageRetention;
     if (!Allowed) {
       throw this.createError(
