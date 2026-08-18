@@ -170,6 +170,42 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       // Assert
       await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
     });
+
+    test('status 400 when - the message has an ExpireInDays less than the organisation minimum', async ({ psoAPI }) => {
+      // This required that the organisation config for UNS is set to Min: 2
+      // Arrange
+      const messagesWithInvalidExpiresInDays = [
+        {
+          ...mockGroupMessage,
+          ExpiresInDays: 1,
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithInvalidExpiresInDays });
+
+      // Assert
+      await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when - the message has an ExpireInDays greater than the organisation maximum', async ({
+      psoAPI,
+    }) => {
+      // This required that the organisation config for UNS is set to Min: 30
+      // Arrange
+      const messagesWithInvalidExpiresInDays = [
+        {
+          ...mockGroupMessage,
+          ExpiresInDays: 31,
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithInvalidExpiresInDays });
+
+      // Assert
+      await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
   });
 
   describe(`Happy paths`, () => {
@@ -208,6 +244,52 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
 
       // Assert
       expect(result.status).toEqual(202);
+      expect(result.body).toEqual([
+        {
+          GroupNotificationID: mockGroupMessage.GroupNotificationID,
+          UsersInGroup: 5,
+        },
+      ]);
+    });
+
+    test('status 202 when - the message has an ExpiresInDays equal to the organisation minimum', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to Min: 2
+      const mockGroupMessageWithExpiresInDays = [
+        {
+          ...mockGroupMessage,
+          ExpiresInDays: 2,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: mockGroupMessageWithExpiresInDays });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([
+        {
+          GroupNotificationID: mockGroupMessage.GroupNotificationID,
+          UsersInGroup: 5,
+        },
+      ]);
+    });
+
+    test('status 202 when - the message has an ExpiresInDays equal to the organisation maximum', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to Max: 30
+      const mockGroupMessageWithExpiresInDays = [
+        {
+          ...mockGroupMessage,
+          ExpiresInDays: 30,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: mockGroupMessageWithExpiresInDays });
+
+      // Assert
+      expect(result.status).toBe(202);
       expect(result.body).toEqual([
         {
           GroupNotificationID: mockGroupMessage.GroupNotificationID,

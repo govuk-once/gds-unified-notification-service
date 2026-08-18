@@ -3,9 +3,9 @@ import z from 'zod';
 export const IOrganisationConfigSchema = z.object({
   MessageRetention: z
     .object({
-      Allowed: z.boolean(),
-      Min: z.int().positive().optional(),
-      Max: z.int().positive().optional(),
+      Allowed: z.coerce.boolean(),
+      Min: z.coerce.number().int().positive().min(1).optional(),
+      Max: z.coerce.number().int().positive().min(1).optional(),
     })
     .superRefine((data, ctx) => {
       if (data.Allowed) {
@@ -33,11 +33,11 @@ export const IOrganisationConfigSchema = z.object({
       }
     }),
 });
+export type IOrganisationConfig = z.infer<typeof IOrganisationConfigSchema>;
 
 export const IOrganisationRecordSchema = z.object({
   OrganisationID: z.string(),
   DisplayName: z.string(),
   OrganisationConfig: IOrganisationConfigSchema,
 });
-
 export type IOrganisationRecord = z.infer<typeof IOrganisationRecordSchema>;

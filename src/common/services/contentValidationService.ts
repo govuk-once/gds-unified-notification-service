@@ -1,4 +1,5 @@
 import { ContentValidationError } from '@common/models/Errors/BadRequestError';
+import { IOrganisationConfig } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
@@ -147,6 +148,25 @@ export class ContentValidationService {
       for (const child of token.children) {
         this.validateMarkdown(child);
       }
+    }
+  }
+
+  public validateExpirationForOrganisation(expiresInDays: number, organisationConfig: IOrganisationConfig) {
+    const { Allowed, Min, Max } = organisationConfig.MessageRetention;
+    if (!Allowed) {
+      throw this.createError(
+        'Invalid input: unexpected ExpiresInDays at ., message retention is disabled for this organisation'
+      );
+    }
+    if (Min && expiresInDays < Min) {
+      throw this.createError(
+        `Invalid input: invalid ExpiresInDays at ., message retention is less than the minimum set for this organisation ${Min} days`
+      );
+    }
+    if (Max && expiresInDays > Max) {
+      throw this.createError(
+        `Invalid input: invalid ExpiresInDays at ., message retention is greater than the maximum set for this organisation ${Max} days`
+      );
     }
   }
 }

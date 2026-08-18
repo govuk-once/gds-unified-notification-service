@@ -1,3 +1,4 @@
+import { IRequestEvent } from '@common/middlewares';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BoolParameters } from '@common/utils';
 import {
@@ -181,11 +182,24 @@ describe('PostMessage Handler', () => {
     vi.setSystemTime(date);
     const mockEventWithExpireInDays = {
       ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: true,
+              Min: 10,
+              Max: 35,
+            },
+          }),
+        },
+      },
       body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]),
-    };
+    } as unknown as IRequestEvent;
 
     // Act
-    await handler({ ...mockEventWithExpireInDays }, mockContext);
+    await handler(mockEventWithExpireInDays, mockContext);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([

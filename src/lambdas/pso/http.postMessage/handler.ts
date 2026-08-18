@@ -13,7 +13,6 @@ import {
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
-  IOrganisationConfigSchema,
   NotificationsDynamoRepository,
   ObservabilityService,
   ProcessingQueueService,
@@ -22,7 +21,6 @@ import {
 } from '@common';
 import { NotificationStateEnum } from '@common/models';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -86,20 +84,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
-
-    const rawConfig = event.requestContext.authorizer?.OrganisationConfig as string | undefined;
-    if (!rawConfig) {
-      throw new ServiceMisconfigurationError(['Organisation Config is missing from request context authorizer']);
-    }
-    const { data: organisationConfig, error } = IOrganisationConfigSchema.safeParse(JSON.parse(rawConfig));
-    if (error) {
-      throw new ServiceMisconfigurationError(['Organisation Config is misconfigured']);
-    }
+    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
 
     const messages: IMessage[] = event.body.map((body) => ({
       ...body,
@@ -124,8 +109,12 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
         }
       }
 
-      if (!featureEnabledMessageRetention && message.ExpiresInDays) {
-        throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
+      if (message.ExpiresInDays) {
+        if (featureEnabledMessageRetention) {
+          this.contentValidationService.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
+        } else {
+          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
+        }
       }
     }
 

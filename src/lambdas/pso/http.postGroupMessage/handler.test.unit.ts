@@ -77,7 +77,14 @@ describe('PostGroupMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: { Organization: 'ORG01' },
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: false,
+            },
+          }),
+        },
       },
     } as unknown as EventType;
 
