@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models/ChannelsEnum';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -64,6 +65,7 @@ describe('PostGroupMessage Handler', () => {
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
+    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'true';
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
@@ -387,5 +389,168 @@ describe('PostGroupMessage Handler', () => {
       HttpError: 'BadRequest',
       Errors: ['Invalid input: unexpected DeeplinkURL at .'],
     });
+  });
+
+  it('should accept a group message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
+    // Arrange
+    const messageWithChannel = {
+      ...mockGroupMessage,
+      Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+    ]);
+  });
+
+  it('should accept a group message with Channel set to MESSAGE_CENTRE_ONLY', async () => {
+    // Arrange
+    const messageWithChannel = {
+      ...mockGroupMessage,
+      Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+    ]);
+  });
+
+  it('should accept a group message when Channel is omitted', async () => {
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should return 400 when Channel is an empty string', async () => {
+    // Arrange
+    const messageWithEmptyChannel = {
+      ...mockGroupMessage,
+      Channel: '',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithEmptyChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  it('should return 400 when Channel is an invalid enum value', async () => {
+    // Arrange
+    const messageWithInvalidChannel = {
+      ...mockGroupMessage,
+      Channel: 'INVALID_CHANNEL',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithInvalidChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  it('should return 400 when Channel is a lowercase variant of a valid enum', async () => {
+    // Arrange
+    const messageWithLowercaseChannel = {
+      ...mockGroupMessage,
+      Channel: 'push_notification_and_message_centre',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithLowercaseChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  it('should return 400 when ControlChannels feature flag is disabled and Channel is provided', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'false';
+    const messageWithChannel = {
+      ...mockGroupMessage,
+      Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: unexpected Channel at .'],
+    });
+  });
+
+  it('should accept messages when ControlChannels is disabled but Channel is not provided', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'false';
+
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+    ]);
   });
 });

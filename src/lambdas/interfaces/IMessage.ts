@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { v4 as uuid } from 'uuid'; // Assuming uuid import
 import { z } from 'zod';
 
@@ -19,6 +20,7 @@ export const IMessageFields = z.object({
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
   DeeplinkURL: z.string().optional(),
+  Channel: z.enum(ChannelsEnum).optional(),
 });
 
 // Pre-validated Message Schema
