@@ -27,6 +27,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   const serviceMocks = ServiceSpies(observabilityMocks);
   const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock, configurationServiceMock } =
     serviceMocks;
+  const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock, configurationServiceMock } =
+    serviceMocks;
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -182,6 +184,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
 
   it('should allow request with existing certificate that has not been revoked', async () => {
     // Arrange
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      Organization: mockOrganisationID,
     mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
       Organization: mockOrganisationID,
       Revoked: false,

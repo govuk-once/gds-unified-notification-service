@@ -9,7 +9,13 @@ export const devOrgMetadata = {
   },
   UNS: {
     DisplayName: 'UNS',
-    OrganisationConfig: {},
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: true,
+        Min: 2,
+        Max: 30,
+      },
+    },
   },
 } as const;
 
