@@ -17,7 +17,7 @@ export const devOrgMetadata = {
       },
     },
   },
-  EA: {
+  EventsAggregator: {
     DisplayName: 'Foreign Travel Advice',
     OrganisationConfig: {
       MessageRetention: {
@@ -46,14 +46,6 @@ export const stgOrgMetadata = {
       },
     },
   },
-  EA: {
-    DisplayName: 'Foreign Travel Advice',
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: false,
-      },
-    },
-  },
 } as const;
 
 export const prodOrgMetadata = {
@@ -63,10 +55,6 @@ export const prodOrgMetadata = {
   },
   UNS: {
     DisplayName: 'UNS',
-    OrganisationConfig: {},
-  },
-  EA: {
-    DisplayName: 'Foreign Travel Advice',
     OrganisationConfig: {},
   },
 } as const;
