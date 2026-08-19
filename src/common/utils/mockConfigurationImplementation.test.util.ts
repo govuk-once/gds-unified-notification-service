@@ -28,6 +28,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [BoolParameters.Config.GroupProcessingWorker.Enabled]: `true`,
     [BoolParameters.Config.Validation.Enabled]: `true`,
     [BoolParameters.Config.FeatureFlags.DeepLinkUrl]: `true`,
+    [BoolParameters.Config.FeatureFlags.ChannelControls]: `true`,
     // Enums
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
     [EnumParameters.Config.Processing.Adapter]: 'UDP',

@@ -6,17 +6,17 @@ import {
   NotificationAdapterVoid,
   ObservabilityService,
 } from '@common/services';
-import {
-  NotificationAdapter,
-  NotificationAdapterRequest,
-  NotificationAdapterResult,
-} from '@common/services/interfaces';
+import { NotificationAdapterRequest, NotificationAdapterResult } from '@common/services/interfaces';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
-import { EnumParameters, segment } from '@common/utils';
+import { BoolParameters, EnumParameters, segment } from '@common/utils';
 import * as z from 'zod';
 
 export class NotificationService {
-  public adapter: NotificationAdapter;
+  public voidAdapter!: NotificationAdapterVoid;
+  public onesignalAdapter?: NotificationAdapterOneSignal;
+
+  protected featureFlagChannelControls!: boolean;
+
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
@@ -25,18 +25,22 @@ export class NotificationService {
 
   async initialize() {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getEnumParameter(
+    const defaultAdapter = await this.config.getEnumParameter(
       EnumParameters.Config.Dispatch.Adapter,
       z.enum([`VOID`, `OneSignal`])
     );
+    this.featureFlagChannelControls = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.ChannelControls
+    );
 
-    this.adapter =
-      adapter == 'OneSignal'
-        ? new NotificationAdapterOneSignal(this.observability, this.config, this.smConfig)
-        : new NotificationAdapterVoid(this.observability, this.config, this.smConfig);
+    // Initialize the adapters
+    this.voidAdapter = new NotificationAdapterVoid(this.observability, this.config, this.smConfig);
+    await this.voidAdapter.initialize();
 
-    // Initialize the adapter
-    await this.adapter.initialize();
+    if (defaultAdapter === 'OneSignal') {
+      this.onesignalAdapter = new NotificationAdapterOneSignal(this.observability, this.config, this.smConfig);
+      await this.onesignalAdapter.initialize();
+    }
 
     return this;
   }
@@ -45,14 +49,33 @@ export class NotificationService {
     const metadata = {
       NotificationID: request.NotificationID,
     };
+
+    // Chooses which adapter to use based off channel, defaults to OneSignal
+    let adapter = this.onesignalAdapter ?? this.voidAdapter;
+    if (this.featureFlagChannelControls && request.Channel && this.onesignalAdapter) {
+      switch (request.Channel) {
+        case this.onesignalAdapter.supportedChannels:
+          adapter = this.onesignalAdapter;
+          break;
+        case this.voidAdapter.supportedChannels:
+          adapter = this.voidAdapter;
+          break;
+        default:
+          break;
+      }
+    }
+
     this.observability.logger.info(`Dispatching notification`, metadata);
     const start = performance.now();
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHING_ATTEMPTS, MetricUnit.Count, 1);
+
     const result = await segment(this.observability.tracer, `Dispatching`, async (segment) => {
       segment.addMetadata(`NotificationID`, request.NotificationID);
       segment.addAnnotation(`Start`, true);
-      return await this.adapter.send(request);
+
+      return await adapter.send(request);
     });
+
     const end = performance.now() - start;
     this.observability.metrics.addMetric(MetricsLabels.DISPATCH_DURATION, MetricUnit.Milliseconds, end);
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHED, MetricUnit.Count, 1);

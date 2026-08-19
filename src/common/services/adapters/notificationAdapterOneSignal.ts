@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
 import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
 import { ConfigurationService, ObservabilityService, ProviderDimension } from '@common/services';
@@ -26,10 +27,12 @@ interface OneSignalPushNotificationResponse {
 }
 
 export class NotificationAdapterOneSignal implements NotificationAdapter {
-  public client: FetchService;
-  protected key: string;
-  protected appId: string;
-  protected deeplinkTemplate: string;
+  public client!: FetchService;
+  public supportedChannels: ChannelsEnum = ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE;
+
+  protected key!: string;
+  protected appId!: string;
+  protected deeplinkTemplate!: string;
 
   constructor(
     protected observability: ObservabilityService,

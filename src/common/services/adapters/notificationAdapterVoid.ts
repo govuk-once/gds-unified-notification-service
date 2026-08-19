@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { ConfigurationService } from '@common/services/configurationService';
 import {
   NotificationAdapter,
@@ -8,6 +9,8 @@ import { ObservabilityService } from '@common/services/observabilityService';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 
 export class NotificationAdapterVoid implements NotificationAdapter {
+  public supportedChannels: ChannelsEnum = ChannelsEnum.MESSAGE_CENTRE_ONLY;
+
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
