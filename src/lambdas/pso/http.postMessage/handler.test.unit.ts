@@ -1,3 +1,4 @@
+import { IRequestEvent } from '@common/middlewares';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BoolParameters } from '@common/utils';
 import {
@@ -68,7 +69,14 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: { Organization: 'ORG01' },
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: false,
+            },
+          }),
+        },
       },
     } as unknown as EventType;
 
@@ -104,16 +112,9 @@ describe('PostMessage Handler', () => {
   it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
     // Arrange
     const organisationID = 'ORG01';
-    const authorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        ...mockEvent.requestContext,
-        authorizer: { Organization: organisationID },
-      },
-    } as unknown as EventType;
 
     // Act
-    await handler(authorizedEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
@@ -124,7 +125,7 @@ describe('PostMessage Handler', () => {
         {
           ...mockMessageBody,
           OrganisationID: organisationID,
-          APIGWExtendedID: authorizedEvent.requestContext.requestId,
+          APIGWExtendedID: mockEvent.requestContext.requestId,
         },
       ],
       NotificationStateEnum.VALIDATED_API_CALL
@@ -134,7 +135,7 @@ describe('PostMessage Handler', () => {
     ]);
   });
 
-  it('should return 400 when mTLS certificate does not resolve an organsation', async () => {
+  it('should return 400 when mTLS certificate does not resolve an organisation', async () => {
     // Arrange
     const noAuthorizedEvent = {
       ...mockEvent,
@@ -172,6 +173,92 @@ describe('PostMessage Handler', () => {
         Events: [],
       },
     ]);
+  });
+
+  it('should make a record using expire in days if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: true,
+              Min: 10,
+              Max: 35,
+            },
+          }),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]),
+    } as unknown as IRequestEvent;
+
+    // Act
+    await handler(mockEventWithExpireInDays, mockContext);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        ...mockMessageBody,
+        OrganisationID: 'ORG01',
+        APIGWExtendedID: mockEvent.requestContext.requestId,
+        ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: date.toISOString(),
+        RequestedDaysToExpire: 25,
+        Events: [],
+      },
+    ]);
+  });
+
+  it('should reject any notification where the ExpiresInDays is a negative', async () => {
+    // Arrange
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: -1 }]),
+    };
+
+    // Act
+    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Too small: expected number to be >0 → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
+
+  it('should reject any notification where the ExpiresInDays is a float', async () => {
+    // Arrange
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 0.5 }]),
+    };
+
+    // Act
+    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Invalid input: expected int, received number → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
   });
 
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
@@ -283,6 +370,25 @@ describe('PostMessage Handler', () => {
       Status: 400,
       HttpError: 'BadRequest',
       Errors: ['Invalid input: unexpected DeeplinkURL at .'],
+    });
+  });
+
+  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+
+    // Act
+    const result = await handler(
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]) },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
     });
   });
 });

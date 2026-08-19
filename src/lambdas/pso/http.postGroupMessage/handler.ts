@@ -67,11 +67,7 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
+    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
 
     const messages: IGroupMessage[] = event.body.map((body) => ({
       ...body,
@@ -82,13 +78,25 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
       BoolParameters.Config.FeatureFlags.DeepLinkUrl
     );
+    const featureEnabledMessageRetention = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.MessageRetention
+    );
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
+
       if (featureEnabledDeepLinkUrl) {
         this.contentValidationService.validateUrls(message.DeeplinkURL);
       } else {
         if (message.DeeplinkURL) {
           throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
+        }
+      }
+
+      if (message.ExpiresInDays) {
+        if (featureEnabledMessageRetention) {
+          this.contentValidationService.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
+        } else {
+          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
         }
       }
     }

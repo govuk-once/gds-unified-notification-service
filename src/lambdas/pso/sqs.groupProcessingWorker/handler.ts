@@ -136,6 +136,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
         NotificationBody: groupMessage.NotificationBody,
         MessageTitle: groupMessage.MessageTitle,
         MessageBody: groupMessage.MessageBody,
+        ExpiresInDays: groupMessage.ExpiresInDays,
       });
     }
 
@@ -143,11 +144,12 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     this.observability.logger.debug(`Adding record of notification to message table`);
     await this.notificationsRepository.createRecordBatch(
       processedMessages.map((body) => ({
-        ...body,
+        ...{ ...body, ExpiresInDays: undefined },
         APIGWExtendedID: data.body.APIGWExtendedID,
         ReceivedDateTime: data.body.ReceivedDateTime,
         ValidatedDateTime: data.body.ValidatedDateTime,
         ProcessedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: body.ExpiresInDays,
         Events: [],
       }))
     );

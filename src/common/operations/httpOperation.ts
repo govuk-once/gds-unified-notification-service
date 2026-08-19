@@ -14,7 +14,9 @@ import {
   serializeBodyToJson,
 } from '@common/middlewares';
 import { httpErrorHandlerMiddleware } from '@common/middlewares/httpErrorHandlerMiddleware';
-import { NotImplementedError } from '@common/models/Errors/InternalServerError';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotImplementedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { IOrganisationConfig, IOrganisationConfigSchema } from '@common/repositories';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
@@ -132,6 +134,27 @@ export abstract class APIHandler<
     middy = this.validationMiddlewares(middy);
     middy = this.errorHandlingMiddlewares(middy);
     return middy;
+  }
+
+  protected extractOrganisationConfiguration(event: ITypedRequestEvent<z.infer<InputSchema>>): {
+    organisationID: string;
+    organisationConfig: IOrganisationConfig;
+  } {
+    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
+    if (!organisationID) {
+      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
+    }
+
+    const rawOrganisationConfig = event.requestContext.authorizer?.OrganisationConfig as string | undefined;
+    if (!rawOrganisationConfig) {
+      throw new BadRequestError(['Organisation Config is missing from request context authorizer']);
+    }
+    const { data: organisationConfig, error } = IOrganisationConfigSchema.safeParse(JSON.parse(rawOrganisationConfig));
+    if (error) {
+      throw new ServiceMisconfigurationError(['Organisation Config is misconfigured']);
+    }
+
+    return { organisationID, organisationConfig };
   }
 
   // Wrapper FN to consistently initialize operations

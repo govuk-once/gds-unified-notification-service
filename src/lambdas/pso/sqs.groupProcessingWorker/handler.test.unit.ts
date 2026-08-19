@@ -409,4 +409,45 @@ describe('GroupProcessingWorker QueueHandler', () => {
       })
     );
   });
+
+  it('should make a record using expire in days if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const mockEventWithExpireInDays = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: {
+            ...mockGroupMessageMetadataBody,
+            GroupMessage: { ...mockGroupMessageMetadataBody.GroupMessage, ExpiresInDays: 25 },
+          },
+        },
+      ],
+    };
+
+    // Act
+    await handler(mockEventWithExpireInDays, mockContext);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        NotificationID: '525f4a48-b21a-4554-93f7-19af4550b384',
+        CampaignID: 'CAM_ID',
+        OrganisationID: 'ORG01',
+        ExternalUserID: 'pushID_1',
+        NotificationTitle: 'Hey',
+        NotificationBody: "You've got a message in the message centre",
+        MessageTitle: 'Hi there',
+        MessageBody: 'MOCK_LONG_MESSAGE',
+        APIGWExtendedID: mockGroupMessageMetadataBody.APIGWExtendedID,
+        ReceivedDateTime: mockGroupMessageMetadataBody.ReceivedDateTime,
+        ProcessedDateTime: date.toISOString(),
+        ValidatedDateTime: mockGroupMessageMetadataBody.ValidatedDateTime,
+        RequestedDaysToExpire: 25,
+        Events: [],
+      },
+    ]);
+  });
 });
