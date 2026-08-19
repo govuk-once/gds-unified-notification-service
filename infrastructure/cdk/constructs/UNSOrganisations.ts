@@ -5,7 +5,7 @@ import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
-import { orgMetadata } from 'infrastructure/cdk/consumers/consumersMetadata';
+import { getConsumersMetadata } from 'infrastructure/cdk/consumers/consumersMetadata';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 export class UNSOrganisationsCommon extends Construct {
@@ -38,6 +38,7 @@ export class UNSOrganisationsCommon extends Construct {
     });
     common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
 
+    const orgMetadata = getConsumersMetadata(config.env);
     for (const [OrganisationID, { DisplayName, OrganisationConfig }] of Object.entries(orgMetadata)) {
       // Create an organisation record
       dynamoDBWriterProvider.createRecord(

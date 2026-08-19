@@ -1,5 +1,6 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import {
+  IMessageRecord,
   IMessageRecordSchema,
   IProcessedMessageRecord,
   IProcessedMessageRecordSchema,
@@ -56,5 +57,13 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
     const { data } = IProcessedMessageRecordSchema.array().safeParse(messageRecords);
 
     return data ?? [];
+  }
+
+  public beforeCreate(record: IMessageRecord) {
+    // Overrides before create function in dynamo repository using the IMessageRecord generic
+    return {
+      ...record,
+      ...this.createExpirationDatePartial(record.RequestedDaysToExpire),
+    };
   }
 }

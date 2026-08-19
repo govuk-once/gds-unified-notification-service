@@ -84,11 +84,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
+    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
 
     const messages: IMessage[] = event.body.map((body) => ({
       ...body,
@@ -101,6 +97,9 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     );
     const featureEnabledChannelControls = await this.config.getBooleanParameter(
       BoolParameters.Config.FeatureFlags.ChannelControls
+    );
+    const featureEnabledMessageRetention = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.MessageRetention
     );
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
@@ -115,6 +114,14 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
       if (!featureEnabledChannelControls && message.Channel) {
         throw new BadRequestError(['Invalid input: unexpected Channel at .']);
+      }
+
+      if (message.ExpiresInDays) {
+        if (featureEnabledMessageRetention) {
+          this.contentValidationService.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
+        } else {
+          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
+        }
       }
     }
 
@@ -136,10 +143,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
       messages.map((body): IMessageRecord => ({
-        ...body,
+        ...{ ...body, ExpiresInDays: undefined },
         APIGWExtendedID: event.requestContext.requestId,
         ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: body.ExpiresInDays,
         Events: [],
       }))
     );

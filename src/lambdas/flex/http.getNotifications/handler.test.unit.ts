@@ -105,7 +105,11 @@ describe('getNotifications Handler', () => {
   const mockOrganisationRecord: IOrganisationRecord = {
     OrganisationID: organisationID,
     DisplayName: displayName,
-    OrganisationConfig: {},
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
   };
 
   beforeEach(() => {

@@ -30,7 +30,11 @@ describe('OrganisationsDynamoRepository', () => {
   const mockOrganisationRecord: IOrganisationRecord = {
     OrganisationID: mockOrganisationID,
     DisplayName: 'ORG',
-    OrganisationConfig: {},
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
   };
 
   const mockMessageRecord: IProcessedMessageRecord = {
@@ -53,7 +57,11 @@ describe('OrganisationsDynamoRepository', () => {
   const mockOrganisationRecord_02: IOrganisationRecord = {
     OrganisationID: mockOrganisationID_02,
     DisplayName: 'OTHER_ORG',
-    OrganisationConfig: {},
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
   };
   const mockMessageRecord_02: IProcessedMessageRecord = {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
