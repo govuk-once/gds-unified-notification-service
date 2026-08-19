@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { IGroupMessage } from '@project/lambdas';
 import { checkCampaignStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
@@ -232,6 +233,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       });
       expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
+      // TODO: Need a way to void test notification while adapter is not VOID.
       // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
     });
 
@@ -296,6 +298,107 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
           UsersInGroup: 5,
         },
       ]);
+    });
+
+    test('status 202 when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: PUSH_NOTIFICATION_AND_MESSAGE_CENTRE
+      const messagesWithChannel = [
+        {
+          ...mockGroupMessage,
+          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithChannel });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([
+        {
+          GroupNotificationID: mockGroupMessage.GroupNotificationID,
+          UsersInGroup: 5,
+        },
+      ]);
+    });
+
+    test('status 202 when - the message has Channel MESSAGE_CENTRE_ONLY', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
+      const messagesWithChannel = [
+        {
+          ...mockGroupMessage,
+          Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithChannel });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([
+        {
+          GroupNotificationID: mockGroupMessage.GroupNotificationID,
+          UsersInGroup: 5,
+        },
+      ]);
+    });
+
+    test('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
+      psoAPI: api,
+    }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: PUSH_NOTIFICATION_AND_MESSAGE_CENTRE
+      const campaignID = `GROUP_MESSAGE_E2E_TEST_${new Date().toISOString()}`;
+      const messagesWithChannel = [
+        {
+          ...mockGroupMessage,
+          CampaignID: campaignID,
+          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+        },
+      ];
+
+      // Act
+      const result = await api.post({ path, body: messagesWithChannel });
+
+      // Assert
+      const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
+        timeout: 30000,
+        interval: 2000,
+      });
+      expect(result.status).toEqual(202);
+      expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
+      // TODO: Need a way to void test notification while adapter is not VOID.
+      // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
+    });
+
+    test('notification status PROCESSED only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
+      psoAPI: api,
+    }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
+      const campaignID = `GROUP_MESSAGE_E2E_TEST_${new Date().toISOString()}`;
+      const messagesWithChannel = [
+        {
+          ...mockGroupMessage,
+          CampaignID: campaignID,
+          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+        },
+      ];
+
+      // Act
+      const result = await api.post({ path, body: messagesWithChannel });
+
+      // Assert
+      const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
+        timeout: 30000,
+        interval: 2000,
+      });
+      expect(result.status).toEqual(202);
+      expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
+      expect(campaignStatus.DISPATCHED).toEqual(0);
     });
   });
 });

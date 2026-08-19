@@ -14,7 +14,7 @@ export const IIdentifiableMessageSchema = z.object({
 export type IIdentifiableMessage = z.infer<typeof IIdentifiableMessageSchema>;
 
 // Base Message Content Fields Schema
-export const IMessageFields = z.object({
+export const IMessageFieldsSchema = z.object({
   NotificationTitle: z.string(),
   NotificationBody: z.string(),
   MessageTitle: z.string().optional(),
@@ -23,18 +23,19 @@ export const IMessageFields = z.object({
   Channel: z.enum(ChannelsEnum).optional(),
   ExpiresInDays: z.int().positive().optional(),
 });
+export type IMessageFields = z.infer<typeof IMessageFieldsSchema>;
 
 // Pre-validated Message Schema
 // Omits OrganisationID and makes content fields optional
 export const IPrevalidatedMessageSchema = IIdentifiableMessageSchema.omit({ OrganisationID: true }).extend(
-  IMessageFields.partial().shape
+  IMessageFieldsSchema.partial().shape
 );
 export type IPrevalidatedMessage = z.infer<typeof IPrevalidatedMessageSchema>;
 
 // Validated Message Schema
 // Merges identifier and content fields, making UserID strictly required
 export const IValidateMessageSchema = IPrevalidatedMessageSchema.extend({
-  ...IMessageFields.shape,
+  ...IMessageFieldsSchema.shape,
   UserID: z.string(),
 });
 export type IValidatedMessage = z.infer<typeof IValidateMessageSchema>;

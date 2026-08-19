@@ -77,6 +77,7 @@ describe('PostMessage Handler', () => {
             MessageRetention: {
               Allowed: false,
             },
+            Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
           }),
         },
       },
@@ -375,6 +376,25 @@ describe('PostMessage Handler', () => {
     });
   });
 
+  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+
+    // Act
+    const result = await handler(
+      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]) },
+      mockContext
+    );
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
+    });
+  });
+
   it('should accept a message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
     // Arrange
     const messageWithChannel = {
@@ -520,22 +540,152 @@ describe('PostMessage Handler', () => {
     });
   });
 
-  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
+  it('should accept a message when Channel is in the organisation allowed channels - PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
     // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+    const event = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE],
+          }),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE }]),
+    } as unknown as EventType;
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]) },
-      mockContext
-    );
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should accept a message when Channel is in the organisation allowed channels - MESSAGE_CENTRE', async () => {
+    // Arrange
+    const event = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY],
+          }),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY }]),
+    } as unknown as EventType;
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should return 400 when Channel is not in the organisation allowed channels', async () => {
+    // Arrange
+    const event = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE],
+          }),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY }]),
+    } as unknown as EventType;
+
+    // Act
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
+      Errors: ['Invalid input: invalid Channel, this channel is unsupported for this organisation'],
+    });
+  });
+
+  it('should return 400 when organisation has no allowed channels configured', async () => {
+    // Arrange
+    const event = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({}),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE }]),
+    } as unknown as EventType;
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: invalid Channel, this channel is unsupported for this organisation'],
+    });
+  });
+
+  it('should accept a message without Channel even when organisation has no allowed channels', async () => {
+    // Arrange
+    const event = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({}),
+        },
+      },
+      body: JSON.stringify([mockMessageBody]),
+    } as unknown as EventType;
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should return 400 when organisation has empty allowed channels array', async () => {
+    // Arrange
+    const event = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            Channels: [],
+          }),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY }]),
+    } as unknown as EventType;
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Invalid input: invalid Channel, this channel is unsupported for this organisation'],
     });
   });
 });
