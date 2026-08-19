@@ -479,7 +479,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     return {
       ...record,
       // Dynamically inject expiration date if table calls for it
-      ...this.createExpirationDatePartial(Number(record.RequestedDaysToExpire)),
+      ...this.createExpirationDatePartial(),
     };
   }
 
