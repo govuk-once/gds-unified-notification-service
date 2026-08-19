@@ -82,6 +82,9 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
       BoolParameters.Config.FeatureFlags.DeepLinkUrl
     );
+    const featureEnabledChannelControls = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.ChannelControls
+    );
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
       if (featureEnabledDeepLinkUrl) {
@@ -90,6 +93,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
         if (message.DeeplinkURL) {
           throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
         }
+      }
+
+      if (!featureEnabledChannelControls && message.Channel) {
+        throw new BadRequestError(['Invalid input: unexpected Channel at .']);
       }
     }
 
