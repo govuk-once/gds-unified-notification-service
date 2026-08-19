@@ -17,6 +17,14 @@ export const devOrgMetadata = {
       },
     },
   },
+  EA: {
+    DisplayName: 'Foreign Travel Advice',
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
+  },
 } as const;
 
 export const stgOrgMetadata = {
@@ -38,6 +46,14 @@ export const stgOrgMetadata = {
       },
     },
   },
+  EA: {
+    DisplayName: 'Foreign Travel Advice',
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
+  },
 } as const;
 
 export const prodOrgMetadata = {
@@ -47,6 +63,10 @@ export const prodOrgMetadata = {
   },
   UNS: {
     DisplayName: 'UNS',
+    OrganisationConfig: {},
+  },
+  EA: {
+    DisplayName: 'Foreign Travel Advice',
     OrganisationConfig: {},
   },
 } as const;
