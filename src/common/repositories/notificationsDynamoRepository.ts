@@ -1,3 +1,4 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import {
   IMessageRecord,
@@ -16,9 +17,10 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {

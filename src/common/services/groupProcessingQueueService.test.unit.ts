@@ -1,6 +1,4 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { ConfigurationService } from '@common/services/configurationService';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
@@ -8,18 +6,13 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
-import { mockClient } from 'aws-sdk-client-mock';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-sqs', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('GroupProcessingQueueService', () => {
@@ -27,8 +20,8 @@ describe('GroupProcessingQueueService', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-  const sqsMock = mockClient(SQSClient);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -55,13 +48,18 @@ describe('GroupProcessingQueueService', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    sqsMock.reset();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
-    groupProcessingQueueService = new GroupProcessingQueueService(configurationServiceMock, observabilityMock);
+    groupProcessingQueueService = new GroupProcessingQueueService(
+      serviceMocks.configurationServiceMock,
+      clientMocks.sqsClientMock,
+      observabilityMock
+    );
     await groupProcessingQueueService.initialize();
   });
 
@@ -91,7 +89,7 @@ describe('GroupProcessingQueueService', () => {
   describe('publishMessage', () => {
     it('should send a message when given the message params and adds a metric.', async () => {
       // Arrange
-      sqsMock.on(SendMessageCommand).resolvesOnce({
+      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         MessageId: 'message-1',
       });
 
@@ -99,13 +97,14 @@ describe('GroupProcessingQueueService', () => {
       await groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0] as SendMessageCommand;
-      expect(command.input).toEqual(
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
-          DelaySeconds: 0,
-          MessageBody: JSON.stringify(mockGroupMessageMetadata),
+          input: expect.objectContaining({
+            QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
+            DelaySeconds: 0,
+            MessageBody: JSON.stringify(mockGroupMessageMetadata),
+          }),
         })
       );
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
@@ -118,7 +117,7 @@ describe('GroupProcessingQueueService', () => {
     it('should throw an error and log when the send message command fails and adds a metric', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      sqsMock.on(SendMessageCommand).rejectsOnce(error);
+      clientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);

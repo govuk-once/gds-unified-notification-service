@@ -1,6 +1,6 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
 import { Context } from 'aws-lambda';
 
@@ -17,7 +17,8 @@ describe('PatchNotification Handler', () => {
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   const mockContext = {
     functionName: 'patchNotification',
@@ -25,7 +26,6 @@ describe('PatchNotification Handler', () => {
   } as unknown as Context;
 
   let mockEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
   let mockMissingIdEvent: EventType;
 
   const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;

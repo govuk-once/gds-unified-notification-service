@@ -23,7 +23,7 @@ describe('AnalyticsExportService', () => {
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
   const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  const serviceMocks = ServiceSpies(observabilityMock, awsClientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

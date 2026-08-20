@@ -1,19 +1,14 @@
-import { ConfigurationService } from '@common/services/configurationService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-sqs', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('DispatchQueueService', () => {
@@ -21,7 +16,8 @@ describe('DispatchQueueService', () => {
 
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -32,9 +28,15 @@ describe('DispatchQueueService', () => {
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
-    dispatchQueueService = new DispatchQueueService(configurationServiceMock, observabilityMock);
+    dispatchQueueService = new DispatchQueueService(
+      serviceMocks.configurationServiceMock,
+      clientMocks.sqsClientMock,
+      observabilityMock
+    );
     await dispatchQueueService.initialize();
   });
 

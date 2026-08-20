@@ -19,7 +19,7 @@ describe('AnalyticsExport Handler', () => {
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const serviceMocks = ServiceSpies(observabilityMocks, clientMocks);
 
   // TODO: Refactor this into service mock when implementing NOT-298
   const analyticsExportServiceMock = new AnalyticsExportService(

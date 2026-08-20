@@ -1,3 +1,4 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { mTLSRevocationRecordSchema } from '@common/repositories/interfaces/MTLSRevocationTable';
 import { ConfigurationService, ObservabilityService } from '@common/services';
@@ -8,9 +9,10 @@ export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mT
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {

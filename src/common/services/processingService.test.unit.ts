@@ -1,6 +1,4 @@
 // Unbound methods are allowed as that's how vi.mocked works
-import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';
 import * as awsCredentialsProvider from '@aws-sdk/credential-providers';
 import { ProcessingAdapterUDP, ProcessingAdapterVoid, ProcessingService } from '@common/services';
 import { ProcessingAdapterRequest } from '@common/services/interfaces';
@@ -9,8 +7,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { mockClient } from 'aws-sdk-client-mock';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { Mocked } from 'vitest';
 
 vi.mock(import('@smithy/signature-v4'), () => {
@@ -39,17 +36,6 @@ vi.mock('@common/adapters/processingAdapterUDP', { spy: true });
 vi.mock('@aws-sdk/credential-providers', { spy: true });
 
 describe('ProcessingService', () => {
-  const smMock = mockClient(SecretsManagerClient);
-  const stsMock = mockClient(STSClient);
-  stsMock.on(AssumeRoleCommand).resolvesOnce({
-    Credentials: {
-      AccessKeyId: '1',
-      SecretAccessKey: '2',
-      SessionToken: '3',
-      Expiration: new Date(Date.now() + 3600 * 1000),
-    },
-  });
-
   const awsCredentialsProviderSpy = awsCredentialsProvider as Mocked<typeof awsCredentialsProvider>;
   awsCredentialsProviderSpy.fromTemporaryCredentials.mockImplementation(
     () =>
@@ -67,7 +53,8 @@ describe('ProcessingService', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -87,8 +74,6 @@ describe('ProcessingService', () => {
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
-
-    smMock.reset();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();

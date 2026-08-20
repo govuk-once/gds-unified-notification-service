@@ -1,3 +1,4 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
@@ -9,9 +10,10 @@ export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOr
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {

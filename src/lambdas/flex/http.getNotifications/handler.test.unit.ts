@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
@@ -20,7 +20,8 @@ describe('getNotifications Handler', () => {
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   const mockContext = {
     functionName: 'getNotifications',

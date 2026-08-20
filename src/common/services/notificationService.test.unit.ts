@@ -7,12 +7,13 @@ import {
   mockDefaultSecrets,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringSecret } from '@common/utils/secrets';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-secrets-manager', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/smNamespacedConfigurationService', { spy: true });
 vi.mock('@common/adapters/notificationAdapterOneSignal', { spy: true });
@@ -22,7 +23,8 @@ describe('NotificationService', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

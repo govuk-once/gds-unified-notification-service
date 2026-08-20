@@ -1,6 +1,5 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { SQSClient } from '@aws-sdk/client-sqs';
 import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { QueueEvent } from '@common/operations';
@@ -10,11 +9,10 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
 import { Context } from 'aws-lambda';
-import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -22,15 +20,14 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-mockClient(SQSClient);
-
 describe('Validation QueueHandler', () => {
   let instance: Validation;
   let handler: ReturnType<typeof Validation.prototype.handler>;
 
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

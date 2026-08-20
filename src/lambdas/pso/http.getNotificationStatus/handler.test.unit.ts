@@ -1,5 +1,5 @@
 import { IRequestEvent } from '@common/middlewares';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotificationStatus } from '@project/lambdas/pso/http.getNotificationStatus/handler';
 import { Context } from 'aws-lambda';
 
@@ -16,7 +16,9 @@ describe('GetNotificationStatus Handler', () => {
   let mockEvent: IRequestEvent;
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+
   let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
   beforeEach(() => {
     instance = new GetNotificationStatus(observabilityMocks, () => ({

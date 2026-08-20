@@ -1,4 +1,3 @@
-import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
 import { StringParameters } from '@common/utils';
@@ -6,15 +5,15 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
-import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-
+vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 vi.mock('@common/services', { spy: true });
+
 const mockGroupID = 'd63d1fea-5731-4350-a54f-2e0ddaeae943';
 vi.mock('uuid', () => ({
   v4: () => mockGroupID,
@@ -25,8 +24,8 @@ describe('GroupStoreDynamoRepository', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
-  const dynamoMock = mockClient(DynamoDB);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -44,7 +43,6 @@ describe('GroupStoreDynamoRepository', () => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
-    dynamoMock.reset();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
@@ -52,7 +50,11 @@ describe('GroupStoreDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new GroupStoreDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = new GroupStoreDynamoRepository(
+      serviceMocks.configurationServiceMock,
+      clientMocks.dynamoDBClientMock,
+      observabilityMock
+    );
     instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(undefined);
     instance.deleteRecord = vi.fn().mockResolvedValueOnce(undefined);
     instance.createRecordBatch = vi.fn().mockResolvedValueOnce(undefined);

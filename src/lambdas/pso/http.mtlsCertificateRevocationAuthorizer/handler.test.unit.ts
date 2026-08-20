@@ -6,7 +6,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
 import { Context } from 'aws-lambda';
 
@@ -24,7 +24,9 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   let mockEventWithCertificate: IRequestEvent;
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+
   const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock, configurationServiceMock } =
     serviceMocks;
 

@@ -17,23 +17,17 @@ import { zodErrorFormatter } from '@common/utils';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
-  private client!: DynamoDB;
   protected tableAttributes!: IDynamoAttributes;
   protected abstract recordSchema: RecordSchema;
 
   constructor(
     protected config: ConfigurationService,
+    protected client: DynamoDB,
     protected observability: ObservabilityService
   ) {}
 
   public async initialize(tableAttributesParameter: string) {
     this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-
-    const client = new DynamoDB({
-      region: 'eu-west-2',
-    });
-
-    this.client = client;
     this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }

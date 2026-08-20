@@ -12,7 +12,8 @@ import { EnumParameters } from '@common/utils';
 import * as z from 'zod';
 
 export class ProcessingService {
-  public adapter: ProcessingAdapter;
+  public adapter!: ProcessingAdapter;
+
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,

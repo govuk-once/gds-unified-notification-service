@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
 import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
 import { Context } from 'aws-lambda';
@@ -19,7 +19,8 @@ describe('GetNotificationById Handler', () => {
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   let mockEvent: EventType;
   let mockUnauthorizedEvent: EventType;

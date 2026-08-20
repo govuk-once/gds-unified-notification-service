@@ -3,6 +3,10 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { SQSClient } from '@aws-sdk/client-sqs';
+import { SSMClient } from '@aws-sdk/client-ssm';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import {
   CampaignsDynamoRepository,
@@ -116,24 +120,28 @@ export const iocGetObservabilityService = ioc(
 
 // AWS Clients
 export const iocGetCloudWatchLogsClient = ioc('CloudWatchLogsClient', Mode.SINGLETON, () => new CloudWatchLogsClient());
+export const iocGetDynamoClient = ioc('DynamoClient', Mode.SINGLETON, () => new DynamoDB());
+export const iocGetSecretManagerClient = ioc('SecretManagerClient', Mode.SINGLETON, () => new SecretsManagerClient());
+export const iocGetSQSClient = ioc('SQSClient', Mode.SINGLETON, () => new SQSClient());
+export const iocGetSSMClient = ioc('SSMClient', Mode.SINGLETON, () => new SSMClient());
 
 // Services - Config & Cache
 export const iocGetConfigurationService = ioc(
   'ConfigurationService',
   Mode.SINGLETON,
-  () => new ConfigurationService(iocGetObservabilityService())
+  () => new ConfigurationService(iocGetSSMClient(), iocGetObservabilityService())
 );
 
 export const iocGetSMConfigurationService = ioc(
   'SMConfigurationService',
   Mode.SINGLETON,
-  () => new SMConfigurationService(iocGetObservabilityService())
+  () => new SMConfigurationService(iocGetSecretManagerClient(), iocGetObservabilityService())
 );
 
 export const iocGetSMNamespacedConfigurationService = ioc(
   'SMPrefixedConfigurationService',
   Mode.SINGLETON,
-  () => new SMNamespacedConfigurationService(iocGetObservabilityService())
+  () => new SMNamespacedConfigurationService(iocGetSecretManagerClient(), iocGetObservabilityService())
 );
 
 export const iocGetCacheService = ioc(
@@ -146,25 +154,44 @@ export const iocGetCacheService = ioc(
 export const iocGetProcessingQueueService = ioc(
   'ProcessingQueueService',
   Mode.TIMEBOUND_SINGLETON,
-  async () => await new ProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+  async () =>
+    await new ProcessingQueueService(
+      iocGetConfigurationService(),
+      iocGetSQSClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetGroupProcessingQueueService = ioc(
   'GroupProcessingQueueService',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
-    await new GroupProcessingQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+    await new GroupProcessingQueueService(
+      iocGetConfigurationService(),
+      iocGetSQSClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetDispatchQueueService = ioc(
   'DispatchQueueService',
   Mode.TIMEBOUND_SINGLETON,
-  async () => await new DispatchQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+  async () =>
+    await new DispatchQueueService(
+      iocGetConfigurationService(),
+      iocGetSQSClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 export const iocGetAnalyticsQueueService = ioc(
   'AnalyticsQueueService',
   Mode.TIMEBOUND_SINGLETON,
-  async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+  async () =>
+    await new AnalyticsQueueService(
+      iocGetConfigurationService(),
+      iocGetSQSClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 // Services - DynamoDB
@@ -172,35 +199,55 @@ export const iocGetNotificationDynamoRepository = ioc(
   'NotificationsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
-    await new NotificationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+    await new NotificationsDynamoRepository(
+      iocGetConfigurationService(),
+      iocGetDynamoClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetMTLSRevocationDynamoRepository = ioc(
   'MTLSRevocationDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
-    await new MTLSRevocationDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+    await new MTLSRevocationDynamoRepository(
+      iocGetConfigurationService(),
+      iocGetDynamoClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetCampaignsDynamoRepository = ioc(
   'CampaignsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
-    await new CampaignsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+    await new CampaignsDynamoRepository(
+      iocGetConfigurationService(),
+      iocGetDynamoClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetOrganisationsDynamoRepository = ioc(
   'OrganisationsDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
-    await new OrganisationsDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+    await new OrganisationsDynamoRepository(
+      iocGetConfigurationService(),
+      iocGetDynamoClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetGroupStoreDynamoRepository = ioc(
   'GroupStoreDynamoRepository',
   Mode.TIMEBOUND_SINGLETON,
   async () =>
-    await new GroupStoreDynamoRepository(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+    await new GroupStoreDynamoRepository(
+      iocGetConfigurationService(),
+      iocGetDynamoClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 // Services - API Integrations
@@ -224,7 +271,12 @@ export const iocGetProcessingService = ioc('ProcessingService', Mode.TIMEBOUND_S
 export const iocGetAnalyticsQueue = ioc(
   'AnalyticsQueueService',
   Mode.SINGLETON,
-  async () => await new AnalyticsQueueService(iocGetConfigurationService(), iocGetObservabilityService()).initialize()
+  async () =>
+    await new AnalyticsQueueService(
+      iocGetConfigurationService(),
+      iocGetSQSClient(),
+      iocGetObservabilityService()
+    ).initialize()
 );
 
 export const iocGetAnalyticsExportService = ioc(

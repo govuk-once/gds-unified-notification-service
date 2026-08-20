@@ -16,7 +16,8 @@ import { EnumParameters, segment } from '@common/utils';
 import * as z from 'zod';
 
 export class NotificationService {
-  public adapter: NotificationAdapter;
+  public adapter!: NotificationAdapter;
+
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,

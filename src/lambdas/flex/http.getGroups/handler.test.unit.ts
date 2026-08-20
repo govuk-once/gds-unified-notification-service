@@ -1,4 +1,4 @@
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetGroups } from '@project/lambdas/flex/http.getGroups/handler';
 import { IGroups } from '@project/lambdas/interfaces';
 import { Context } from 'aws-lambda';
@@ -16,7 +16,8 @@ describe('GetGroups Handler', () => {
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   const mockContext = {
     functionName: 'getGroups',

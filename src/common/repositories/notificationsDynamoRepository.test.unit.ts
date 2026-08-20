@@ -1,11 +1,4 @@
-import {
-  BatchWriteItemCommand,
-  DynamoDB,
-  GetItemCommand,
-  PutItemCommand,
-  UpdateItemCommand,
-} from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
 import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
@@ -14,12 +7,12 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { mockClient } from 'aws-sdk-client-mock';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 vi.mock('@common/services', { spy: true });
 
 describe('NotificationsDynamoRepository', () => {
@@ -27,8 +20,8 @@ describe('NotificationsDynamoRepository', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
-  const dynamoMock = mockClient(DynamoDB);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -48,7 +41,6 @@ describe('NotificationsDynamoRepository', () => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
-    dynamoMock.reset();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
@@ -56,7 +48,11 @@ describe('NotificationsDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new NotificationsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = new NotificationsDynamoRepository(
+      serviceMocks.configurationServiceMock,
+      clientMocks.dynamoDBClientMock,
+      observabilityMock
+    );
     await instance.initialize();
   });
 
@@ -90,8 +86,13 @@ describe('NotificationsDynamoRepository', () => {
 
     it('marshall record should be sent', async () => {
       // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+      const expirationDate = new Date(date.getTime() + 30 * 60 * 60 * 24 * 1000).toISOString();
+
       const record: IMessageRecord = recordBody;
-      dynamoMock.on(PutItemCommand).resolvesOnce({
+      clientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -102,11 +103,12 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecord(record);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as PutItemCommand;
-
-      expect(command.input.TableName).toBe('mockNotificationsDynamoRepositoryName');
-      expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expect.any(String) });
+      expect(clientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          TableName: 'mockNotificationsDynamoRepositoryName',
+          Item: marshall({ ...record, ExpirationDateTime: expirationDate }),
+        })
+      );
     });
 
     it('should throw an error if record does not match the message record schema', async () => {
@@ -137,7 +139,7 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const record: IMessageRecord = recordBody;
       const error = new Error('Connection Failure');
-      dynamoMock.on(PutItemCommand).rejectsOnce(error);
+      clientMocks.dynamoDBClientMock.putItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.createRecord(record);
@@ -155,7 +157,7 @@ describe('NotificationsDynamoRepository', () => {
       vi.useFakeTimers();
       const date = new Date();
       vi.setSystemTime(date);
-      dynamoMock.on(PutItemCommand).resolvesOnce({
+      clientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -169,11 +171,12 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecord(record);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as PutItemCommand;
-
-      expect(command.input.TableName).toBe('mockNotificationsDynamoRepositoryName');
-      expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expirationDateTime });
+      expect(clientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          TableName: 'mockNotificationsDynamoRepositoryName',
+          Item: marshall({ ...record, ExpirationDateTime: expirationDateTime }),
+        })
+      );
     });
   });
 
@@ -181,7 +184,7 @@ describe('NotificationsDynamoRepository', () => {
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
-      dynamoMock.on(BatchWriteItemCommand).resolvesOnce({
+      clientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: [
           {
             ReadCapacityUnits: 1,
@@ -194,17 +197,19 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecordBatch(record);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
-      expect(command.input.RequestItems).toEqual({
-        mockNotificationsDynamoRepositoryName: [
-          {
-            PutRequest: {
-              Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
-            },
+      expect(clientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          RequestItems: {
+            mockNotificationsDynamoRepositoryName: [
+              {
+                PutRequest: {
+                  Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
+                },
+              },
+            ],
           },
-        ],
-      });
+        })
+      );
     });
 
     it('should log an error if an empty list is given', async () => {
@@ -264,7 +269,7 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
       const error = new Error('Connection Failure');
-      dynamoMock.on(BatchWriteItemCommand).rejectsOnce(error);
+      clientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.createRecordBatch(record);
@@ -286,7 +291,7 @@ describe('NotificationsDynamoRepository', () => {
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
-      dynamoMock.on(UpdateItemCommand).resolvesOnce({
+      clientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -297,9 +302,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.updateRecord(mockUpdatedRecord);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
-      expect(command.input).toEqual({
+      expect(clientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith({
         TableName: 'mockNotificationsDynamoRepositoryName',
         Key: marshall({
           ['NotificationID']: mockUpdatedRecord.NotificationID,
@@ -324,7 +327,7 @@ describe('NotificationsDynamoRepository', () => {
     it('should log an error if the request fails', async () => {
       // Arrange
       const error = new Error('Connection Failure');
-      dynamoMock.on(UpdateItemCommand).rejectsOnce(error);
+      clientMocks.dynamoDBClientMock.updateItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.updateRecord(messageRecord);
@@ -377,7 +380,7 @@ describe('NotificationsDynamoRepository', () => {
         OrganisationID: 'ORG01',
       };
 
-      dynamoMock.on(GetItemCommand).resolves({
+      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
         Item: marshall(mockRecord),
       });
 
@@ -391,10 +394,7 @@ describe('NotificationsDynamoRepository', () => {
     it('if item is not found null should be returned', async () => {
       // Arrange
       const mockNotificationID = '1234';
-
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: undefined,
-      });
+      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
       const result = await instance.getRecord(mockNotificationID);
@@ -407,7 +407,7 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const mockNotificationID = '1234';
       const error = new Error('Connection Failure');
-      dynamoMock.on(GetItemCommand).rejectsOnce(error);
+      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.getRecord(mockNotificationID);
@@ -425,7 +425,7 @@ describe('NotificationsDynamoRepository', () => {
       const mockInvalidRecord = {
         NotificationID: 12345678,
       } as unknown as IMessageRecord;
-      dynamoMock.on(GetItemCommand).resolves({
+      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
         Item: marshall(mockInvalidRecord),
       });
       const keyValue = '111111111';

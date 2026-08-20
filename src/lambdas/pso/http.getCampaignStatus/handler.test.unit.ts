@@ -1,5 +1,5 @@
 import { IRequestEvent } from '@common/middlewares';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetCampaignStatus } from '@project/lambdas/pso/http.getCampaignStatus/handler';
 import { Context } from 'aws-lambda';
 
@@ -16,7 +16,8 @@ describe('GetCampaignStatus Handler', () => {
   let mockEvent: IRequestEvent;
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   let handler: ReturnType<typeof GetCampaignStatus.prototype.handler>;
 

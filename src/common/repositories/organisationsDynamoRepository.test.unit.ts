@@ -1,4 +1,3 @@
-import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
@@ -7,12 +6,12 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { mockClient } from 'aws-sdk-client-mock';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 vi.mock('@common/services', { spy: true });
 
 describe('OrganisationsDynamoRepository', () => {
@@ -20,8 +19,8 @@ describe('OrganisationsDynamoRepository', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
-  const dynamoMock = mockClient(DynamoDB);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -82,7 +81,6 @@ describe('OrganisationsDynamoRepository', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.resetAllMocks();
-    dynamoMock.reset();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
@@ -90,7 +88,11 @@ describe('OrganisationsDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new OrganisationsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = new OrganisationsDynamoRepository(
+      serviceMocks.configurationServiceMock,
+      clientMocks.dynamoDBClientMock,
+      observabilityMock
+    );
     await instance.initialize();
   });
 

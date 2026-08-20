@@ -1,6 +1,5 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ProcessingAdapterError } from '@common/models/Errors/BadGatewayError';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
@@ -12,11 +11,10 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { Processing } from '@project/lambdas/pso/sqs.processing/handler';
 import { Context } from 'aws-lambda';
-import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -25,16 +23,14 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-mockClient(SecretsManagerClient);
-
 describe('Processing QueueHandler', () => {
   let instance: Processing;
   let handler: ReturnType<typeof Processing.prototype.handler>;
 
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
-  const smMock = mockClient(SecretsManagerClient);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -157,8 +153,7 @@ describe('Processing QueueHandler', () => {
     // Reset all mocks
     vi.resetAllMocks();
     vi.useRealTimers();
-    smMock.reset();
-    smMock.on(GetSecretValueCommand).resolvesOnce({
+    serviceMocks.smConfigurationServiceMock.getParameterAsType = vi.fn().mockResolvedValueOnce({
       SecretString: JSON.stringify({
         apiAccountId: `abc`,
         apiKey: `cde`,

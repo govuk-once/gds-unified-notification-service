@@ -1,6 +1,6 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
 import { Context } from 'aws-lambda';
 
@@ -17,14 +17,14 @@ describe('DeleteNotification Handler', () => {
   type EventType = Parameters<typeof handler>[0];
 
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   const mockContext = {
     functionName: 'deleteNotification',
     awsRequestId: '12345',
   } as unknown as Context;
 
-  let mockBadRequestEvent: EventType;
   let mockEvent: EventType;
   let mockMissingIdEvent: EventType;
 
@@ -79,17 +79,6 @@ describe('DeleteNotification Handler', () => {
       ...mockEvent,
       pathParameters: {},
     };
-
-    mockBadRequestEvent = {
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-      pathParameters: {
-        notificationID: '12345',
-      },
-      headers: {},
-    } as unknown as EventType;
 
     instance = new DeleteNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),

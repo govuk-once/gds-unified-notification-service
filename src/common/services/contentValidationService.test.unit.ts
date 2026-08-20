@@ -6,7 +6,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -18,7 +18,8 @@ describe('ContentValidationService', () => {
 
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
+  const awsClientMocks = awsClientSpies();
+  const configurationServiceMock = vi.mocked(new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMock));
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

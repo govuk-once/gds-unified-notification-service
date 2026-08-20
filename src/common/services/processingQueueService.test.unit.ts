@@ -1,6 +1,4 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils';
@@ -8,18 +6,13 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import { mockClient } from 'aws-sdk-client-mock';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-sqs', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('ProcessingQueueService', () => {
@@ -27,8 +20,8 @@ describe('ProcessingQueueService', () => {
 
   // Initialize the mock service and repository layers
   const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-  const sqsMock = mockClient(SQSClient);
+  const clientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -47,13 +40,18 @@ describe('ProcessingQueueService', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    sqsMock.reset();
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+      mockGetParameterImplementation(mockParameterStore)
+    );
 
-    processingQueueService = new ProcessingQueueService(configurationServiceMock, observabilityMock);
+    processingQueueService = new ProcessingQueueService(
+      serviceMocks.configurationServiceMock,
+      clientMocks.sqsClientMock,
+      observabilityMock
+    );
     await processingQueueService.initialize();
   });
 
@@ -83,7 +81,7 @@ describe('ProcessingQueueService', () => {
   describe('publishMessage', () => {
     it('should send a message when given the message params and adds a metric.', async () => {
       // Arrange
-      sqsMock.on(SendMessageCommand).resolvesOnce({
+      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         MessageId: 'message-1',
       });
 
@@ -91,13 +89,14 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessage(mockMessageBody);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0] as SendMessageCommand;
-      expect(command.input).toEqual(
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
-          DelaySeconds: 0,
-          MessageBody: JSON.stringify(mockMessageBody),
+          input: expect.objectContaining({
+            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
+            DelaySeconds: 0,
+            MessageBody: JSON.stringify(mockMessageBody),
+          }),
         })
       );
       expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
@@ -110,7 +109,7 @@ describe('ProcessingQueueService', () => {
     it('should throw an error and log when the send message command fails and adds a metric', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      sqsMock.on(SendMessageCommand).rejectsOnce(error);
+      clientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = processingQueueService.publishMessage(mockMessageBody);
@@ -129,7 +128,7 @@ describe('ProcessingQueueService', () => {
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params and adds a metric.', async () => {
       // Arrange
-      sqsMock.on(SendMessageBatchCommand).resolvesOnce({
+      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
       });
 
@@ -137,18 +136,19 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0];
-      expect(command.input).toEqual(
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
-          Entries: [
-            {
-              Id: '0',
-              DelaySeconds: 0,
-              MessageBody: JSON.stringify(mockMessageBody),
-            },
-          ],
+          input: expect.objectContaining({
+            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
+            Entries: [
+              {
+                Id: '0',
+                DelaySeconds: 0,
+                MessageBody: JSON.stringify(mockMessageBody),
+              },
+            ],
+          }),
         })
       );
       expect(observabilityMock.logger.info).toHaveBeenCalledWith('Successfully published messages', {
@@ -184,7 +184,7 @@ describe('ProcessingQueueService', () => {
         OrganisationID: 'ORD01',
       };
 
-      sqsMock.on(SendMessageBatchCommand).resolvesOnce({
+      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
         Failed: [{ Id: '1', SenderFault: false, Code: 'MockCode' }],
       });
@@ -193,23 +193,24 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0];
-      expect(command.input).toEqual(
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
-          Entries: [
-            {
-              Id: '0',
-              DelaySeconds: 0,
-              MessageBody: JSON.stringify(mockMessageBody_0),
-            },
-            {
-              Id: '1',
-              DelaySeconds: 0,
-              MessageBody: JSON.stringify(mockMessageBody_1),
-            },
-          ],
+          input: expect.objectContaining({
+            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
+            Entries: [
+              {
+                Id: '0',
+                DelaySeconds: 0,
+                MessageBody: JSON.stringify(mockMessageBody_0),
+              },
+              {
+                Id: '1',
+                DelaySeconds: 0,
+                MessageBody: JSON.stringify(mockMessageBody_1),
+              },
+            ],
+          }),
         })
       );
       expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages in batch', {
@@ -232,7 +233,7 @@ describe('ProcessingQueueService', () => {
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      sqsMock.on(SendMessageBatchCommand).rejectsOnce(error);
+      clientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = processingQueueService.publishMessageBatch([mockMessageBody]);
@@ -244,7 +245,7 @@ describe('ProcessingQueueService', () => {
 
     it('should use the index of the for loop of the batch processing as the batch entry Id', async () => {
       // Arrange
-      sqsMock.on(SendMessageBatchCommand).resolvesOnce({
+      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
@@ -252,14 +253,18 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      expect(sqsMock).toHaveReceivedCommandWith(SendMessageBatchCommand, {
-        QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
-        Entries: expect.arrayContaining([
-          expect.objectContaining({
-            Id: '0',
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
+            Entries: expect.arrayContaining([
+              expect.objectContaining({
+                Id: '0',
+              }),
+            ]),
           }),
-        ]),
-      });
+        })
+      );
     });
 
     it('should split messages into batches of 10 when more than 10 messages are sent', async () => {
@@ -269,7 +274,7 @@ describe('ProcessingQueueService', () => {
         NotificationID: `notifiction-${i}`,
         UserId: i,
       }));
-      sqsMock.on(SendMessageBatchCommand).resolves({
+      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValue({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
@@ -277,12 +282,14 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch(mockMessageList);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(2);
-      const firstBatch = (sqsMock.call(0).args[0] as SendMessageBatchCommand).input;
-      const secondBatch = (sqsMock.call(1).args[0] as SendMessageBatchCommand).input;
+      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(2);
+      const firstCall = vi.mocked(clientMocks.sqsClientMock.send).mock.calls[0][0] as { input: { Entries: unknown[] } };
+      const secondCall = vi.mocked(clientMocks.sqsClientMock.send).mock.calls[1][0] as {
+        input: { Entries: unknown[] };
+      };
 
-      expect(firstBatch.Entries).toHaveLength(10);
-      expect(secondBatch.Entries).toHaveLength(1);
+      expect(firstCall.input.Entries).toHaveLength(10);
+      expect(secondCall.input.Entries).toHaveLength(1);
     });
   });
 });

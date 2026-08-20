@@ -2,7 +2,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import z from 'zod';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -16,7 +16,8 @@ describe('analyticsService', () => {
 
   // Observability and Service mocks
   const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMock, awsClientMocks);
 
   beforeEach(() => {
     // Reset all mock

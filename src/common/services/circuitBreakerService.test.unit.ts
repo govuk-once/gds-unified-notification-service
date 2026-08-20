@@ -3,7 +3,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { NumericParameters } from '@common/utils/parameters';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -16,7 +16,8 @@ import { CircuitBreakerOpenError, CircuitBreakerService } from '@common/services
 
 describe('CircuitBreakerService', () => {
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   let mockParameterStore = mockDefaultConfig();
   let service: CircuitBreakerService;
