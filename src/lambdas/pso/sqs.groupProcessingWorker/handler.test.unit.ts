@@ -404,7 +404,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
-        error: expect.stringContaining('body.GroupNotificationID'),
+        error: expect.stringContaining('GroupNotificationID'),
         raw: mockUnidentifiableEvent.Records[0].body,
       })
     );
