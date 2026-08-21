@@ -1,13 +1,18 @@
-import { IRequestEvent } from '@common/middlewares';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
+import {
+  mockAPIEvent,
+  mockAPIEventWithMessageRetention,
+  mockEventContext,
+  mockUnauthorizedAPIEvent,
+} from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { mockIMessage_NoOrgID } from '@project/lambdas/interfaces';
 import { PostMessage } from '@project/lambdas/pso/http.postMessage/handler';
-import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -29,26 +34,9 @@ describe('PostMessage Handler', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  // Mock Message Body
-  const mockMessageBody = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-    DepartmentID: 'DEP01',
-    UserID: 'UserID',
-    CampaignID: 'CAM_ID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-  };
-
-  // Mock AWS Lambda Context
-  const mockContext = {
-    functionName: 'postMessage',
-    awsRequestId: '12345',
-  } as unknown as Context;
-
-  // Mock the event
-  let mockEvent: EventType;
+  // Test fixtures
+  const context = mockEventContext('postMessage');
+  const messageBody = mockIMessage_NoOrgID();
 
   beforeEach(() => {
     // Reset all mock
@@ -60,26 +48,6 @@ describe('PostMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
-
-    mockEvent = {
-      body: JSON.stringify([mockMessageBody]),
-      headers: {
-        'x-api-key': 'mockApiKey',
-        'Content-Type': `application/json`,
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: {
-          Organization: 'ORG01',
-          OrganisationConfig: JSON.stringify({
-            MessageRetention: {
-              Allowed: false,
-            },
-          }),
-        },
-      },
-    } as unknown as EventType;
 
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -101,53 +69,50 @@ describe('PostMessage Handler', () => {
   });
 
   it('should send messages to processing queue.', async () => {
+    // Arrange
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
-      { ...mockMessageBody, OrganisationID: 'ORG01' },
+      { ...messageBody, OrganisationID: 'ORG01' },
     ]);
   });
 
   it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
     // Arrange
-    const organisationID = 'ORG01';
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
-      { ...mockMessageBody, OrganisationID: organisationID },
+      { ...messageBody, OrganisationID: event.requestContext.authorizer!.Organization },
     ]);
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
-          ...mockMessageBody,
-          OrganisationID: organisationID,
-          APIGWExtendedID: mockEvent.requestContext.requestId,
+          ...messageBody,
+          OrganisationID: event.requestContext.authorizer!.Organization,
+          APIGWExtendedID: event.requestContext.requestId,
         },
       ],
       NotificationStateEnum.VALIDATED_API_CALL
     );
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
-      expect.objectContaining({ OrganisationID: organisationID }),
+      expect.objectContaining({ OrganisationID: event.requestContext.authorizer!.Organization }),
     ]);
   });
 
   it('should return 400 when mTLS certificate does not resolve an organisation', async () => {
     // Arrange
-    const noAuthorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-    } as unknown as EventType;
+    const event = mockUnauthorizedAPIEvent([messageBody]) as unknown as EventType;
 
     // Act
-    const result = await handler(noAuthorizedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -159,17 +124,18 @@ describe('PostMessage Handler', () => {
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
 
     // Act
-    await handler({ ...mockEvent }, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
-        ...mockMessageBody,
+        ...messageBody,
         OrganisationID: 'ORG01',
-        APIGWExtendedID: mockEvent.requestContext.requestId,
-        ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
         Events: [],
       },
@@ -181,34 +147,19 @@ describe('PostMessage Handler', () => {
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
-    const mockEventWithExpireInDays = {
-      ...mockEvent,
-      requestContext: {
-        ...mockEvent.requestContext,
-        authorizer: {
-          Organization: 'ORG01',
-          OrganisationConfig: JSON.stringify({
-            MessageRetention: {
-              Allowed: true,
-              Min: 10,
-              Max: 35,
-            },
-          }),
-        },
-      },
-      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]),
-    } as unknown as IRequestEvent;
+    const messageBodyWithExpiresInDay = { ...messageBody, ExpiresInDays: 25 };
+    const event = mockAPIEventWithMessageRetention([messageBodyWithExpiresInDay]) as unknown as EventType;
 
     // Act
-    await handler(mockEventWithExpireInDays, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
-        ...mockMessageBody,
+        ...messageBody,
         OrganisationID: 'ORG01',
-        APIGWExtendedID: mockEvent.requestContext.requestId,
-        ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
         RequestedDaysToExpire: 25,
         Events: [],
@@ -218,13 +169,14 @@ describe('PostMessage Handler', () => {
 
   it('should reject any notification where the ExpiresInDays is a negative', async () => {
     // Arrange
-    const mockEventWithExpireInDays = {
-      ...mockEvent,
-      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: -1 }]),
+    const messageBodyWithInvalidExpiresInDays = {
+      ...messageBody,
+      ExpiresInDays: -1,
     };
+    const event = mockAPIEvent({ body: [messageBodyWithInvalidExpiresInDays] }) as unknown as EventType;
 
     // Act
-    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual(
@@ -241,13 +193,13 @@ describe('PostMessage Handler', () => {
 
   it('should reject any notification where the ExpiresInDays is a float', async () => {
     // Arrange
-    const mockEventWithExpireInDays = {
-      ...mockEvent,
-      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 0.5 }]),
+    const messageBodyWithInvalidExpiresInDays = {
+      ...messageBody,
+      ExpiresInDays: 0.5,
     };
-
+    const event = mockAPIEvent({ body: [messageBodyWithInvalidExpiresInDays] }) as unknown as EventType;
     // Act
-    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual(
@@ -263,45 +215,57 @@ describe('PostMessage Handler', () => {
   });
 
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
+    // Arrange
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      [{ ...mockMessageBody, OrganisationID: 'ORG01', APIGWExtendedID: mockEvent.requestContext.requestId }],
+      [{ ...messageBody, OrganisationID: 'ORG01', APIGWExtendedID: event.requestContext.requestId }],
       NotificationStateEnum.VALIDATED_API_CALL
     );
   });
 
   it('should return a status 202 and list of NotificationIDs when call is successful.', async () => {
+    // Arrange
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
+
     // Act
-    const result = await handler({ ...mockEvent }, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
-    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: messageBody.NotificationID }]);
   });
 
   it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {
+    // Arrange
+    const event = mockAPIEvent({
+      body: [
+        {
+          ...messageBody,
+          MessageBody: 'https://readme.gov.uk/hello-world?q=1',
+        },
+      ],
+    }) as unknown as EventType;
+
     // Act
-    const result = await handler(
-      {
-        ...mockEvent,
-        body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
-      },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
   });
 
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
+    // Arrange
+    const event = mockAPIEvent({
+      body: [{ ...messageBody, MessageBody: 'https://example.com' }],
+    }) as unknown as EventType;
+
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -315,36 +279,30 @@ describe('PostMessage Handler', () => {
   it('should validate messages that contain valid markdown.', async () => {
     // Arrange
     const mockMarkdownMessageBody = {
-      ...mockMessageBody,
+      ...messageBody,
       MessageBody:
         'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
     };
-    const mockEventWithMarkdown = {
-      ...mockEvent,
-      body: JSON.stringify([mockMarkdownMessageBody]),
-    };
+    const event = mockAPIEvent({ body: [mockMarkdownMessageBody] }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventWithMarkdown, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
-    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: messageBody.NotificationID }]);
   });
 
   it('should reject messages that contain invalid markdown.', async () => {
     // Arrange
     const mockInvalidMarkdownMessageBody = {
-      ...mockMessageBody,
+      ...messageBody,
       MessageBody: '    const x = 10;\n    const y = 20;',
     };
-    const mockEventInvalidMarkdown = {
-      ...mockEvent,
-      body: JSON.stringify([mockInvalidMarkdownMessageBody]),
-    };
+    const event = mockAPIEvent({ body: [mockInvalidMarkdownMessageBody] }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventInvalidMarkdown, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -358,12 +316,12 @@ describe('PostMessage Handler', () => {
   it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
     // Arrange
     mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
+    const event = mockAPIEvent({
+      body: [{ ...messageBody, DeeplinkURL: 'https://example.com' }],
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, DeeplinkURL: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -377,12 +335,10 @@ describe('PostMessage Handler', () => {
   it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
     // Arrange
     mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+    const event = mockAPIEvent({ body: [{ ...messageBody, ExpiresInDays: 25 }] }) as unknown as EventType;
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]) },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);

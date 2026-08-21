@@ -11,5 +11,16 @@ export const IModifyGroupsSchema = z.object({
   Subgroup: z.string().optional(),
   Action: z.enum(GroupActionEnum),
 });
-
 export type IModifyGroups = z.infer<typeof IModifyGroupsSchema>;
+
+/**
+ * Test Fixtures
+ */
+export const mockIModifyGroups = (Action: GroupActionEnum): IModifyGroups[] => [
+  {
+    Namespace: 'travel',
+    Group: 'france',
+    Subgroup: 'IMMEDIATE',
+    Action,
+  },
+];

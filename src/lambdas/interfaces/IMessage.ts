@@ -62,3 +62,62 @@ export const extractIdentifiers = (partial: IIdentifiableMessage) => ({
   CampaignID: partial.CampaignID,
   OrganisationID: partial.OrganisationID,
 });
+
+/**
+ * Test Fixtures
+ */
+export const mockIMessage = (): IMessage => ({
+  NotificationID: uuid(),
+  DepartmentID: 'TEST01',
+  UserID: 'UserID',
+  CampaignID: 'CAM_ID',
+  NotificationTitle: 'Hi there',
+  NotificationBody: 'You have a new message in the message center',
+  MessageTitle: 'Hi there',
+  MessageBody: 'MOCK_LONG_MESSAGE',
+  OrganisationID: 'ORG01',
+});
+
+export const mockIMessage_NoOrgID = (): Omit<IMessage, 'OrganisationID'> => ({
+  NotificationID: uuid(),
+  DepartmentID: 'TEST01',
+  UserID: 'UserID',
+  CampaignID: 'CAM_ID',
+  NotificationTitle: 'Hi there',
+  NotificationBody: 'You have a new message in the message center',
+  MessageTitle: 'Hi there',
+  MessageBody: 'MOCK_LONG_MESSAGE',
+});
+
+export const mockFailedIMessage = (): IMessage =>
+  ({
+    NotificationID: uuid(),
+    UserID: 'invalid-id',
+    DepartmentID: 'invalid-id',
+    CampaignID: 'CAMP01',
+    OrganisationID: 'ORG01',
+  }) as unknown as IMessage;
+
+export const mockUnidentifiableIMessage = (): IMessage =>
+  ({
+    NotificationID: 'invalid-notification-id',
+    UserID: 'invalid-id',
+    NotificationTitle: 'Boom',
+    NotificationBody: 'psst',
+  }) as unknown as IMessage;
+
+export const mockIProcessedMessage = (): IProcessedMessage => {
+  const message = mockIMessage();
+  return {
+    ...message,
+    ExternalUserID: 'test_2',
+  };
+};
+
+export const mockFailedIProcessedMessage = (): IProcessedMessage => {
+  const failedMessageBody = mockFailedIMessage();
+  return {
+    ...failedMessageBody,
+    ExternalUserID: 'test_2',
+  };
+};

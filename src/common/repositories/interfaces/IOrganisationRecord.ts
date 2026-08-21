@@ -42,3 +42,16 @@ export const IOrganisationRecordSchema = z.object({
   OrganisationConfig: IOrganisationConfigSchema,
 });
 export type IOrganisationRecord = z.infer<typeof IOrganisationRecordSchema>;
+
+/**
+ * Test Fixture
+ */
+export const mockIOrganisationRecord = (): IOrganisationRecord => ({
+  OrganisationID: 'ORG01',
+  DisplayName: 'ORG',
+  OrganisationConfig: {
+    MessageRetention: {
+      Allowed: false,
+    },
+  },
+});

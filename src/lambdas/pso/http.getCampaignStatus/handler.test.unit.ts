@@ -1,7 +1,7 @@
-import { IRequestEvent } from '@common/middlewares';
+import { mockCampaignRecord, mockPartialCampaignRecord } from '@common/repositories';
+import { mockAPIEvent, mockEventContext } from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetCampaignStatus } from '@project/lambdas/pso/http.getCampaignStatus/handler';
-import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -12,68 +12,30 @@ vi.mock('@common/repositories', { spy: true });
 
 describe('GetCampaignStatus Handler', () => {
   let instance: GetCampaignStatus;
-  let mockContext: Context;
-  let mockEvent: IRequestEvent;
+  type EventType = Parameters<typeof handler>[0];
+  let handler: ReturnType<typeof GetCampaignStatus.prototype.handler>;
 
+  // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const awsClientMocks = awsClientSpies();
   const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
-  let handler: ReturnType<typeof GetCampaignStatus.prototype.handler>;
+  // Test Fixtures
+  const campaignID = 'CAMP01';
+  const organisationID = 'ORG01';
 
-  const mockCampaignID = 'CAMP01';
-  const mockDepartmentID = 'DEPO1';
-  const mockCampaignRecord = {
-    CompositeID: `${mockDepartmentID}/${mockCampaignID}`,
-    VALIDATING: 2,
-    VALIDATED: 0,
-    VALIDATED_API_CALL: 1,
-    VALIDATION_FAILED: 1,
-    PROCESSING: 1,
-    PROCESSED: 1,
-    PROCESSING_FAILED: 1,
-    DISPATCHING: 1,
-    DISPATCHED: 1,
-    DISPATCHING_FAILED: 1,
-    RECEIVED: 1,
-    READ: 1,
-    MARKED_AS_UNREAD: 1,
-    HIDDEN: 1,
-  };
-
-  const mockPartialCampaignRecord = {
-    CompositeID: `${mockDepartmentID}/${mockCampaignID}`,
-    VALIDATING: 1,
-  };
+  const context = mockEventContext('getCampaignStatus');
+  const campaignRecord = mockCampaignRecord(organisationID, campaignID);
+  const partialCampaignRecord = mockPartialCampaignRecord(organisationID, campaignID);
 
   beforeEach(() => {
+    vi.resetAllMocks();
+
+    serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(campaignRecord);
+
     instance = new GetCampaignStatus(observabilityMocks, () => ({
       campaignsDynamoRepository: Promise.resolve(serviceMocks.campaignsDynamoRepositoryMock),
     }));
-    type EventType = Parameters<typeof handler>[0];
-
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'getCampaignStatus',
-      awsRequestId: '12345',
-    } as unknown as Context;
-
-    // Mock the QueueEvent (Mapping to your InputType)
-    mockEvent = {
-      headers: {
-        'x-api-key': 'mockApiKey',
-      },
-      requestContext: {
-        authorizer: {
-          Organization: mockDepartmentID,
-        },
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-      pathParameters: {
-        campaignID: mockCampaignID,
-      },
-    } as unknown as EventType;
 
     handler = instance.handler();
   });
@@ -85,18 +47,18 @@ describe('GetCampaignStatus Handler', () => {
 
   it('should return the campaign status from DynamoDB', async () => {
     // Arrange
-    serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockCampaignRecord);
+    const event = mockAPIEvent({ pathParameters: { campaignID } }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual(
       expect.objectContaining({
         body: JSON.stringify(
           {
-            CampaignID: mockCampaignID,
-            DepartmentID: mockDepartmentID,
+            CampaignID: campaignID,
+            DepartmentID: organisationID,
             ProcessingSummary: {
               RECEIVED: 1,
               PROCESSED: 1,
@@ -116,20 +78,21 @@ describe('GetCampaignStatus Handler', () => {
     );
   });
 
-  it('should return the campaign status from DynamoDB with all events returned even if some arent present in the record.', async () => {
+  it("should return the campaign status from DynamoDB with all events returned even if some aren't present in the record.", async () => {
     // Arrange
-    serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockPartialCampaignRecord);
+    serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(partialCampaignRecord);
+    const event = mockAPIEvent({ pathParameters: { campaignID } }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual(
       expect.objectContaining({
         body: JSON.stringify(
           {
-            CampaignID: mockCampaignID,
-            DepartmentID: mockDepartmentID,
+            CampaignID: campaignID,
+            DepartmentID: organisationID,
             ProcessingSummary: {
               RECEIVED: 0,
               PROCESSED: 0,
@@ -152,9 +115,10 @@ describe('GetCampaignStatus Handler', () => {
   it('should return 404 if campaign is not found', async () => {
     // Arrange
     serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
+    const event = mockAPIEvent({ pathParameters: { campaignID } }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(404);
@@ -163,10 +127,11 @@ describe('GetCampaignStatus Handler', () => {
 
   it('should return 400 if organisation is missing', async () => {
     // Arrange
-    mockEvent.requestContext.authorizer = undefined;
+    const event = mockAPIEvent({ pathParameters: { campaignID } }) as unknown as EventType;
+    event.requestContext.authorizer = undefined;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -179,23 +144,22 @@ describe('GetCampaignStatus Handler', () => {
 
   it('should look up org/department/campaign key when departmentID query param is provided', async () => {
     // Arrange
-    const organisationID = 'ORG01';
+    const event = mockAPIEvent({ pathParameters: { campaignID } }) as unknown as EventType;
     const departmentID = 'DEPO1';
-    mockEvent.requestContext.authorizer = { Organization: organisationID };
-    mockEvent.queryStringParameters = { departmentID };
+    event.queryStringParameters = { departmentID };
 
     const threePartRecord = {
       ...mockCampaignRecord,
-      CompositeID: `${organisationID}/${departmentID}/${mockCampaignID}`,
+      CompositeID: `${organisationID}/${departmentID}/${campaignID}`,
     };
     serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(threePartRecord);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(serviceMocks.campaignsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
-      `${organisationID}/${departmentID}/${mockCampaignID}`
+      `${organisationID}/${departmentID}/${campaignID}`
     );
 
     expect(result.statusCode).toBe(200);
@@ -204,7 +168,7 @@ describe('GetCampaignStatus Handler', () => {
       DepartmentID: string;
     };
 
-    expect(body.CampaignID).toBe(mockCampaignID);
-    expect(body.DepartmentID).toBe(mockDepartmentID);
+    expect(body.CampaignID).toBe(campaignID);
+    expect(body.DepartmentID).toBe(departmentID);
   });
 });

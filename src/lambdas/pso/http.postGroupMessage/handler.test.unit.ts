@@ -3,9 +3,15 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
+import {
+  mockAPIEvent,
+  mockAPIEventWithMessageRetention,
+  mockEventContext,
+  mockUnauthorizedAPIEvent,
+} from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { mockIGroupMessage } from '@project/lambdas/interfaces';
 import { PostGroupMessage } from '@project/lambdas/pso/http.postGroupMessage/handler';
-import { Context } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -35,27 +41,9 @@ describe('PostGroupMessage Handler', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  // Mock Message Body
-  const mockGroupMessage = {
-    Namespace: 'travel',
-    Group: 'france',
-    Subgroup: 'immediate',
-    GroupNotificationID: 'TO_GROUP_ID',
-    CampaignID: 'CAM_ID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-  };
-
-  // Mock AWS Lambda Context
-  const mockContext = {
-    functionName: 'postGroupMessage',
-    awsRequestId: '12345',
-  } as unknown as Context;
-
-  // Mock the event
-  let mockEvent: EventType;
+  // Test Fixtures
+  const context = mockEventContext('postGroupMessage');
+  const messageBody = mockIGroupMessage();
   const mockPushID = '57d7fb1a-f069-46cf-af16-6ebdc599a679';
 
   beforeEach(() => {
@@ -68,26 +56,6 @@ describe('PostGroupMessage Handler', () => {
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
-
-    mockEvent = {
-      body: JSON.stringify([mockGroupMessage]),
-      headers: {
-        'x-api-key': 'mockApiKey',
-        'Content-Type': `application/json`,
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: {
-          Organization: 'ORG01',
-          OrganisationConfig: JSON.stringify({
-            MessageRetention: {
-              Allowed: false,
-            },
-          }),
-        },
-      },
-    } as unknown as EventType;
 
     // Mocking retrieving store apiKey
     instance = new PostGroupMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
@@ -116,16 +84,10 @@ describe('PostGroupMessage Handler', () => {
 
   it('should return 400 when mTLS certificate does not resolve an organisation', async () => {
     // Arrange
-    const noAuthorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-    } as unknown as EventType;
+    const event = mockUnauthorizedAPIEvent(messageBody) as unknown as EventType;
 
     // Act
-    const result = await handler(noAuthorizedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -133,13 +95,16 @@ describe('PostGroupMessage Handler', () => {
   });
 
   it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to', async () => {
+    // Arrange
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
+
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+      { GroupNotificationID: messageBody.GroupNotificationID, UsersInGroup: 1 },
     ]);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
@@ -147,13 +112,10 @@ describe('PostGroupMessage Handler', () => {
 
   it('should return a status 202 and generate a GroupNotificationID if none is provided', async () => {
     // Arrange
-    const mockEventNoGroupNotificationID = {
-      ...mockEvent,
-      body: JSON.stringify([{ ...mockGroupMessage, GroupNotificationID: undefined }]),
-    };
+    const event = mockAPIEvent({ body: [{ ...messageBody, GroupNotificationID: undefined }] }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventNoGroupNotificationID, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
@@ -169,21 +131,17 @@ describe('PostGroupMessage Handler', () => {
       .mockResolvedValueOnce([mockPushID])
       .mockResolvedValueOnce([mockPushID]);
     const GroupNotificationID_2 = 'To_Group_2';
-    const mockEventWithTwoMessages = {
-      ...mockEvent,
-      body: JSON.stringify([
-        mockGroupMessage,
-        { ...mockGroupMessage, GroupNotificationID: GroupNotificationID_2, Group: 'spain' },
-      ]),
-    };
+    const event = mockAPIEvent({
+      body: [messageBody, { ...messageBody, GroupNotificationID: GroupNotificationID_2, Group: 'spain' }],
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventWithTwoMessages, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+      { GroupNotificationID: messageBody.GroupNotificationID, UsersInGroup: 1 },
       { GroupNotificationID: GroupNotificationID_2, UsersInGroup: 1 },
     ]);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(2);
@@ -210,77 +168,79 @@ describe('PostGroupMessage Handler', () => {
       .mockResolvedValueOnce(chunk_4)
       .mockResolvedValueOnce(chunk_5);
 
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       1,
-      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+      `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/0`,
       chunk_1
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       2,
-      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+      `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/1`,
       chunk_2
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       3,
-      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+      `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/2`,
       chunk_3
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       4,
-      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+      `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/3`,
       chunk_4
     );
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
       5,
-      `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+      `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/4`,
       chunk_5
     );
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenLastCalledWith([
       {
-        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        GroupMessage: { ...messageBody, OrganisationID: 'ORG01' },
+        GroupNotificationID: messageBody.GroupNotificationID,
         WorkerID: 0,
-        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
+        CacheKey: `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/0`,
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
         ReceivedDateTime: new Date(1428582896000).toISOString(),
         ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
-        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        GroupMessage: { ...messageBody, OrganisationID: 'ORG01' },
+        GroupNotificationID: messageBody.GroupNotificationID,
         WorkerID: 1,
-        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/1`,
+        CacheKey: `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/1`,
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
         ReceivedDateTime: new Date(1428582896000).toISOString(),
         ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
-        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        GroupMessage: { ...messageBody, OrganisationID: 'ORG01' },
+        GroupNotificationID: messageBody.GroupNotificationID,
         WorkerID: 2,
-        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/2`,
+        CacheKey: `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/2`,
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
         ReceivedDateTime: new Date(1428582896000).toISOString(),
         ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
-        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        GroupMessage: { ...messageBody, OrganisationID: 'ORG01' },
+        GroupNotificationID: messageBody.GroupNotificationID,
         WorkerID: 3,
-        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/3`,
+        CacheKey: `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/3`,
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
         ReceivedDateTime: new Date(1428582896000).toISOString(),
         ValidatedDateTime: '2026-01-01T12:30:00.000Z',
       },
       {
-        GroupMessage: { ...mockGroupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: mockGroupMessage.GroupNotificationID,
+        GroupMessage: { ...messageBody, OrganisationID: 'ORG01' },
+        GroupNotificationID: messageBody.GroupNotificationID,
         WorkerID: 4,
-        CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/4`,
+        CacheKey: `Worker/GroupProcessingWorker/${messageBody.GroupNotificationID}/4`,
         APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
         ReceivedDateTime: new Date(1428582896000).toISOString(),
         ValidatedDateTime: '2026-01-01T12:30:00.000Z',
@@ -291,38 +251,45 @@ describe('PostGroupMessage Handler', () => {
   it('should return a status 202 and response, as well as not storing anything in cache when there are no users in the group', async () => {
     // Arrange
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup = vi.fn().mockResolvedValueOnce([]);
+    const event = mockAPIEvent({ body: [messageBody] }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 0 },
+      { GroupNotificationID: messageBody.GroupNotificationID, UsersInGroup: 0 },
     ]);
     expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
   });
 
   it('should NOT throw an error when called with a group message containing deeplink that is on the allowlist', async () => {
+    // Arrange
+    const event = mockAPIEvent({
+      body: [
+        {
+          ...messageBody,
+          MessageBody: 'https://readme.gov.uk/hello-world?q=1',
+        },
+      ],
+    }) as unknown as EventType;
+
     // Act
-    const result = await handler(
-      {
-        ...mockEvent,
-        body: JSON.stringify([{ ...mockGroupMessage, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
-      },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
   });
 
   it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
+    // Arrange
+    const event = mockAPIEvent({
+      body: [{ ...messageBody, MessageBody: 'https://example.com' }],
+    }) as unknown as EventType;
+
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, MessageBody: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -336,38 +303,32 @@ describe('PostGroupMessage Handler', () => {
   it('should validate messages that contain valid markdown', async () => {
     // Arrange
     const mockMarkdownMessage = {
-      ...mockGroupMessage,
+      ...messageBody,
       MessageBody:
         'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
     };
-    const mockEventWithMarkdown = {
-      ...mockEvent,
-      body: JSON.stringify([mockMarkdownMessage]),
-    };
+    const event = mockAPIEvent({ body: [mockMarkdownMessage] }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventWithMarkdown, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([
-      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+      { GroupNotificationID: messageBody.GroupNotificationID, UsersInGroup: 1 },
     ]);
   });
 
   it('should reject messages that contain invalid markdown', async () => {
     // Arrange
     const mockInvalidMarkdownMessage = {
-      ...mockGroupMessage,
+      ...messageBody,
       MessageBody: '    const x = 10;\n    const y = 20;',
     };
-    const mockEventInvalidMarkdown = {
-      ...mockEvent,
-      body: JSON.stringify([mockInvalidMarkdownMessage]),
-    };
+    const event = mockAPIEvent({ body: [mockInvalidMarkdownMessage] }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventInvalidMarkdown, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -381,12 +342,12 @@ describe('PostGroupMessage Handler', () => {
   it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
     // Arrange
     mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
+    const event = mockAPIEvent({
+      body: [{ ...messageBody, DeeplinkURL: 'https://example.com' }],
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, DeeplinkURL: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -399,13 +360,10 @@ describe('PostGroupMessage Handler', () => {
 
   it('should reject any notification where the ExpiresInDays is a negative', async () => {
     // Arrange
-    const mockEventWithExpireInDays = {
-      ...mockEvent,
-      body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: -1 }]),
-    };
+    const event = mockAPIEventWithMessageRetention([{ ...messageBody, ExpiresInDays: -1 }]) as unknown as EventType;
 
     // Act
-    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual(
@@ -422,13 +380,10 @@ describe('PostGroupMessage Handler', () => {
 
   it('should reject any notification where the ExpiresInDays is a float', async () => {
     // Arrange
-    const mockEventWithExpireInDays = {
-      ...mockEvent,
-      body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: 0.5 }]),
-    };
+    const event = mockAPIEventWithMessageRetention([{ ...messageBody, ExpiresInDays: 0.5 }]) as unknown as EventType;
 
     // Act
-    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual(
@@ -446,12 +401,10 @@ describe('PostGroupMessage Handler', () => {
   it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
     // Arrange
     mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+    const event = mockAPIEvent({ body: [{ ...messageBody, ExpiresInDays: 25 }] }) as unknown as EventType;
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: 25 }]) },
-      mockContext
-    );
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);

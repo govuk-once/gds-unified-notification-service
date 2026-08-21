@@ -1,12 +1,10 @@
-import { AnalyticsExportService } from '@common/services';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
+import { mockEventContext, mockScheduledEvent } from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { AnalyticsExport } from '@project/lambdas/pso/schedule.analyticsExport/handler';
-import { Context, ScheduledEvent } from 'aws-lambda';
-import { Mocked } from 'vitest';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -21,35 +19,14 @@ describe('AnalyticsExport Handler', () => {
   const clientMocks = awsClientSpies();
   const serviceMocks = ServiceSpies(observabilityMocks, clientMocks);
 
-  // TODO: Refactor this into service mock when implementing NOT-298
-  const analyticsExportServiceMock = new AnalyticsExportService(
-    observabilityMocks,
-    serviceMocks.configurationServiceMock,
-    serviceMocks.cacheServiceMock,
-    clientMocks.cloudWatchLogsClientMock
-  ) as Mocked<AnalyticsExportService>;
-
   let instance: AnalyticsExport;
   let handler: ReturnType<typeof AnalyticsExport.prototype.handler>;
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  const mockEvent: ScheduledEvent = {
-    id: 'mockID',
-    version: 'mockVersion',
-    account: 'mockAccount',
-    time: '2026-01-01T00:00:00',
-    region: 'eu-west-2',
-    resources: 'mockResources',
-    source: 'mockResources',
-  } as unknown as ScheduledEvent;
-
-  // Mock AWS Lambda Context
-  const mockContext = {
-    functionName: 'analyticsExport',
-    awsRequestId: '12345',
-  } as unknown as Context;
+  // Test fixtures
+  const context = mockEventContext('analyticsExport');
 
   beforeEach(() => {
     // Reset all mock
@@ -61,11 +38,10 @@ describe('AnalyticsExport Handler', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
+    serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
 
-    // Mocking retrieving store apiKey
     instance = new AnalyticsExport(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      analyticsExportService: Promise.resolve(analyticsExportServiceMock),
+      analyticsExportService: Promise.resolve(serviceMocks.analyticsExportServiceMock),
     }));
     handler = instance.handler();
   });
@@ -76,10 +52,13 @@ describe('AnalyticsExport Handler', () => {
   });
 
   it('should call analyticsExportService.logStreamToS3Bucket with the time', async () => {
+    // Arrange
+    const event = mockScheduledEvent();
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
-    expect(analyticsExportServiceMock.logStreamToS3Bucket).toHaveBeenCalledWith(mockEvent.time);
+    expect(serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket).toHaveBeenCalledWith(event.time);
   });
 });

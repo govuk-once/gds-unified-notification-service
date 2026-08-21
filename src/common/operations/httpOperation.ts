@@ -18,6 +18,7 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotImplementedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { IOrganisationConfig, IOrganisationConfigSchema } from '@common/repositories';
 import { MetricsLabels, ObservabilityService } from '@common/services';
+import { zodErrorFormatter } from '@common/utils';
 import middy, { type MiddyfiedHandler } from '@middy/core';
 import httpErrorHandler from '@middy/http-error-handler';
 import httpEventNormalizer from '@middy/http-event-normalizer';
@@ -140,21 +141,35 @@ export abstract class APIHandler<
     organisationID: string;
     organisationConfig: IOrganisationConfig;
   } {
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-    if (!organisationID) {
+    const authorizer = event.requestContext.authorizer;
+
+    const organisationID = authorizer?.Organization as string | undefined;
+    if (typeof organisationID !== 'string' || !organisationID.trim()) {
       throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
     }
 
-    const rawOrganisationConfig = event.requestContext.authorizer?.OrganisationConfig as string | undefined;
-    if (!rawOrganisationConfig) {
+    const rawOrganisationConfig = authorizer?.OrganisationConfig as string | undefined;
+    if (typeof rawOrganisationConfig !== 'string' || !rawOrganisationConfig.trim()) {
       throw new BadRequestError(['Organisation Config is missing from request context authorizer']);
     }
-    const { data: organisationConfig, error } = IOrganisationConfigSchema.safeParse(JSON.parse(rawOrganisationConfig));
-    if (error) {
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(rawOrganisationConfig);
+    } catch {
       throw new ServiceMisconfigurationError(['Organisation Config is misconfigured']);
     }
 
-    return { organisationID, organisationConfig };
+    const { data, error } = IOrganisationConfigSchema.safeParse(parsedJson);
+    if (error) {
+      this.observability.logger.error('Organisation Config is misconfigured', { ...zodErrorFormatter(error) });
+      throw new ServiceMisconfigurationError(['Organisation Config is misconfigured']);
+    }
+
+    return {
+      organisationID,
+      organisationConfig: data,
+    };
   }
 
   // Wrapper FN to consistently initialize operations

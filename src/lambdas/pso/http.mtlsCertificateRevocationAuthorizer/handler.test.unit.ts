@@ -6,9 +6,9 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
+import { mockEventContext, mockEventWithCertificate } from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
-import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -19,9 +19,6 @@ vi.mock('@common/services', { spy: true });
 
 describe('MTLSApiGatewayAuthorizer Handler', () => {
   let instance: MtlsCertificateRevocationAuthorizer;
-  let mockContext: Context;
-  let mockEmptyEvent: IRequestEvent;
-  let mockEventWithCertificate: IRequestEvent;
 
   const observabilityMocks = observabilitySpies();
   const awsClientMocks = awsClientSpies();
@@ -33,6 +30,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
+  // Test Fixtures
+  const context = mockEventContext('mtlsApiGatewayAuthorizer');
   const mockOrganisationID = 'ORG01';
   const expectedAllowPolicy = expect.objectContaining({
     policyDocument: expect.objectContaining({
@@ -65,28 +64,14 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       mtlsRevocationDynamoRepository: mtlsRevocationDynamoRepositoryMock.initialize(),
       organisationsDynamoRepository: organisationsDynamoRepositoryMock.initialize(),
     }));
-
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'mtlsApiGatewayAuthorizer',
-    } as unknown as Context;
-
-    // Mock event
-    mockEmptyEvent = {} as unknown as typeof mockEmptyEvent;
-    mockEventWithCertificate = {
-      requestContext: {
-        identity: {
-          clientCert: {
-            clientCertPem: `MOCK_CERTIFICATE_CONTENT`,
-          },
-        },
-      },
-    } as unknown as typeof mockEventWithCertificate;
   });
 
   it('should reject requests without clientCertPem', async () => {
+    // Arrange
+    const event = {} as unknown as IRequestEvent;
+
     // Act
-    const result = await instance.handler()(mockEmptyEvent, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
@@ -105,9 +90,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   it('should generate sha256 based on the sample cert', async () => {
     // Arrange
     mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: true } as unknown as MTLSRevocation);
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
@@ -119,9 +105,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   it('should deny request if certificate does not exists', async () => {
     // Arrange
     mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue(null);
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
@@ -140,9 +127,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   it('should deny request certificate has been revoked', async () => {
     // Arrange
     mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({ Revoked: true } as unknown as MTLSRevocation);
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
@@ -164,9 +152,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       Organization: undefined,
       Revoked: false,
     } as unknown as MTLSRevocation);
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectedDenyPolicy);
@@ -197,9 +186,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
         },
       },
     });
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectedAllowPolicy);
@@ -230,9 +220,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
         Organization: mockOrganisationID,
       }),
     });
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(result).toEqual(expectAllowPolicyWithHeaders);
@@ -245,9 +236,10 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
       Revoked: false,
     } as unknown as MTLSRevocation);
     organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce(null);
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
 
     // Act
-    const result = await instance.handler()(mockEventWithCertificate, mockContext);
+    const result = await instance.handler()(event, context);
 
     // Assert
     expect(JSON.parse(result.body)).toEqual({

@@ -1,11 +1,8 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
+import { mockIOrganisationRecord, mockIProcessedMessageRecord } from '@common/repositories';
+import { mockAPIEvent, mockEventContext } from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
-import { IFlexNotification } from '@project/lambdas/interfaces/IFlexNotification';
-import { Context } from 'aws-lambda';
+import { mockIProcessedMessage } from '@project/lambdas/interfaces';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -19,124 +16,124 @@ describe('getNotifications Handler', () => {
   let handler: ReturnType<typeof GetNotifications.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
+  // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
   const awsClientMocks = awsClientSpies();
   const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
-  const mockContext = {
-    functionName: 'getNotifications',
-    awsRequestId: '12345',
-  } as unknown as Context;
+  // Test Fixtures
+  const context = mockEventContext('getNotifications');
+  const message = mockIProcessedMessage();
+  const messageRecord = mockIProcessedMessageRecord(message, {
+    DispatchedDateTime: true,
+  });
+  const organisationRecord = mockIOrganisationRecord();
 
-  let mockAuthorizedEvent: EventType;
-  let mockInternalServerError: EventType;
-  let mockEvent: EventType;
+  // const notificationId = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+  // const externalUserID = `abc-cdef-ghi`;
+  // const organisationID = 'ORG01';
+  // const displayName = 'ORG';
 
-  const notificationId = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
-  const externalUserID = `abc-cdef-ghi`;
-  const organisationID = 'ORG01';
-  const displayName = 'ORG';
+  // const mockReceivedEvent: IAnalytics = {
+  //   EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+  //   NotificationID: notificationId,
+  //   DepartmentID: 'abc',
+  //   Event: NotificationStateEnum.RECEIVED,
+  //   EventDateTime: new Date().toISOString(),
+  //   EventReason: '',
+  //   APIGWExtendedID: 'Test',
+  //   OrganisationID: 'ORG_ID',
+  // };
 
-  const mockReceivedEvent: IAnalytics = {
-    EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-    NotificationID: notificationId,
-    DepartmentID: 'abc',
-    Event: NotificationStateEnum.RECEIVED,
-    EventDateTime: new Date().toISOString(),
-    EventReason: '',
-    APIGWExtendedID: 'Test',
-    OrganisationID: 'ORG_ID',
-  };
+  // const mockHiddenEvent: IAnalytics = {
+  //   EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+  //   NotificationID: notificationId,
+  //   DepartmentID: 'abc',
+  //   Event: NotificationStateEnum.HIDDEN,
+  //   EventDateTime: new Date().toISOString(),
+  //   EventReason: '',
+  //   APIGWExtendedID: 'Test',
+  //   OrganisationID: 'ORG_ID',
+  // };
 
-  const mockHiddenEvent: IAnalytics = {
-    EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-    NotificationID: notificationId,
-    DepartmentID: 'abc',
-    Event: NotificationStateEnum.HIDDEN,
-    EventDateTime: new Date().toISOString(),
-    EventReason: '',
-    APIGWExtendedID: 'Test',
-    OrganisationID: 'ORG_ID',
-  };
+  // const mockDbRecord: IProcessedMessageRecord = {
+  //   NotificationID: notificationId,
+  //   DepartmentID: 'DEP01',
+  //   UserID: 'UserID',
+  //   MessageTitle: 'You have a new Message',
+  //   MessageBody: 'Open Notification Centre to read your notifications',
+  //   NotificationTitle: 'You have a new Notification',
+  //   NotificationBody: 'Here is the Notification body.',
+  //   ExternalUserID: externalUserID,
+  //   Events: [
+  //     {
+  //       EventID: '00000000-0000-0000-0000-a04ff992fcc3',
+  //       NotificationID: notificationId,
+  //       DepartmentID: 'abc',
+  //       Event: NotificationStateEnum.RECEIVED,
+  //       EventDateTime: new Date().toISOString(),
+  //       EventReason: '',
+  //       APIGWExtendedID: 'Test',
+  //       OrganisationID: 'ORG_ID',
+  //     },
+  //   ],
+  // ReceivedDateTime: '2026-01-01T12:00:00.000Z',
+  // ValidatedDateTime: '2026-01-01T12:00:01.000Z',
+  // ProcessedDateTime: '2026-01-01T12:00:02.000Z',
+  // DispatchedDateTime: '2026-01-01T12:00:03.000Z',
+  // ExpirationDateTime: '2100-01-31T12:00:00.000Z',
+  //   OrganisationID: organisationID,
+  // };
 
-  const mockDbRecord: IProcessedMessageRecord = {
-    NotificationID: notificationId,
-    DepartmentID: 'DEP01',
-    UserID: 'UserID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-    ExternalUserID: externalUserID,
-    Events: [
-      {
-        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-        NotificationID: notificationId,
-        DepartmentID: 'abc',
-        Event: NotificationStateEnum.RECEIVED,
-        EventDateTime: new Date().toISOString(),
-        EventReason: '',
-        APIGWExtendedID: 'Test',
-        OrganisationID: 'ORG_ID',
-      },
-    ],
-    ReceivedDateTime: '2026-01-01T12:00:00.000Z',
-    ValidatedDateTime: '2026-01-01T12:00:01.000Z',
-    ProcessedDateTime: '2026-01-01T12:00:02.000Z',
-    DispatchedDateTime: '2026-01-01T12:00:03.000Z',
-    ExpirationDateTime: '2100-01-31T12:00:00.000Z',
-    OrganisationID: organisationID,
-  };
+  // const mockResponse: IFlexNotification = {
+  //   DispatchedDateTime: '2026-01-01T12:00:03.000Z',
+  //   MessageBody: 'Open Notification Centre to read your notifications',
+  //   MessageTitle: 'You have a new Message',
+  //   NotificationBody: 'Here is the Notification body.',
+  //   NotificationID: notificationId,
+  //   NotificationTitle: 'You have a new Notification',
+  //   Status: NotificationStateEnum.RECEIVED,
+  //   Metadata: {
+  //     Sender: {
+  //       DisplayName: displayName,
+  //     },
+  //   },
+  // };
 
-  const mockResponse: IFlexNotification = {
-    DispatchedDateTime: '2026-01-01T12:00:03.000Z',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    MessageTitle: 'You have a new Message',
-    NotificationBody: 'Here is the Notification body.',
-    NotificationID: notificationId,
-    NotificationTitle: 'You have a new Notification',
-    Status: NotificationStateEnum.RECEIVED,
-    Metadata: {
-      Sender: {
-        DisplayName: displayName,
-      },
-    },
-  };
-
-  const mockOrganisationRecord: IOrganisationRecord = {
-    OrganisationID: organisationID,
-    DisplayName: displayName,
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: false,
-      },
-    },
-  };
+  // const mockOrganisationRecord: IOrganisationRecord = {
+  //   OrganisationID: organisationID,
+  //   DisplayName: displayName,
+  //   OrganisationConfig: {
+  //     MessageRetention: {
+  //       Allowed: false,
+  //     },
+  //   },
+  // };
 
   beforeEach(() => {
     vi.resetAllMocks();
 
-    mockEvent = {
-      headers: {
-        'x-api-key': 'mockApiKey',
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-      queryStringParameters: {
-        externalUserID: externalUserID,
-      },
-    } as unknown as EventType;
+    // mockEvent = {
+    //   headers: {
+    //     'x-api-key': 'mockApiKey',
+    //   },
+    //   requestContext: {
+    //     requestTimeEpoch: 1428582896000,
+    //     requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+    //   },
+    //   queryStringParameters: {
+    //     externalUserID: externalUserID,
+    //   },
+    // };
 
-    mockAuthorizedEvent = {
-      ...mockEvent,
-      headers: {
-        'x-api-key': 'mockApiKey',
-      },
-    };
+    // mockAuthorizedEvent = {
+    //   ...mockEvent,
+    //   headers: {
+    //     'x-api-key': 'mockApiKey',
+    //   },
+    // };
 
-    mockInternalServerError = null as unknown as EventType;
+    // mockInternalServerError = null;
 
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
@@ -146,8 +143,8 @@ describe('getNotifications Handler', () => {
     handler = instance.handler();
 
     serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValue([mockDbRecord]);
-    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([mockOrganisationRecord]);
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValue([messageRecord]);
+    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([organisationRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -156,6 +153,9 @@ describe('getNotifications Handler', () => {
   });
 
   it('should return 200 with status ok and return a notification', async () => {
+    // Arrange
+    const event = mockAPIEvent();
+
     // Act
     const result = await handler(mockAuthorizedEvent, mockContext);
 

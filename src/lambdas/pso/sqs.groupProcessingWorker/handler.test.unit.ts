@@ -2,18 +2,23 @@ import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { QueueEvent } from '@common/operations';
-import { IMessageRecord } from '@common/repositories';
+import { mockIMessageRecord } from '@common/repositories';
 import { MetricsLabels } from '@common/services';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
+import { mockEventContext, mockQueueEvent, mockQueueMultiEvents } from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IGroupMessageMetadata, IProcessedMessage } from '@project/lambdas/interfaces';
+import {
+  IGroupMessageMetadata,
+  mockIFailedGroupMessageMetadata,
+  mockIGroupMessageMetadata,
+  mockIProcessedGroupMessage,
+  mockIUnidentifiableGroupMessageMetadata,
+} from '@project/lambdas/interfaces';
 import { GroupProcessingWorker } from '@project/lambdas/pso/sqs.groupProcessingWorker/handler';
-import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -35,120 +40,11 @@ describe('GroupProcessingWorker QueueHandler', () => {
   let mockParameterStore = mockDefaultConfig();
 
   // Data presets
-  const mockContext = {
-    functionName: 'groupProcessingWorker',
-    awsRequestId: '12345',
-  } as unknown as Context;
-
-  const mockGroupMessageMetadataBody: IGroupMessageMetadata = {
-    GroupMessage: {
-      GroupNotificationID: 'GRP_01',
-      Namespace: 'travel',
-      Group: 'france',
-      Subgroup: 'immediate',
-      CampaignID: 'CAM_ID',
-      OrganisationID: 'ORG01',
-      NotificationTitle: 'Hey',
-      NotificationBody: "You've got a message in the message centre",
-      MessageTitle: 'Hi there',
-      MessageBody: 'MOCK_LONG_MESSAGE',
-    },
-    GroupNotificationID: 'GRP_01',
-    WorkerID: 0,
-    CacheKey: 'Worker/GroupProcessingWorker/GRP_01/0',
-    APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-    ReceivedDateTime: '2026-01-01T12:00:00.000Z',
-    ValidatedDateTime: '2026-01-01T12:00:00.300Z',
-  };
-
-  const mockEvent: QueueEvent<IGroupMessageMetadata> = {
-    Records: [
-      {
-        messageId: 'mockMessageId_1',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
-        body: mockGroupMessageMetadataBody,
-      },
-    ],
-  };
-
-  const mockPartialFailedEvent = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_1',
-      },
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_2',
-        body: {
-          ...mockGroupMessageMetadataBody,
-          GroupMessage: {
-            GroupNotificationID: 'GRP_01',
-            Namespace: 'travel',
-            Group: 'france',
-            Subgroup: 'immediate',
-            CampaignID: 'CAM_ID',
-            OrganisationID: 'ORG01',
-            // Missed out on purpose NotificationTitle, NotificationBody
-          },
-          CacheKey: 'Worker/GroupProcessingWorker/GRP_01/1',
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IGroupMessageMetadata>;
-
-  const mockFailedEvent = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_1',
-        body: {
-          ...mockGroupMessageMetadataBody,
-          GroupMessage: {
-            GroupNotificationID: 'GRP_01',
-            Namespace: 'travel',
-            Group: 'france',
-            Subgroup: 'immediate',
-            CampaignID: 'CAM_ID',
-            OrganisationID: 'ORG01',
-            // Missed out on purpose NotificationTitle, NotificationBody
-          },
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IGroupMessageMetadata>;
-
-  const mockUnidentifiableEvent = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        body: {
-          ...mockGroupMessageMetadataBody,
-          GroupNotificationID: undefined,
-          GroupMessage: {
-            // Missed out on purpose GroupNotificationID
-            Namespace: 'travel',
-            Group: 'france',
-            Subgroup: 'immediate',
-            CampaignID: 'CAM_ID',
-            OrganisationID: 'ORG01',
-          },
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IGroupMessageMetadata>;
+  const context = mockEventContext('groupProcessingWorker');
+  const messageBody = mockIGroupMessageMetadata();
+  const failedMessageBody = mockIFailedGroupMessageMetadata();
+  const unidentifiableMessageBody = mockIUnidentifiableGroupMessageMetadata();
+  const pushID_1 = 'pushID_1';
 
   beforeEach(async () => {
     // Reset all mocks
@@ -166,8 +62,9 @@ describe('GroupProcessingWorker QueueHandler', () => {
     serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
     serviceMocks.groupProcessingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1']);
+    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([pushID_1]);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([]);
 
     await serviceMocks.analyticsQueueServiceMock.initialize();
@@ -194,11 +91,12 @@ describe('GroupProcessingWorker QueueHandler', () => {
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
     async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
       // Arrange
+      const event = mockQueueEvent(messageBody);
       mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
       mockParameterStore[BoolParameters.Config.GroupProcessingWorker.Enabled] = processingEnabled;
 
       // Act
-      const result = handler(mockEvent, mockContext);
+      const result = handler(event, context);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
@@ -208,28 +106,22 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates a batch of message using the pushID, checksum NotificationID, message body, and metadata, then sends it to the dispatch queue', async () => {
     // Arrange
-    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
-    const expectedProcessedMessage: IProcessedMessage = {
-      NotificationID: notificationID,
-      CampaignID: 'CAM_ID',
-      OrganisationID: 'ORG01',
-      ExternalUserID: 'pushID_1',
-      NotificationTitle: 'Hey',
-      NotificationBody: "You've got a message in the message centre",
-      MessageTitle: 'Hi there',
-      MessageBody: 'MOCK_LONG_MESSAGE',
-    };
+    const event = mockQueueEvent(messageBody);
+    const expectedProcessedMessage = mockIProcessedGroupMessage(messageBody, pushID_1);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([expectedProcessedMessage]);
   });
 
   it('updates the cache with an empty array when all pushIDs are processed', async () => {
+    // Arrange
+    const event = mockQueueEvent(messageBody);
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('Worker/GroupProcessingWorker/GRP_01/0', []);
@@ -237,13 +129,14 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('updates the cache with any unprocessed pushIDs after splitting the array', async () => {
     // Arrange
+    const event = mockQueueEvent(messageBody);
     serviceMocks.configurationServiceMock.getNumericParameter.mockResolvedValueOnce(1); // Simulate worker batch size of 1
     serviceMocks.cacheServiceMock.get.mockReset();
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1', 'pushID_2']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('Worker/GroupProcessingWorker/GRP_01/0', [
@@ -260,48 +153,33 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates records in the notification dynamo db with a checksum of the fields as the NotificationID for the processed messages', async () => {
     // Arrange
-    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
-    const expectedProcessedMessage: IMessageRecord = {
-      NotificationID: notificationID,
-      CampaignID: 'CAM_ID',
-      OrganisationID: 'ORG01',
-      ExternalUserID: 'pushID_1',
-      NotificationTitle: 'Hey',
-      NotificationBody: "You've got a message in the message centre",
-      MessageTitle: 'Hi there',
-      MessageBody: 'MOCK_LONG_MESSAGE',
-      Events: [],
-      APIGWExtendedID: mockGroupMessageMetadataBody.APIGWExtendedID,
-      ReceivedDateTime: mockGroupMessageMetadataBody.ReceivedDateTime,
-      ValidatedDateTime: mockGroupMessageMetadataBody.ValidatedDateTime,
-      ProcessedDateTime: expect.any(String),
-    };
+    vi.useRealTimers();
+    vi.setSystemTime(new Date('2026-01-01T12:00:02.000Z'));
+    const event = mockQueueEvent(messageBody);
+    const processedMessage = mockIProcessedGroupMessage(messageBody, pushID_1);
+    const expectedMessageRecord = mockIMessageRecord(processedMessage, {
+      APIGWExtendedID: true,
+      ReceivedDateTime: true,
+      ValidatedDateTime: true,
+      ProcessedDateTime: true,
+    });
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
-      expectedProcessedMessage,
+      expectedMessageRecord,
     ]);
   });
 
   it('creates an analytics event when a group message is successfully processed', async () => {
     // Arrange
-    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
-    const expectedProcessedMessage: IProcessedMessage = {
-      NotificationID: notificationID,
-      CampaignID: 'CAM_ID',
-      OrganisationID: 'ORG01',
-      ExternalUserID: 'pushID_1',
-      NotificationTitle: 'Hey',
-      NotificationBody: "You've got a message in the message centre",
-      MessageTitle: 'Hi there',
-      MessageBody: 'MOCK_LONG_MESSAGE',
-    };
+    const event = mockQueueEvent(messageBody);
+    const expectedProcessedMessage = mockIProcessedGroupMessage(messageBody, pushID_1);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
@@ -314,21 +192,24 @@ describe('GroupProcessingWorker QueueHandler', () => {
     // Arrange
     serviceMocks.configurationServiceMock.getNumericParameter.mockResolvedValueOnce(1); // Simulate worker batch size of 1
     serviceMocks.cacheServiceMock.get.mockReset();
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1', 'pushID_2']);
+    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_0', 'pushID_1']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
 
+    const event = mockQueueEvent(messageBody);
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
-    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessage).toHaveBeenCalledWith(
-      mockGroupMessageMetadataBody
-    );
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessage).toHaveBeenCalledWith(messageBody);
   });
 
   it('does not create a new message to group processing worker if all pushIDs are processed', async () => {
+    // Arrange
+    const event = mockQueueEvent(messageBody);
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessage).not.toHaveBeenCalled();
@@ -336,11 +217,12 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('throws an error if the cache is misconfigured and does not return a list of pushIDs', async () => {
     // Arrange
+    const event = mockQueueEvent(messageBody);
     serviceMocks.cacheServiceMock.get.mockReset();
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(undefined);
 
     // Act
-    const result = handler(mockEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
 
@@ -355,22 +237,28 @@ describe('GroupProcessingWorker QueueHandler', () => {
   });
 
   it('should return a list of all failed processes when it partial fails.', async () => {
+    // Arrange
+    const event = mockQueueMultiEvents([messageBody, failedMessageBody]);
+
     // Act
-    const result = await handler(mockPartialFailedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual({
       batchItemFailures: [
         {
-          itemIdentifier: 'mockMessageId_2',
+          itemIdentifier: 'mockMessageId_1',
         },
       ],
     });
   });
 
   it('should add a metric for the number of failed processes for a partial failure.', async () => {
+    // Arrange
+    const event = mockQueueMultiEvents([messageBody, failedMessageBody]);
+
     // Act
-    await handler(mockPartialFailedEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
@@ -381,24 +269,33 @@ describe('GroupProcessingWorker QueueHandler', () => {
   });
 
   it('should throw an error when the full batch fails to be processed.', async () => {
+    // Arrange
+    const event = mockQueueEvent(failedMessageBody);
+
     // Act
-    const result = handler(mockFailedEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
   });
 
   it('should throw an when the event is unidentifiable', async () => {
+    // Arrange
+    const event = mockQueueEvent(unidentifiableMessageBody);
+
     // Act
-    const result = handler(mockUnidentifiableEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
   });
 
   it('should log when a message has an invalid GroupNotificationID', async () => {
+    // Arrange
+    const event = mockQueueEvent(unidentifiableMessageBody);
+
     // Act
-    const result = handler(mockUnidentifiableEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
@@ -406,7 +303,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
       `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
         error: expect.stringContaining('body.GroupNotificationID'),
-        raw: mockUnidentifiableEvent.Records[0].body,
+        raw: unidentifiableMessageBody,
       })
     );
   });
@@ -416,20 +313,17 @@ describe('GroupProcessingWorker QueueHandler', () => {
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
-    const mockEventWithExpireInDays = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: {
-            ...mockGroupMessageMetadataBody,
-            GroupMessage: { ...mockGroupMessageMetadataBody.GroupMessage, ExpiresInDays: 25 },
-          },
-        },
-      ],
+    const messageBodyWithExpiresInDay: IGroupMessageMetadata = {
+      ...messageBody,
+      GroupMessage: {
+        ...messageBody.GroupMessage,
+        ExpiresInDays: 25,
+      },
     };
+    const event = mockQueueEvent(messageBodyWithExpiresInDay);
 
     // Act
-    await handler(mockEventWithExpireInDays, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
@@ -442,10 +336,10 @@ describe('GroupProcessingWorker QueueHandler', () => {
         NotificationBody: "You've got a message in the message centre",
         MessageTitle: 'Hi there',
         MessageBody: 'MOCK_LONG_MESSAGE',
-        APIGWExtendedID: mockGroupMessageMetadataBody.APIGWExtendedID,
-        ReceivedDateTime: mockGroupMessageMetadataBody.ReceivedDateTime,
+        APIGWExtendedID: messageBody.APIGWExtendedID,
+        ReceivedDateTime: messageBody.ReceivedDateTime,
         ProcessedDateTime: date.toISOString(),
-        ValidatedDateTime: mockGroupMessageMetadataBody.ValidatedDateTime,
+        ValidatedDateTime: messageBody.ValidatedDateTime,
         RequestedDaysToExpire: 25,
         Events: [],
       },

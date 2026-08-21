@@ -1,14 +1,13 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { QueueEvent } from '@common/operations';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
+import { mockEventContext, mockQueueEvent, mockQueueMultiEvents } from '@common/utils/mockEvents.test.utils';
 import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalytics, mockFailedIAnalytics, mockIAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { Analytics } from '@project/lambdas/pso/sqs.analytics/handler';
-import { Context } from 'aws-lambda';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -28,51 +27,11 @@ describe('Analytics QueueHandler', () => {
 
   let instance: Analytics;
   let handler: ReturnType<typeof Analytics.prototype.handler>;
-  let mockContext: Context;
 
-  // Re-useable test data
-  const validAnalytics: IAnalytics = {
-    EventID: '123',
-    DepartmentID: 'DEP1',
-    OrganisationID: 'ORG01',
-    NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
-    CampaignID: 'CAM_ID',
-    Event: NotificationStateEnum.RECEIVED,
-    EventDateTime: '2026-01-22T00:00:01Z',
-    APIGWExtendedID: 'testExample',
-    EventReason: 'testing',
-  };
-
-  const invalidAnalytics = {
-    DepartmentID: undefined,
-    NotificationID: undefined,
-    Event: NotificationStateEnum.READ,
-    EventDateTime: '00000000',
-    APIGWExtendedID: 'testExample',
-    EventReason: 'testing',
-  };
-
-  const mockEvent: QueueEvent<IAnalytics> = {
-    Records: [
-      {
-        messageId: 'mockMessageId',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
-        body: validAnalytics,
-      },
-    ],
-  };
+  // Test Fixtures
+  const context = mockEventContext('analytics');
+  const messageBody = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const failedMessageBody = mockFailedIAnalytics();
 
   beforeEach(() => {
     // Reset all mocks
@@ -97,12 +56,6 @@ describe('Analytics QueueHandler', () => {
       analyticsExportService: Promise.resolve(serviceMocks.analyticsExportServiceMock),
     }));
     handler = instance.handler();
-
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'analytics',
-      awsRequestId: '12345',
-    } as unknown as Context;
   });
 
   it('should have the correct operationId', () => {
@@ -111,44 +64,43 @@ describe('Analytics QueueHandler', () => {
   });
 
   it('should process valid records and store analytics events in DynamoDB', async () => {
+    // Arrange
+    const event = mockQueueEvent(messageBody);
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(mockEvent.Records[0].body);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(messageBody);
   });
 
   it('should process valid records and update cache to processing', async () => {
+    // Arrange
+    const event = mockQueueEvent(messageBody);
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
       '/DEP1/7351e7c8-7314-4d2b-a590-4f053c6ef80f/Status',
-      mockEvent.Records[0].body.Event
+      messageBody.Event
     );
   });
 
   it('should process valid records and handle missing values', async () => {
     // Arrange
     const validAnalyticsWithMissingValue = {
-      ...validAnalytics,
+      ...messageBody,
       Event: undefined,
-    };
-    const validDataWithMissingValue = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: validAnalyticsWithMissingValue,
-        },
-      ],
-    } as unknown as QueueEvent<IAnalytics>;
+    } as unknown as IAnalytics;
+    const event = mockQueueEvent(validAnalyticsWithMissingValue);
     const expectedCreatedTableRows = { ...validAnalyticsWithMissingValue, Event: NotificationStateEnum.UNKNOWN };
 
     // Act
-    await handler(validDataWithMissingValue, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
@@ -161,62 +113,50 @@ describe('Analytics QueueHandler', () => {
   });
 
   it('should export processed analytics to cloudwatch', async () => {
+    // Arrange
+    const event = mockQueueEvent(messageBody);
+
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsExportServiceMock.logAnalytics).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.analyticsExportServiceMock.logAnalytics).toHaveBeenCalledWith(validAnalytics);
+    expect(serviceMocks.analyticsExportServiceMock.logAnalytics).toHaveBeenCalledWith(messageBody);
   });
 
   it('should increment campaign if a campaignID is provided in the analytics', async () => {
     // Arrange
-    const mockEventWithCampaign: QueueEvent<IAnalytics> = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: {
-            ...mockEvent.Records[0].body,
-            CampaignID: 'CAMP01',
-          },
-        },
-      ],
+    const analyticsWithCampaignID = {
+      ...messageBody,
+      CampaignID: 'CAMP01',
     };
+    const event = mockQueueEvent(analyticsWithCampaignID);
 
     // Act
-    await handler(mockEventWithCampaign, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledTimes(1);
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledWith(
-      mockEventWithCampaign.Records[0].body.CampaignID,
-      mockEventWithCampaign.Records[0].body.OrganisationID,
-      mockEventWithCampaign.Records[0].body.DepartmentID,
-      mockEventWithCampaign.Records[0].body.Event
+      analyticsWithCampaignID.CampaignID,
+      analyticsWithCampaignID.OrganisationID,
+      analyticsWithCampaignID.DepartmentID,
+      analyticsWithCampaignID.Event
     );
   });
 
   it('should process all valid analytics records and reject any that are invalid', async () => {
     // Arrange
-    const mockEventWithPartialFailure = {
-      Records: [
-        mockEvent.Records[0],
-        {
-          ...mockEvent.Records[0],
-          messageId: 'msg2',
-          body: invalidAnalytics,
-        },
-      ],
-    } as unknown as QueueEvent<IAnalytics>;
+    const event = mockQueueMultiEvents([messageBody, failedMessageBody]);
 
     //  Act
-    const result = await handler(mockEventWithPartialFailure, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual({
       batchItemFailures: [
         {
-          itemIdentifier: 'msg2',
+          itemIdentifier: 'mockMessageId_1',
         },
       ],
     });
@@ -226,17 +166,10 @@ describe('Analytics QueueHandler', () => {
 
   it('should throw an error for invalid records', async () => {
     // Arrange
-    const mockInvalidEvent = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: invalidAnalytics,
-        },
-      ],
-    } as unknown as QueueEvent<IAnalytics>;
+    const event = mockQueueEvent(failedMessageBody);
 
     //  Act
-    const result = handler(mockInvalidEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
