@@ -5,7 +5,7 @@ import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
-const url = () => `/status`;
+const path = `/send`;
 
 describe('Post /send', () => {
   let notificationID: string;
@@ -31,9 +31,6 @@ describe('Post /send', () => {
     test('UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
     }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -50,9 +47,6 @@ describe('Post /send', () => {
     });
 
     test('ECONNRESET when - missing MTLS certificate', async ({ psoAPIWithoutMTLSCert: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -69,9 +63,6 @@ describe('Post /send', () => {
     });
 
     test('status 403 when - using invalid api key', async ({ psoAPIWithoutAPIKey: api }) => {
-      // Arrange
-      const path = url();
-
       // Act & Assert
       await expect(
         api.post({
@@ -95,7 +86,7 @@ describe('Post /send', () => {
       ];
 
       // Act
-      const result = psoAPI.post({ path: '/send', body: messagesWithNoUserID });
+      const result = psoAPI.post({ path, body: messagesWithNoUserID });
 
       // Assert
       await expect(result).rejects.toMatchObject(
@@ -118,7 +109,7 @@ describe('Post /send', () => {
       ];
 
       // Act
-      const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationTitle });
+      const result = psoAPI.post({ path, body: messagesWithNoNotificationTitle });
 
       // Assert
       await expect(result).rejects.toMatchObject(
@@ -141,7 +132,7 @@ describe('Post /send', () => {
       ];
 
       // Act
-      const result = psoAPI.post({ path: '/send', body: messagesWithNoNotificationBody });
+      const result = psoAPI.post({ path, body: messagesWithNoNotificationBody });
 
       // Assert
       await expect(result).rejects.toMatchObject(
@@ -165,7 +156,7 @@ describe('Post /send', () => {
       ];
 
       // Act
-      const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
+      const result = psoAPI.post({ path, body: messagesWithInvalidMarkdown });
 
       // Assert
       await expect(result).rejects.toMatchObject(
@@ -189,19 +180,101 @@ describe('Post /send', () => {
       ];
 
       // Act
-      const result = psoAPI.post({ path: '/send', body: messagesWithInvalidMarkdown });
+      const result = psoAPI.post({ path, body: messagesWithInvalidMarkdown });
 
       // Assert
       await expect(result).rejects.toMatchObject(
         BadRequestAxiosError(['Message body contains markdown elements which are not valid: code_block'])
       );
     });
+
+    test('status 400 when - the request has no body', async ({ psoAPI }) => {
+      // Act
+      const result = psoAPI.post({ path });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Invalid input: expected array, received null → at .'])
+      );
+    });
+
+    test('status 400 when - the message has an invalid ExpireInDays (negative)', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithInvalidExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: -1,
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithInvalidExpiresInDays });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Too small: expected number to be >0 → at 0.ExpiresInDays.'])
+      );
+    });
+
+    test('status 400 when - the message has an invalid ExpireInDays (float)', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithInvalidExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: 0.5,
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithInvalidExpiresInDays });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['Invalid input: expected int, received number → at 0.ExpiresInDays.'])
+      );
+    });
+
+    test('status 400 when - the message has an ExpireInDays less than the organisation minimum', async ({ psoAPI }) => {
+      // This required that the organisation config for UNS is set to Min: 2
+      // Arrange
+      const messagesWithInvalidExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: 1,
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithInvalidExpiresInDays });
+
+      // Assert
+      await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when - the message has an ExpireInDays greater than the organisation maximum', async ({
+      psoAPI,
+    }) => {
+      // This required that the organisation config for UNS is set to Min: 30
+      // Arrange
+      const messagesWithInvalidExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: 31,
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithInvalidExpiresInDays });
+
+      // Assert
+      await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
   });
 
   describe(`Happy paths`, () => {
     test('status 202 when - called with a valid array of notifications', async ({ psoAPI }) => {
       // Act
-      const result = await psoAPI.post({ path: '/send', body: messageRequest });
+      const result = await psoAPI.post({ path, body: messageRequest });
 
       // Assert
       expect(result.status).toBe(202);
@@ -214,7 +287,7 @@ describe('Post /send', () => {
 
     test('status 202 when - called with a valid notification', async ({ psoAPI }) => {
       // Act
-      const result = await psoAPI.post({ path: '/send', body: messageRequest });
+      const result = await psoAPI.post({ path, body: messageRequest });
 
       // Assert
       expect(result.status).toBe(202);
@@ -246,19 +319,14 @@ describe('Post /send', () => {
       // Arrange
       const body = [
         {
-          NotificationID: notificationID,
-          CampaignID: 'testCampaignID',
-          DepartmentID: 'testDepartmentID',
-          UserID: 'testExternalUserID',
-          NotificationTitle: 'End 2 End Test',
-          NotificationBody: 'This is an end 2 end test!',
-          MessageTitle: 'End 2 End Test Message Title',
-          MessageBody: 'End 2 End Test Message Body',
+          ...messageRequest[0],
+          MessageBody:
+            'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
         },
       ];
 
       // Act
-      const result = await psoAPI.post({ path: '/send', body });
+      const result = await psoAPI.post({ path, body });
 
       // Assert
       expect(result.status).toBe(202);
@@ -268,37 +336,75 @@ describe('Post /send', () => {
         },
       ]);
     });
-  });
 
-  test('status 400 when - the request has no body', async ({ psoAPI }) => {
-    // Act
-    const result = psoAPI.post({ path: '/send' });
+    test('status 202 when - the message has no departmentID', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithNoDepartmentID = [
+        {
+          ...messageRequest[0],
+          DepartmentID: undefined,
+        },
+      ];
 
-    // Assert
-    await expect(result).rejects.toMatchObject(
-      BadRequestAxiosError(['Invalid input: expected array, received null → at .'])
-    );
-  });
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithNoDepartmentID });
 
-  test('status 202 when - the message has no departmentID', async ({ psoAPI }) => {
-    // Arrange
-    const messagesWithNoDepartmentID = [
-      {
-        NotificationID: notificationID,
-        CampaignID: 'testCampaignID',
-        UserID: 'testExternalUserID',
-        NotificationTitle: 'End 2 End Test',
-        NotificationBody: 'This is an end 2 end test!',
-        MessageTitle: 'End 2 End Test Message Title',
-        MessageBody: 'End 2 End Test Message Body',
-      },
-    ];
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
 
-    // Act
-    const result = await psoAPI.post({ path: '/send', body: messagesWithNoDepartmentID });
+    test('status 202 when - the message has a valid ExpiresInDays', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: 25,
+        },
+      ];
 
-    // Assert
-    expect(result.status).toBe(202);
-    expect(result.body).toEqual([{ NotificationID: notificationID }]);
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithExpiresInDays });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('status 202 when - the message has an ExpiresInDays equal to the organisation minimum', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to Min: 2
+      const messagesWithExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: 2,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithExpiresInDays });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('status 202 when - the message has an ExpiresInDays equal to the organisation maximum', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to Max: 30
+      const messagesWithExpiresInDays = [
+        {
+          ...messageRequest[0],
+          ExpiresInDays: 30,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithExpiresInDays });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
   });
 });

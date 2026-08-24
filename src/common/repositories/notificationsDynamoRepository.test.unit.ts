@@ -47,6 +47,7 @@ describe('NotificationsDynamoRepository', () => {
   beforeEach(async () => {
     // Reset all mock
     vi.resetAllMocks();
+    vi.useRealTimers();
     dynamoMock.reset();
 
     // Mock SSM Values
@@ -147,6 +148,32 @@ describe('NotificationsDynamoRepository', () => {
         error: error.message,
         tableName: 'mockNotificationsDynamoRepositoryName',
       });
+    });
+
+    it('should calculate TTL for a notification using RequestedDaysToExpire if a record request contains it', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+      dynamoMock.on(PutItemCommand).resolvesOnce({
+        ConsumedCapacity: {
+          ReadCapacityUnits: 1,
+          WriteCapacityUnits: 1,
+        },
+      });
+
+      const record: IMessageRecord = { ...recordBody, RequestedDaysToExpire: 25 };
+      const expirationDateTime = new Date(date.getTime() + 25 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Act
+      await instance.createRecord(record);
+
+      // Assert
+      expect(dynamoMock.calls()).toHaveLength(1);
+      const command = dynamoMock.call(0).args[0] as PutItemCommand;
+
+      expect(command.input.TableName).toBe('mockNotificationsDynamoRepositoryName');
+      expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expirationDateTime });
     });
   });
 
