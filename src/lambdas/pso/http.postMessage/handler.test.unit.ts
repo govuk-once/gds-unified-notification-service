@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BoolParameters } from '@common/utils';
 import {
@@ -45,6 +46,7 @@ describe('PostMessage Handler', () => {
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
+    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'true';
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
@@ -52,15 +54,16 @@ describe('PostMessage Handler', () => {
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      validationService: Promise.resolve(serviceMocks.validationServiceMock),
     }));
     handler = instance.handler();
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    serviceMocks.validationServiceMock.messageValidation = vi.fn().mockReturnValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -240,50 +243,13 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: messageBody.NotificationID }]);
   });
 
-  it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {
+  it('should accept a message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
     // Arrange
-    const event = mockAPIEvent({
-      body: [
-        {
-          ...messageBody,
-          MessageBody: 'https://readme.gov.uk/hello-world?q=1',
-        },
-      ],
-    }) as unknown as EventType;
-
-    // Act
-    const result = await handler(event, context);
-
-    // Assert
-    expect(result.statusCode).toEqual(202);
-  });
-
-  it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
-    // Arrange
-    const event = mockAPIEvent({
-      body: [{ ...messageBody, MessageBody: 'https://example.com' }],
-    }) as unknown as EventType;
-
-    // Act
-    const result = await handler(event, context);
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual({
-      Status: 400,
-      HttpError: 'BadRequest',
-      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
-    });
-  });
-
-  it('should validate messages that contain valid markdown.', async () => {
-    // Arrange
-    const mockMarkdownMessageBody = {
+    const messageWithChannel = {
       ...messageBody,
-      MessageBody:
-        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
     };
-    const event = mockAPIEvent({ body: [mockMarkdownMessageBody] }) as unknown as EventType;
+    const event = mockAPIEvent({ body: messageWithChannel }) as unknown as EventType;
 
     // Act
     const result = await handler(event, context);
@@ -293,13 +259,42 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: messageBody.NotificationID }]);
   });
 
-  it('should reject messages that contain invalid markdown.', async () => {
+  it('should accept a message with Channel set to MESSAGE_CENTRE_ONLY', async () => {
     // Arrange
-    const mockInvalidMarkdownMessageBody = {
+    const messageWithChannel = {
       ...messageBody,
-      MessageBody: '    const x = 10;\n    const y = 20;',
+      Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
     };
-    const event = mockAPIEvent({ body: [mockInvalidMarkdownMessageBody] }) as unknown as EventType;
+    const event = mockAPIEvent({ body: messageWithChannel }) as unknown as EventType;
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: messageWithChannel.NotificationID }]);
+  });
+
+  it('should accept a message when Channel is omitted', async () => {
+    // Arrange
+    const event = mockAPIEvent({ body: messageBody }) as unknown as EventType;
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should return 400 when Channel is an empty string', async () => {
+    // Arrange
+    const messageWithEmptyChannel = {
+      ...messageBody,
+      Channel: '',
+    };
+
+    // Arrange
+    const event = mockAPIEvent({ body: messageWithEmptyChannel }) as unknown as EventType;
 
     // Act
     const result = await handler(event, context);
@@ -309,16 +304,19 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Message body contains markdown elements which are not valid: code_block'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 
-  it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
+  it('should return 400 when Channel is an invalid enum value', async () => {
     // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
-    const event = mockAPIEvent({
-      body: [{ ...messageBody, DeeplinkURL: 'https://example.com' }],
-    }) as unknown as EventType;
+    const messageWithInvalidChannel = {
+      ...messageBody,
+      Channel: 'INVALID_CHANNEL',
+    };
+    const event = mockAPIEvent({ body: messageWithInvalidChannel }) as unknown as EventType;
 
     // Act
     const result = await handler(event, context);
@@ -328,14 +326,19 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected DeeplinkURL at .'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 
-  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
+  it('should return 400 when Channel is a lowercase variant of a valid enum', async () => {
     // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
-    const event = mockAPIEvent({ body: [{ ...messageBody, ExpiresInDays: 25 }] }) as unknown as EventType;
+    const messageWithLowercaseChannel = {
+      ...messageBody,
+      Channel: 'push_notification_and_message_centre',
+    };
+    const event = mockAPIEvent({ body: messageWithLowercaseChannel }) as unknown as EventType;
 
     // Act
     const result = await handler(event, context);
@@ -345,7 +348,9 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 });

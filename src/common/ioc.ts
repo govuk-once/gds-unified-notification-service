@@ -33,6 +33,7 @@ import {
   SMNamespacedConfigurationService,
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { ValidationService } from '@common/services/validationService';
 import { InMemoryTTLCache, StringParameters } from '@common/utils';
 
 enum Mode {
@@ -251,7 +252,7 @@ export const iocGetGroupStoreDynamoRepository = ioc(
 );
 
 // Services - API Integrations
-export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, () =>
+export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, async () =>
   new NotificationService(
     iocGetObservabilityService(),
     iocGetConfigurationService(),
@@ -322,6 +323,13 @@ export const iocGetContentValidationService = ioc(
       (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.Protocols)).split(','),
       (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',')
     )
+);
+
+export const iocGetValidationService = ioc(
+  'ValidationService',
+  Mode.SINGLETON,
+  async () =>
+    new ValidationService(await iocGetContentValidationService(), await iocGetConfigurationService().getFeatureFlags())
 );
 
 // Utility FN simplifying integration of dependencies which depend on config within handler

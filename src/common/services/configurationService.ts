@@ -1,8 +1,9 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
+import { FeatureFlags } from '@common/services/interfaces/featureFlags';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { InMemoryTTLCache } from '@common/utils';
+import { BoolParameters, InMemoryTTLCache } from '@common/utils';
 
 export class ConfigurationService extends BaseConfigurableValueService {
   protected inMemoryCache = new InMemoryTTLCache<string, string>(60000);
@@ -84,5 +85,21 @@ export class ConfigurationService extends BaseConfigurableValueService {
         throw new ServiceMisconfigurationError();
       }
     }
+  }
+
+  public async getFeatureFlags(): Promise<FeatureFlags> {
+    const channelControlsFeatureFlag = await this.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.ChannelControls
+    );
+    const deeplinkUrlFeatureFlag = await this.getBooleanParameter(BoolParameters.Config.FeatureFlags.DeepLinkUrl);
+    const messageRetentionFeatureFlag = await this.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.MessageRetention
+    );
+
+    return {
+      channelControls: channelControlsFeatureFlag,
+      deeplinkUrl: deeplinkUrlFeatureFlag,
+      messageRetention: messageRetentionFeatureFlag,
+    };
   }
 }

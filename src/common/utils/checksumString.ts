@@ -1,10 +1,11 @@
 import { IGroupMessage } from '@project/lambdas';
 import { createHash } from 'node:crypto';
 
-export function md5ToUuidV4<T extends object>(input: T): string {
+export function hashToUuidV4<T extends object>(input: T): string {
   const concentratedObject = JSON.stringify(Object.values(input));
 
-  const buffer = createHash('md5').update(concentratedObject).digest();
+  const hash = createHash('sha256').update(concentratedObject).digest();
+  const buffer = hash.subarray(0, 16);
   buffer[6] = (buffer[6] & 0x0f) | 0x40;
   buffer[8] = (buffer[8] & 0x3f) | 0x80;
   const hex = buffer.toString('hex');
@@ -13,7 +14,7 @@ export function md5ToUuidV4<T extends object>(input: T): string {
 }
 
 export function generateNotificationIDForGroupMessage(pushID: string, groupMessage: IGroupMessage): string {
-  return md5ToUuidV4({
+  return hashToUuidV4({
     PushID: pushID,
     OrganisationID: groupMessage.OrganisationID,
     GroupNotificationID: groupMessage.GroupNotificationID,

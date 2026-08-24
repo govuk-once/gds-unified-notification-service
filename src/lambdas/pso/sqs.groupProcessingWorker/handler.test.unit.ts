@@ -328,7 +328,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
-        NotificationID: '525f4a48-b21a-4554-93f7-19af4550b384',
+        NotificationID: '524ef10e-aef1-4c51-a0e0-343f499f7201',
         CampaignID: 'CAM_ID',
         OrganisationID: 'ORG01',
         ExternalUserID: 'pushID_1',

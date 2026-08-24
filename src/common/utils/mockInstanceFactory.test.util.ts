@@ -31,6 +31,7 @@ import { GroupProcessingQueueService } from '@common/services/groupProcessingQue
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
+import { ValidationService } from '@common/services/validationService';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -187,6 +188,11 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, cl
     cacheServiceMock,
     clientMocks.cloudWatchLogsClientMock
   ) as Mocked<AnalyticsExportService>;
+  const validationServiceMock = new ValidationService(contentValidationServiceMock, {
+    channelControls: true,
+    deeplinkUrl: true,
+    messageRetention: true,
+  });
 
   return {
     // Export
@@ -204,7 +210,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, cl
     // Services
     smConfigurationServiceMock,
     smNamespacedConfigurationServiceMock,
-    configurationServiceMock: configurationServiceMock,
+    configurationServiceMock,
     analyticsServiceMock,
     notificationServiceMock,
     cacheServiceMock,
@@ -212,5 +218,6 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, cl
     contentValidationServiceMock,
     processingServiceMock,
     analyticsExportServiceMock,
+    validationServiceMock,
   };
 };

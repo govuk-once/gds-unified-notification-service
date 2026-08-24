@@ -5,13 +5,13 @@ import {
   NotificationAdapterOneSignal,
   NotificationAdapterVoid,
   ObservabilityService,
+  SMNamespacedConfigurationService,
 } from '@common/services';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { EnumParameters, segment } from '@common/utils';
 import * as z from 'zod';
 
@@ -46,14 +46,17 @@ export class NotificationService {
     const metadata = {
       NotificationID: request.NotificationID,
     };
+
     this.observability.logger.info(`Dispatching notification`, metadata);
     const start = performance.now();
+
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHING_ATTEMPTS, MetricUnit.Count, 1);
     const result = await segment(this.observability.tracer, `Dispatching`, async (segment) => {
       segment.addMetadata(`NotificationID`, request.NotificationID);
       segment.addAnnotation(`Start`, true);
       return await this.adapter.send(request);
     });
+
     const end = performance.now() - start;
     this.observability.metrics.addMetric(MetricsLabels.DISPATCH_DURATION, MetricUnit.Milliseconds, end);
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHED, MetricUnit.Count, 1);
