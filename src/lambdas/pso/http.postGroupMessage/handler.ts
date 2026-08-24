@@ -1,24 +1,22 @@
 import {
   APIHandler,
-  BoolParameters,
   CacheService,
   ConfigurationService,
-  ContentValidationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetGroupProcessingQueueService,
   iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
+  iocGetValidationService,
   NumericParameters,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
@@ -48,10 +46,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public readonly contentValidationService!: ContentValidationService;
   public readonly cacheService!: CacheService;
   public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly groupStoreDynamoRepository!: GroupStoreDynamoRepository;
+  public readonly validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
@@ -67,31 +65,15 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
+    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
 
     const messages: IGroupMessage[] = event.body.map((body) => ({
       ...body,
       OrganisationID: organisationID,
     }));
 
-    // Pre-validate all messages & reject request when one of them contains unsupported url
-    const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.DeepLinkUrl
-    );
-    for (const message of messages) {
-      this.contentValidationService.validate(message.MessageBody);
-      if (featureEnabledDeepLinkUrl) {
-        this.contentValidationService.validateUrls(message.DeeplinkURL);
-      } else {
-        if (message.DeeplinkURL) {
-          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
-        }
-      }
-    }
+    // Validates all messages & reject request when contents or configurations are unsupported
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Get the number of workers to be used to process the group message
     const numberOfWorkers = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerCount);
@@ -160,8 +142,8 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 }
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  contentValidationService: iocGetContentValidationService(),
   cacheService: iocGetCacheService().connect(),
   groupProcessingQueue: iocGetGroupProcessingQueueService(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
+  validationService: iocGetValidationService(),
 })).handler();

@@ -1,3 +1,5 @@
+import { IRequestEvent } from '@common/middlewares';
+import { ChannelsEnum } from '@common/models';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BoolParameters } from '@common/utils';
 import {
@@ -55,6 +57,7 @@ describe('PostMessage Handler', () => {
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
+    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'true';
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
@@ -68,22 +71,31 @@ describe('PostMessage Handler', () => {
       requestContext: {
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: { Organization: 'ORG01' },
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: false,
+            },
+            Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+          }),
+        },
       },
     } as unknown as EventType;
 
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      validationService: Promise.resolve(serviceMocks.validationServiceMock),
     }));
     handler = instance.handler();
 
     serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    serviceMocks.validationServiceMock.messageValidation = vi.fn().mockReturnValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -104,16 +116,9 @@ describe('PostMessage Handler', () => {
   it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
     // Arrange
     const organisationID = 'ORG01';
-    const authorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        ...mockEvent.requestContext,
-        authorizer: { Organization: organisationID },
-      },
-    } as unknown as EventType;
 
     // Act
-    await handler(authorizedEvent, mockContext);
+    await handler(mockEvent, mockContext);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
@@ -124,7 +129,7 @@ describe('PostMessage Handler', () => {
         {
           ...mockMessageBody,
           OrganisationID: organisationID,
-          APIGWExtendedID: authorizedEvent.requestContext.requestId,
+          APIGWExtendedID: mockEvent.requestContext.requestId,
         },
       ],
       NotificationStateEnum.VALIDATED_API_CALL
@@ -134,7 +139,7 @@ describe('PostMessage Handler', () => {
     ]);
   });
 
-  it('should return 400 when mTLS certificate does not resolve an organsation', async () => {
+  it('should return 400 when mTLS certificate does not resolve an organisation', async () => {
     // Arrange
     const noAuthorizedEvent = {
       ...mockEvent,
@@ -174,6 +179,92 @@ describe('PostMessage Handler', () => {
     ]);
   });
 
+  it('should make a record using expire in days if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      requestContext: {
+        ...mockEvent.requestContext,
+        authorizer: {
+          Organization: 'ORG01',
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: true,
+              Min: 10,
+              Max: 35,
+            },
+          }),
+        },
+      },
+      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 25 }]),
+    } as unknown as IRequestEvent;
+
+    // Act
+    await handler(mockEventWithExpireInDays, mockContext);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        ...mockMessageBody,
+        OrganisationID: 'ORG01',
+        APIGWExtendedID: mockEvent.requestContext.requestId,
+        ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: date.toISOString(),
+        RequestedDaysToExpire: 25,
+        Events: [],
+      },
+    ]);
+  });
+
+  it('should reject any notification where the ExpiresInDays is a negative', async () => {
+    // Arrange
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: -1 }]),
+    };
+
+    // Act
+    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Too small: expected number to be >0 → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
+
+  it('should reject any notification where the ExpiresInDays is a float', async () => {
+    // Arrange
+    const mockEventWithExpireInDays = {
+      ...mockEvent,
+      body: JSON.stringify([{ ...mockMessageBody, ExpiresInDays: 0.5 }]),
+    };
+
+    // Act
+    const result = await handler({ ...mockEventWithExpireInDays }, mockContext);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Invalid input: expected int, received number → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
+
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
     // Act
     await handler(mockEvent, mockContext);
@@ -194,95 +285,124 @@ describe('PostMessage Handler', () => {
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
   });
 
-  it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {
-    // Act
-    const result = await handler(
-      {
-        ...mockEvent,
-        body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
-      },
-      mockContext
-    );
-
-    // Assert
-    expect(result.statusCode).toEqual(202);
-  });
-
-  it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
-    // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://example.com' }]) },
-      mockContext
-    );
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual({
-      Status: 400,
-      HttpError: 'BadRequest',
-      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
-    });
-  });
-
-  it('should validate messages that contain valid markdown.', async () => {
+  it('should accept a message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
     // Arrange
-    const mockMarkdownMessageBody = {
+    const messageWithChannel = {
       ...mockMessageBody,
-      MessageBody:
-        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
     };
-    const mockEventWithMarkdown = {
+    const event = {
       ...mockEvent,
-      body: JSON.stringify([mockMarkdownMessageBody]),
+      body: JSON.stringify([messageWithChannel]),
     };
 
     // Act
-    const result = await handler(mockEventWithMarkdown, mockContext);
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
   });
 
-  it('should reject messages that contain invalid markdown.', async () => {
+  it('should accept a message with Channel set to MESSAGE_CENTRE_ONLY', async () => {
     // Arrange
-    const mockInvalidMarkdownMessageBody = {
+    const messageWithChannel = {
       ...mockMessageBody,
-      MessageBody: '    const x = 10;\n    const y = 20;',
+      Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
     };
-    const mockEventInvalidMarkdown = {
+    const event = {
       ...mockEvent,
-      body: JSON.stringify([mockInvalidMarkdownMessageBody]),
+      body: JSON.stringify([messageWithChannel]),
     };
 
     // Act
-    const result = await handler(mockEventInvalidMarkdown, mockContext);
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+  });
+
+  it('should accept a message when Channel is omitted', async () => {
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should return 400 when Channel is an empty string', async () => {
+    // Arrange
+    const messageWithEmptyChannel = {
+      ...mockMessageBody,
+      Channel: '',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithEmptyChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Message body contains markdown elements which are not valid: code_block'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 
-  it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
+  it('should return 400 when Channel is an invalid enum value', async () => {
     // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
+    const messageWithInvalidChannel = {
+      ...mockMessageBody,
+      Channel: 'INVALID_CHANNEL',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithInvalidChannel]),
+    };
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, DeeplinkURL: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected DeeplinkURL at .'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  it('should return 400 when Channel is a lowercase variant of a valid enum', async () => {
+    // Arrange
+    const messageWithLowercaseChannel = {
+      ...mockMessageBody,
+      Channel: 'push_notification_and_message_centre',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithLowercaseChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 });

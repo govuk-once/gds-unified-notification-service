@@ -24,8 +24,11 @@ import {
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { BoolParameters, NumericParameters } from '@common/utils';
 import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
-import { IGroupMessageMetadataSchema, IIdentifiableGroupMessageSchema } from '@project/lambdas/interfaces';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import {
+  IGroupMessageMetadataSchema,
+  IIdentifiableGroupMessageSchema,
+  IProcessedMessage,
+} from '@project/lambdas/interfaces';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
@@ -94,7 +97,6 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
 
     const groupMessage = data.body.GroupMessage;
     const cacheKey = data.body.CacheKey;
-    const receivedDateTime = data.body.ReceivedDateTime;
     const workerBatchSize = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
@@ -134,6 +136,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
         NotificationBody: groupMessage.NotificationBody,
         MessageTitle: groupMessage.MessageTitle,
         MessageBody: groupMessage.MessageBody,
+        ExpiresInDays: groupMessage.ExpiresInDays,
       });
     }
 
@@ -141,11 +144,12 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     this.observability.logger.debug(`Adding record of notification to message table`);
     await this.notificationsRepository.createRecordBatch(
       processedMessages.map((body) => ({
-        ...body,
+        ...{ ...body, ExpiresInDays: undefined },
         APIGWExtendedID: data.body.APIGWExtendedID,
         ReceivedDateTime: data.body.ReceivedDateTime,
         ValidatedDateTime: data.body.ValidatedDateTime,
         ProcessedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: body.ExpiresInDays,
         Events: [],
       }))
     );

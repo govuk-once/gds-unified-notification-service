@@ -42,8 +42,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public organisationsDynamoRepository: OrganisationsDynamoRepository;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -76,13 +76,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     }
 
     // Get notifications of user from dynamoDB
-    const notifications = await this.notificationsDynamoRepository.getRecordsQuery(
-      {
-        field: 'ExternalUserID',
-        value: externalUserID,
-      },
-      'ExternalUserIDIndex'
-    );
+    const notifications = await this.notificationsDynamoRepository.getProcessedMessages(externalUserID);
 
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations(notifications);
@@ -91,7 +85,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
-        if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+        if (new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
           return false;
         }
         return true;

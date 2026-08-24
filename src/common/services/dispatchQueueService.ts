@@ -3,7 +3,7 @@ import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
 import { StringParameters } from '@common/utils/parameters';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {
   protected queueName: string = 'dispatch';

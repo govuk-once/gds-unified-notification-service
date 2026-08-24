@@ -1,5 +1,5 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
 import { StringParameters } from '@common/utils';
@@ -30,16 +30,25 @@ describe('OrganisationsDynamoRepository', () => {
   const mockOrganisationRecord: IOrganisationRecord = {
     OrganisationID: mockOrganisationID,
     DisplayName: 'ORG',
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
   };
 
-  const mockMessageRecord: IMessageRecord = {
+  const mockMessageRecord: IProcessedMessageRecord = {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
     UserID: 'UserID',
+    ExternalUserID: 'ExternalUserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new medical driving license',
     NotificationBody: 'The DVLA has issued you a new license.',
     ReceivedDateTime: '202601021513',
+    ValidatedDateTime: '202601021513',
+    ProcessedDateTime: '202601021513',
+    ExpirationDateTime: '202601021513',
     Events: [],
     OrganisationID: mockOrganisationID,
   };
@@ -48,15 +57,24 @@ describe('OrganisationsDynamoRepository', () => {
   const mockOrganisationRecord_02: IOrganisationRecord = {
     OrganisationID: mockOrganisationID_02,
     DisplayName: 'OTHER_ORG',
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
   };
-  const mockMessageRecord_02: IMessageRecord = {
+  const mockMessageRecord_02: IProcessedMessageRecord = {
     NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
     UserID: 'UserID',
+    ExternalUserID: 'ExternalUserID',
     MessageTitle: 'You have a new Message',
     MessageBody: 'Open Notification Centre to read your notifications',
     NotificationTitle: 'You have a new medical driving license',
     NotificationBody: 'The DVLA has issued you a new license.',
     ReceivedDateTime: '202601021513',
+    ValidatedDateTime: '202601021513',
+    ProcessedDateTime: '202601021513',
+    ExpirationDateTime: '202601021513',
     Events: [],
     OrganisationID: 'ORG02',
   };

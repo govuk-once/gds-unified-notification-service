@@ -13,7 +13,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
 import { Dispatch } from '@project/lambdas/pso/sqs.dispatch/handler';
 import { Context } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -273,6 +273,33 @@ describe('Dispatch QueueHandler', () => {
     });
   });
 
+  it('should trigger notification service for valid messages - with deeplink when feature flag is on', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'true';
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
+      requestId: '123',
+      success: true,
+    } as unknown as NotificationAdapterResult);
+
+    // Act
+    await handler(
+      {
+        ...mockEvent,
+        Records: [...mockEvent.Records.map((r) => ({ ...r, body: { ...r.body, DeeplinkURL: 'govuk://travel' } }))],
+      },
+      mockContext
+    );
+
+    // Assert
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
+      ExternalUserID: mockMessageBody_1.ExternalUserID,
+      NotificationID: mockMessageBody_1.NotificationID,
+      NotificationTitle: mockMessageBody_1.NotificationTitle,
+      NotificationBody: mockMessageBody_1.NotificationBody,
+      DeeplinkURL: 'govuk://travel',
+    });
+  });
+
   it('should update data in the notifications message table', async () => {
     // Arrange
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
@@ -372,6 +399,8 @@ describe('Dispatch QueueHandler', () => {
   });
 
   it('should return and error and trigger analytics for failure events for invalid messages.', async () => {
+    // Arrange
+
     // Act
     const result = handler(mockFailedEvent, mockContext);
 

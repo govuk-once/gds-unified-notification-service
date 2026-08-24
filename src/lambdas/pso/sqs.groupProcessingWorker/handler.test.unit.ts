@@ -207,7 +207,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates a batch of message using the pushID, checksum NotificationID, message body, and metadata, then sends it to the dispatch queue', async () => {
     // Arrange
-    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
+    const notificationID = '524ef10e-aef1-4c51-a0e0-343f499f7201';
     const expectedProcessedMessage: IProcessedMessage = {
       NotificationID: notificationID,
       CampaignID: 'CAM_ID',
@@ -259,7 +259,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates records in the notification dynamo db with a checksum of the fields as the NotificationID for the processed messages', async () => {
     // Arrange
-    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
+    const notificationID = '524ef10e-aef1-4c51-a0e0-343f499f7201';
     const expectedProcessedMessage: IMessageRecord = {
       NotificationID: notificationID,
       CampaignID: 'CAM_ID',
@@ -287,7 +287,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
 
   it('creates an analytics event when a group message is successfully processed', async () => {
     // Arrange
-    const notificationID = '525f4a48-b21a-4554-93f7-19af4550b384';
+    const notificationID = '524ef10e-aef1-4c51-a0e0-343f499f7201';
     const expectedProcessedMessage: IProcessedMessage = {
       NotificationID: notificationID,
       CampaignID: 'CAM_ID',
@@ -408,5 +408,46 @@ describe('GroupProcessingWorker QueueHandler', () => {
         raw: mockUnidentifiableEvent.Records[0].body,
       })
     );
+  });
+
+  it('should make a record using expire in days if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const mockEventWithExpireInDays = {
+      Records: [
+        {
+          ...mockEvent.Records[0],
+          body: {
+            ...mockGroupMessageMetadataBody,
+            GroupMessage: { ...mockGroupMessageMetadataBody.GroupMessage, ExpiresInDays: 25 },
+          },
+        },
+      ],
+    };
+
+    // Act
+    await handler(mockEventWithExpireInDays, mockContext);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        NotificationID: '524ef10e-aef1-4c51-a0e0-343f499f7201',
+        CampaignID: 'CAM_ID',
+        OrganisationID: 'ORG01',
+        ExternalUserID: 'pushID_1',
+        NotificationTitle: 'Hey',
+        NotificationBody: "You've got a message in the message centre",
+        MessageTitle: 'Hi there',
+        MessageBody: 'MOCK_LONG_MESSAGE',
+        APIGWExtendedID: mockGroupMessageMetadataBody.APIGWExtendedID,
+        ReceivedDateTime: mockGroupMessageMetadataBody.ReceivedDateTime,
+        ProcessedDateTime: date.toISOString(),
+        ValidatedDateTime: mockGroupMessageMetadataBody.ValidatedDateTime,
+        RequestedDaysToExpire: 25,
+        Events: [],
+      },
+    ]);
   });
 });

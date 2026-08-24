@@ -1,4 +1,4 @@
-import { IMessageFields } from '@project/lambdas/interfaces/IMessage';
+import { IMessageFieldsSchema } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
@@ -6,6 +6,7 @@ import z from 'zod';
 export const IIdentifiableGroupMessageSchema = z.object({
   // Generate GroupNotificationIDs if not provided
   GroupNotificationID: z.string().default(() => uuid()),
+  OrganisationID: z.string(),
   CampaignID: z.string().optional(),
   Namespace: z.string(),
   Group: z.string(),
@@ -16,6 +17,6 @@ export type IIdentifiableGroupMessage = z.infer<typeof IIdentifiableGroupMessage
 // Group Message Fields Schemas
 export const IGroupMessageSchema = z.object({
   ...IIdentifiableGroupMessageSchema.shape,
-  ...IMessageFields.shape,
+  ...IMessageFieldsSchema.shape,
 });
 export type IGroupMessage = z.infer<typeof IGroupMessageSchema>;
