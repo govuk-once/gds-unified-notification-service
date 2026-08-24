@@ -91,6 +91,9 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
+    const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.DeepLinkUrl
+    );
     const data = await this.validateRecord(record);
     const message = data.body;
 
@@ -119,6 +122,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
           NotificationID: message.NotificationID,
           NotificationTitle: message.NotificationTitle,
           NotificationBody: message.NotificationBody,
+          DeeplinkURL: featureEnabledDeepLinkUrl ? message.DeeplinkURL : undefined,
         })
     );
     this.observability.logger.info(`Notification dispatched`, {

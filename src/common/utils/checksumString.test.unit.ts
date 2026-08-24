@@ -1,16 +1,16 @@
 import { IGroupMessage } from '@project/lambdas';
 import { describe, expect, it } from 'vitest';
-import { generateNotificationIDForGroupMessage, md5ToUuidV4 } from './checksumString';
+import { generateNotificationIDForGroupMessage, hashToUuidV4 } from './checksumString';
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-describe('md5ToUuidV4', () => {
+describe('hashToUuidV4', () => {
   it('should generate a valid UUID v4 string from any generic object', () => {
     // Arrange
     const inputObject = { key1: 'value1', key2: 123 };
 
     // Act
-    const result = md5ToUuidV4(inputObject);
+    const result = hashToUuidV4(inputObject);
 
     // Assert
     expect(result).toMatch(UUID_V4_REGEX);
@@ -21,10 +21,10 @@ describe('md5ToUuidV4', () => {
     // Arrange
     const objA = { a: 'foo', b: 'bar' };
     const objB = { a: 'foo', b: 'bar' };
-    const uuidB = md5ToUuidV4(objB);
+    const uuidB = hashToUuidV4(objB);
 
     // Act
-    const uuidA = md5ToUuidV4(objA);
+    const uuidA = hashToUuidV4(objA);
 
     // Assert
     expect(uuidA).toBe(uuidB);
@@ -35,7 +35,7 @@ describe('md5ToUuidV4', () => {
     const inputObject = { test: 'bit_check' };
 
     // Act
-    const result = md5ToUuidV4(inputObject);
+    const result = hashToUuidV4(inputObject);
 
     // 3. Assert
     const parts = result.split('-');
