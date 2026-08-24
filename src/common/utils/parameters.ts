@@ -16,7 +16,7 @@ export const BoolParameters = {
       Enabled: 'config/dispatch/enabled',
     },
     FeatureFlags: {
-      ControlChannels: 'config/featureFlag/controlChannels',
+      ChannelControls: 'config/featureFlag/channelControls',
       DeepLinkUrl: 'config/featureFlag/deeplinkUrl',
       MessageRetention: 'config/featureFlag/messageRetention',
     },

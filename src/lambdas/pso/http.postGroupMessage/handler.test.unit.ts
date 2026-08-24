@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models/ChannelsEnum';
 import { BoolParameters } from '@common/utils';
 import {
   mockDefaultConfig,
@@ -64,6 +65,7 @@ describe('PostGroupMessage Handler', () => {
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
+    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'true';
     serviceMocks.configurationServiceMock.getParameter.mockImplementation(
       mockGetParameterImplementation(mockParameterStore)
     );
@@ -83,6 +85,7 @@ describe('PostGroupMessage Handler', () => {
             MessageRetention: {
               Allowed: false,
             },
+            Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
           }),
         },
       },
@@ -90,10 +93,10 @@ describe('PostGroupMessage Handler', () => {
 
     // Mocking retrieving store apiKey
     instance = new PostGroupMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
       cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
       groupStoreDynamoRepository: Promise.resolve(serviceMocks.groupStoreDynamoRepositoryMock),
       groupProcessingQueue: Promise.resolve(serviceMocks.groupProcessingQueueServiceMock),
+      validationService: Promise.resolve(serviceMocks.validationServiceMock),
     }));
     handler = instance.handler();
 
@@ -101,6 +104,7 @@ describe('PostGroupMessage Handler', () => {
     serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
     serviceMocks.cacheServiceMock.get.mockResolvedValue([mockPushID]);
     serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+    serviceMocks.validationServiceMock.messageValidation = vi.fn().mockReturnValue(undefined);
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     vi.mocked(uuid as () => string)
@@ -302,50 +306,19 @@ describe('PostGroupMessage Handler', () => {
     expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
   });
 
-  it('should NOT throw an error when called with a group message containing deeplink that is on the allowlist', async () => {
-    // Act
-    const result = await handler(
-      {
-        ...mockEvent,
-        body: JSON.stringify([{ ...mockGroupMessage, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
-      },
-      mockContext
-    );
-
-    // Assert
-    expect(result.statusCode).toEqual(202);
-  });
-
-  it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
-    // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, MessageBody: 'https://example.com' }]) },
-      mockContext
-    );
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual({
-      Status: 400,
-      HttpError: 'BadRequest',
-      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
-    });
-  });
-
-  it('should validate messages that contain valid markdown', async () => {
+  it('should accept a group message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
     // Arrange
-    const mockMarkdownMessage = {
+    const messageWithChannel = {
       ...mockGroupMessage,
-      MessageBody:
-        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+      Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
     };
-    const mockEventWithMarkdown = {
+    const event = {
       ...mockEvent,
-      body: JSON.stringify([mockMarkdownMessage]),
+      body: JSON.stringify([messageWithChannel]),
     };
 
     // Act
-    const result = await handler(mockEventWithMarkdown, mockContext);
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(202);
@@ -354,45 +327,107 @@ describe('PostGroupMessage Handler', () => {
     ]);
   });
 
-  it('should reject messages that contain invalid markdown', async () => {
+  it('should accept a group message with Channel set to MESSAGE_CENTRE_ONLY', async () => {
     // Arrange
-    const mockInvalidMarkdownMessage = {
+    const messageWithChannel = {
       ...mockGroupMessage,
-      MessageBody: '    const x = 10;\n    const y = 20;',
+      Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
     };
-    const mockEventInvalidMarkdown = {
+    const event = {
       ...mockEvent,
-      body: JSON.stringify([mockInvalidMarkdownMessage]),
+      body: JSON.stringify([messageWithChannel]),
     };
 
     // Act
-    const result = await handler(mockEventInvalidMarkdown, mockContext);
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([
+      { GroupNotificationID: mockGroupMessage.GroupNotificationID, UsersInGroup: 1 },
+    ]);
+  });
+
+  it('should accept a group message when Channel is omitted', async () => {
+    // Act
+    const result = await handler(mockEvent, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+  });
+
+  it('should return 400 when Channel is an empty string', async () => {
+    // Arrange
+    const messageWithEmptyChannel = {
+      ...mockGroupMessage,
+      Channel: '',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithEmptyChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Message body contains markdown elements which are not valid: code_block'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 
-  it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
+  it('should return 400 when Channel is an invalid enum value', async () => {
     // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
+    const messageWithInvalidChannel = {
+      ...mockGroupMessage,
+      Channel: 'INVALID_CHANNEL',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithInvalidChannel]),
+    };
 
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, DeeplinkURL: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(event, mockContext);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected DeeplinkURL at .'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  it('should return 400 when Channel is a lowercase variant of a valid enum', async () => {
+    // Arrange
+    const messageWithLowercaseChannel = {
+      ...mockGroupMessage,
+      Channel: 'push_notification_and_message_centre',
+    };
+    const event = {
+      ...mockEvent,
+      body: JSON.stringify([messageWithLowercaseChannel]),
+    };
+
+    // Act
+    const result = await handler(event, mockContext);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 
@@ -440,24 +475,5 @@ describe('PostGroupMessage Handler', () => {
         statusCode: 400,
       })
     );
-  });
-
-  it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
-    // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
-
-    // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockGroupMessage, ExpiresInDays: 25 }]) },
-      mockContext
-    );
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
-    expect(JSON.parse(result.body)).toEqual({
-      Status: 400,
-      HttpError: 'BadRequest',
-      Errors: ['Invalid input: unexpected ExpiresInDays at .'],
-    });
   });
 });
