@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { Context, ScheduledEvent } from 'aws-lambda';
 
@@ -91,11 +92,11 @@ export const mockAPIEvent = <T>(parameters: {
           MessageRetention: {
             Allowed: false,
           },
+          Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
         }),
       },
     },
   };
-  console.log(result);
   return result;
 };
 
@@ -148,6 +149,30 @@ export const mockAPIEventWithMessageRetention = <T>(
           Min: 10,
           Max: 35,
         },
+      }),
+    },
+  },
+});
+
+export const mockAPIEventWithChannelsControl = <T>(
+  body: T,
+  pathParameters?: Record<string, string>,
+  queryStringParameters?: Record<string, string>
+) => ({
+  body: JSON.stringify(body),
+  pathParameters,
+  queryStringParameters,
+  headers: {
+    'x-api-key': 'mockApiKey',
+    'Content-Type': `application/json`,
+  },
+  requestContext: {
+    requestTimeEpoch: 1428582896000,
+    requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+    authorizer: {
+      Organization: 'ORG01',
+      OrganisationConfig: JSON.stringify({
+        Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY],
       }),
     },
   },
