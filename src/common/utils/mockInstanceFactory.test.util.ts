@@ -25,6 +25,7 @@ import { GroupProcessingQueueService } from '@common/services/groupProcessingQue
 import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
+import { ValidationService } from '@common/services/validationService';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -142,6 +143,11 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     configurationServiceMock,
     smConfigurationServiceMock
   ) as Mocked<ProcessingService>;
+  const validationServiceMock = new ValidationService(contentValidationServiceMock, {
+    channelControls: true,
+    deeplinkUrl: true,
+    messageRetention: true,
+  });
   // TODO: Add when refactoring in NOT-292
   // const analyticsExportServiceMock = new AnalyticsExportService(
   //   observabilityMock,
@@ -164,12 +170,13 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
     // Services
     smConfigurationServiceMock,
     smNamespacedConfigurationServiceMock,
-    configurationServiceMock: configurationServiceMock,
+    configurationServiceMock,
     analyticsServiceMock,
     notificationServiceMock,
     cacheServiceMock,
     circuitBreakerServiceMock,
     contentValidationServiceMock,
     processingServiceMock,
+    validationServiceMock,
   };
 };

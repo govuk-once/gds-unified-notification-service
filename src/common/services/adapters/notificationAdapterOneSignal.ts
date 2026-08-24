@@ -64,8 +64,14 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     const metadata = {
       NotificationID: request.NotificationID,
     };
-
     this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'call');
+
+    if (request.Channel === ChannelsEnum.MESSAGE_CENTRE_ONLY) {
+      this.observability.logger.info(`Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal`, metadata);
+      return {
+        notification: request,
+      };
+    }
 
     try {
       this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);

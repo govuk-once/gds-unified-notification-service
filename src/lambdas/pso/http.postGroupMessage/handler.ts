@@ -1,21 +1,22 @@
 import {
+  APIHandler,
   CacheService,
   ConfigurationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
-  HttpMessageValidationOperator,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetGroupProcessingQueueService,
   iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
+  iocGetValidationService,
   NumericParameters,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
@@ -40,10 +41,7 @@ const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), U
     }
  */
 
-export class PostGroupMessage extends HttpMessageValidationOperator<
-  typeof requestBodySchema,
-  typeof responseBodySchema
-> {
+export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
@@ -51,13 +49,14 @@ export class PostGroupMessage extends HttpMessageValidationOperator<
   public readonly cacheService!: CacheService;
   public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly groupStoreDynamoRepository!: GroupStoreDynamoRepository;
+  public readonly validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     dependencies?: () => HandlerDependencies<PostGroupMessage>
   ) {
-    super(observability, config);
+    super(observability);
     this.injectDependencies(dependencies);
   }
 
@@ -74,7 +73,7 @@ export class PostGroupMessage extends HttpMessageValidationOperator<
     }));
 
     // Validates all messages & reject request when contents or configurations are unsupported
-    await this.messageValidation(messages, organisationConfig);
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Get the number of workers to be used to process the group message
     const numberOfWorkers = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerCount);
@@ -143,8 +142,8 @@ export class PostGroupMessage extends HttpMessageValidationOperator<
 }
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  contentValidationService: iocGetContentValidationService(),
   cacheService: iocGetCacheService().connect(),
   groupProcessingQueue: iocGetGroupProcessingQueueService(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
+  validationService: iocGetValidationService(),
 })).handler();

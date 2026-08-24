@@ -22,6 +22,15 @@ export const orgMetadata = {
       Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY],
     },
   },
+  EventsAggregator: {
+    DisplayName: 'Foreign Travel Advice',
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+      Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY],
+    },
+  },
 } as const;
 
 type OrgMetadata = Record<string, { DisplayName: string; OrganisationConfig: Record<string, unknown> }>;

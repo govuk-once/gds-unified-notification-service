@@ -1,16 +1,16 @@
 import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
+  APIHandler,
   ConfigurationService,
   HandlerDependencies,
-  HttpMessageValidationOperator,
   IMessageRecord,
   iocGetAnalyticsService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
+  iocGetValidationService,
   NotificationsDynamoRepository,
   ObservabilityService,
   ProcessingQueueService,
@@ -18,6 +18,7 @@ import {
   type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models';
+import { ValidationService } from '@common/services/validationService';
 import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -57,7 +58,7 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
     }
  */
 
-export class PostMessage extends HttpMessageValidationOperator<typeof requestBodySchema, typeof responseBodySchema> {
+export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'postMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
@@ -65,13 +66,14 @@ export class PostMessage extends HttpMessageValidationOperator<typeof requestBod
   public analyticsService!: AnalyticsService;
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
   public processingQueue!: ProcessingQueueService;
+  public validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
     dependencies?: () => HandlerDependencies<PostMessage>
   ) {
-    super(observability, config);
+    super(observability);
     this.injectDependencies(dependencies);
   }
 
@@ -88,7 +90,7 @@ export class PostMessage extends HttpMessageValidationOperator<typeof requestBod
     }));
 
     // Validates all messages & reject request when contents or configurations are unsupported
-    await this.messageValidation(messages, organisationConfig);
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Publish analytics & push items to the processing queue
     this.observability.logger.info('Publishing analytics events for validated messages.');
@@ -131,7 +133,7 @@ export class PostMessage extends HttpMessageValidationOperator<typeof requestBod
 
 export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
-  contentValidationService: iocGetContentValidationService(),
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   processingQueue: iocGetProcessingQueueService(),
+  validationService: iocGetValidationService(),
 })).handler();
