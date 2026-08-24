@@ -128,6 +128,8 @@ export const config = {
   featureFlag: {
     groups: env !== 'prod',
     deeplinkUrl: env !== 'prod',
+    messageRetention: env !== 'prod',
+    channelControls: env !== 'prod',
   },
 
   // VPC

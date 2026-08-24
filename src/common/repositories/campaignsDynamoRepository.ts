@@ -1,10 +1,12 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { ICampaignRecord } from '@common/repositories/interfaces/ICampaignRecord';
+import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces/ICampaignRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 
-export class CampaignsDynamoRepository extends DynamodbRepository<ICampaignRecord> {
+export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampaignRecordSchema> {
+  protected recordSchema = ICampaignRecordSchema;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService

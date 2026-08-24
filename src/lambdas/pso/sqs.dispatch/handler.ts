@@ -23,12 +23,12 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { BoolParameters, NumericParameters } from '@common/utils';
+import { IProcessedMessageSchema } from '@project/lambdas/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 

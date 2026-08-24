@@ -1,10 +1,12 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
+import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
+import { IProcessedMessage } from '@project/lambdas';
 
-export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisationRecord> {
+export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {
+  protected recordSchema = IOrganisationRecordSchema;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService
@@ -17,7 +19,7 @@ export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisat
     return this;
   }
 
-  public async getOrganisations(notifications: IMessageRecord[]): Promise<IOrganisationRecord[]> {
+  public async getOrganisations(notifications: IProcessedMessage[]): Promise<IOrganisationRecord[]> {
     const uniqueOrganisationsIDs = Array.from(new Set(notifications.map((x) => x.OrganisationID)));
     const promises = uniqueOrganisationsIDs.map(async (organisationID) => {
       const organisationRecord = await this.getRecord(organisationID);

@@ -4,7 +4,7 @@ import { SqsRecordSchema } from '@aws-lambda-powertools/parser/schemas';
 import { ContentValidationError, UnidentifiableRecordError } from '@common/models/Errors/BadRequestError';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
-import { BoolParameters, errorFormatter } from '@common/utils';
+import { BoolParameters, zodErrorFormatter } from '@common/utils';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodAny, ZodType } from 'zod';
 
@@ -134,7 +134,7 @@ export abstract class BatchQueueOperation<
 
     if (!validatedRecord.success) {
       const validationError = validatedRecord.error;
-      throw new ContentValidationError(errorFormatter(validationError));
+      throw new ContentValidationError(zodErrorFormatter(validationError));
     }
 
     return validatedRecord.data as OutputRecord;

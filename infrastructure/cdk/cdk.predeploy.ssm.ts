@@ -33,6 +33,8 @@ export const configurableParameters = {
 
   // Feature Flags
   'config/featureFlag/deeplinkUrl': String(config.featureFlag.deeplinkUrl),
+  'config/featureFlag/messageRetention': String(config.featureFlag.messageRetention),
+  'config/featureFlag/channelControls': String(config.featureFlag.channelControls),
 
   // Default values for url content control within the data
   'content/allowed/protocols': 'govuk:,https:',
