@@ -94,6 +94,7 @@ export abstract class BatchQueueOperation<
     const contentValidationService = this.contentValidationService;
     const schema = contentValidationService
       ? this.requestBodySchema.superRefine((data, ctx) => {
+          // TODO: Shift out content validation away from this base class
           try {
             const body = data as Record<string, unknown>;
             if (typeof body.MessageBody === 'string') {
