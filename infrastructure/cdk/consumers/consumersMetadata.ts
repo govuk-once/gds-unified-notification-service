@@ -17,6 +17,14 @@ export const devOrgMetadata = {
       },
     },
   },
+  EventsAggregator: {
+    DisplayName: 'Foreign Travel Advice',
+    OrganisationConfig: {
+      MessageRetention: {
+        Allowed: false,
+      },
+    },
+  },
 } as const;
 
 export const stgOrgMetadata = {
