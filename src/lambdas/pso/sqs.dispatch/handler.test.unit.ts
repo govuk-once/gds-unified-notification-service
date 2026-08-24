@@ -273,6 +273,33 @@ describe('Dispatch QueueHandler', () => {
     });
   });
 
+  it('should trigger notification service for valid messages - with deeplink when feature flag is on', async () => {
+    // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'true';
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
+      requestId: '123',
+      success: true,
+    } as unknown as NotificationAdapterResult);
+
+    // Act
+    await handler(
+      {
+        ...mockEvent,
+        Records: [...mockEvent.Records.map((r) => ({ ...r, body: { ...r.body, DeeplinkURL: 'govuk://travel' } }))],
+      },
+      mockContext
+    );
+
+    // Assert
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
+      ExternalUserID: mockMessageBody_1.ExternalUserID,
+      NotificationID: mockMessageBody_1.NotificationID,
+      NotificationTitle: mockMessageBody_1.NotificationTitle,
+      NotificationBody: mockMessageBody_1.NotificationBody,
+      DeeplinkURL: 'govuk://travel',
+    });
+  });
+
   it('should update data in the notifications message table', async () => {
     // Arrange
     serviceMocks.notificationServiceMock.send.mockResolvedValue({

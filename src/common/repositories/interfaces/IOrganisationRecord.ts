@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import z from 'zod';
 
 export const IOrganisationConfigSchema = z.object({
@@ -33,6 +34,7 @@ export const IOrganisationConfigSchema = z.object({
       }
     })
     .optional(),
+  Channels: z.enum(ChannelsEnum).array().optional(),
 });
 export type IOrganisationConfig = z.infer<typeof IOrganisationConfigSchema>;
 

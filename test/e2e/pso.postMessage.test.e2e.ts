@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
@@ -235,7 +236,7 @@ describe('Post /send', () => {
     });
 
     test('status 400 when - the message has an ExpireInDays less than the organisation minimum', async ({ psoAPI }) => {
-      // This required that the organisation config for UNS is set to Min: 2
+      // This required that the organisation config for UNS is set to MessageRetention.Min: 2
       // Arrange
       const messagesWithInvalidExpiresInDays = [
         {
@@ -254,7 +255,7 @@ describe('Post /send', () => {
     test('status 400 when - the message has an ExpireInDays greater than the organisation maximum', async ({
       psoAPI,
     }) => {
-      // This required that the organisation config for UNS is set to Min: 30
+      // This required that the organisation config for UNS is set to MessageRetention.Min: 30
       // Arrange
       const messagesWithInvalidExpiresInDays = [
         {
@@ -373,7 +374,7 @@ describe('Post /send', () => {
 
     test('status 202 when - the message has an ExpiresInDays equal to the organisation minimum', async ({ psoAPI }) => {
       // Arrange
-      // This required that the organisation config for UNS is set to Min: 2
+      // This required that the organisation config for UNS is set to MessageRetention.Min: 2
       const messagesWithExpiresInDays = [
         {
           ...messageRequest[0],
@@ -391,7 +392,7 @@ describe('Post /send', () => {
 
     test('status 202 when - the message has an ExpiresInDays equal to the organisation maximum', async ({ psoAPI }) => {
       // Arrange
-      // This required that the organisation config for UNS is set to Max: 30
+      // This required that the organisation config for UNS is set to MessageRetention.Max: 30
       const messagesWithExpiresInDays = [
         {
           ...messageRequest[0],
@@ -405,6 +406,134 @@ describe('Post /send', () => {
       // Assert
       expect(result.status).toBe(202);
       expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('status 202 when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: PUSH_NOTIFICATION_AND_MESSAGE_CENTRE
+      const messagesWithChannel = [
+        {
+          ...messageRequest[0],
+          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithChannel });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('status 202 when - the message has Channel MESSAGE_CENTRE_ONLY', async ({ psoAPI }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
+      const messagesWithChannel = [
+        {
+          ...messageRequest[0],
+          Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithChannel });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
+      psoAPI,
+    }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: PUSH_NOTIFICATION_AND_MESSAGE_CENTRE
+      const messagesWithChannel = [
+        {
+          ...messageRequest[0],
+          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithChannel });
+
+      // Assert
+      expect(result.status).toBe(202);
+      const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
+        timeout: 30000,
+        interval: 2000,
+      });
+      expect(status).toEqual(
+        expect.arrayContaining(
+          [
+            NotificationStateEnum.VALIDATED_API_CALL,
+            NotificationStateEnum.PROCESSING,
+            // TODO: Need a way to void test notification while adapter is not VOID.
+            // NotificationStateEnum.PROCESSED,
+            // NotificationStateEnum.DISPATCHING,
+            // NotificationStateEnum.DISPATCHED,
+          ].map((Status) =>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            expect.objectContaining({
+              Status,
+              NotificationID: notificationID,
+            })
+          )
+        )
+      );
+    });
+
+    test('notification status PROCESSED only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
+      psoAPI,
+    }) => {
+      // Arrange
+      // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
+      const messagesWithChannel = [
+        {
+          ...messageRequest[0],
+          Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
+        },
+      ];
+
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithChannel });
+
+      // Assert
+      expect(result.status).toBe(202);
+      const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
+        timeout: 30000,
+        interval: 2000,
+      });
+      expect(status).toEqual(
+        expect.arrayContaining(
+          [
+            NotificationStateEnum.VALIDATED_API_CALL,
+            NotificationStateEnum.PROCESSING,
+            // TODO: Need a way to void test notification while adapter is not VOID.
+            // NotificationStateEnum.PROCESSED,
+            // NotificationStateEnum.DISPATCHING
+          ].map((Status) =>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            expect.objectContaining({
+              Status,
+              NotificationID: notificationID,
+            })
+          )
+        )
+      );
+      expect(status).toEqual(
+        expect.not.arrayContaining(
+          [NotificationStateEnum.DISPATCHED].map((Status) =>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            expect.objectContaining({
+              Status,
+              NotificationID: notificationID,
+            })
+          )
+        )
+      );
     });
   });
 });
