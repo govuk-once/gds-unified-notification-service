@@ -25,6 +25,7 @@ export class UNSStack extends Stack {
     const organisations = new UNSOrganisationsCommon(this, config, common);
     this.pso = new UNSPSOResource(this, config, {
       refs: common,
+      orgs: organisations,
       mtls: {
         truststorePath: mtls.truststorePath,
         dependencies: [mtls.truststoreUpload],
@@ -40,7 +41,7 @@ export class UNSStack extends Stack {
             }),
       },
     });
-    this.flex = new UNSFlexResource(this, config, { refs: common, organisationsRef: organisations });
+    this.flex = new UNSFlexResource(this, config, { refs: common, orgs: organisations });
 
     this.applyTags(this, config);
     this.applyCheckovSkips();

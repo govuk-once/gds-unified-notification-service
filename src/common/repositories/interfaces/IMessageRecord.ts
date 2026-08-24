@@ -4,8 +4,8 @@ import * as z from 'zod';
 export const IMessageRecordSchema = z.object({
   // IDs
   NotificationID: z.string(),
-  DepartmentID: z.string().optional(),
   OrganisationID: z.string(), // Derived from the mTLS certificate
+  DepartmentID: z.string().optional(),
   UserID: z.string().optional(), // ID Supplied by PSO's
   ExternalUserID: z.string().optional(), // ID Resolved via UDP using PSO's UserID
   CampaignID: z.string().optional(),
@@ -28,8 +28,21 @@ export const IMessageRecordSchema = z.object({
   DispatchedDateTime: z.string().optional(),
   ExpirationDateTime: z.string().optional(),
 
+  // Configurations
+  RequestedDaysToExpire: z.int().positive().optional(),
+
   // Events - appended via analytics handler
   Events: z.array(IAnalyticsSchema),
 });
 
 export type IMessageRecord = z.infer<typeof IMessageRecordSchema>;
+
+export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
+  ExternalUserID: z.string(),
+  ReceivedDateTime: z.string(),
+  ValidatedDateTime: z.string(),
+  ProcessedDateTime: z.string(),
+  ExpirationDateTime: z.string(),
+});
+
+export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

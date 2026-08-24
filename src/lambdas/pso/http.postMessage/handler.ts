@@ -21,11 +21,11 @@ import {
 } from '@common';
 import { NotificationStateEnum } from '@common/models';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { IMessageSchema } from '@project/lambdas/interfaces';
+import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
+const requestBodySchema = z.array(IValidateMessageSchema.strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 
 /**
@@ -84,14 +84,9 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
+    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
 
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
-
-    const messages = event.body.map((body) => ({
+    const messages: IMessage[] = event.body.map((body) => ({
       ...body,
       OrganisationID: organisationID,
     }));
@@ -100,13 +95,25 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
       BoolParameters.Config.FeatureFlags.DeepLinkUrl
     );
+    const featureEnabledMessageRetention = await this.config.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.MessageRetention
+    );
     for (const message of messages) {
       this.contentValidationService.validate(message.MessageBody);
+
       if (featureEnabledDeepLinkUrl) {
         this.contentValidationService.validateUrls(message.DeeplinkURL);
       } else {
         if (message.DeeplinkURL) {
           throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
+        }
+      }
+
+      if (message.ExpiresInDays) {
+        if (featureEnabledMessageRetention) {
+          this.contentValidationService.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
+        } else {
+          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
         }
       }
     }
@@ -129,10 +136,11 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
       messages.map((body): IMessageRecord => ({
-        ...body,
+        ...{ ...body, ExpiresInDays: undefined },
         APIGWExtendedID: event.requestContext.requestId,
         ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: body.ExpiresInDays,
         Events: [],
       }))
     );

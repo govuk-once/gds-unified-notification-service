@@ -13,7 +13,7 @@ import {
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
 import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
 import { Dispatch } from '@project/lambdas/pso/sqs.dispatch/handler';
 import { Context } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -399,6 +399,8 @@ describe('Dispatch QueueHandler', () => {
   });
 
   it('should return and error and trigger analytics for failure events for invalid messages.', async () => {
+    // Arrange
+
     // Act
     const result = handler(mockFailedEvent, mockContext);
 

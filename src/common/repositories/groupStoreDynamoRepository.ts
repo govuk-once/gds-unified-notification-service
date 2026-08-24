@@ -1,11 +1,13 @@
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IGroupStoreRecord } from '@common/repositories/interfaces';
+import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
 import { IGroups, IModifyGroups } from '@project/lambdas';
 import { v4 as uuid } from 'uuid';
 
-export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRecord> {
+export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroupStoreRecordSchema> {
+  protected recordSchema = IGroupStoreRecordSchema;
+
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService
