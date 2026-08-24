@@ -6,4 +6,5 @@ export interface NotificationAdapterRequest {
   NotificationTitle: string;
   NotificationBody: string;
   Channel?: ChannelsEnum;
+  DeeplinkURL?: string;
 }
