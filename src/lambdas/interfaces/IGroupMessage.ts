@@ -1,4 +1,4 @@
-import { IMessageFields } from '@project/lambdas/interfaces/IMessage';
+import { IMessageFieldsSchema } from '@project/lambdas/interfaces/IMessage';
 import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
@@ -17,6 +17,6 @@ export type IIdentifiableGroupMessage = z.infer<typeof IIdentifiableGroupMessage
 // Group Message Fields Schemas
 export const IGroupMessageSchema = z.object({
   ...IIdentifiableGroupMessageSchema.shape,
-  ...IMessageFields.shape,
+  ...IMessageFieldsSchema.shape,
 });
 export type IGroupMessage = z.infer<typeof IGroupMessageSchema>;
