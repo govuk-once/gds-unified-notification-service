@@ -1,4 +1,4 @@
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { ObservabilityService } from '@common/services/observabilityService';
 import * as z from 'zod';
 

@@ -2,7 +2,7 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import { StringParameters } from '@common/utils/parameters';
 import { IGroups, IModifyGroups } from '@project/lambdas';
 import { v4 as uuid } from 'uuid';
 

@@ -1,4 +1,4 @@
-import { md5ToUuidV4 } from '@common/utils';
+import { hashToUuidV4 } from '@common/utils';
 import { IGroupMessageSchema } from '@project/lambdas/interfaces/IGroupMessage';
 import { IProcessedMessage } from '@project/lambdas/interfaces/IMessage';
 import z from 'zod';
@@ -75,7 +75,7 @@ export const mockIProcessedGroupMessage = (
   groupMessageMetadata: IGroupMessageMetadata,
   pushID: string
 ): IProcessedMessage => {
-  const notificationID = md5ToUuidV4({
+  const notificationID = hashToUuidV4({
     PushID: pushID,
     OrganisationID: groupMessageMetadata.GroupMessage.OrganisationID,
     GroupNotificationID: groupMessageMetadata.GroupMessage.GroupNotificationID,

@@ -1,7 +1,7 @@
 import { IRequestEvent } from '@common/middlewares';
-import { mockEventContext } from '@common/utils/mockEvents.test.utils';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { mockEventContext, observabilitySpies } from '@common/utils';
 import { GetHealthcheck } from '@project/lambdas/pso/http.getHealthcheck/handler';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -13,10 +13,14 @@ describe('GetHealthcheck Handler', () => {
   const observabilityMocks = observabilitySpies();
 
   // Test Fixtures
-  const context = mockEventContext('getNotificationStatus');
-  const event = {} as unknown as IRequestEvent;
+  let context: Context;
+  let event: IRequestEvent;
 
   beforeEach(() => {
+    // Test Fixtures
+    context = mockEventContext('getNotificationStatus');
+    event = {} as unknown as IRequestEvent;
+
     instance = new GetHealthcheck(observabilityMocks);
   });
 

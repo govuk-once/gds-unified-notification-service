@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 
 export class AnalyticsQueueService extends QueueService<unknown> {
   protected queueName: string = 'analytics';

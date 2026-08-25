@@ -1,28 +1,21 @@
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { ICampaignRecord } from '@common/repositories/interfaces/ICampaignRecord';
-import { StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { ICampaignRecord } from '@common/repositories/interfaces';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/util-dynamodb', { spy: true });
+
 vi.mock('@common/services', { spy: true });
 
 describe('campaignDynamoRepository', () => {
   let instance: CampaignsDynamoRepository;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -37,8 +30,8 @@ describe('campaignDynamoRepository', () => {
 
     instance = new CampaignsDynamoRepository(
       serviceMocks.configurationServiceMock,
-      clientMocks.dynamoDBClientMock,
-      observabilityMock
+      awsClientMocks.dynamoDBClientMock,
+      observabilityMocks
     );
 
     await instance.initialize();
@@ -64,7 +57,7 @@ describe('campaignDynamoRepository', () => {
     it('should get record with correct table name', async () => {
       // Arrange
       const mockRecord: ICampaignRecord = { CompositeID: 'DEPT01/CAMP01' };
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({ Item: marshall(mockRecord) });
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({ Item: marshall(mockRecord) });
 
       // Act
       const result = await instance.getRecord('DEPT01/CAMP01');
@@ -75,7 +68,7 @@ describe('campaignDynamoRepository', () => {
 
     it('should return null if item is not found', async () => {
       // Arrange
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({});
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
       const result = await instance.getRecord('DEPT01/CAMP01');
@@ -87,14 +80,14 @@ describe('campaignDynamoRepository', () => {
     it('should log error if request fails', async () => {
       // Arrange
       const error = new Error('Connection Failure');
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.getRecord('DEPT01/CAMP01');
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
         tableName: 'mockCampaignsDynamoRepositoryName',
         error: error.message,
       });
@@ -106,7 +99,7 @@ describe('campaignDynamoRepository', () => {
       const mockInvalidCampaignRecord = {
         CompositeID: 12345678,
       } as unknown as ICampaignRecord;
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
         Item: marshall(mockInvalidCampaignRecord),
       });
 
@@ -120,7 +113,7 @@ describe('campaignDynamoRepository', () => {
           'Invalid input: expected string, received number → at CompositeID.',
         ])
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Record in table failed to parse to record schema', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Record in table failed to parse to record schema', {
         tableName: 'mockCampaignsDynamoRepositoryName',
         key: 'CompositeID',
         value: compositeID,
@@ -132,7 +125,7 @@ describe('campaignDynamoRepository', () => {
     it('should get record with correct table name', async () => {
       // Arrange
       const mockRecords: ICampaignRecord[] = [{ CompositeID: 'DEPT01/CAMP01' }, { CompositeID: 'DEPT01/CAMP01' }];
-      clientMocks.dynamoDBClientMock.scan = vi
+      awsClientMocks.dynamoDBClientMock.scan = vi
         .fn()
         .mockResolvedValueOnce({ Items: mockRecords.map((record) => marshall(record)) });
 
@@ -145,7 +138,7 @@ describe('campaignDynamoRepository', () => {
 
     it('should return empty array if no item are found', async () => {
       // Arrange
-      clientMocks.dynamoDBClientMock.scan = vi.fn().mockResolvedValueOnce({ Items: [] });
+      awsClientMocks.dynamoDBClientMock.scan = vi.fn().mockResolvedValueOnce({ Items: [] });
 
       // Act
       const result = await instance.getRecords();
@@ -157,14 +150,14 @@ describe('campaignDynamoRepository', () => {
     it('should log error if request fails', async () => {
       // Arrange
       const error = new Error('Connection Failure');
-      clientMocks.dynamoDBClientMock.scan = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.dynamoDBClientMock.scan = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.getRecords();
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting records for table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in getting records for table', {
         tableName: 'mockCampaignsDynamoRepositoryName',
         error: error.message,
       });
@@ -193,7 +186,7 @@ describe('campaignDynamoRepository', () => {
       const departmentID = 'DEPT01';
       const event = NotificationStateEnum.VALIDATED;
 
-      clientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -204,8 +197,8 @@ describe('campaignDynamoRepository', () => {
       await instance.incrementCampaigns(campaignID, organisationID, departmentID, event);
 
       // Assert
-      expect(clientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledTimes(1);
-      expect(clientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith(
+      expect(awsClientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledTimes(1);
+      expect(awsClientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith(
         expect.objectContaining({
           TableName: 'mockCampaignsDynamoRepositoryName',
           Key: marshall({ CompositeID: 'ORG01/DEPT01/CAMP01' }),
@@ -225,7 +218,7 @@ describe('campaignDynamoRepository', () => {
       const organisationID = 'ORG01';
       const event = NotificationStateEnum.VALIDATED;
 
-      clientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -236,7 +229,7 @@ describe('campaignDynamoRepository', () => {
       await instance.incrementCampaigns(campaignID, organisationID, undefined, event);
 
       // Assert
-      expect(clientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith(
+      expect(awsClientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith(
         expect.objectContaining({
           Key: marshall({ CompositeID: 'ORG01/CAMP01' }),
         })

@@ -3,7 +3,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -15,9 +15,8 @@ describe('DispatchQueueService', () => {
   let dispatchQueueService: DispatchQueueService;
 
   // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -34,8 +33,8 @@ describe('DispatchQueueService', () => {
 
     dispatchQueueService = new DispatchQueueService(
       serviceMocks.configurationServiceMock,
-      clientMocks.sqsClientMock,
-      observabilityMock
+      awsClientMocks.sqsClientMock,
+      observabilityMocks
     );
     await dispatchQueueService.initialize();
   });
@@ -57,7 +56,7 @@ describe('DispatchQueueService', () => {
 
       // Assert
       expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
     });
   });
 });

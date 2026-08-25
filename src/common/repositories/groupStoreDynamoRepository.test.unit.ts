@@ -1,17 +1,13 @@
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
-import { StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/util-dynamodb', { spy: true });
+
 vi.mock('@common/services', { spy: true });
 
 const mockGroupID = 'd63d1fea-5731-4350-a54f-2e0ddaeae943';
@@ -22,10 +18,8 @@ vi.mock('uuid', () => ({
 describe('GroupStoreDynamoRepository', () => {
   let instance: GroupStoreDynamoRepository;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -52,8 +46,8 @@ describe('GroupStoreDynamoRepository', () => {
 
     instance = new GroupStoreDynamoRepository(
       serviceMocks.configurationServiceMock,
-      clientMocks.dynamoDBClientMock,
-      observabilityMock
+      awsClientMocks.dynamoDBClientMock,
+      observabilityMocks
     );
     instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(undefined);
     instance.deleteRecord = vi.fn().mockResolvedValueOnce(undefined);
@@ -281,7 +275,7 @@ describe('GroupStoreDynamoRepository', () => {
       await instance.joinGroups(mockPushID, mockJoinGroups, usersGroups);
 
       // Assert
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
         'Request tried to join a group user is already part of',
         { PushID: mockPushID, CompositeID: mockCompositeID }
       );
@@ -297,7 +291,7 @@ describe('GroupStoreDynamoRepository', () => {
       // Assert
       expect(instance.createRecordBatch).not.toHaveBeenCalled();
       expect(result).toEqual(usersGroups);
-      expect(observabilityMock.logger.debug).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
         'No groups to join provided - returning usersGroups',
         { pushID: mockPushID }
       );
@@ -381,7 +375,7 @@ describe('GroupStoreDynamoRepository', () => {
       // Assert
       expect(instance.deleteRecord).not.toHaveBeenCalled();
       expect(result).toEqual([]);
-      expect(observabilityMock.logger.debug).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
         'No user groups found for pushID - returning empty array',
         { pushID: mockPushID }
       );
@@ -405,7 +399,7 @@ describe('GroupStoreDynamoRepository', () => {
       // Assert
       expect(instance.deleteRecord).not.toHaveBeenCalled();
       expect(result).toEqual(usersGroups);
-      expect(observabilityMock.logger.debug).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
         'No groups to leave provided - returning usersGroups',
         { pushID: mockPushID }
       );

@@ -1,7 +1,8 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { NotificationStateEnum } from '@common/models';
+import { mockIMessageRecord } from '@common/repositories';
+import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
+import { mockIMessage } from '@project/lambdas/interfaces';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -16,79 +17,39 @@ describe('DeleteNotification Handler', () => {
   let handler: ReturnType<typeof DeleteNotification.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
-  const mockContext = {
-    functionName: 'deleteNotification',
-    awsRequestId: '12345',
-  } as unknown as Context;
-
-  let mockEvent: EventType;
-  let mockMissingIdEvent: EventType;
+  // Test Fixtures
+  let context: Context;
+  let event: EventType;
 
   const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;
   const externalUserID = `abc-cdef-ghi`;
-
-  const mockDbRecord: IMessageRecord = {
-    NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-    DepartmentID: 'DEP01',
-    UserID: 'UserID',
-    ExternalUserID: externalUserID,
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-    OrganisationID: 'ORG01',
-    Events: [
-      {
-        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-        NotificationID: notificationID,
-        DepartmentID: 'abc',
-        Event: NotificationStateEnum.RECEIVED,
-        EventDateTime: new Date().toISOString(),
-        EventReason: '',
-        APIGWExtendedID: 'Test',
-        OrganisationID: 'ORG_ID',
-      },
-    ],
-    DispatchedDateTime: '2026-02-13',
-  };
+  const message = mockIMessage();
+  const messageRecord = mockIMessageRecord({ ...message, ExternalUserID: externalUserID });
 
   beforeEach(() => {
+    // Reset all mocks
     vi.clearAllMocks();
 
-    mockEvent = {
-      headers: {
-        'x-api-key': 'mockApiKey',
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-      pathParameters: {
-        notificationID: '12345',
-      },
-      queryStringParameters: {
-        externalUserID,
-      },
-    } as unknown as EventType;
+    // Test Fixtures
+    context = mockEventContext('deleteNotification');
+    event = mockFlexAPIEvent({
+      pathParameters: { notificationID },
+      queryStringParameters: { externalUserID },
+    }) as unknown as EventType;
 
-    mockMissingIdEvent = {
-      ...mockEvent,
-      pathParameters: {},
-    };
+    // Mocking successful completion of service functions
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
+    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
 
     instance = new DeleteNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
     }));
-
     handler = instance.handler();
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
   });
 
   it('should have the correct operationId', () => {
@@ -98,7 +59,7 @@ describe('DeleteNotification Handler', () => {
 
   it('should return 204 with status ok and return a notification', async () => {
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(204);
@@ -106,18 +67,24 @@ describe('DeleteNotification Handler', () => {
 
   it('should call publish event with the NotificationStateEnum.hidden', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
-      mockDbRecord,
+      messageRecord,
       NotificationStateEnum.HIDDEN
     );
   });
 
   it('should return 400 when notificationID is missing from path params', async () => {
+    // Arrange
+    const eventWithoutNotificationID = mockFlexAPIEvent({
+      pathParameters: {},
+      queryStringParameters: { externalUserID },
+    }) as unknown as EventType;
+
     // Act
-    const result = await handler(mockMissingIdEvent, mockContext);
+    const result = await handler(eventWithoutNotificationID, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -130,12 +97,13 @@ describe('DeleteNotification Handler', () => {
 
   it('should return 400 when externalUserID/pushID is undefined', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    mockEvent.queryStringParameters = {};
+    const eventWithoutExternalUserID = mockFlexAPIEvent({
+      pathParameters: { notificationID },
+      queryStringParameters: {},
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(eventWithoutExternalUserID, context);
 
     // Assert
     expect(JSON.parse(result.body)).toEqual({
@@ -147,14 +115,13 @@ describe('DeleteNotification Handler', () => {
 
   it('should return 400 when externalUserID is an empty string', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    mockEvent.queryStringParameters = {
-      externalUserID: '',
-    };
+    const eventWithoutExternalUserID = mockFlexAPIEvent({
+      pathParameters: { notificationID },
+      queryStringParameters: { externalUserID: '' },
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(eventWithoutExternalUserID, context);
 
     // Assert
     expect(JSON.parse(result.body)).toEqual({
@@ -166,14 +133,13 @@ describe('DeleteNotification Handler', () => {
 
   it('should return 400 when pushID is an empty string', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    mockEvent.queryStringParameters = {
-      pushID: '',
-    };
+    const eventWithoutPushID = mockFlexAPIEvent({
+      pathParameters: { notificationID },
+      queryStringParameters: { pushID: '' },
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(eventWithoutPushID, context);
 
     // Assert
     expect(JSON.parse(result.body)).toEqual({
@@ -188,7 +154,7 @@ describe('DeleteNotification Handler', () => {
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce(null);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(404);
@@ -201,11 +167,11 @@ describe('DeleteNotification Handler', () => {
 
   it('should return 404 when externalUserId of the notification does not match the externalUserId provided', async () => {
     // Arrange
-    const mockDbRecordUnauthorized = { ...mockDbRecord, ExternalUserID: 'invalid' };
+    const mockDbRecordUnauthorized = { ...messageRecord, ExternalUserID: 'invalid' };
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce(mockDbRecordUnauthorized);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(404);

@@ -16,7 +16,7 @@ vi.mock('@common/utils/inMemoryTTLCache', { spy: true });
 describe('ConfigurationService', () => {
   let config: ConfigurationService;
 
-  const observabilityMock = observabilitySpies();
+  const observabilityMocks = observabilitySpies();
   const awsClientMocks = awsClientSpies();
 
   const inMemoryCacheMock = new InMemoryTTLCache(60000) as Mocked<InMemoryTTLCache<string, string>>;
@@ -25,7 +25,7 @@ describe('ConfigurationService', () => {
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
-    config = new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMock);
+    config = new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMocks);
   });
 
   describe('getParameter', () => {
@@ -53,7 +53,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed fetching value', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failed fetching value', {
         paramName: '/test/testNameSpace',
         error: error.message,
       });
@@ -72,7 +72,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Retrieve parameter /test/testNameSpace has no value'
       );
     });
@@ -118,7 +118,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Could not parse parameter testKey to type`, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Could not parse parameter testKey to type`, {
         error: '✖ Invalid input',
         method: 'getParameterAsType',
       });
@@ -154,7 +154,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(errorMsg, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(errorMsg, {
         error: '✖ Invalid number',
         method: `getParameterAsType`,
       });
@@ -190,7 +190,7 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(errorMsg, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(errorMsg, {
         error: '✖ Invalid option: expected one of "blue"|"green"',
         method: 'getParameterAsType',
       });

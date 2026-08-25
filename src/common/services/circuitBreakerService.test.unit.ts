@@ -1,10 +1,6 @@
-import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { NumericParameters } from '@common/utils/parameters';
+import { CircuitBreakerStateEnum } from '@common/models';
+import { CircuitBreakerOpenError, CircuitBreakerService } from '@common/services';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, NumericParameters } from '@common/utils';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -12,12 +8,9 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-import { CircuitBreakerOpenError, CircuitBreakerService } from '@common/services';
-
 describe('CircuitBreakerService', () => {
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   let mockParameterStore = mockDefaultConfig();
   let service: CircuitBreakerService;

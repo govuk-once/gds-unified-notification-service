@@ -8,7 +8,7 @@ import {
   mockDefaultSecrets,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { StringSecret } from '@common/utils/secrets';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -22,10 +22,8 @@ vi.mock('@common/adapters/notificationAdapterOneSignal', { spy: true });
 describe('NotificationService', () => {
   let instance: NotificationService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -53,7 +51,7 @@ describe('NotificationService', () => {
     );
 
     instance = new NotificationService(
-      observabilityMock,
+      observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.smNamespacedConfigurationServiceMock
     );
@@ -111,10 +109,10 @@ describe('NotificationService', () => {
       await instance.send(mockRequest);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
         NotificationID: mockRequest.NotificationID,
       });
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using Void adapter`, {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Sending notification using Void adapter`, {
         NotificationID: mockRequest.NotificationID,
       });
     });
@@ -131,10 +129,10 @@ describe('NotificationService', () => {
       await instance.send(mockRequest);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
         NotificationID: mockRequest.NotificationID,
       });
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
         NotificationID: mockRequest.NotificationID,
       });
     });
@@ -198,13 +196,13 @@ describe('NotificationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new BadGatewayError(['API [POST] /notifications?c=push Failed with 400']));
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
         NotificationID: mockRequest.NotificationID,
       });
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
         NotificationID: mockRequest.NotificationID,
       });
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         `Failed to dispatch notification using OneSignal adapter`,
         {
           NotificationID: mockRequest.NotificationID,
@@ -239,7 +237,7 @@ describe('NotificationService', () => {
       // Assert
       expect(result).toEqual({ notification: mockRequestWithChannel });
       expect(postSpy).not.toHaveBeenCalled();
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal`,
         { NotificationID: mockRequestWithChannel.NotificationID }
       );

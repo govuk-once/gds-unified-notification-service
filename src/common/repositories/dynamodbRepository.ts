@@ -10,10 +10,10 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
+import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
-import { zodErrorFormatter } from '@common/utils';
+import { zodErrorFormatter } from '@common/utils/zod';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {

@@ -1,5 +1,5 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
 import { FeatureFlags } from '@common/services/interfaces/featureFlags';
 import { ObservabilityService } from '@common/services/observabilityService';

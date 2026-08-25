@@ -1,26 +1,28 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationStateEnum } from '@common/models';
+import { QueueEvent } from '@common/operations/queueOperation';
 import {
+  iocSpies,
   mockDefaultConfig,
+  mockEventContext,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { mockEventContext, mockQueueEvent, mockQueueMultiEvents } from '@common/utils/mockEvents.test.utils';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IAnalytics, mockFailedIAnalytics, mockIAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+  mockQueueEvent,
+  mockQueueMultiEvents,
+} from '@common/utils';
+import { IAnalytics, mockFailedIAnalytics, mockIAnalytics } from '@project/lambdas/interfaces';
 import { Analytics } from '@project/lambdas/pso/sqs.analytics/handler';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
 describe('Analytics QueueHandler', () => {
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -29,13 +31,19 @@ describe('Analytics QueueHandler', () => {
   let handler: ReturnType<typeof Analytics.prototype.handler>;
 
   // Test Fixtures
-  const context = mockEventContext('analytics');
-  const messageBody = mockIAnalytics(NotificationStateEnum.RECEIVED);
-  const failedMessageBody = mockFailedIAnalytics();
+  let context: Context;
+  let event: QueueEvent<IAnalytics>;
+
+  const message = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const failedMessage = mockFailedIAnalytics();
 
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
+
+    // Test Fixtures
+    context = mockEventContext('analytics');
+    event = mockQueueEvent(message);
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
@@ -64,21 +72,15 @@ describe('Analytics QueueHandler', () => {
   });
 
   it('should process valid records and store analytics events in DynamoDB', async () => {
-    // Arrange
-    const event = mockQueueEvent(messageBody);
-
     // Act
     await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(messageBody);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(message);
   });
 
   it('should process valid records and update cache to processing', async () => {
-    // Arrange
-    const event = mockQueueEvent(messageBody);
-
     // Act
     await handler(event, context);
 
@@ -86,25 +88,24 @@ describe('Analytics QueueHandler', () => {
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
       '/DEP1/7351e7c8-7314-4d2b-a590-4f053c6ef80f/Status',
-      messageBody.Event
+      message.Event
     );
   });
 
   it('should process valid records and handle missing values', async () => {
     // Arrange
-    const validAnalyticsWithMissingValue = {
-      ...messageBody,
-      Event: undefined,
-    } as unknown as IAnalytics;
-    const event = mockQueueEvent(validAnalyticsWithMissingValue);
-    const expectedCreatedTableRows = { ...validAnalyticsWithMissingValue, Event: NotificationStateEnum.UNKNOWN };
+    const missingEventBody = { ...message, Event: undefined } as unknown as IAnalytics;
+    const missingEventEvent = mockQueueEvent(missingEventBody);
 
     // Act
-    await handler(event, context);
+    await handler(missingEventEvent, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith(expectedCreatedTableRows);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledWith({
+      ...missingEventBody,
+      Event: NotificationStateEnum.UNKNOWN,
+    });
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
       '/DEP1/7351e7c8-7314-4d2b-a590-4f053c6ef80f/Status',
@@ -113,41 +114,35 @@ describe('Analytics QueueHandler', () => {
   });
 
   it('should export processed analytics to cloudwatch', async () => {
-    // Arrange
-    const event = mockQueueEvent(messageBody);
-
     // Act
     await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsExportServiceMock.logAnalytics).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.analyticsExportServiceMock.logAnalytics).toHaveBeenCalledWith(messageBody);
+    expect(serviceMocks.analyticsExportServiceMock.logAnalytics).toHaveBeenCalledWith(message);
   });
 
   it('should increment campaign if a campaignID is provided in the analytics', async () => {
     // Arrange
-    const analyticsWithCampaignID = {
-      ...messageBody,
-      CampaignID: 'CAMP01',
-    };
-    const event = mockQueueEvent(analyticsWithCampaignID);
+    const withCampaign = { ...message, CampaignID: 'CAMP01' };
+    const campaignEvent = mockQueueEvent(withCampaign);
 
     // Act
-    await handler(event, context);
+    await handler(campaignEvent, context);
 
     // Assert
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledTimes(1);
     expect(serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns).toHaveBeenCalledWith(
-      analyticsWithCampaignID.CampaignID,
-      analyticsWithCampaignID.OrganisationID,
-      analyticsWithCampaignID.DepartmentID,
-      analyticsWithCampaignID.Event
+      withCampaign.CampaignID,
+      withCampaign.OrganisationID,
+      withCampaign.DepartmentID,
+      withCampaign.Event
     );
   });
 
   it('should process all valid analytics records and reject any that are invalid', async () => {
     // Arrange
-    const event = mockQueueMultiEvents([messageBody, failedMessageBody]);
+    const event = mockQueueMultiEvents([message, failedMessage]);
 
     //  Act
     const result = await handler(event, context);
@@ -166,14 +161,14 @@ describe('Analytics QueueHandler', () => {
 
   it('should throw an error for invalid records', async () => {
     // Arrange
-    const event = mockQueueEvent(failedMessageBody);
+    const failedEvent = mockQueueEvent(failedMessage);
 
     //  Act
-    const result = handler(event, context);
+    const result = handler(failedEvent, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
-    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).toHaveBeenCalledTimes(0);
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(0);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.addEvent).not.toHaveBeenCalled();
+    expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
   });
 });

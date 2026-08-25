@@ -5,10 +5,10 @@ import {
   IMessageRecordSchema,
   IProcessedMessageRecord,
   IProcessedMessageRecordSchema,
-} from '@common/repositories/interfaces/IMessageRecord';
+} from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalytics } from '@project/lambdas';
 
 const recordSchema = IMessageRecordSchema;
 

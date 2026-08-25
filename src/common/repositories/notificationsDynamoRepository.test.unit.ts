@@ -1,27 +1,21 @@
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { ParsingFailedError } from '@common/models';
+import { IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
-import { StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/util-dynamodb', { spy: true });
+
 vi.mock('@common/services', { spy: true });
 
 describe('NotificationsDynamoRepository', () => {
   let instance: NotificationsDynamoRepository;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -50,8 +44,8 @@ describe('NotificationsDynamoRepository', () => {
 
     instance = new NotificationsDynamoRepository(
       serviceMocks.configurationServiceMock,
-      clientMocks.dynamoDBClientMock,
-      observabilityMock
+      awsClientMocks.dynamoDBClientMock,
+      observabilityMocks
     );
     await instance.initialize();
   });
@@ -92,7 +86,7 @@ describe('NotificationsDynamoRepository', () => {
       const expirationDate = new Date(date.getTime() + 30 * 60 * 60 * 24 * 1000).toISOString();
 
       const record: IMessageRecord = recordBody;
-      clientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -103,7 +97,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecord(record);
 
       // Assert
-      expect(clientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
+      expect(awsClientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
         expect.objectContaining({
           TableName: 'mockNotificationsDynamoRepositoryName',
           Item: marshall({ ...record, ExpirationDateTime: expirationDate }),
@@ -129,7 +123,7 @@ describe('NotificationsDynamoRepository', () => {
       await expect(result).rejects.toThrow(
         new ParsingFailedError(['Input to create record does not match the record schema'])
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Input to create record does not match the record schema',
         record
       );
@@ -139,14 +133,14 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const record: IMessageRecord = recordBody;
       const error = new Error('Connection Failure');
-      clientMocks.dynamoDBClientMock.putItem = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.dynamoDBClientMock.putItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.createRecord(record);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating record table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating record table', {
         error: error.message,
         tableName: 'mockNotificationsDynamoRepositoryName',
       });
@@ -157,7 +151,7 @@ describe('NotificationsDynamoRepository', () => {
       vi.useFakeTimers();
       const date = new Date();
       vi.setSystemTime(date);
-      clientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -171,7 +165,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecord(record);
 
       // Assert
-      expect(clientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
+      expect(awsClientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
         expect.objectContaining({
           TableName: 'mockNotificationsDynamoRepositoryName',
           Item: marshall({ ...record, ExpirationDateTime: expirationDateTime }),
@@ -184,7 +178,7 @@ describe('NotificationsDynamoRepository', () => {
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
-      clientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: [
           {
             ReadCapacityUnits: 1,
@@ -197,7 +191,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecordBatch(record);
 
       // Assert
-      expect(clientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledWith(
+      expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledWith(
         expect.objectContaining({
           RequestItems: {
             mockNotificationsDynamoRepositoryName: [
@@ -220,7 +214,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecordBatch(record);
 
       // Assert
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
     });
 
     it('should throw an error if an item in the input array does not match the record schema', async () => {
@@ -240,7 +234,7 @@ describe('NotificationsDynamoRepository', () => {
       await expect(result).rejects.toThrow(
         new ParsingFailedError(['An item in array to create a batch of records does not match the record schema'])
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'An item in array to create a batch of records does not match the record schema',
         records[1]
       );
@@ -259,7 +253,7 @@ describe('NotificationsDynamoRepository', () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         error: error.message,
       });
@@ -269,14 +263,14 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
       const error = new Error('Connection Failure');
-      clientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.createRecordBatch(record);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         error: error.message,
       });
@@ -291,7 +285,7 @@ describe('NotificationsDynamoRepository', () => {
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
-      clientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -302,7 +296,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.updateRecord(mockUpdatedRecord);
 
       // Assert
-      expect(clientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith({
+      expect(awsClientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith({
         TableName: 'mockNotificationsDynamoRepositoryName',
         Key: marshall({
           ['NotificationID']: mockUpdatedRecord.NotificationID,
@@ -327,14 +321,14 @@ describe('NotificationsDynamoRepository', () => {
     it('should log an error if the request fails', async () => {
       // Arrange
       const error = new Error('Connection Failure');
-      clientMocks.dynamoDBClientMock.updateItem = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.updateRecord(messageRecord);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Failure in updating record table',
         expect.objectContaining({
           tableName: 'mockNotificationsDynamoRepositoryName',
@@ -356,7 +350,7 @@ describe('NotificationsDynamoRepository', () => {
       await expect(result).rejects.toThrow(
         new ParsingFailedError(['Fields used to update record in table do not match the record schema'])
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Fields used to update record in table do not match the record schema',
         record
       );
@@ -380,7 +374,7 @@ describe('NotificationsDynamoRepository', () => {
         OrganisationID: 'ORG01',
       };
 
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
         Item: marshall(mockRecord),
       });
 
@@ -394,7 +388,7 @@ describe('NotificationsDynamoRepository', () => {
     it('if item is not found null should be returned', async () => {
       // Arrange
       const mockNotificationID = '1234';
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({});
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
       const result = await instance.getRecord(mockNotificationID);
@@ -407,14 +401,14 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const mockNotificationID = '1234';
       const error = new Error('Connection Failure');
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.getRecord(mockNotificationID);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         error: error.message,
       });
@@ -425,7 +419,7 @@ describe('NotificationsDynamoRepository', () => {
       const mockInvalidRecord = {
         NotificationID: 12345678,
       } as unknown as IMessageRecord;
-      clientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
         Item: marshall(mockInvalidRecord),
       });
       const keyValue = '111111111';
@@ -444,7 +438,7 @@ describe('NotificationsDynamoRepository', () => {
           'Invalid input: expected array, received undefined → at Events.',
         ])
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Record in table failed to parse to record schema', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Record in table failed to parse to record schema', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         key: 'NotificationID',
         value: keyValue,

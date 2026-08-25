@@ -3,11 +3,13 @@ import {
   ConfigurationService,
   MetricsLabels,
   ObservabilityService,
+  ProcessingAdapter,
+  ProcessingAdapterRequest,
+  ProcessingAdapterResult,
   ProcessingAdapterUDP,
   ProcessingAdapterVoid,
+  SMConfigurationService,
 } from '@common/services';
-import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
-import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { EnumParameters } from '@common/utils';
 import * as z from 'zod';
 

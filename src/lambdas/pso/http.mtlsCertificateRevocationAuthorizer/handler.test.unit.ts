@@ -1,28 +1,31 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { IRequestEvent } from '@common/middlewares';
-import { MTLSRevocation } from '@common/repositories/interfaces/MTLSRevocationTable';
+import { MTLSRevocation } from '@common/repositories';
 import { MetricsLabels } from '@common/services';
 import {
+  iocSpies,
+  mockAllowPolicy,
   mockDefaultConfig,
+  mockDenyPolicy,
+  mockEventContext,
+  mockEventWithCertificate,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { mockEventContext, mockEventWithCertificate } from '@common/utils/mockEvents.test.utils';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+} from '@common/utils';
 import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
-vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
+vi.mock('@common/repositories', { spy: true });
 
 describe('MTLSApiGatewayAuthorizer Handler', () => {
   let instance: MtlsCertificateRevocationAuthorizer;
 
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock, configurationServiceMock } =
     serviceMocks;
@@ -31,30 +34,17 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   let mockParameterStore = mockDefaultConfig();
 
   // Test Fixtures
-  const context = mockEventContext('mtlsApiGatewayAuthorizer');
+  let context: Context;
   const mockOrganisationID = 'ORG01';
-  const expectedAllowPolicy = expect.objectContaining({
-    policyDocument: expect.objectContaining({
-      Statement: [
-        expect.objectContaining({
-          Effect: 'Allow',
-        }),
-      ],
-    }),
-  });
-  const expectedDenyPolicy = expect.objectContaining({
-    policyDocument: expect.objectContaining({
-      Statement: [
-        expect.objectContaining({
-          Effect: 'Deny',
-        }),
-      ],
-    }),
-  });
+  const expectedAllowPolicy = mockAllowPolicy();
+  const expectedDenyPolicy = mockDenyPolicy();
 
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
+
+    // Test Fixtures
+    context = mockEventContext('mtlsApiGatewayAuthorizer');
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();

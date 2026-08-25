@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ChannelsEnum } from '@common/models';
-import { QueueEvent } from '@common/operations';
+import { QueueEvent } from '@common/operations/queueOperation';
 import { Context, ScheduledEvent } from 'aws-lambda';
 
 /**
@@ -70,44 +72,39 @@ export const mockScheduledEvent = (): ScheduledEvent =>
 /**
  * API Gateway Events
  */
-export const mockAPIEvent = <T>(parameters: {
+export const mockPsoAPIEvent = <T>(parameters: {
   body?: T;
   pathParameters?: Record<string, string>;
   queryStringParameters?: Record<string, string>;
-}) => {
-  const result = {
-    body: parameters.body ? JSON.stringify(parameters.body) : undefined,
-    pathParameters: parameters.pathParameters,
-    queryStringParameters: parameters.queryStringParameters,
-    headers: {
-      'x-api-key': 'mockApiKey',
-      'Content-Type': `application/json`,
-    },
-    requestContext: {
-      requestTimeEpoch: 1428582896000,
-      requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      authorizer: {
-        Organization: 'ORG01',
-        OrganisationConfig: JSON.stringify({
-          MessageRetention: {
-            Allowed: false,
-          },
-          Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
-        }),
-      },
-    },
-  };
-  return result;
-};
-
-export const mockAPIMultiEvents = <T>(parameters: {
-  body: T[];
-  pathParameters?: Record<string, string>;
-  queryStringParameters?: Record<string, string>;
 }) => ({
-  body: JSON.stringify([...parameters.body]),
-  pathParameters: parameters.pathParameters,
-  queryStringParameters: parameters.queryStringParameters,
+  body: parameters?.body ? JSON.stringify(parameters.body) : undefined,
+  pathParameters: parameters?.pathParameters,
+  queryStringParameters: parameters?.queryStringParameters,
+  headers: parameters?.body
+    ? {
+        'x-api-key': 'mockApiKey',
+        'Content-Type': `application/json`,
+      }
+    : {
+        'x-api-key': 'mockApiKey',
+      },
+  requestContext: {
+    requestTimeEpoch: 1428582896000,
+    requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+    authorizer: {
+      Organization: 'ORG01',
+      OrganisationConfig: JSON.stringify({
+        MessageRetention: {
+          Allowed: false,
+        },
+        Channels: [],
+      }),
+    },
+  },
+});
+
+export const mockAPIPostMessageEvent = <T>(body: T[]) => ({
+  body: JSON.stringify(body),
   headers: {
     'x-api-key': 'mockApiKey',
     'Content-Type': `application/json`,
@@ -121,19 +118,14 @@ export const mockAPIMultiEvents = <T>(parameters: {
         MessageRetention: {
           Allowed: false,
         },
+        Channels: [],
       }),
     },
   },
 });
 
-export const mockAPIEventWithMessageRetention = <T>(
-  body: T,
-  pathParameters?: Record<string, string>,
-  queryStringParameters?: Record<string, string>
-) => ({
+export const mockPsoAPIEventWithMessageRetention = <T>(body: T[]) => ({
   body: JSON.stringify(body),
-  pathParameters,
-  queryStringParameters,
   headers: {
     'x-api-key': 'mockApiKey',
     'Content-Type': `application/json`,
@@ -149,19 +141,14 @@ export const mockAPIEventWithMessageRetention = <T>(
           Min: 10,
           Max: 35,
         },
+        Channels: [],
       }),
     },
   },
 });
 
-export const mockAPIEventWithChannelsControl = <T>(
-  body: T,
-  pathParameters?: Record<string, string>,
-  queryStringParameters?: Record<string, string>
-) => ({
+export const mockPsoAPIEventWithChannelsControl = <T>(body: T[]) => ({
   body: JSON.stringify(body),
-  pathParameters,
-  queryStringParameters,
   headers: {
     'x-api-key': 'mockApiKey',
     'Content-Type': `application/json`,
@@ -172,14 +159,17 @@ export const mockAPIEventWithChannelsControl = <T>(
     authorizer: {
       Organization: 'ORG01',
       OrganisationConfig: JSON.stringify({
+        MessageRetention: {
+          Allowed: false,
+        },
         Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY],
       }),
     },
   },
 });
 
-export const mockUnauthorizedAPIEvent = <T>(body: T) => ({
-  ...mockAPIEvent({ body }),
+export const mockUnauthorizedPsoAPIEvent = <T>(body: T) => ({
+  ...mockPsoAPIEvent({ body }),
   requestContext: {
     requestTimeEpoch: 1428582896000,
     requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
@@ -195,3 +185,53 @@ export const mockEventWithCertificate = () => ({
     },
   },
 });
+
+export const mockFlexAPIEvent = <T>(parameters: {
+  body?: T;
+  pathParameters?: Record<string, string>;
+  queryStringParameters?: Record<string, string>;
+}) => ({
+  body: parameters?.body ? JSON.stringify(parameters.body) : undefined,
+  pathParameters: parameters?.pathParameters,
+  queryStringParameters: parameters?.queryStringParameters,
+  headers: parameters?.body
+    ? {
+        'x-api-key': 'mockApiKey',
+        'Content-Type': `application/json`,
+      }
+    : {
+        'x-api-key': 'mockApiKey',
+      },
+  requestContext: {
+    requestTimeEpoch: 1428582896000,
+    requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+  },
+});
+
+/**
+ * mTLS Cert Policies
+ */
+export const mockAllowPolicy = () => {
+  const expectedAllowPolicy = expect.objectContaining({
+    policyDocument: expect.objectContaining({
+      Statement: [
+        expect.objectContaining({
+          Effect: 'Allow',
+        }),
+      ],
+    }),
+  });
+  return expectedAllowPolicy;
+};
+export const mockDenyPolicy = () => {
+  const expectedDenyPolicy = expect.objectContaining({
+    policyDocument: expect.objectContaining({
+      Statement: [
+        expect.objectContaining({
+          Effect: 'Deny',
+        }),
+      ],
+    }),
+  });
+  return expectedDenyPolicy;
+};

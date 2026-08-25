@@ -2,7 +2,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import z from 'zod';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -15,9 +15,8 @@ describe('analyticsService', () => {
   let instance: AnalyticsService;
 
   // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   beforeEach(() => {
     // Reset all mock
@@ -27,7 +26,7 @@ describe('analyticsService', () => {
     serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
     serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
 
-    instance = new AnalyticsService(observabilityMock, serviceMocks.analyticsQueueServiceMock);
+    instance = new AnalyticsService(observabilityMocks, serviceMocks.analyticsQueueServiceMock);
   });
 
   describe('publishMultipleEvents', () => {
@@ -130,7 +129,7 @@ describe('analyticsService', () => {
       await instance.publishMultipleEvents(mockAnalyticsEvents, NotificationStateEnum.VALIDATED);
 
       // Assert
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
         mockAnalyticsEvents.length
@@ -204,7 +203,7 @@ describe('analyticsService', () => {
       await instance.publishEvent(mockAnalyticsEvent, NotificationStateEnum.VALIDATED);
 
       // Assert
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
         1

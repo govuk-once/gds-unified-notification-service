@@ -1,9 +1,9 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { mockIProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { mockAPIEvent, mockEventContext } from '@common/utils/mockEvents.test.utils';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { NotificationStateEnum } from '@common/models';
+import { mockIProcessedMessageRecord } from '@common/repositories';
+import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
 import { mockIAnalytics, mockIProcessedMessage } from '@project/lambdas/interfaces';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -17,13 +17,12 @@ describe('PatchNotification Handler', () => {
   let handler: ReturnType<typeof PatchNotification.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Test Fixtures
-  const context = mockEventContext('patchNotification');
+  let context: Context;
+
   const message = mockIProcessedMessage();
   const analyticEvent = mockIAnalytics(NotificationStateEnum.RECEIVED);
   const messageRecord = mockIProcessedMessageRecord(message, {
@@ -32,7 +31,7 @@ describe('PatchNotification Handler', () => {
   });
 
   const mockPatchNotificationEvent = (status: string) =>
-    mockAPIEvent({
+    mockFlexAPIEvent({
       body: {
         Status: status,
       },
@@ -45,11 +44,15 @@ describe('PatchNotification Handler', () => {
     }) as unknown as EventType;
 
   beforeEach(() => {
+    // Reset all mocks
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    // Test Fixtures
+    context = mockEventContext('patchNotification');
 
+    // Mocking successful completion of service functions
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(messageRecord);
     serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
     serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
@@ -117,7 +120,7 @@ describe('PatchNotification Handler', () => {
 
   it('should log and return 400 when notificationID is missing', async () => {
     // Arrange
-    const event = mockAPIEvent({
+    const event = mockFlexAPIEvent({
       body: {
         Status: 'READ',
       },
@@ -158,7 +161,7 @@ describe('PatchNotification Handler', () => {
   it('should return 400 when externalUserID/pushID is undefined', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
-    const event = mockAPIEvent({
+    const event = mockFlexAPIEvent({
       body: {
         Status: 'READ',
       },
@@ -178,7 +181,7 @@ describe('PatchNotification Handler', () => {
   it('should return 400 when externalUserID is an empty string', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
-    const event = mockAPIEvent({
+    const event = mockFlexAPIEvent({
       body: {
         Status: 'READ',
       },
@@ -200,7 +203,7 @@ describe('PatchNotification Handler', () => {
   it('should return 400 when pushID is an empty string', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
-    const event = mockAPIEvent({
+    const event = mockFlexAPIEvent({
       body: {
         Status: 'READ',
       },

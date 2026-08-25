@@ -1,6 +1,6 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { mTLSRevocationRecordSchema } from '@common/repositories/interfaces/MTLSRevocationTable';
+import { mTLSRevocationRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils/parameters';
 

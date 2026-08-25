@@ -3,7 +3,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import redis from 'redis';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -15,9 +15,8 @@ describe('CacheService', () => {
   let instance: CacheService;
 
   // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -37,7 +36,7 @@ describe('CacheService', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new CacheService(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = new CacheService(serviceMocks.configurationServiceMock, observabilityMocks);
     vi.spyOn(instance, 'generateSigV4').mockResolvedValue('');
     createClientSpy.mockImplementation(
       () =>

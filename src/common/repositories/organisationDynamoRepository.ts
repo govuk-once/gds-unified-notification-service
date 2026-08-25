@@ -1,8 +1,8 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
+import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas';
 
 export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {

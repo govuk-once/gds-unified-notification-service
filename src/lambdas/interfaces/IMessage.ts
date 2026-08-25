@@ -70,14 +70,14 @@ export const extractIdentifiers = (partial: IIdentifiableMessage) => ({
  * Test Fixtures
  */
 export const mockIMessage = (): IMessage => ({
-  NotificationID: uuid(),
+  NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
+  MessageBody: 'Open Notification Centre to read your notifications',
+  MessageTitle: 'You have a new Message',
+  NotificationBody: 'Here is the Notification body.',
+  NotificationTitle: 'You have a new Notification',
   DepartmentID: 'TEST01',
   UserID: 'UserID',
   CampaignID: 'CAM_ID',
-  NotificationTitle: 'Hi there',
-  NotificationBody: 'You have a new message in the message center',
-  MessageTitle: 'Hi there',
-  MessageBody: 'MOCK_LONG_MESSAGE',
   OrganisationID: 'ORG01',
 });
 
@@ -113,7 +113,7 @@ export const mockIProcessedMessage = (): IProcessedMessage => {
   const message = mockIMessage();
   return {
     ...message,
-    ExternalUserID: 'test_2',
+    ExternalUserID: 'test_user',
   };
 };
 
@@ -121,6 +121,6 @@ export const mockFailedIProcessedMessage = (): IProcessedMessage => {
   const failedMessageBody = mockFailedIMessage();
   return {
     ...failedMessageBody,
-    ExternalUserID: 'test_2',
+    ExternalUserID: 'test_user',
   };
 };

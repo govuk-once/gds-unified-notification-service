@@ -1,10 +1,12 @@
 import {
+  iocSpies,
   mockDefaultConfig,
+  mockEventContext,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { mockEventContext, mockScheduledEvent } from '@common/utils/mockEvents.test.utils';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+  mockScheduledEvent,
+} from '@common/utils';
 import { AnalyticsExport } from '@project/lambdas/pso/schedule.analyticsExport/handler';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -14,10 +16,8 @@ vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
 describe('AnalyticsExport Handler', () => {
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   let instance: AnalyticsExport;
   let handler: ReturnType<typeof AnalyticsExport.prototype.handler>;
@@ -26,11 +26,14 @@ describe('AnalyticsExport Handler', () => {
   let mockParameterStore = mockDefaultConfig();
 
   // Test fixtures
-  const context = mockEventContext('analyticsExport');
+  let context: Context;
 
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
+
+    // Test Fixtures
+    context = mockEventContext('analyticsExport');
 
     // Mock SSM Values
     mockParameterStore = mockDefaultConfig();
@@ -38,6 +41,7 @@ describe('AnalyticsExport Handler', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
+    // Mocking successful completion of service functions
     serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
 
     instance = new AnalyticsExport(serviceMocks.configurationServiceMock, observabilityMocks, () => ({

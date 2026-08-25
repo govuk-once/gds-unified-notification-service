@@ -3,8 +3,8 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
-import { IProcessedMessage } from '@project/lambdas/interfaces';
+import { StringParameters } from '@common/utils';
+import { IProcessedMessage } from '@project/lambdas';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {
   protected queueName: string = 'dispatch';

@@ -6,7 +6,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -18,10 +18,8 @@ vi.mock('@common/services/configurationService', { spy: true });
 describe('ProcessingQueueService', () => {
   let processingQueueService: ProcessingQueueService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -49,8 +47,8 @@ describe('ProcessingQueueService', () => {
 
     processingQueueService = new ProcessingQueueService(
       serviceMocks.configurationServiceMock,
-      clientMocks.sqsClientMock,
-      observabilityMock
+      awsClientMocks.sqsClientMock,
+      observabilityMocks
     );
     await processingQueueService.initialize();
   });
@@ -74,14 +72,14 @@ describe('ProcessingQueueService', () => {
       expectTypeOf(result).toEqualTypeOf<ProcessingQueueService>();
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
     });
   });
 
   describe('publishMessage', () => {
     it('should send a message when given the message params and adds a metric.', async () => {
       // Arrange
-      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         MessageId: 'message-1',
       });
 
@@ -89,8 +87,8 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessage(mockMessageBody);
 
       // Assert
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
@@ -99,7 +97,7 @@ describe('ProcessingQueueService', () => {
           }),
         })
       );
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
         MetricUnit.Count,
         1
@@ -109,15 +107,15 @@ describe('ProcessingQueueService', () => {
     it('should throw an error and log when the send message command fails and adds a metric', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      clientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = processingQueueService.publishMessage(mockMessageBody);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
         1
@@ -128,7 +126,7 @@ describe('ProcessingQueueService', () => {
   describe('publishBatchMessage', () => {
     it('should send a batch of messages when given the message params and adds a metric.', async () => {
       // Arrange
-      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
       });
 
@@ -136,8 +134,8 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
@@ -151,10 +149,10 @@ describe('ProcessingQueueService', () => {
           }),
         })
       );
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Successfully published messages', {
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successfully published messages', {
         successfulMessageCount: 1,
       });
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
         MetricUnit.Count,
         1
@@ -184,7 +182,7 @@ describe('ProcessingQueueService', () => {
         OrganisationID: 'ORD01',
       };
 
-      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
         Failed: [{ Id: '1', SenderFault: false, Code: 'MockCode' }],
       });
@@ -193,8 +191,8 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
 
       // Assert
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
@@ -213,7 +211,7 @@ describe('ProcessingQueueService', () => {
           }),
         })
       );
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed to publish messages in batch', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failed to publish messages in batch', {
         failedMessageCount: 1,
         failures: [
           {
@@ -223,7 +221,7 @@ describe('ProcessingQueueService', () => {
           },
         ],
       });
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
         1
@@ -233,19 +231,19 @@ describe('ProcessingQueueService', () => {
     it('should throw an error and log when the send batch message command fails', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      clientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
     });
 
     it('should use the index of the for loop of the batch processing as the batch entry Id', async () => {
       // Arrange
-      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
@@ -253,7 +251,7 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch([mockMessageBody]);
 
       // Assert
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
@@ -274,7 +272,7 @@ describe('ProcessingQueueService', () => {
         NotificationID: `notifiction-${i}`,
         UserId: i,
       }));
-      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValue({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValue({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
       });
 
@@ -282,9 +280,9 @@ describe('ProcessingQueueService', () => {
       await processingQueueService.publishMessageBatch(mockMessageList);
 
       // Assert
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(2);
-      const firstCall = vi.mocked(clientMocks.sqsClientMock.send).mock.calls[0][0] as { input: { Entries: unknown[] } };
-      const secondCall = vi.mocked(clientMocks.sqsClientMock.send).mock.calls[1][0] as {
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(2);
+      const firstCall = vi.mocked(awsClientMocks.sqsClientMock.send).mock.calls[0][0] as { input: { Entries: unknown[] } };
+      const secondCall = vi.mocked(awsClientMocks.sqsClientMock.send).mock.calls[1][0] as {
         input: { Entries: unknown[] };
       };
 

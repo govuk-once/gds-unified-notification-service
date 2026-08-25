@@ -7,13 +7,11 @@ import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SSMClient } from '@aws-sdk/client-ssm';
 import { STSClient } from '@aws-sdk/client-sts';
-import {
-  CampaignsDynamoRepository,
-  GroupStoreDynamoRepository,
-  NotificationsDynamoRepository,
-  OrganisationsDynamoRepository,
-} from '@common/repositories';
+import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
+import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
+import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
+import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
 import {
   AnalyticsExportService,
   AnalyticsQueueService,
@@ -23,15 +21,15 @@ import {
   ConfigurationService,
   ContentValidationService,
   DispatchQueueService,
+  GroupProcessingQueueService,
   NotificationService,
   ObservabilityService,
   ProcessingQueueService,
+  ProcessingService,
+  SMConfigurationService,
+  SMNamespacedConfigurationService,
+  ValidationService,
 } from '@common/services';
-import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
-import { ProcessingService } from '@common/services/processingService';
-import { SMConfigurationService } from '@common/services/smConfigurationService';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
-import { ValidationService } from '@common/services/validationService';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -152,7 +150,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, cl
     configurationServiceMock,
     clientMocks.dynamoDBClientMock,
     observabilityMock
-  );
+  ) as Mocked<GroupStoreDynamoRepository>;
 
   // Services
   const analyticsServiceMock = new AnalyticsService(
@@ -192,7 +190,7 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, cl
     channelControls: true,
     deeplinkUrl: true,
     messageRetention: true,
-  });
+  }) as Mocked<ValidationService>;
 
   return {
     // Export
@@ -220,4 +218,13 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, cl
     analyticsExportServiceMock,
     validationServiceMock,
   };
+};
+
+// Test Fixture
+export const iocSpies = () => {
+  const observabilityMocks = observabilitySpies();
+  const awsClientMocks = awsClientSpies();
+  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+
+  return { observabilityMocks, awsClientMocks, serviceMocks };
 };

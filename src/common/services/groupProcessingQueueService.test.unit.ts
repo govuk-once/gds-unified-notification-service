@@ -6,22 +6,21 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('GroupProcessingQueueService', () => {
   let groupProcessingQueueService: GroupProcessingQueueService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -57,8 +56,8 @@ describe('GroupProcessingQueueService', () => {
 
     groupProcessingQueueService = new GroupProcessingQueueService(
       serviceMocks.configurationServiceMock,
-      clientMocks.sqsClientMock,
-      observabilityMock
+      awsClientMocks.sqsClientMock,
+      observabilityMocks
     );
     await groupProcessingQueueService.initialize();
   });
@@ -82,14 +81,14 @@ describe('GroupProcessingQueueService', () => {
       expectTypeOf(result).toEqualTypeOf<GroupProcessingQueueService>();
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Group Processing Queue Service Initialised.');
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Group Processing Queue Service Initialised.');
     });
   });
 
   describe('publishMessage', () => {
     it('should send a message when given the message params and adds a metric.', async () => {
       // Arrange
-      clientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         MessageId: 'message-1',
       });
 
@@ -97,8 +96,8 @@ describe('GroupProcessingQueueService', () => {
       await groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
 
       // Assert
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
-      expect(clientMocks.sqsClientMock.send).toHaveBeenCalledWith(
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
@@ -107,7 +106,7 @@ describe('GroupProcessingQueueService', () => {
           }),
         })
       );
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_SUCCESSFULLY,
         MetricUnit.Count,
         1
@@ -117,15 +116,15 @@ describe('GroupProcessingQueueService', () => {
     it('should throw an error and log when the send message command fails and adds a metric', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      clientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
+      awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
         1

@@ -7,7 +7,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IMessageFields } from '@project/lambdas';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -19,8 +19,8 @@ describe('ValidationService', () => {
   let instance: ValidationService;
 
   // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

@@ -7,7 +7,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -20,10 +20,8 @@ vi.mock('@common/services/cacheService', { spy: true });
 describe('AnalyticsExportService', () => {
   let instance: AnalyticsExportService;
 
-  // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -78,7 +76,7 @@ describe('AnalyticsExportService', () => {
     awsClientMocks.cloudWatchLogsClientMock.send.mockResolvedValue(undefined);
 
     instance = new AnalyticsExportService(
-      observabilityMock,
+      observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.cacheServiceMock,
       awsClientMocks.cloudWatchLogsClientMock
@@ -175,7 +173,7 @@ describe('AnalyticsExportService', () => {
       await expect(result).rejects.toThrow(
         new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.'])
       );
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
         'Analytics contains invalid char , or " for csv format.',
         {
           field: 'CampaignID',
@@ -202,7 +200,7 @@ describe('AnalyticsExportService', () => {
       await expect(result).rejects.toThrow(
         new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.'])
       );
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
         'Analytics contains invalid char , or " for csv format.',
         {
           field: 'CampaignID',

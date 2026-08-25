@@ -36,6 +36,7 @@ export const IMessageRecordToIFlexNotification = (
     .pop()?.Event as NotificationDispatchedStateEnum | undefined;
 
   const organisation = organisations.find((x) => x.OrganisationID === item.OrganisationID);
+
   if (!organisation) {
     observability.logger.warn('No organisation matches the DepartmentID in the notification.', {
       OrganisationID: item.OrganisationID,

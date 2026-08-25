@@ -1,7 +1,7 @@
 import { IRequestEvent } from '@common/middlewares';
-import { mockEventContext } from '@common/utils/mockEvents.test.utils';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockEventContext } from '@common/utils';
 import { GetNotificationStatus } from '@project/lambdas/pso/http.getNotificationStatus/handler';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -13,21 +13,23 @@ vi.mock('@common/repositories', { spy: true });
 describe('GetNotificationStatus Handler', () => {
   let instance: GetNotificationStatus;
 
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
 
   // Test fixtures
-  const context = mockEventContext('getNotificationStatus');
-  const event = {} as unknown as IRequestEvent;
+  let context: Context;
+  let event: IRequestEvent;
 
   beforeEach(() => {
+    // Test Fixtures
+    context = mockEventContext('getNotificationStatus');
+    event = {} as unknown as IRequestEvent;
+
     instance = new GetNotificationStatus(observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
-
     handler = instance.handler();
   });
 

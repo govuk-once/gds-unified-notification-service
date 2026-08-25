@@ -7,7 +7,7 @@ import {
   mockDefaultConfig,
   mockGetParameterImplementation,
 } from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { Mocked } from 'vitest';
 
 vi.mock(import('@smithy/signature-v4'), () => {
@@ -51,10 +51,8 @@ describe('ProcessingService', () => {
   );
   let instance: ProcessingService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -85,7 +83,7 @@ describe('ProcessingService', () => {
     serviceMocks.smConfigurationServiceMock.getParameter.mockResolvedValueOnce(JSON.stringify(mockSMContents));
 
     instance = new ProcessingService(
-      observabilityMock,
+      observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.smConfigurationServiceMock
     );
@@ -136,7 +134,7 @@ describe('ProcessingService', () => {
       await instance.send(mockRequest);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Processing using Void adapter - mapping userID to externalUserID`,
         {
           userID: mockRequest.userID,
@@ -153,7 +151,7 @@ describe('ProcessingService', () => {
       const result = await instance.send(mockRequest);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Processing using UDP adapter - mapping userID to externalUserID`,
         {
           userID: mockRequest.userID,

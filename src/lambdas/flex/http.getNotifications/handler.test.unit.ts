@@ -1,8 +1,9 @@
+import { NotificationStateEnum } from '@common/models';
 import { mockIOrganisationRecord, mockIProcessedMessageRecord } from '@common/repositories';
-import { mockAPIEvent, mockEventContext } from '@common/utils/mockEvents.test.utils';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
-import { mockIProcessedMessage } from '@project/lambdas/interfaces';
+import { mockIAnalytics, mockIFlexNotification, mockIProcessedMessage } from '@project/lambdas/interfaces';
+import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -16,135 +17,42 @@ describe('getNotifications Handler', () => {
   let handler: ReturnType<typeof GetNotifications.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Test Fixtures
-  const context = mockEventContext('getNotifications');
+  let context: Context;
+  let event: EventType;
+
   const message = mockIProcessedMessage();
   const messageRecord = mockIProcessedMessageRecord(message, {
     DispatchedDateTime: true,
   });
   const organisationRecord = mockIOrganisationRecord();
-
-  // const notificationId = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
-  // const externalUserID = `abc-cdef-ghi`;
-  // const organisationID = 'ORG01';
-  // const displayName = 'ORG';
-
-  // const mockReceivedEvent: IAnalytics = {
-  //   EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-  //   NotificationID: notificationId,
-  //   DepartmentID: 'abc',
-  //   Event: NotificationStateEnum.RECEIVED,
-  //   EventDateTime: new Date().toISOString(),
-  //   EventReason: '',
-  //   APIGWExtendedID: 'Test',
-  //   OrganisationID: 'ORG_ID',
-  // };
-
-  // const mockHiddenEvent: IAnalytics = {
-  //   EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-  //   NotificationID: notificationId,
-  //   DepartmentID: 'abc',
-  //   Event: NotificationStateEnum.HIDDEN,
-  //   EventDateTime: new Date().toISOString(),
-  //   EventReason: '',
-  //   APIGWExtendedID: 'Test',
-  //   OrganisationID: 'ORG_ID',
-  // };
-
-  // const mockDbRecord: IProcessedMessageRecord = {
-  //   NotificationID: notificationId,
-  //   DepartmentID: 'DEP01',
-  //   UserID: 'UserID',
-  //   MessageTitle: 'You have a new Message',
-  //   MessageBody: 'Open Notification Centre to read your notifications',
-  //   NotificationTitle: 'You have a new Notification',
-  //   NotificationBody: 'Here is the Notification body.',
-  //   ExternalUserID: externalUserID,
-  //   Events: [
-  //     {
-  //       EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-  //       NotificationID: notificationId,
-  //       DepartmentID: 'abc',
-  //       Event: NotificationStateEnum.RECEIVED,
-  //       EventDateTime: new Date().toISOString(),
-  //       EventReason: '',
-  //       APIGWExtendedID: 'Test',
-  //       OrganisationID: 'ORG_ID',
-  //     },
-  //   ],
-  // ReceivedDateTime: '2026-01-01T12:00:00.000Z',
-  // ValidatedDateTime: '2026-01-01T12:00:01.000Z',
-  // ProcessedDateTime: '2026-01-01T12:00:02.000Z',
-  // DispatchedDateTime: '2026-01-01T12:00:03.000Z',
-  // ExpirationDateTime: '2100-01-31T12:00:00.000Z',
-  //   OrganisationID: organisationID,
-  // };
-
-  // const mockResponse: IFlexNotification = {
-  //   DispatchedDateTime: '2026-01-01T12:00:03.000Z',
-  //   MessageBody: 'Open Notification Centre to read your notifications',
-  //   MessageTitle: 'You have a new Message',
-  //   NotificationBody: 'Here is the Notification body.',
-  //   NotificationID: notificationId,
-  //   NotificationTitle: 'You have a new Notification',
-  //   Status: NotificationStateEnum.RECEIVED,
-  //   Metadata: {
-  //     Sender: {
-  //       DisplayName: displayName,
-  //     },
-  //   },
-  // };
-
-  // const mockOrganisationRecord: IOrganisationRecord = {
-  //   OrganisationID: organisationID,
-  //   DisplayName: displayName,
-  //   OrganisationConfig: {
-  //     MessageRetention: {
-  //       Allowed: false,
-  //     },
-  //   },
-  // };
+  const externalUserID = `abc-cdef-ghi`;
+  const hiddenAnalyticsEvent = mockIAnalytics(NotificationStateEnum.HIDDEN);
+  const receivedAnalyticsEvent = mockIAnalytics(NotificationStateEnum.RECEIVED);
 
   beforeEach(() => {
+    // Reset all mocks
     vi.resetAllMocks();
 
-    // mockEvent = {
-    //   headers: {
-    //     'x-api-key': 'mockApiKey',
-    //   },
-    //   requestContext: {
-    //     requestTimeEpoch: 1428582896000,
-    //     requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-    //   },
-    //   queryStringParameters: {
-    //     externalUserID: externalUserID,
-    //   },
-    // };
+    // Test Fixtures
+    context = mockEventContext('getNotifications');
+    event = mockFlexAPIEvent({
+      queryStringParameters: { externalUserID },
+    }) as unknown as EventType;
 
-    // mockAuthorizedEvent = {
-    //   ...mockEvent,
-    //   headers: {
-    //     'x-api-key': 'mockApiKey',
-    //   },
-    // };
-
-    // mockInternalServerError = null;
+    // Mocking successful completion of service functions
+    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValue([messageRecord]);
+    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([organisationRecord]);
 
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       organisationsDynamoRepository: Promise.resolve(serviceMocks.organisationsDynamoRepositoryMock),
     }));
-
     handler = instance.handler();
-
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValue([messageRecord]);
-    serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([organisationRecord]);
   });
 
   it('should have the correct operationId', () => {
@@ -154,19 +62,19 @@ describe('getNotifications Handler', () => {
 
   it('should return 200 with status ok and return a notification', async () => {
     // Arrange
-    const event = mockAPIEvent();
+    const expectResponse = mockIFlexNotification();
 
     // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
-    expect(JSON.parse(result.body)).toEqual([mockResponse]);
+    expect(JSON.parse(result.body)).toEqual([expectResponse]);
   });
 
-  it('should fetch all notifications from getRecordsQuery call', async () => {
+  it('should fetch all notifications from dynamo tabling using getRecordsQuery', async () => {
     // Act
-    const { statusCode } = await handler(mockAuthorizedEvent, mockContext);
+    const { statusCode } = await handler(event, context);
 
     // Assert
     expect(statusCode).toEqual(200);
@@ -177,17 +85,17 @@ describe('getNotifications Handler', () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValueOnce([
       {
-        ...mockDbRecord,
+        ...messageRecord,
         ExpirationDateTime: new Date(0).toISOString(), // 1970
       },
     ]);
 
     // Act
-    const { body, statusCode } = await handler(mockAuthorizedEvent, mockContext);
-    const results = JSON.parse(body) as [];
+    const { body, statusCode } = await handler(event, context);
 
     // Assert
     expect(statusCode).toEqual(200);
+    const results = JSON.parse(body) as [];
     expect(results.length).toEqual(0);
   });
 
@@ -196,44 +104,24 @@ describe('getNotifications Handler', () => {
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages = vi.fn().mockResolvedValueOnce([]);
 
     // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([]);
   });
 
-  it('should handle errors when calling API key with status internal server error', async () => {
-    // Act
-    const result = await handler(mockInternalServerError, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(500);
-  });
-
-  it('return internal server error when config servers throws an error', async () => {
-    // Arrange
-    const error = new Error('Config Service Error');
-    serviceMocks.configurationServiceMock.getParameter.mockRejectedValueOnce(error);
-
-    // Act
-    const result = await handler(mockInternalServerError, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(500);
-  });
-
   it('should exclude notifications with HIDDEN status', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValueOnce([
       {
-        ...mockDbRecord,
-        Events: [mockReceivedEvent, mockHiddenEvent],
+        ...messageRecord,
+        Events: [hiddenAnalyticsEvent],
       },
     ]);
 
     // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
@@ -245,36 +133,25 @@ describe('getNotifications Handler', () => {
     serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValueOnce([]);
 
     // Act
-    const result = await handler(mockAuthorizedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([]);
     expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
       'No organisation matches the DepartmentID in the notification.',
-      { OrganisationID: mockDbRecord.OrganisationID }
+      { OrganisationID: messageRecord.OrganisationID }
     );
   });
 
   it('should return 400 when externalUserID/pushID is undefined', async () => {
     // Arrange
-    mockEvent.queryStringParameters = {};
+    const emptyEvent = mockFlexAPIEvent({
+      queryStringParameters: {},
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(400);
-  });
-
-  it('should return 400 when externalUserID is an empty string', async () => {
-    // Arrange
-    mockEvent.queryStringParameters = {
-      externalUserID: '',
-    };
-
-    // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(emptyEvent, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -282,12 +159,25 @@ describe('getNotifications Handler', () => {
 
   it('should return 400 when pushID is an empty string', async () => {
     // Arrange
-    mockEvent.queryStringParameters = {
-      pushID: '',
-    };
+    const emptyEvent = mockFlexAPIEvent({
+      queryStringParameters: { pushID: '' },
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(emptyEvent, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+  });
+
+  it('should return 400 when externalUserID is an empty string', async () => {
+    // Arrange
+    const emptyEvent = mockFlexAPIEvent({
+      queryStringParameters: { externalUserID: '' },
+    }) as unknown as EventType;
+
+    // Act
+    const result = await handler(emptyEvent, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);

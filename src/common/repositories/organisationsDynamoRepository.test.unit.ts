@@ -1,26 +1,19 @@
-import { IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
+import { IOrganisationRecord, IProcessedMessageRecord } from '@common/repositories/interfaces';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
-import { StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/util-dynamodb', { spy: true });
+
 vi.mock('@common/services', { spy: true });
 
 describe('OrganisationsDynamoRepository', () => {
   let instance: OrganisationsDynamoRepository;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const clientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock, clientMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -90,8 +83,8 @@ describe('OrganisationsDynamoRepository', () => {
 
     instance = new OrganisationsDynamoRepository(
       serviceMocks.configurationServiceMock,
-      clientMocks.dynamoDBClientMock,
-      observabilityMock
+      awsClientMocks.dynamoDBClientMock,
+      observabilityMocks
     );
     await instance.initialize();
   });
