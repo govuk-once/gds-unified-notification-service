@@ -619,10 +619,10 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     this.dashboards = {
-      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
+      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
         pso: this,
       }),
-      flow: new UNSPSOFlow(this, `pso-flow-dashboard`, config, {
+      flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
         pso: this,
       }),
       service: new StandardServiceDashboardFactory(
