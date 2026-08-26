@@ -398,13 +398,13 @@ describe('ValidationService', () => {
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
       };
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'https://example.com',
       };
 
       // Act
-      const result = instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toBe(undefined);
@@ -414,13 +414,13 @@ describe('ValidationService', () => {
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
       };
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'https://not-example.com',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toThrow(
@@ -435,13 +435,13 @@ describe('ValidationService', () => {
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
       };
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'mailto://example@example.com',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toThrow(
