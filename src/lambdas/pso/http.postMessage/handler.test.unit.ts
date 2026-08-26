@@ -1,13 +1,14 @@
 import { ChannelsEnum, NotificationStateEnum } from '@common/models';
 import {
-  BoolParameters, iocSpies,
+  BoolParameters,
+  iocSpies,
   mockAPIPostMessageEvent,
   mockDefaultConfig,
   mockEventContext,
   mockGetParameterImplementation,
   mockPsoAPIEventWithChannelsControl,
   mockPsoAPIEventWithMessageRetention,
-  mockUnauthorizedPsoAPIEvent
+  mockUnauthorizedPsoAPIEvent,
 } from '@common/utils';
 import { mockIMessage_NoOrgID } from '@project/lambdas/interfaces';
 import { PostMessage } from '@project/lambdas/pso/http.postMessage/handler';

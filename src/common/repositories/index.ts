@@ -5,4 +5,3 @@ export * from './interfaces';
 export * from './mtlsRevocationDynamoRepository';
 export * from './notificationsDynamoRepository';
 export * from './organisationDynamoRepository';
-

@@ -3,7 +3,7 @@ import { NotificationStateEnum } from '@common/models';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 
 export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampaignRecordSchema> {
   protected recordSchema = ICampaignRecordSchema;

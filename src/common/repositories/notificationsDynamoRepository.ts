@@ -7,7 +7,7 @@ import {
   IProcessedMessageRecordSchema,
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 import { IAnalytics } from '@project/lambdas';
 
 const recordSchema = IMessageRecordSchema;

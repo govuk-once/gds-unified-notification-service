@@ -6,4 +6,3 @@ export * from './InternalServerError';
 export * from './NotFoundError';
 export * from './TooManyRequestsError';
 export * from './UnauthorisedError';
-

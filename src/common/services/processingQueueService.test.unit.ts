@@ -281,7 +281,9 @@ describe('ProcessingQueueService', () => {
 
       // Assert
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(2);
-      const firstCall = vi.mocked(awsClientMocks.sqsClientMock.send).mock.calls[0][0] as { input: { Entries: unknown[] } };
+      const firstCall = vi.mocked(awsClientMocks.sqsClientMock.send).mock.calls[0][0] as {
+        input: { Entries: unknown[] };
+      };
       const secondCall = vi.mocked(awsClientMocks.sqsClientMock.send).mock.calls[1][0] as {
         input: { Entries: unknown[] };
       };

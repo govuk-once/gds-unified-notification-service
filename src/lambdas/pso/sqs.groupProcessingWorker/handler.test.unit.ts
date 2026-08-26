@@ -5,19 +5,20 @@ import { QueueEvent } from '@common/operations/queueOperation';
 import { mockIMessageRecord } from '@common/repositories';
 import { MetricsLabels } from '@common/services';
 import {
-    BoolParameters, iocSpies,
-    mockDefaultConfig,
-    mockEventContext,
-    mockGetParameterImplementation,
-    mockQueueEvent,
-    mockQueueMultiEvents
+  BoolParameters,
+  iocSpies,
+  mockDefaultConfig,
+  mockEventContext,
+  mockGetParameterImplementation,
+  mockQueueEvent,
+  mockQueueMultiEvents,
 } from '@common/utils';
 import {
-    IGroupMessageMetadata,
-    mockIFailedGroupMessageMetadata,
-    mockIGroupMessageMetadata,
-    mockIProcessedGroupMessage,
-    mockIUnidentifiableGroupMessageMetadata,
+  IGroupMessageMetadata,
+  mockIFailedGroupMessageMetadata,
+  mockIGroupMessageMetadata,
+  mockIProcessedGroupMessage,
+  mockIUnidentifiableGroupMessageMetadata,
 } from '@project/lambdas/interfaces';
 import { GroupProcessingWorker } from '@project/lambdas/pso/sqs.groupProcessingWorker/handler';
 import { Context } from 'aws-lambda';

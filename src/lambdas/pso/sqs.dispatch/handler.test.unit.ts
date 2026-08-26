@@ -4,13 +4,14 @@ import { CircuitBreakerStateEnum, ServiceMisconfigurationError, SimulatedError }
 import { QueueEvent } from '@common/operations/queueOperation';
 import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
 import {
-  BoolParameters, iocSpies,
+  BoolParameters,
+  iocSpies,
   mockDefaultConfig,
   mockDefaultSecrets,
   mockEventContext,
   mockGetParameterImplementation,
   mockQueueEvent,
-  mockQueueMultiEvents
+  mockQueueMultiEvents,
 } from '@common/utils';
 import {
   IProcessedMessage,

@@ -12,7 +12,8 @@ import {
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
-import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
+import { ConfigurationService } from '@common/services/configurationService';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { zodErrorFormatter } from '@common/utils/zod';
 import z, { ZodObject } from 'zod';
 

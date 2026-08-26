@@ -18,7 +18,9 @@ describe('ContentValidationService', () => {
   // Observability and Service mocks
   const observabilityMocks = observabilitySpies();
   const awsClientMocks = awsClientSpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMocks));
+  const configurationServiceMock = vi.mocked(
+    new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMocks)
+  );
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
