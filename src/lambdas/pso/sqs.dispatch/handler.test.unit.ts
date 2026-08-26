@@ -416,8 +416,8 @@ describe('Dispatch QueueHandler', () => {
       },
       'DISPATCHING_FAILED',
       [
-        `Invalid input: expected string, received undefined → at body.NotificationTitle.`,
-        `Invalid input: expected string, received undefined → at body.NotificationBody.`,
+        `Invalid input: expected string, received undefined → at NotificationTitle.`,
+        `Invalid input: expected string, received undefined → at NotificationBody.`,
       ]
     );
   });
@@ -453,7 +453,7 @@ describe('Dispatch QueueHandler', () => {
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
-        error: expect.stringContaining('body.NotificationID'),
+        error: expect.stringContaining('NotificationID'),
         raw: mockUnidentifiableEvent.Records[0].body,
       })
     );
