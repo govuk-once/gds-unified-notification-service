@@ -86,7 +86,6 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     }
 
     const notification = await this.notificationsDynamoRepository.getProcessedMessageByID(notificationID);
-    console.log(notification);
 
     // Handle not found or hidden notifications
     if (!notification) {
