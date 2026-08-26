@@ -2,8 +2,8 @@ import { DispatchQueueService } from '@common/services/dispatchQueueService';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

@@ -1,25 +1,22 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { CircuitBreakerStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
+import { ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
+import { BoolParameters } from '@common/utils';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
+import { Dispatch } from '@project/lambdas/pso/sqs.dispatch/handler';
 import {
-  BoolParameters,
   iocSpies,
   mockDefaultConfig,
-  mockDefaultSecrets,
   mockEventContext,
-  mockGetParameterImplementation,
-  mockQueueEvent,
-  mockQueueMultiEvents,
-} from '@common/utils';
-import {
-  IProcessedMessage,
   mockFailedIProcessedMessage,
   mockIProcessedMessage,
+  mockQueueEvent,
+  mockQueueMultiEvents,
+  mockServicesExpectedBehaviour,
   mockUnidentifiableIMessage,
-} from '@project/lambdas/interfaces';
-import { Dispatch } from '@project/lambdas/pso/sqs.dispatch/handler';
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -38,7 +35,6 @@ describe('Dispatch QueueHandler', () => {
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
-  let mockSecrets = mockDefaultSecrets();
 
   // Test fixtures
   let context: Context;
@@ -57,26 +53,11 @@ describe('Dispatch QueueHandler', () => {
     context = mockEventContext('dispatch');
     event = mockQueueEvent(message);
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-    mockSecrets = mockDefaultSecrets();
-    serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockSecrets)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
-    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-
-    serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
-    serviceMocks.circuitBreakerServiceMock.checkCircuit.mockResolvedValue(undefined);
-    serviceMocks.circuitBreakerServiceMock.recordSuccess.mockResolvedValue(undefined);
-    serviceMocks.circuitBreakerServiceMock.recordFailure.mockResolvedValue(undefined);
-    serviceMocks.circuitBreakerServiceMock.getState.mockResolvedValue(CircuitBreakerStateEnum.CLOSED);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
@@ -235,6 +216,16 @@ describe('Dispatch QueueHandler', () => {
 
   it('should dispatch multiple messages to the notification service when messages are valid.', async () => {
     // Arrange
+    serviceMocks.notificationServiceMock.send
+      .mockResolvedValueOnce({
+        requestId: '123',
+        success: true,
+      } as unknown as NotificationAdapterResult)
+      .mockResolvedValueOnce({
+        requestId: '124',
+        success: true,
+      } as unknown as NotificationAdapterResult);
+
     const message_2 = mockIProcessedMessage();
     const event = mockQueueMultiEvents([message, message_2]);
 

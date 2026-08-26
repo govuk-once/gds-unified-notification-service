@@ -2,7 +2,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 import z from 'zod';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

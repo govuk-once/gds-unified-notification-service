@@ -2,16 +2,15 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { IRequestEvent } from '@common/middlewares';
 import { MTLSRevocation } from '@common/repositories';
 import { MetricsLabels } from '@common/services';
+import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
 import {
   iocSpies,
   mockAllowPolicy,
-  mockDefaultConfig,
   mockDenyPolicy,
   mockEventContext,
   mockEventWithCertificate,
-  mockGetParameterImplementation,
-} from '@common/utils';
-import { MtlsCertificateRevocationAuthorizer } from '@project/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/handler';
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -27,11 +26,7 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = iocSpies();
 
-  const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock, configurationServiceMock } =
-    serviceMocks;
-
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock } = serviceMocks;
 
   // Test Fixtures
   let context: Context;
@@ -46,9 +41,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     // Test Fixtures
     context = mockEventContext('mtlsApiGatewayAuthorizer');
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new MtlsCertificateRevocationAuthorizer(observabilityMocks, () => ({
       mtlsRevocationDynamoRepository: mtlsRevocationDynamoRepositoryMock.initialize(),

@@ -4,15 +4,7 @@ import { NotificationStateEnum, ServiceMisconfigurationError } from '@common/mod
 import { QueueEvent } from '@common/operations/queueOperation';
 import { mockIMessageRecord } from '@common/repositories';
 import { MetricsLabels } from '@common/services';
-import {
-  BoolParameters,
-  iocSpies,
-  mockDefaultConfig,
-  mockEventContext,
-  mockGetParameterImplementation,
-  mockQueueEvent,
-  mockQueueMultiEvents,
-} from '@common/utils';
+import { BoolParameters } from '@common/utils';
 import {
   IGroupMessageMetadata,
   mockIFailedGroupMessageMetadata,
@@ -21,6 +13,14 @@ import {
   mockIUnidentifiableGroupMessageMetadata,
 } from '@project/lambdas/interfaces';
 import { GroupProcessingWorker } from '@project/lambdas/pso/sqs.groupProcessingWorker/handler';
+import {
+  iocSpies,
+  mockDefaultConfig,
+  mockEventContext,
+  mockQueueEvent,
+  mockQueueMultiEvents,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -58,19 +58,11 @@ describe('GroupProcessingWorker QueueHandler', () => {
     context = mockEventContext('groupProcessingWorker');
     event = mockQueueEvent(message);
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
-    serviceMocks.groupProcessingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-
-    serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([pushID_1]);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([]);
 

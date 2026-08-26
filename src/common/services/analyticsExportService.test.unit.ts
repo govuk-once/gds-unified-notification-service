@@ -3,17 +3,18 @@ import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsExportService, AnalyticsLog } from '@common/services/analyticsExportService';
 import { StringParameters } from '@common/utils';
+import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-cloudwatch-logs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/cacheService', { spy: true });
 

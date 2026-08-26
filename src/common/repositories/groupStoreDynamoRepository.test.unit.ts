@@ -1,7 +1,8 @@
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
-import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
+import { StringParameters } from '@common/utils';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

@@ -3,13 +3,13 @@ import { ChannelsEnum } from '@common/models';
 import { BadGatewayError } from '@common/models/Errors';
 import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
 import { BoolParameters, EnumParameters, StringParameters } from '@common/utils';
+import { StringSecret } from '@common/utils/secrets';
 import {
   mockDefaultConfig,
   mockDefaultSecrets,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { StringSecret } from '@common/utils/secrets';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

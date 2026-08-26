@@ -1,16 +1,15 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { NotificationStateEnum } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
-import {
-  iocSpies,
-  mockDefaultConfig,
-  mockEventContext,
-  mockGetParameterImplementation,
-  mockQueueEvent,
-  mockQueueMultiEvents,
-} from '@common/utils';
 import { IAnalytics, mockFailedIAnalytics, mockIAnalytics } from '@project/lambdas/interfaces';
 import { Analytics } from '@project/lambdas/pso/sqs.analytics/handler';
+import {
+  iocSpies,
+  mockEventContext,
+  mockQueueEvent,
+  mockQueueMultiEvents,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -23,9 +22,6 @@ vi.mock('@common/repositories', { spy: true });
 describe('Analytics QueueHandler', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = iocSpies();
-
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
 
   let instance: Analytics;
   let handler: ReturnType<typeof Analytics.prototype.handler>;
@@ -45,17 +41,8 @@ describe('Analytics QueueHandler', () => {
     context = mockEventContext('analytics');
     event = mockQueueEvent(message);
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
-    // Mocking successful completion of service functions
-    serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
-    serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
-    serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns.mockResolvedValue(undefined);
-    serviceMocks.analyticsExportServiceMock.logAnalytics.mockResolvedValue(undefined);
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new Analytics(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       cache: Promise.resolve(serviceMocks.cacheServiceMock),

@@ -1,15 +1,14 @@
 import { ChannelsEnum } from '@common/models';
+import { mockIGroupMessage } from '@project/lambdas/interfaces';
+import { PostGroupMessage } from '@project/lambdas/pso/http.postGroupMessage/handler';
 import {
   iocSpies,
   mockAPIPostMessageEvent,
-  mockDefaultConfig,
   mockEventContext,
-  mockGetParameterImplementation,
   mockPsoAPIEventWithChannelsControl,
+  mockServicesExpectedBehaviour,
   mockUnauthorizedPsoAPIEvent,
-} from '@common/utils';
-import { mockIGroupMessage } from '@project/lambdas/interfaces';
-import { PostGroupMessage } from '@project/lambdas/pso/http.postGroupMessage/handler';
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 import { v4 as uuid } from 'uuid';
 
@@ -35,9 +34,6 @@ describe('PostGroupMessage Handler', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
-
   // Test Fixtures
   let context: Context;
   let event: EventType;
@@ -54,17 +50,12 @@ describe('PostGroupMessage Handler', () => {
     context = mockEventContext('postGroupMessage');
     event = mockAPIPostMessageEvent([groupMessage]) as unknown as EventType;
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     // Mocking successful completion of service functions
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup.mockResolvedValue([mockPushID]);
-    serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
     serviceMocks.cacheServiceMock.get.mockResolvedValue([mockPushID]);
-    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     vi.mocked(uuid as () => string)

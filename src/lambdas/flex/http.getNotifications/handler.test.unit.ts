@@ -1,8 +1,14 @@
 import { NotificationStateEnum } from '@common/models';
 import { mockIOrganisationRecord, mockIProcessedMessageRecord } from '@common/repositories';
-import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
-import { mockIAnalytics, mockIFlexNotification, mockIProcessedMessage } from '@project/lambdas/interfaces';
+import { mockIAnalytics, mockIFlexNotification } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -31,7 +37,6 @@ describe('getNotifications Handler', () => {
   const organisationRecord = mockIOrganisationRecord();
   const externalUserID = `abc-cdef-ghi`;
   const hiddenAnalyticsEvent = mockIAnalytics(NotificationStateEnum.HIDDEN);
-  const receivedAnalyticsEvent = mockIAnalytics(NotificationStateEnum.RECEIVED);
 
   beforeEach(() => {
     // Reset all mocks
@@ -43,8 +48,10 @@ describe('getNotifications Handler', () => {
       queryStringParameters: { externalUserID },
     }) as unknown as EventType;
 
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
     // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValue([messageRecord]);
     serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([organisationRecord]);
 

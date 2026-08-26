@@ -7,6 +7,7 @@ import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SSMClient } from '@aws-sdk/client-ssm';
 import { STSClient } from '@aws-sdk/client-sts';
+import { CircuitBreakerStateEnum } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
@@ -30,6 +31,11 @@ import {
   SMNamespacedConfigurationService,
   ValidationService,
 } from '@common/services';
+import {
+  mockDefaultConfig,
+  mockDefaultSecrets,
+  mockGetParameterImplementation,
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -51,21 +57,11 @@ export const observabilitySpies = (): Mocked<ObservabilityService> => {
   return observabilityMock;
 };
 
-// AWS client mocks
-export interface AwsClientMocks {
-  cloudWatchLogsClientMock: Mocked<CloudWatchLogsClient>;
-  dynamoDBClientMock: Mocked<DynamoDB>;
-  secretManagerClientMock: Mocked<SecretsManagerClient>;
-  sqsClientMock: Mocked<SQSClient>;
-  ssmClientMock: Mocked<SSMClient>;
-  stsClientMock: Mocked<STSClient>;
-}
-
 /*
   Generates a mocked instance of AWS clients.
   Provides pre-spied AWS client for unit testing.
 */
-export const awsClientSpies = (): AwsClientMocks => {
+export const awsClientSpies = () => {
   const cloudWatchLogsClientMock = new CloudWatchLogsClient() as Mocked<CloudWatchLogsClient>;
   const dynamoDBClientMock = new DynamoDB() as Mocked<DynamoDB>;
   const secretManagerClientMock = new SecretsManagerClient() as Mocked<SecretsManagerClient>;
@@ -88,7 +84,10 @@ export const awsClientSpies = (): AwsClientMocks => {
   Factory to initialize the mock service and repository layers.
   Organises the dependency injection of mocked services and repositories and ensuring they all share the same observability context.
 */
-export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>, clientMocks: AwsClientMocks) => {
+export const ServiceSpies = (
+  observabilityMock: Mocked<ObservabilityService>,
+  clientMocks: ReturnType<typeof awsClientSpies>
+) => {
   // Config
   const configurationServiceMock = new ConfigurationService(
     clientMocks.ssmClientMock,
@@ -227,4 +226,47 @@ export const iocSpies = () => {
   const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
 
   return { observabilityMocks, awsClientMocks, serviceMocks };
+};
+
+export const mockServicesExpectedBehaviour = (serviceMocks: ReturnType<typeof ServiceSpies>) => {
+  const resetMockParameterStore = mockDefaultConfig();
+  serviceMocks.configurationServiceMock.getParameter.mockImplementation(
+    mockGetParameterImplementation(resetMockParameterStore)
+  );
+  const resetMockSecrets = mockDefaultSecrets();
+  serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
+    mockGetParameterImplementation(resetMockSecrets)
+  );
+
+  // Service functions
+  serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+  serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+  serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+  serviceMocks.groupProcessingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+  serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+  serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+
+  serviceMocks.analyticsExportServiceMock.logAnalytics.mockResolvedValue(undefined);
+  serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
+  serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+  serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+
+  serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
+  serviceMocks.circuitBreakerServiceMock.checkCircuit.mockResolvedValue(undefined);
+  serviceMocks.circuitBreakerServiceMock.recordSuccess.mockResolvedValue(undefined);
+  serviceMocks.circuitBreakerServiceMock.recordFailure.mockResolvedValue(undefined);
+  serviceMocks.circuitBreakerServiceMock.getState.mockResolvedValue(CircuitBreakerStateEnum.CLOSED);
+
+  // Repository functions
+  serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns.mockResolvedValue(undefined);
+  serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups.mockResolvedValue([]);
+  serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups.mockResolvedValue([]);
+  serviceMocks.groupStoreDynamoRepositoryMock.joinGroups.mockResolvedValue([]);
+  serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
+
+  return { resetMockParameterStore, resetMockSecrets };
 };

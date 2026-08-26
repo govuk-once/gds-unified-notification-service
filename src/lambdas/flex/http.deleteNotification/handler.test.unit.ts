@@ -1,8 +1,7 @@
 import { NotificationStateEnum } from '@common/models';
 import { mockIMessageRecord } from '@common/repositories';
-import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
-import { mockIMessage } from '@project/lambdas/interfaces';
+import { iocSpies, mockEventContext, mockFlexAPIEvent, mockIMessage, mockServicesExpectedBehaviour } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -40,10 +39,11 @@ describe('DeleteNotification Handler', () => {
       queryStringParameters: { externalUserID },
     }) as unknown as EventType;
 
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
     // Mocking successful completion of service functions
     serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
 
     instance = new DeleteNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),

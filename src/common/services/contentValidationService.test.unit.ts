@@ -4,8 +4,8 @@ import { ContentValidationService } from '@common/services/contentValidationServ
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { awsClientSpies, observabilitySpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

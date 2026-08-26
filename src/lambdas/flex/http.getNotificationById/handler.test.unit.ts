@@ -1,7 +1,13 @@
 import { mockIOrganisationRecord, mockIProcessedMessageRecord } from '@common/repositories';
-import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
-import { mockIFlexNotification, mockIProcessedMessage } from '@project/lambdas/interfaces';
+import { mockIFlexNotification } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -44,8 +50,10 @@ describe('GetNotificationById Handler', () => {
       },
     }) as unknown as EventType;
 
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
     // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue(messageRecord);
     serviceMocks.organisationsDynamoRepositoryMock.getOrganisations.mockResolvedValue([organisationRecord]);
 

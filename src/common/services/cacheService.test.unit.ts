@@ -2,8 +2,8 @@ import { CacheService } from '@common/services/cacheService';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 import redis from 'redis';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

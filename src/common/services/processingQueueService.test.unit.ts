@@ -2,12 +2,12 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils';
+import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

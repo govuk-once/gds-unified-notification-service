@@ -1,7 +1,7 @@
 import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { ConfigurationService } from '@common/services/configurationService';
 import { InMemoryTTLCache } from '@common/utils';
-import { awsClientSpies, observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { awsClientSpies, observabilitySpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 import { Mocked } from 'vitest';
 import z from 'zod';
 

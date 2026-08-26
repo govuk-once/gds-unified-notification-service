@@ -1,6 +1,6 @@
 import { IRequestEvent } from '@common/middlewares';
-import { iocSpies, mockEventContext } from '@common/utils';
 import { GetNotificationStatus } from '@project/lambdas/pso/http.getNotificationStatus/handler';
+import { iocSpies, mockEventContext } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -12,11 +12,10 @@ vi.mock('@common/repositories', { spy: true });
 
 describe('GetNotificationStatus Handler', () => {
   let instance: GetNotificationStatus;
+  let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
 
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = iocSpies();
-
-  let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
 
   // Test fixtures
   let context: Context;

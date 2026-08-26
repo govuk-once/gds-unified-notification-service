@@ -1,6 +1,6 @@
 import { IRequestEvent } from '@common/middlewares';
-import { mockEventContext, observabilitySpies } from '@common/utils';
 import { GetHealthcheck } from '@project/lambdas/pso/http.getHealthcheck/handler';
+import { mockEventContext, observabilitySpies } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -10,6 +10,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 describe('GetHealthcheck Handler', () => {
   let instance: GetHealthcheck;
 
+  // Initialize mock services, clients, and repositories
   const observabilityMocks = observabilitySpies();
 
   // Test Fixtures

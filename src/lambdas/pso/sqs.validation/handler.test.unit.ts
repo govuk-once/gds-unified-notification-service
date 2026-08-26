@@ -3,17 +3,20 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
+import { BoolParameters } from '@common/utils';
+import { IMessage } from '@project/lambdas/interfaces';
+import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
 import {
-  BoolParameters,
   iocSpies,
   mockDefaultConfig,
   mockEventContext,
-  mockGetParameterImplementation,
+  mockFailedIMessage,
+  mockIMessage,
   mockQueueEvent,
   mockQueueMultiEvents,
-} from '@common/utils';
-import { IMessage, mockFailedIMessage, mockIMessage, mockUnidentifiableIMessage } from '@project/lambdas/interfaces';
-import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
+  mockServicesExpectedBehaviour,
+  mockUnidentifiableIMessage,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -45,20 +48,13 @@ describe('Validation QueueHandler', () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
     // Test Fixtures
     context = mockEventContext('validation');
     event = mockQueueEvent(message);
 
-    // Mocking successful completion of service functions
-    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),

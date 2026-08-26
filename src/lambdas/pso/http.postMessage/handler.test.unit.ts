@@ -1,17 +1,15 @@
 import { ChannelsEnum, NotificationStateEnum } from '@common/models';
+import { PostMessage } from '@project/lambdas/pso/http.postMessage/handler';
 import {
-  BoolParameters,
   iocSpies,
   mockAPIPostMessageEvent,
-  mockDefaultConfig,
   mockEventContext,
-  mockGetParameterImplementation,
+  mockIMessage_NoOrgID,
   mockPsoAPIEventWithChannelsControl,
   mockPsoAPIEventWithMessageRetention,
+  mockServicesExpectedBehaviour,
   mockUnauthorizedPsoAPIEvent,
-} from '@common/utils';
-import { mockIMessage_NoOrgID } from '@project/lambdas/interfaces';
-import { PostMessage } from '@project/lambdas/pso/http.postMessage/handler';
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -29,8 +27,7 @@ describe('PostMessage Handler', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Test fixtures
   let context: Context;
   let event: EventType;
 
@@ -45,17 +42,8 @@ describe('PostMessage Handler', () => {
     context = mockEventContext('postMessage');
     event = mockAPIPostMessageEvent([message]) as unknown as EventType;
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'true';
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
-    // Mocking successful completion of service functions
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({

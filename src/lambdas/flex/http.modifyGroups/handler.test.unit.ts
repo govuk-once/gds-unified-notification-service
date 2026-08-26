@@ -1,6 +1,12 @@
-import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { ModifyGroups } from '@project/lambdas/flex/http.modifyGroups/handler';
-import { GroupActionEnum, mockIGroups, mockIModifyGroups } from '@project/lambdas/interfaces';
+import { GroupActionEnum, mockIGroups } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockIModifyGroups,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -31,11 +37,8 @@ describe('ModifyGroups Handler', () => {
     // Test Fixtures
     context = mockEventContext('modifyGroups');
 
-    // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValue([]);
-    serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValue([]);
-    serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValue([]);
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new ModifyGroups(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       groupStoreDynamoRepository: Promise.resolve(serviceMocks.groupStoreDynamoRepositoryMock),

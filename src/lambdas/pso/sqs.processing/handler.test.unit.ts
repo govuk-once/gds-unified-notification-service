@@ -3,17 +3,20 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ProcessingAdapterError, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services';
+import { BoolParameters } from '@common/utils';
+import { IMessage } from '@project/lambdas/interfaces';
+import { Processing } from '@project/lambdas/pso/sqs.processing/handler';
 import {
-  BoolParameters,
   iocSpies,
   mockDefaultConfig,
   mockEventContext,
-  mockGetParameterImplementation,
+  mockFailedIMessage,
+  mockIMessage,
   mockQueueEvent,
   mockQueueMultiEvents,
-} from '@common/utils';
-import { IMessage, mockFailedIMessage, mockIMessage, mockUnidentifiableIMessage } from '@project/lambdas/interfaces';
-import { Processing } from '@project/lambdas/pso/sqs.processing/handler';
+  mockServicesExpectedBehaviour,
+  mockUnidentifiableIMessage,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -50,11 +53,9 @@ describe('Processing QueueHandler', () => {
     context = mockEventContext('processing');
     event = mockQueueEvent(message);
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
     serviceMocks.smConfigurationServiceMock.getParameterAsType = vi.fn().mockResolvedValueOnce({
@@ -66,8 +67,6 @@ describe('Processing QueueHandler', () => {
         region: `eu-west-2`,
       }),
     });
-    serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
     serviceMocks.processingServiceMock.send.mockImplementation(
       async (request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> => {
         return await Promise.resolve({

@@ -2,7 +2,8 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { ICampaignRecord } from '@common/repositories/interfaces';
-import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
+import { StringParameters } from '@common/utils';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

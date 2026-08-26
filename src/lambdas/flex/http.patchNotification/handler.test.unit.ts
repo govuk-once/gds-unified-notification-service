@@ -1,8 +1,14 @@
 import { NotificationStateEnum } from '@common/models';
 import { mockIProcessedMessageRecord } from '@common/repositories';
-import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
-import { mockIAnalytics, mockIProcessedMessage } from '@project/lambdas/interfaces';
+import { mockIAnalytics } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -51,11 +57,11 @@ describe('PatchNotification Handler', () => {
     // Test Fixtures
     context = mockEventContext('patchNotification');
 
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
     // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(messageRecord);
-    serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
-    serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
 
     instance = new PatchNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),

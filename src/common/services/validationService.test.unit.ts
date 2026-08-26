@@ -3,12 +3,12 @@ import { BadRequestError, ContentValidationError } from '@common/models/Errors/B
 import { IOrganisationConfig } from '@common/repositories';
 import { ValidationService } from '@common/services/validationService';
 import { BoolParameters } from '@common/utils';
+import { IMessageFields } from '@project/lambdas';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IMessageFields } from '@project/lambdas';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -20,7 +20,7 @@ describe('ValidationService', () => {
 
   // Observability and Service mocks
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

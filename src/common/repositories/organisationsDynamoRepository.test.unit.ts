@@ -1,6 +1,7 @@
 import { IOrganisationRecord, IProcessedMessageRecord } from '@common/repositories/interfaces';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
-import { iocSpies, mockDefaultConfig, mockGetParameterImplementation, StringParameters } from '@common/utils';
+import { StringParameters } from '@common/utils';
+import { iocSpies, mockDefaultConfig, mockGetParameterImplementation } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

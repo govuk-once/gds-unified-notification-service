@@ -2,12 +2,12 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
+import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });

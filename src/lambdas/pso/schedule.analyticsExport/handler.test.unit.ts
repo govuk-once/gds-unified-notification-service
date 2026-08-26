@@ -1,11 +1,5 @@
-import {
-  iocSpies,
-  mockDefaultConfig,
-  mockEventContext,
-  mockGetParameterImplementation,
-  mockScheduledEvent,
-} from '@common/utils';
 import { AnalyticsExport } from '@project/lambdas/pso/schedule.analyticsExport/handler';
+import { iocSpies, mockEventContext, mockScheduledEvent, mockServicesExpectedBehaviour } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -22,9 +16,6 @@ describe('AnalyticsExport Handler', () => {
   let instance: AnalyticsExport;
   let handler: ReturnType<typeof AnalyticsExport.prototype.handler>;
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
-
   // Test fixtures
   let context: Context;
 
@@ -35,14 +26,8 @@ describe('AnalyticsExport Handler', () => {
     // Test Fixtures
     context = mockEventContext('analyticsExport');
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
-    // Mocking successful completion of service functions
-    serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new AnalyticsExport(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsExportService: Promise.resolve(serviceMocks.analyticsExportServiceMock),

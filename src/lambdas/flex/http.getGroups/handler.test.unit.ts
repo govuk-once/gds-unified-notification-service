@@ -1,6 +1,6 @@
-import { iocSpies, mockEventContext, mockFlexAPIEvent } from '@common/utils';
 import { GetGroups } from '@project/lambdas/flex/http.getGroups/handler';
 import { IGroups, mockMultipleIGroup } from '@project/lambdas/interfaces';
+import { iocSpies, mockEventContext, mockFlexAPIEvent, mockServicesExpectedBehaviour } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -33,8 +33,10 @@ describe('GetGroups Handler', () => {
     context = mockEventContext('getGroups');
     event = mockFlexAPIEvent({ queryStringParameters: { pushID } }) as unknown as EventType;
 
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
     // Mocking successful completion of service functions
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups.mockResolvedValue(groups);
 
     instance = new GetGroups(serviceMocks.configurationServiceMock, observabilityMocks, () => ({

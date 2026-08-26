@@ -6,8 +6,8 @@ import { EnumParameters, StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@common/utils/mockInstanceFactory.test.util';
+} from '@test/mocks/services/mockConfigurationImplementation.test.util';
+import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
 import { Mocked } from 'vitest';
 
 vi.mock(import('@smithy/signature-v4'), () => {
