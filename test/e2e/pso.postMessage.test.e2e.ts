@@ -444,6 +444,56 @@ describe('Post /send', () => {
       expect(result.body).toEqual([{ NotificationID: notificationID }]);
     });
 
+    test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
+      // Arrange
+      const messageWithDisallowedURL = [
+        {
+          CampaignID: 'MESSAGE_API_E2E_TEST',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test - POST Message',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+          DeeplinkURL: 'https://test.com',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messageWithDisallowedURL });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['https://test.com is using test.com hostname which is not on the allow list'])
+      );
+    });
+
+    test('status 400 when - the message has DeeplinkURL thats not on allowed protocol list', async ({ psoAPI }) => {
+      // Arrange
+      const messageWithDisallowedURL = [
+        {
+          CampaignID: 'MESSAGE_API_E2E_TEST',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test - POST Message',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+          DeeplinkURL: 'mailto://test@example.com',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messageWithDisallowedURL });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError([
+          'mailto://test@example.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:',
+        ])
+      );
+    });
+
     test('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
       psoAPI,
     }) => {

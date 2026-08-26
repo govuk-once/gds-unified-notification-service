@@ -4,37 +4,31 @@ import z from 'zod';
 export const IOrganisationConfigSchema = z.object({
   MessageRetention: z
     .object({
-      Allowed: z.coerce.boolean(),
-      Min: z.coerce.number().int().positive().min(1).optional(),
-      Max: z.coerce.number().int().positive().min(1).optional(),
+      Allowed: z.union([z.string(), z.number(), z.boolean()]).pipe(z.coerce.boolean()).pipe(z.literal(false)),
     })
-    .superRefine((data, ctx) => {
-      if (data.Allowed) {
-        if (data.Min === undefined) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Min message retention for organisation is required when message retention is allowed',
-            path: ['Min'],
-          });
-        }
-        if (data.Max === undefined) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Max message retention for organisation is required when message retention is allowed',
-            path: ['Max'],
-          });
-        }
-        if (data.Min !== undefined && data.Max !== undefined && data.Min > data.Max) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Min message retention must be less than or equal to Max message retention for organisation',
-            path: ['Max'],
-          });
-        }
-      }
-    })
+    .or(
+      z.object({
+        Allowed: z.union([z.string(), z.number(), z.boolean()]).pipe(z.coerce.boolean()).pipe(z.literal(true)),
+        Min: z.coerce.number().int().positive().min(1),
+        Max: z.coerce.number().int().positive().min(1),
+      })
+    )
     .optional(),
   Channels: z.enum(ChannelsEnum).array().optional(),
+
+  DeeplinkAllowList: z
+    .object({
+      protocol: z.string(),
+      hostname: z.string().optional(),
+    })
+    .or(
+      z.object({
+        protocol: z.string().optional(),
+        hostname: z.string(),
+      })
+    )
+    .array()
+    .optional(),
 });
 export type IOrganisationConfig = z.infer<typeof IOrganisationConfigSchema>;
 
