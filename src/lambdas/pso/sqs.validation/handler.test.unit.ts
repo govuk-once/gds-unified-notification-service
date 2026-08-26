@@ -231,7 +231,7 @@ describe('Validation QueueHandler', () => {
         OrganisationID: message.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
-      ['https://example.com is using example.com hostname which is not on the allow list → at body.MessageBody.']
+      ['https://example.com is using example.com hostname which is not on the allow list → at MessageBody.']
     );
   });
 
@@ -296,8 +296,8 @@ describe('Validation QueueHandler', () => {
       },
       NotificationStateEnum.VALIDATION_FAILED,
       [
-        'Invalid input: expected string, received undefined → at body.NotificationTitle.',
-        'Invalid input: expected string, received undefined → at body.NotificationBody.',
+        'Invalid input: expected string, received undefined → at NotificationTitle.',
+        'Invalid input: expected string, received undefined → at NotificationBody.',
       ]
     );
   });
@@ -314,7 +314,7 @@ describe('Validation QueueHandler', () => {
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
-        error: expect.stringContaining('body.NotificationID'),
+        error: expect.stringContaining('NotificationID'),
         raw: unidentifiableMessage,
       })
     );
@@ -339,7 +339,7 @@ describe('Validation QueueHandler', () => {
         OrganisationID: message.OrganisationID,
       },
       'VALIDATION_FAILED',
-      [`https://example.com is using example.com hostname which is not on the allow list → at body.MessageBody.`]
+      [`https://example.com is using example.com hostname which is not on the allow list → at MessageBody.`]
     );
   });
 });
