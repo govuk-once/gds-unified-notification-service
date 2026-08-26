@@ -412,5 +412,63 @@ describe('ValidationService', () => {
         new BadRequestError(['Invalid input: invalid Channel, this channel is unsupported for this organisation'])
       );
     });
+
+    it('should accept reqeuests with DeeplinkURL when it is on the allow list', () => {
+      // Arrange
+      const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
+        DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
+      };
+      const mockMessageWithDeeplink = {
+        ...mockMessage,
+        DeeplinkURL: 'https://example.com',
+      };
+
+      // Act
+      const result = instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+
+      // Assert
+      expect(result).toBe(undefined);
+    });
+    it('should reject reqeuests with DeeplinkURL when is not on the allow list', () => {
+      // Arrange
+      const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
+        DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
+      };
+      const mockMessageWithDeeplink = {
+        ...mockMessage,
+        DeeplinkURL: 'https://not-example.com',
+      };
+
+      // Act
+      const result = () => instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+
+      // Assert
+      expect(result).toThrow(
+        new BadRequestError([
+          'https://not-example.com is using not-example.com hostname which is not on the allow list',
+        ])
+      );
+    });
+
+    it('should reject reqeuests with DeeplinkURL when protocol is not on the allow list', () => {
+      // Arrange
+      const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
+        DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
+      };
+      const mockMessageWithDeeplink = {
+        ...mockMessage,
+        DeeplinkURL: 'mailto://example@example.com',
+      };
+
+      // Act
+      const result = () => instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+
+      // Assert
+      expect(result).toThrow(
+        new BadRequestError([
+          'mailto://example@example.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:',
+        ])
+      );
+    });
   });
 });
