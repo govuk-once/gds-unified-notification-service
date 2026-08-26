@@ -69,7 +69,10 @@ const identifiableRecordSchema = z.object({
   ]
 }
  */
-export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBodySchema> {
+export class GroupProcessingWorker extends BatchQueueOperation<
+  typeof requestBodySchema,
+  typeof identifiableRecordSchema
+> {
   public operationId: string = 'groupProcessingWorker';
   protected enableConfig: string = BoolParameters.Config.GroupProcessingWorker.Enabled;
 
