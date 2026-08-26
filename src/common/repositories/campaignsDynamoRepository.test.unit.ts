@@ -3,7 +3,7 @@ import { NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { ICampaignRecord } from '@common/repositories/interfaces';
 import { StringParameters } from '@common/utils';
-import { iocSpies, mockDefaultConfig, mockGetParameterImplementation } from '@test/mocks';
+import { iocSpies, mockAWSClientsExpectedBehaviour, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -18,16 +18,12 @@ describe('campaignDynamoRepository', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
-
   beforeEach(async () => {
     vi.resetAllMocks();
 
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+    mockAWSClientsExpectedBehaviour(awsClientMocks);
 
     instance = new CampaignsDynamoRepository(
       serviceMocks.configurationServiceMock,

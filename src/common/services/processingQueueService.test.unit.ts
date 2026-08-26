@@ -2,17 +2,14 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
 import { StringParameters } from '@common/utils';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@test/mocks/services/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import { IMessage } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockIMessage, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('ProcessingQueueService', () => {
@@ -24,26 +21,16 @@ describe('ProcessingQueueService', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  const mockMessageBody = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-    DepartmentID: 'DVLA01',
-    UserID: 'UserID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new medical driving license',
-    NotificationBody: 'The DVLA has issued you a new license.',
-    OrganisationID: 'ORD01',
-  };
+  // Test Fixtures
+  const message = mockIMessage();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     processingQueueService = new ProcessingQueueService(
       serviceMocks.configurationServiceMock,
@@ -84,7 +71,7 @@ describe('ProcessingQueueService', () => {
       });
 
       // Act
-      await processingQueueService.publishMessage(mockMessageBody);
+      await processingQueueService.publishMessage(message);
 
       // Assert
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
@@ -93,7 +80,7 @@ describe('ProcessingQueueService', () => {
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
             DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockMessageBody),
+            MessageBody: JSON.stringify(message),
           }),
         })
       );
@@ -110,7 +97,7 @@ describe('ProcessingQueueService', () => {
       awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
-      const result = processingQueueService.publishMessage(mockMessageBody);
+      const result = processingQueueService.publishMessage(message);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -127,11 +114,11 @@ describe('ProcessingQueueService', () => {
     it('should send a batch of messages when given the message params and adds a metric.', async () => {
       // Arrange
       awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
-        Successful: [{ MessageId: 'message_0', Id: mockMessageBody.NotificationID, MD5OfMessageBody: 'X' }],
+        Successful: [{ MessageId: 'message_0', Id: message.NotificationID, MD5OfMessageBody: 'X' }],
       });
 
       // Act
-      await processingQueueService.publishMessageBatch([mockMessageBody]);
+      await processingQueueService.publishMessageBatch([message]);
 
       // Assert
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
@@ -143,7 +130,7 @@ describe('ProcessingQueueService', () => {
               {
                 Id: '0',
                 DelaySeconds: 0,
-                MessageBody: JSON.stringify(mockMessageBody),
+                MessageBody: JSON.stringify(message),
               },
             ],
           }),
@@ -161,7 +148,7 @@ describe('ProcessingQueueService', () => {
 
     it('should send a batch of messages, logs any that were failed to be sent, and adds a metric.', async () => {
       // Arrange
-      const mockMessageBody_0 = {
+      const message_0 = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'DVLA01',
         UserID: 'UserID',
@@ -171,7 +158,7 @@ describe('ProcessingQueueService', () => {
         NotificationBody: 'The DVLA has issued you a new license.',
         OrganisationID: 'ORD01',
       };
-      const mockMessageBody_1 = {
+      const message_1 = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'DVLA01',
         UserID: 'UserID-1',
@@ -188,7 +175,7 @@ describe('ProcessingQueueService', () => {
       });
 
       // Act
-      await processingQueueService.publishMessageBatch([mockMessageBody_0, mockMessageBody_1]);
+      await processingQueueService.publishMessageBatch([message_0, message_1]);
 
       // Assert
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
@@ -200,12 +187,12 @@ describe('ProcessingQueueService', () => {
               {
                 Id: '0',
                 DelaySeconds: 0,
-                MessageBody: JSON.stringify(mockMessageBody_0),
+                MessageBody: JSON.stringify(message_0),
               },
               {
                 Id: '1',
                 DelaySeconds: 0,
-                MessageBody: JSON.stringify(mockMessageBody_1),
+                MessageBody: JSON.stringify(message_1),
               },
             ],
           }),
@@ -234,7 +221,7 @@ describe('ProcessingQueueService', () => {
       awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
-      const result = processingQueueService.publishMessageBatch([mockMessageBody]);
+      const result = processingQueueService.publishMessageBatch([message]);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -248,7 +235,7 @@ describe('ProcessingQueueService', () => {
       });
 
       // Act
-      await processingQueueService.publishMessageBatch([mockMessageBody]);
+      await processingQueueService.publishMessageBatch([message]);
 
       // Assert
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
@@ -268,7 +255,7 @@ describe('ProcessingQueueService', () => {
     it('should split messages into batches of 10 when more than 10 messages are sent', async () => {
       // Arrange
       const mockMessageList: IMessage[] = Array.from({ length: 11 }, (_, i) => ({
-        ...mockMessageBody,
+        ...message,
         NotificationID: `notifiction-${i}`,
         UserId: i,
       }));

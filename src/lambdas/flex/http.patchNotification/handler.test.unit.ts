@@ -1,5 +1,4 @@
 import { NotificationStateEnum } from '@common/models';
-import { mockIProcessedMessageRecord } from '@common/repositories';
 import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
 import { mockIAnalytics } from '@project/lambdas/interfaces';
 import {
@@ -7,6 +6,7 @@ import {
   mockEventContext,
   mockFlexAPIEvent,
   mockIProcessedMessage,
+  mockIProcessedMessageRecord,
   mockServicesExpectedBehaviour,
 } from '@test/mocks';
 import { Context } from 'aws-lambda';

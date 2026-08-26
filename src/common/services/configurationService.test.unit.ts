@@ -1,7 +1,7 @@
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { ConfigurationService } from '@common/services/configurationService';
 import { InMemoryTTLCache } from '@common/utils';
-import { awsClientSpies, observabilitySpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import { iocSpies } from '@test/mocks';
 import { Mocked } from 'vitest';
 import z from 'zod';
 
@@ -16,8 +16,8 @@ vi.mock('@common/utils/inMemoryTTLCache', { spy: true });
 describe('ConfigurationService', () => {
   let config: ConfigurationService;
 
-  const observabilityMocks = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks } = iocSpies();
 
   const inMemoryCacheMock = new InMemoryTTLCache(60000) as Mocked<InMemoryTTLCache<string, string>>;
   inMemoryCacheMock.has = vi.fn();
@@ -25,6 +25,7 @@ describe('ConfigurationService', () => {
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
+
     config = new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMocks);
   });
 

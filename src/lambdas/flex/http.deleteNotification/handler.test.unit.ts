@@ -1,7 +1,13 @@
 import { NotificationStateEnum } from '@common/models';
-import { mockIMessageRecord } from '@common/repositories';
 import { DeleteNotification } from '@project/lambdas/flex/http.deleteNotification/handler';
-import { iocSpies, mockEventContext, mockFlexAPIEvent, mockIMessage, mockServicesExpectedBehaviour } from '@test/mocks';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockIMessage,
+  mockIMessageRecord,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

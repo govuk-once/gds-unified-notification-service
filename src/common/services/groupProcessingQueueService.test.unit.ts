@@ -2,12 +2,8 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
-import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@test/mocks/services/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import { mockIGroupMessageMetadata } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -25,34 +21,16 @@ describe('GroupProcessingQueueService', () => {
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  const mockGroupMessage: IGroupMessage = {
-    Namespace: 'travel',
-    Group: 'france',
-    Subgroup: 'immediate',
-    GroupNotificationID: 'TO_GROUP_ID',
-    OrganisationID: 'ORG_01',
-    CampaignID: 'CAM_ID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-  };
-  const mockGroupMessageMetadata: IGroupMessageMetadata = {
-    GroupMessage: mockGroupMessage,
-    GroupNotificationID: mockGroupMessage.GroupNotificationID,
-    WorkerID: 0,
-    CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
-  };
+  // Test Fixtures
+  const groupMessageMetadata = mockIGroupMessageMetadata();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     groupProcessingQueueService = new GroupProcessingQueueService(
       serviceMocks.configurationServiceMock,
@@ -93,7 +71,7 @@ describe('GroupProcessingQueueService', () => {
       });
 
       // Act
-      await groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
+      await groupProcessingQueueService.publishMessage(groupMessageMetadata);
 
       // Assert
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
@@ -102,7 +80,7 @@ describe('GroupProcessingQueueService', () => {
           input: expect.objectContaining({
             QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
             DelaySeconds: 0,
-            MessageBody: JSON.stringify(mockGroupMessageMetadata),
+            MessageBody: JSON.stringify(groupMessageMetadata),
           }),
         })
       );
@@ -119,7 +97,7 @@ describe('GroupProcessingQueueService', () => {
       awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
-      const result = groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
+      const result = groupProcessingQueueService.publishMessage(groupMessageMetadata);
 
       // Assert
       await expect(result).rejects.toThrow(error);

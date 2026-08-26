@@ -2,7 +2,6 @@ import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
-import { mockIMessageRecord } from '@common/repositories';
 import { MetricsLabels } from '@common/services';
 import { BoolParameters } from '@common/utils';
 import {
@@ -17,6 +16,7 @@ import {
   iocSpies,
   mockDefaultConfig,
   mockEventContext,
+  mockIMessageRecord,
   mockQueueEvent,
   mockQueueMultiEvents,
   mockServicesExpectedBehaviour,

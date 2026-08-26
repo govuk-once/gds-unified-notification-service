@@ -1,11 +1,12 @@
-import { mockIOrganisationRecord, mockIProcessedMessageRecord } from '@common/repositories';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
 import { mockIFlexNotification } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
   mockFlexAPIEvent,
+  mockIOrganisationRecord,
   mockIProcessedMessage,
+  mockIProcessedMessageRecord,
   mockServicesExpectedBehaviour,
 } from '@test/mocks';
 import { Context } from 'aws-lambda';

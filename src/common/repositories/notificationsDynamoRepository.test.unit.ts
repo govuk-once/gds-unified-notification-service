@@ -3,7 +3,13 @@ import { ParsingFailedError } from '@common/models';
 import { IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
-import { iocSpies, mockDefaultConfig, mockGetParameterImplementation } from '@test/mocks';
+import {
+  iocSpies,
+  mockAWSClientsExpectedBehaviour,
+  mockIMessageRecord,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -18,30 +24,18 @@ describe('NotificationsDynamoRepository', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
-
-  const messageRecord: IMessageRecord = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-    DepartmentID: 'TEST01',
-    UserID: 'UserID',
-    NotificationTitle: 'Hi there',
-    NotificationBody: 'You have a new message in the message center',
-    ReceivedDateTime: '202601021513',
-    Events: [],
-    OrganisationID: 'ORG01',
-  };
+  // Test Fixtures
+  const message = mockIProcessedMessage();
+  const messageRecord = mockIMessageRecord(message);
 
   beforeEach(async () => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+    mockAWSClientsExpectedBehaviour(awsClientMocks);
 
     instance = new NotificationsDynamoRepository(
       serviceMocks.configurationServiceMock,
@@ -86,29 +80,21 @@ describe('NotificationsDynamoRepository', () => {
       vi.setSystemTime(date);
       const expirationDate = new Date(date.getTime() + 30 * 60 * 60 * 24 * 1000).toISOString();
 
-      const record: IMessageRecord = recordBody;
-      awsClientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
-        ConsumedCapacity: {
-          ReadCapacityUnits: 1,
-          WriteCapacityUnits: 1,
-        },
-      });
-
       // Act
-      await instance.createRecord(record);
+      await instance.createRecord(messageRecord);
 
       // Assert
       expect(awsClientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
         expect.objectContaining({
           TableName: 'mockNotificationsDynamoRepositoryName',
-          Item: marshall({ ...record, ExpirationDateTime: expirationDate }),
+          Item: marshall({ ...messageRecord, ExpirationDateTime: expirationDate }, { removeUndefinedValues: true }),
         })
       );
     });
 
     it('should throw an error if record does not match the message record schema', async () => {
       // Arrange
-      const record = {
+      const invalidRecord = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
         DepartmentID: 'TEST01',
         UserID: 'UserID',
@@ -118,7 +104,7 @@ describe('NotificationsDynamoRepository', () => {
       } as unknown as IMessageRecord;
 
       // Act
-      const result = instance.createRecord(record);
+      const result = instance.createRecord(invalidRecord);
 
       // Assert
       await expect(result).rejects.toThrow(
@@ -126,7 +112,7 @@ describe('NotificationsDynamoRepository', () => {
       );
       expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Input to create record does not match the record schema',
-        record
+        invalidRecord
       );
     });
 
@@ -198,7 +184,10 @@ describe('NotificationsDynamoRepository', () => {
             mockNotificationsDynamoRepositoryName: [
               {
                 PutRequest: {
-                  Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
+                  Item: {
+                    ...marshall(record[0], { removeUndefinedValues: true }),
+                    ExpirationDateTime: { S: expect.any(String) },
+                  },
                 },
               },
             ],
@@ -361,29 +350,17 @@ describe('NotificationsDynamoRepository', () => {
   describe('GetRecord', () => {
     it('should return unmarshall data', async () => {
       // Arrange
-      const mockNotificationID = '2536bd9b-611b-453c-ba3d-e34783e4c9d1';
-      const mockRecord: IMessageRecord = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        DepartmentID: 'DVLA01',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-        Events: [],
-        OrganisationID: 'ORG01',
-      };
+      const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
 
       awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
-        Item: marshall(mockRecord),
+        Item: marshall(messageRecord, { removeUndefinedValues: true }),
       });
 
       // Act
-      const result = await instance.getRecord(mockNotificationID);
+      const result = await instance.getRecord(notificationID);
 
       // Assert
-      expect(result).toEqual(mockRecord);
+      expect(result).toEqual(messageRecord);
     });
 
     it('if item is not found null should be returned', async () => {

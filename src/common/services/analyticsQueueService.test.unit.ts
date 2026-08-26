@@ -1,15 +1,12 @@
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { StringParameters } from '@common/utils/parameters';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@test/mocks/services/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import { StringParameters } from '@common/utils';
+import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('AnalyticsQueueService', () => {
@@ -18,18 +15,12 @@ describe('AnalyticsQueueService', () => {
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
-
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     analyticsQueueService = new AnalyticsQueueService(
       serviceMocks.configurationServiceMock,

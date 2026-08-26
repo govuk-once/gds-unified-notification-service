@@ -1,15 +1,9 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import {
-  ConfigurationService,
-  MetricsLabels,
-  ObservabilityService,
-  ProcessingAdapter,
-  ProcessingAdapterRequest,
-  ProcessingAdapterResult,
-  ProcessingAdapterUDP,
-  ProcessingAdapterVoid,
-  SMConfigurationService,
-} from '@common/services';
+import { ProcessingAdapterUDP, ProcessingAdapterVoid } from '@common/services/adapters';
+import { ConfigurationService } from '@common/services/configurationService';
+import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { EnumParameters } from '@common/utils';
 import * as z from 'zod';
 

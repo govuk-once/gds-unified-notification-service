@@ -1,6 +1,12 @@
 import { GetGroups } from '@project/lambdas/flex/http.getGroups/handler';
-import { IGroups, mockMultipleIGroup } from '@project/lambdas/interfaces';
-import { iocSpies, mockEventContext, mockFlexAPIEvent, mockServicesExpectedBehaviour } from '@test/mocks';
+import { IGroups } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockMultipleIGroup,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });

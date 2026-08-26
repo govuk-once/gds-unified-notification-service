@@ -1,14 +1,8 @@
-import { InvalidCharacterError } from '@common/models/Errors/BadRequestError';
-import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { InvalidCharacterError, NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { AnalyticsExportService, AnalyticsLog } from '@common/services/analyticsExportService';
 import { StringParameters } from '@common/utils';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@test/mocks/services/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import { IAnalytics } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
@@ -65,13 +59,9 @@ describe('AnalyticsExportService', () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-
-    // Mock successful response from external services
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     // Mock successful response from the client
     awsClientMocks.cloudWatchLogsClientMock.send.mockResolvedValue(undefined);
@@ -86,15 +76,17 @@ describe('AnalyticsExportService', () => {
   });
 
   describe('logAnalytics', () => {
-    it('should get log stream name from cache and push the analytic to the log group.', async () => {
-      // Arrange
+    const date = new Date(2026, 1, 1, 12, 30, 0);
+    const logStreamName = date.toISOString().split(':').shift() ?? '';
+
+    beforeEach(() => {
       vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
       vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
+    });
 
+    it('should get log stream name from cache and push the analytic to the log group.', async () => {
       // Act
       await instance.logAnalytics(mockAnalytics);
 
@@ -117,13 +109,6 @@ describe('AnalyticsExportService', () => {
 
     it('should handle optional values when converting to csv.', async () => {
       // Arrange
-      vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
-      vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
-
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
-
       const mockAnalyticsNoDepID = { ...mockAnalytics, DepartmentID: undefined };
       const mockCsvNoDepID = [
         '',
@@ -158,12 +143,6 @@ describe('AnalyticsExportService', () => {
 
     it('should throw an error if an analytics object contain an invalid char , .', async () => {
       // Arrange
-      vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
-      vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
-
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
       const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp,' };
       const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp,' };
 
@@ -185,12 +164,6 @@ describe('AnalyticsExportService', () => {
 
     it('should throw an error if an analytics object contain an invalid char " .', async () => {
       // Arrange
-      vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
-      vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
-
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
       const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp"' };
       const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp"' };
 

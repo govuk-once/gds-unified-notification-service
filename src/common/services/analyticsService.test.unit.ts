@@ -1,138 +1,111 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationStateEnum } from '@common/models';
 import { AnalyticsEventFromIMessage, AnalyticsService } from '@common/services/analyticsService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import {
+  iocSpies,
+  mockAnalyticsEvents,
+  mockAnalyticsWithCampaignEvents,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import z from 'zod';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/analyticsQueueService', { spy: true });
 
 describe('analyticsService', () => {
   let instance: AnalyticsService;
 
-  // Observability and Service mocks
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = iocSpies();
+
+  // Test Fixtures
+  const analyticsEvents = mockAnalyticsEvents();
+  const analyticsWithCampaignEvents = mockAnalyticsWithCampaignEvents();
 
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+    // Mock expected aws clients responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new AnalyticsService(observabilityMocks, serviceMocks.analyticsQueueServiceMock);
   });
 
   describe('publishMultipleEvents', () => {
-    const mockAnalyticsEvents: AnalyticsEventFromIMessage[] = [
-      {
-        NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
-        DepartmentID: 'Dev',
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        OrganisationID: 'ORD01',
-      },
-      {
-        NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80g',
-        DepartmentID: 'Dev',
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
-        OrganisationID: 'ORD01',
-      },
-    ];
-
-    const mockAnalyticsWithCampaignEvents: AnalyticsEventFromIMessage[] = [
-      {
-        NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80h',
-        DepartmentID: 'Dev',
-        CampaignID: 'CAMP01',
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        OrganisationID: 'ORD01',
-      },
-      {
-        NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80i',
-        DepartmentID: 'Dev',
-        CampaignID: 'CAMP01',
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
-        OrganisationID: 'ORD01',
-      },
-    ];
-
     it('should publish multiple events to the event dynamo table', async () => {
-      // Arrange
-
       // Act
-      await instance.publishMultipleEvents(mockAnalyticsEvents, NotificationStateEnum.VALIDATED);
+      await instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
         {
           EventID: expect.schemaMatching(z.uuid()),
-          NotificationID: mockAnalyticsEvents[0].NotificationID,
-          DepartmentID: mockAnalyticsEvents[0].DepartmentID,
-          APIGWExtendedID: mockAnalyticsEvents[0].APIGWExtendedID,
+          NotificationID: analyticsEvents[0].NotificationID,
+          DepartmentID: analyticsEvents[0].DepartmentID,
+          APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
           EventDateTime: expect.schemaMatching(z.coerce.date()),
           Event: 'VALIDATED',
-          CampaignID: mockAnalyticsEvents[0].CampaignID,
-          OrganisationID: mockAnalyticsEvents[0].OrganisationID,
+          CampaignID: analyticsEvents[0].CampaignID,
+          OrganisationID: analyticsEvents[0].OrganisationID,
         },
         {
           EventID: expect.schemaMatching(z.uuid()),
-          NotificationID: mockAnalyticsEvents[1].NotificationID,
-          DepartmentID: mockAnalyticsEvents[1].DepartmentID,
-          APIGWExtendedID: mockAnalyticsEvents[1].APIGWExtendedID,
+          NotificationID: analyticsEvents[1].NotificationID,
+          DepartmentID: analyticsEvents[1].DepartmentID,
+          APIGWExtendedID: analyticsEvents[1].APIGWExtendedID,
           EventDateTime: expect.schemaMatching(z.coerce.date()),
           Event: 'VALIDATED',
-          CampaignID: mockAnalyticsEvents[1].CampaignID,
-          OrganisationID: mockAnalyticsEvents[1].OrganisationID,
+          CampaignID: analyticsEvents[1].CampaignID,
+          OrganisationID: analyticsEvents[1].OrganisationID,
         },
       ]);
     });
 
     it('should publish multiple analytics events to analytics queue with campaignID when provided.', async () => {
-      // Arrange
-
       // Act
-      await instance.publishMultipleEvents(mockAnalyticsWithCampaignEvents, NotificationStateEnum.VALIDATED);
+      await instance.publishMultipleEvents(analyticsWithCampaignEvents, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
         {
           EventID: expect.schemaMatching(z.uuid()),
-          NotificationID: mockAnalyticsWithCampaignEvents[0].NotificationID,
-          DepartmentID: mockAnalyticsWithCampaignEvents[0].DepartmentID,
-          CampaignID: mockAnalyticsWithCampaignEvents[0].CampaignID,
-          APIGWExtendedID: mockAnalyticsWithCampaignEvents[0].APIGWExtendedID,
+          NotificationID: analyticsWithCampaignEvents[0].NotificationID,
+          DepartmentID: analyticsWithCampaignEvents[0].DepartmentID,
+          CampaignID: analyticsWithCampaignEvents[0].CampaignID,
+          APIGWExtendedID: analyticsWithCampaignEvents[0].APIGWExtendedID,
           EventDateTime: expect.schemaMatching(z.coerce.date()),
           Event: 'VALIDATED',
-          OrganisationID: mockAnalyticsWithCampaignEvents[0].OrganisationID,
+          OrganisationID: analyticsWithCampaignEvents[0].OrganisationID,
         },
         {
           EventID: expect.schemaMatching(z.uuid()),
-          NotificationID: mockAnalyticsWithCampaignEvents[1].NotificationID,
-          DepartmentID: mockAnalyticsWithCampaignEvents[1].DepartmentID,
-          APIGWExtendedID: mockAnalyticsWithCampaignEvents[1].APIGWExtendedID,
-          CampaignID: mockAnalyticsWithCampaignEvents[1].CampaignID,
+          NotificationID: analyticsWithCampaignEvents[1].NotificationID,
+          DepartmentID: analyticsWithCampaignEvents[1].DepartmentID,
+          APIGWExtendedID: analyticsWithCampaignEvents[1].APIGWExtendedID,
+          CampaignID: analyticsWithCampaignEvents[1].CampaignID,
           EventDateTime: expect.schemaMatching(z.coerce.date()),
           Event: 'VALIDATED',
-          OrganisationID: mockAnalyticsWithCampaignEvents[1].OrganisationID,
+          OrganisationID: analyticsWithCampaignEvents[1].OrganisationID,
         },
       ]);
     });
 
     it('should add a metric after publishing events', async () => {
       // Act
-      await instance.publishMultipleEvents(mockAnalyticsEvents, NotificationStateEnum.VALIDATED);
+      await instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
-        mockAnalyticsEvents.length
+        analyticsEvents.length
       );
     });
 
@@ -162,8 +135,6 @@ describe('analyticsService', () => {
     };
 
     it('should publish an event to the event dynamo table', async () => {
-      // Arrange
-
       // Act
       await instance.publishEvent(mockAnalyticsEvent, NotificationStateEnum.VALIDATED);
 
@@ -180,8 +151,6 @@ describe('analyticsService', () => {
     });
 
     it('should publish an event to the analytics queue with campaignID when provided', async () => {
-      // Arrange
-
       // Act
       await instance.publishEvent(mockAnalyticsWithCampaignIDEvent, NotificationStateEnum.VALIDATED);
 
@@ -212,30 +181,20 @@ describe('analyticsService', () => {
   });
 
   describe('createEvent', () => {
-    const mockMessage = {
-      NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80g',
-      DepartmentID: 'Dev',
-      CampaignID: 'CAMP01',
-      APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
-      OrganisationID: 'ORD01',
-    };
-
     it('should return an event object when given a message and notification state.', () => {
-      // Arrange
-
       // Act
-      const result = instance.createEvent(mockMessage, NotificationStateEnum.VALIDATED);
+      const result = instance.createEvent(analyticsWithCampaignEvents[0], NotificationStateEnum.VALIDATED);
 
       // Assert
       expect(result).toEqual({
         EventID: expect.schemaMatching(z.uuid()),
-        NotificationID: mockMessage.NotificationID,
-        DepartmentID: mockMessage.DepartmentID,
-        CampaignID: mockMessage.CampaignID,
-        APIGWExtendedID: mockMessage.APIGWExtendedID,
+        NotificationID: analyticsWithCampaignEvents[0].NotificationID,
+        DepartmentID: analyticsWithCampaignEvents[0].DepartmentID,
+        CampaignID: analyticsWithCampaignEvents[0].CampaignID,
+        APIGWExtendedID: analyticsWithCampaignEvents[0].APIGWExtendedID,
         EventDateTime: expect.schemaMatching(z.coerce.date()),
         Event: 'VALIDATED',
-        OrganisationID: mockMessage.OrganisationID,
+        OrganisationID: analyticsWithCampaignEvents[0].OrganisationID,
       });
     });
   });

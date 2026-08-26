@@ -15,6 +15,7 @@ export abstract class BaseConfigurableValueService {
     deserialize: boolean = true
   ): Promise<z.infer<T>> {
     const parameterValue = await this.getParameter(namespace);
+
     // Parse parameter
     try {
       const result = schema.safeParse(deserialize ? JSON.parse(parameterValue) : parameterValue);

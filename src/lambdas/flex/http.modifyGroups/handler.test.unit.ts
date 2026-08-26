@@ -1,9 +1,10 @@
 import { ModifyGroups } from '@project/lambdas/flex/http.modifyGroups/handler';
-import { GroupActionEnum, mockIGroups } from '@project/lambdas/interfaces';
+import { GroupActionEnum } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
   mockFlexAPIEvent,
+  mockIGroups,
   mockIModifyGroups,
   mockServicesExpectedBehaviour,
 } from '@test/mocks';

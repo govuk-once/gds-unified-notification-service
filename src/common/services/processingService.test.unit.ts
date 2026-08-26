@@ -1,13 +1,9 @@
 // Unbound methods are allowed as that's how vi.mocked works
 import * as awsCredentialsProvider from '@aws-sdk/credential-providers';
-import { ProcessingAdapterUDP, ProcessingAdapterVoid, ProcessingService } from '@common/services';
-import { ProcessingAdapterRequest } from '@common/services/interfaces';
+import { ProcessingAdapterUDP, ProcessingAdapterVoid } from '@common/services/adapters';
+import { ProcessingService } from '@common/services/processingService';
 import { EnumParameters, StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@test/mocks/services/mockConfigurationImplementation.test.util';
-import { iocSpies } from '@test/mocks/services/mockInstanceFactory.test.util';
+import { iocSpies, mockDefaultConfig, mockProcessingAdapterRequest, mockServicesExpectedBehaviour } from '@test/mocks';
 import { Mocked } from 'vitest';
 
 vi.mock(import('@smithy/signature-v4'), () => {
@@ -30,10 +26,12 @@ vi.mock(import('@smithy/signature-v4'), () => {
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/credential-providers', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/smConfigurationService', { spy: true });
 vi.mock('@common/adapters/processingAdapterUDP', { spy: true });
-vi.mock('@aws-sdk/credential-providers', { spy: true });
+vi.mock('@common/adapters/processingAdapterVoid', { spy: true });
 
 describe('ProcessingService', () => {
   const awsCredentialsProviderSpy = awsCredentialsProvider as Mocked<typeof awsCredentialsProvider>;
@@ -52,35 +50,21 @@ describe('ProcessingService', () => {
   let instance: ProcessingService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
   // Mock request
-  const mockRequest: ProcessingAdapterRequest = {
-    userID: 'bob',
-  };
-  const mockSMContents = {
-    apiAccountId: '1231231231',
-    apiKey: 'abc',
-    apiUrl: 'https://udp',
-    consumerRoleArn: 'arn:iam:consumer',
-    region: 'eu-west-2',
-  };
+  const request = mockProcessingAdapterRequest();
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
-    // Mock SM Value return
-    serviceMocks.smConfigurationServiceMock.getParameter.mockResolvedValueOnce(JSON.stringify(mockSMContents));
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     instance = new ProcessingService(
       observabilityMocks,
@@ -131,13 +115,13 @@ describe('ProcessingService', () => {
 
       // Act
       await instance.initialize();
-      await instance.send(mockRequest);
+      await instance.send(request);
 
       // Assert
       expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Processing using Void adapter - mapping userID to externalUserID`,
         {
-          userID: mockRequest.userID,
+          userID: request.userID,
         }
       );
     });
@@ -148,13 +132,13 @@ describe('ProcessingService', () => {
 
       // Act
       await instance.initialize();
-      const result = await instance.send(mockRequest);
+      const result = await instance.send(request);
 
       // Assert
       expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Processing using UDP adapter - mapping userID to externalUserID`,
         {
-          userID: mockRequest.userID,
+          userID: request.userID,
         }
       );
       expect(result.externalUserID).toEqual('bob:app:push:id');

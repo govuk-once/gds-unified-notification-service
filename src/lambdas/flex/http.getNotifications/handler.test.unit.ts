@@ -1,12 +1,13 @@
 import { NotificationStateEnum } from '@common/models';
-import { mockIOrganisationRecord, mockIProcessedMessageRecord } from '@common/repositories';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
 import { mockIAnalytics, mockIFlexNotification } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
   mockFlexAPIEvent,
+  mockIOrganisationRecord,
   mockIProcessedMessage,
+  mockIProcessedMessageRecord,
   mockServicesExpectedBehaviour,
 } from '@test/mocks';
 import { Context } from 'aws-lambda';

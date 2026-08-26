@@ -33,6 +33,7 @@ import {
 } from '@common/services';
 import {
   mockDefaultConfig,
+  mockDefaultExternalSecrets,
   mockDefaultSecrets,
   mockGetParameterImplementation,
 } from '@test/mocks/services/mockConfigurationImplementation.test.util';
@@ -234,39 +235,58 @@ export const mockServicesExpectedBehaviour = (serviceMocks: ReturnType<typeof Se
     mockGetParameterImplementation(resetMockParameterStore)
   );
   const resetMockSecrets = mockDefaultSecrets();
-  serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
-    mockGetParameterImplementation(resetMockSecrets)
-  );
+  serviceMocks.smNamespacedConfigurationServiceMock.getParameter = vi
+    .fn()
+    .mockImplementation(mockGetParameterImplementation(resetMockSecrets));
+  const resetMockExternalSecrets = mockDefaultExternalSecrets();
+  serviceMocks.smConfigurationServiceMock.getParameter = vi
+    .fn()
+    .mockImplementation(mockGetParameterImplementation(resetMockExternalSecrets));
 
   // Service functions
-  serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-  serviceMocks.dispatchQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-  serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
-  serviceMocks.groupProcessingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-  serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-  serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
+  serviceMocks.analyticsQueueServiceMock.publishMessage = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.analyticsQueueServiceMock.publishMessageBatch = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.dispatchQueueServiceMock.publishMessage = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.dispatchQueueServiceMock.publishMessageBatch = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.groupProcessingQueueServiceMock.publishMessage = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.processingQueueServiceMock.publishMessage = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.processingQueueServiceMock.publishMessageBatch = vi.fn().mockResolvedValue(undefined);
 
-  serviceMocks.analyticsExportServiceMock.logAnalytics.mockResolvedValue(undefined);
-  serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket.mockResolvedValue(undefined);
-  serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
-  serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
+  serviceMocks.analyticsExportServiceMock.logAnalytics = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.analyticsExportServiceMock.logStreamToS3Bucket = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.analyticsServiceMock.publishEvent = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.analyticsServiceMock.publishMultipleEvents = vi.fn().mockResolvedValue(undefined);
 
-  serviceMocks.cacheServiceMock.store.mockResolvedValue(undefined);
-  serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
-  serviceMocks.circuitBreakerServiceMock.checkCircuit.mockResolvedValue(undefined);
-  serviceMocks.circuitBreakerServiceMock.recordSuccess.mockResolvedValue(undefined);
-  serviceMocks.circuitBreakerServiceMock.recordFailure.mockResolvedValue(undefined);
-  serviceMocks.circuitBreakerServiceMock.getState.mockResolvedValue(CircuitBreakerStateEnum.CLOSED);
+  serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.store = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.increment = vi.fn().mockResolvedValue(1);
+  serviceMocks.cacheServiceMock.rateLimit = vi.fn().mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
+  serviceMocks.circuitBreakerServiceMock.checkCircuit = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.circuitBreakerServiceMock.recordSuccess = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.circuitBreakerServiceMock.recordFailure = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.circuitBreakerServiceMock.getState = vi.fn().mockResolvedValue(CircuitBreakerStateEnum.CLOSED);
 
   // Repository functions
-  serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns.mockResolvedValue(undefined);
-  serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups.mockResolvedValue([]);
-  serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups.mockResolvedValue([]);
-  serviceMocks.groupStoreDynamoRepositoryMock.joinGroups.mockResolvedValue([]);
-  serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
-  serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
-  serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
-  serviceMocks.notificationsDynamoRepositoryMock.addEvent.mockResolvedValue(undefined);
+  serviceMocks.campaignsDynamoRepositoryMock.incrementCampaigns = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValue([]);
+  serviceMocks.groupStoreDynamoRepositoryMock.leaveGroups = vi.fn().mockResolvedValue([]);
+  serviceMocks.groupStoreDynamoRepositoryMock.joinGroups = vi.fn().mockResolvedValue([]);
+  serviceMocks.notificationsDynamoRepositoryMock.createRecord = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.addEvent = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.notificationsDynamoRepositoryMock.deleteRecord = vi.fn().mockResolvedValue(undefined);
 
   return { resetMockParameterStore, resetMockSecrets };
+};
+
+export const mockAWSClientsExpectedBehaviour = (clientMocks: ReturnType<typeof awsClientSpies>) => {
+  clientMocks.sqsClientMock.send = vi.fn().mockResolvedValue(undefined);
+  clientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValue({
+    ConsumedCapacity: {
+      ReadCapacityUnits: 1,
+      WriteCapacityUnits: 1,
+    },
+  });
 };
