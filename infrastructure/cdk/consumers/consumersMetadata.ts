@@ -1,4 +1,3 @@
-import { ChannelsEnum } from '@common/models';
 import {
   ChannelsControlPreset,
   IOrganisationRecordBuilder,
@@ -23,12 +22,12 @@ export const orgMetadata = {
 
   // Consumers
   DVLA: IOrganisationRecordBuilder('DVLA', {
-    Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE],
+    Channels: ChannelsControlPreset.None,
     MessageRetention: MessageRetentionPresent.NotAllowed,
   }),
 
   EventsAggregator: IOrganisationRecordBuilder('Foreign Travel Advice', {
-    Channels: ChannelsControlPreset.All,
+    Channels: ChannelsControlPreset.Standard,
     MessageRetention: MessageRetentionPresent.NotAllowed,
   }),
 } as const;
