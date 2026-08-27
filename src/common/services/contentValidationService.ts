@@ -71,10 +71,20 @@ export class ContentValidationService {
     return input;
   }
 
-  public validateUrls(input: string | undefined) {
+  public validateUrls(
+    input: string | undefined,
+    overrides?: {
+      protocols: ContentValidationService['protocols'];
+      hostnames: ContentValidationService['hostnames'];
+    }
+  ) {
     if (input == undefined || input == '') {
       return input;
     }
+
+    // Use overrides if availalble, otherwise fall on defaults
+    const protocols = overrides?.protocols ?? this.protocols;
+    const hostnames = overrides?.hostnames ?? this.hostnames;
 
     // Split string by whitespace
     const segments = input.split(/(\s+)/);
@@ -92,7 +102,7 @@ export class ContentValidationService {
         continue;
       }
       // Validate protocol is on the list
-      if (!this.protocols.includes(url.protocol)) {
+      if (!protocols.includes(url.protocol)) {
         throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${this.protocols.join(',')}`
         );
@@ -100,7 +110,7 @@ export class ContentValidationService {
 
       // Validate hostnames for https protocols
       if (url.protocol == 'https:') {
-        const validHostname = this.hostnames
+        const validHostname = hostnames
           .map((hostname) => {
             // If hostname starts with *, strip it - then check if URLs hostname ends with it
             if (hostname.startsWith('*')) {

@@ -2,6 +2,7 @@ import { BadRequestError, ContentValidationError } from '@common/models/Errors/B
 import { IOrganisationConfig } from '@common/repositories';
 import { ContentValidationService } from '@common/services/contentValidationService';
 import { FeatureFlags } from '@common/services/interfaces';
+import { filters, maps } from '@common/utils/array';
 import { IMessageFields } from '@project/lambdas';
 
 export class ValidationService {
@@ -21,12 +22,14 @@ export class ValidationService {
       );
     }
 
-    const { Allowed, Min, Max } = organisationConfig.MessageRetention;
+    const { Allowed } = organisationConfig.MessageRetention;
     if (!Allowed) {
       throw this.createError(
         'Invalid input: unexpected ExpiresInDays at ., message retention is disabled for this organisation'
       );
     }
+
+    const { Min, Max } = organisationConfig.MessageRetention;
     if (Min && expiresInDays < Min) {
       throw this.createError(
         `Invalid input: invalid ExpiresInDays at ., message retention is less than the minimum set for this organisation ${Min} days`
@@ -45,8 +48,11 @@ export class ValidationService {
       this.contentValidationService.validate(message.MessageBody);
 
       if (this.featureFlags.deeplinkUrl) {
-        // Validates for unsupported urls in deeplinks
-        this.contentValidationService.validateUrls(message.DeeplinkURL);
+        // Validates for unsupported urls in deeplinks - explicitly setting overrides rather than falling back on default validation provided by SSM, values in SSM are for content
+        this.contentValidationService.validateUrls(message.DeeplinkURL, {
+          protocols: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('protocol')).filter(filters.isDefined),
+          hostnames: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('hostname')).filter(filters.isDefined),
+        });
       } else {
         if (message.DeeplinkURL) {
           throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
