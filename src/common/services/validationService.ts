@@ -62,7 +62,6 @@ export class ValidationService {
       if (message.Channel) {
         // Validates message channel against channel controls
         if (this.featureFlags.channelControls) {
-          console.log(organisationConfig.Channels);
           if (!organisationConfig.Channels?.includes(message.Channel)) {
             throw new BadRequestError([
               'Invalid input: invalid Channel, this channel is unsupported for this organisation',
