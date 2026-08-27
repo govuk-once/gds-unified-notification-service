@@ -1,67 +1,42 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { ConfigurationService } from '@common/services/configurationService';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IGroupMessage, IGroupMessageMetadata } from '@project/lambdas';
-import { mockClient } from 'aws-sdk-client-mock';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
+import { mockIGroupMessageMetadata } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-sqs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('GroupProcessingQueueService', () => {
   let groupProcessingQueueService: GroupProcessingQueueService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-  const sqsMock = mockClient(SQSClient);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  const mockGroupMessage: IGroupMessage = {
-    Namespace: 'travel',
-    Group: 'france',
-    Subgroup: 'immediate',
-    GroupNotificationID: 'TO_GROUP_ID',
-    OrganisationID: 'ORG_01',
-    CampaignID: 'CAM_ID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-  };
-  const mockGroupMessageMetadata: IGroupMessageMetadata = {
-    GroupMessage: mockGroupMessage,
-    GroupNotificationID: mockGroupMessage.GroupNotificationID,
-    WorkerID: 0,
-    CacheKey: `Worker/GroupProcessingWorker/${mockGroupMessage.GroupNotificationID}/0`,
-  };
+  // Test Fixtures
+  const groupMessageMetadata = mockIGroupMessageMetadata();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    sqsMock.reset();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
-    groupProcessingQueueService = new GroupProcessingQueueService(configurationServiceMock, observabilityMock);
+    groupProcessingQueueService = new GroupProcessingQueueService(
+      serviceMocks.configurationServiceMock,
+      awsClientMocks.sqsClientMock,
+      observabilityMocks
+    );
     await groupProcessingQueueService.initialize();
   });
 
@@ -84,31 +59,32 @@ describe('GroupProcessingQueueService', () => {
       expectTypeOf(result).toEqualTypeOf<GroupProcessingQueueService>();
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Group Processing Queue Service Initialised.');
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Group Processing Queue Service Initialised.');
     });
   });
 
   describe('publishMessage', () => {
     it('should send a message when given the message params and adds a metric.', async () => {
       // Arrange
-      sqsMock.on(SendMessageCommand).resolvesOnce({
+      awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         MessageId: 'message-1',
       });
 
       // Act
-      await groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
+      await groupProcessingQueueService.publishMessage(groupMessageMetadata);
 
       // Assert
-      expect(sqsMock.calls()).toHaveLength(1);
-      const command = sqsMock.call(0).args[0] as SendMessageCommand;
-      expect(command.input).toEqual(
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
-          DelaySeconds: 0,
-          MessageBody: JSON.stringify(mockGroupMessageMetadata),
+          input: expect.objectContaining({
+            QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
+            DelaySeconds: 0,
+            MessageBody: JSON.stringify(groupMessageMetadata),
+          }),
         })
       );
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_SUCCESSFULLY,
         MetricUnit.Count,
         1
@@ -118,15 +94,15 @@ describe('GroupProcessingQueueService', () => {
     it('should throw an error and log when the send message command fails and adds a metric', async () => {
       // Arrange
       const error = new Error('SQS Error');
-      sqsMock.on(SendMessageCommand).rejectsOnce(error);
+      awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValueOnce(error);
 
       // Act
-      const result = groupProcessingQueueService.publishMessage(mockGroupMessageMetadata);
+      const result = groupProcessingQueueService.publishMessage(groupMessageMetadata);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
-      expect(observabilityMock.metrics.addMetric).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
         1

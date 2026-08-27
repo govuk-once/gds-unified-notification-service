@@ -1,8 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { BaseError } from '@common/models/Errors/BaseError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { BaseError, NotificationStateEnum } from '@common/models';
 
 // Coverts all analytics events into a metric
 export const analyticsMetricPrefix = `ANALYTICS_EVENT`;

@@ -1,19 +1,15 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import {
-  ConfigurationService,
-  MetricsLabels,
-  NotificationAdapterOneSignal,
-  NotificationAdapterVoid,
-  ObservabilityService,
-  SMNamespacedConfigurationService,
-} from '@common/services';
+import { NotificationAdapterOneSignal, NotificationAdapterVoid } from '@common/services/adapters';
+import { ConfigurationService } from '@common/services/configurationService';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
+import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { EnumParameters, segment } from '@common/utils';
-import * as z from 'zod';
+import z from 'zod';
 
 export class NotificationService {
   public adapter!: NotificationAdapter;

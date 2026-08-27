@@ -82,6 +82,18 @@ export const mockDefaultSecrets = (): Record<string, string | Error> =>
     [StringSecret.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
+export const mockDefaultExternalSecrets = (): Record<string, string | Error> =>
+  Object.entries({
+    // Strings
+    ['arn:of:sm:secret']: JSON.stringify({
+      apiAccountId: '1231231231',
+      apiKey: 'abc',
+      apiUrl: 'https://udp',
+      consumerRoleArn: 'arn:iam:consumer',
+      region: 'eu-west-2',
+    }),
+  }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
+
 export const mockGetParameterImplementation = (records: Record<string, string | Error>) => {
   return (parameter: string) => {
     // If the value stored is an error - throw it instead of returning
