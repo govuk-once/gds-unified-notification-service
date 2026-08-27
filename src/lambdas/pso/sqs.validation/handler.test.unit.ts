@@ -24,16 +24,16 @@ vi.mock('@common/services', { spy: true });
 
 mockClient(SQSClient);
 
-describe('Validation QueueHandler', () => {
+describe('Validation QueueHandler', async () => {
   let instance: Validation;
   let handler: ReturnType<typeof Validation.prototype.handler>;
 
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
-
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
+
+  // Initialize the mock service and repository layers
+  const observabilityMocks = observabilitySpies();
+  const serviceMocks = await ServiceSpies(observabilityMocks);
 
   // Data presents
   const mockContext: Context = {
@@ -127,7 +127,7 @@ describe('Validation QueueHandler', () => {
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
-      notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      notificationsRepository: serviceMocks.notificationsDynamoRepositoryMock,
       processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
     }));
     handler = instance.handler();

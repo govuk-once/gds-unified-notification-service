@@ -1,4 +1,5 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
@@ -7,20 +8,21 @@ import { IMessage } from '@project/lambdas/interfaces/IMessage';
 
 export class ProcessingQueueService extends QueueService<IMessage> {
   protected queueName: string = 'processing';
+
   constructor(
-    protected config: ConfigurationService,
-    protected observability: ObservabilityService
+    protected observability: ObservabilityService,
+    protected client: SQSClient,
+    protected sqsQueueUrl: string
   ) {
-    super(observability);
+    super(observability, client, sqsQueueUrl);
   }
 
-  async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
-
-    await super.initialize();
-    this.observability.logger.info('Processing Queue Service Initialised.');
-
-    return this;
+  public static async create(config: ConfigurationService, observability: ObservabilityService) {
+    return new ProcessingQueueService(
+      observability,
+      new SQSClient({ region: 'eu-west-2' }),
+      await config.getParameter(StringParameters.Queue.Processing.Url)
+    );
   }
 
   public addPublishingSuccessMetric(count: number) {

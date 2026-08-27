@@ -22,13 +22,13 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-describe('GroupProcessingWorker QueueHandler', () => {
+describe('GroupProcessingWorker QueueHandler', async () => {
   let instance: GroupProcessingWorker;
   let handler: ReturnType<typeof GroupProcessingWorker.prototype.handler>;
 
   // Initialize the mock service and repository layers
   const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  const serviceMocks = await ServiceSpies(observabilityMocks);
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

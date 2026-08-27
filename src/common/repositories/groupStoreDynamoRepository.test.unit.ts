@@ -52,25 +52,24 @@ describe('GroupStoreDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new GroupStoreDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
+    instance = await GroupStoreDynamoRepository.create(serviceMocks.configurationServiceMock, observabilityMock);
     instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(undefined);
     instance.deleteRecord = vi.fn().mockResolvedValueOnce(undefined);
     instance.createRecordBatch = vi.fn().mockResolvedValueOnce(undefined);
-    await instance.initialize();
   });
 
-  describe('initialize', () => {
-    it('should call super.initialize with correct parameters and return this', async () => {
+  describe('create', () => {
+    it('should call create with correct parameters and return this', async () => {
       // Arrange
-      const superInitialize = vi
-        .spyOn(Object.getPrototypeOf(GroupStoreDynamoRepository.prototype), 'initialize')
+      const create = vi
+        .spyOn(Object.getPrototypeOf(GroupStoreDynamoRepository.prototype), 'create')
         .mockResolvedValue(undefined);
 
       // Act
-      const result = await instance.initialize();
+      const result = await GroupStoreDynamoRepository.create(serviceMocks.configurationServiceMock, observabilityMock);
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.GroupStore.Attributes);
+      expect(create).toHaveBeenCalledWith(StringParameters.Table.GroupStore.Attributes);
       expect(result).toBe(instance);
     });
   });

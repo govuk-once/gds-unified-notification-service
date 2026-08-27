@@ -20,46 +20,46 @@ const UDPConfigSchema = z.object({
 });
 
 export class ProcessingAdapterUDP implements ProcessingAdapter {
-  public client: FetchService;
-  public udpConfig: z.infer<typeof UDPConfigSchema>;
-
   constructor(
-    protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMConfigurationService
+    public readonly client: FetchService,
+    protected readonly observability: ObservabilityService
   ) {}
 
-  public async initialize(): Promise<void> {
-    if (this.client == undefined && this.udpConfig == undefined) {
-      // Fetch value from SSM - it's serialized JSON to allow it to be nullable
-      const config = await this.config.getParameterAsType(
-        StringParameters.UDP.Config.SM,
-        z.string().or(z.null()),
-        true
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMConfigurationService
+  ) {
+    // Fetch value from SSM - it's serialized JSON to allow it to be nullable
+    const configurationParameters = await config.getParameterAsType(
+      StringParameters.UDP.Config.SM,
+      z.string().or(z.null()),
+      true
+    );
+
+    if (configurationParameters == null) {
+      observability.logger.error(
+        `SSM Parameter ${StringParameters.UDP.Config.SM} cannot be null when using ProcessingAdapterUDP`
       );
-
-      if (config == null) {
-        this.observability.logger.error(
-          `SSM Parameter ${StringParameters.UDP.Config.SM} cannot be null when using ProcessingAdapterUDP`
-        );
-        throw new ServiceMisconfigurationError();
-      }
-
-      // Fetch config from UDPs AWS Acc
-      this.udpConfig = await this.smConfig.getParameterAsType(config, UDPConfigSchema, true);
-      this.client = new FetchSigV4Service({
-        baseUrl: this.udpConfig.apiUrl,
-        defaultHeaders: {
-          'x-api-key': this.udpConfig.apiKey,
-        },
-        credentials: {
-          region: this.udpConfig.region,
-          roleArn: this.udpConfig.consumerRoleArn,
-          service: 'execute-api',
-          externalId: 'UNS',
-        },
-      });
+      throw new ServiceMisconfigurationError();
     }
+
+    // Fetch config from UDPs AWS Acc
+    const udpConfig = await smConfig.getParameterAsType(configurationParameters, UDPConfigSchema, true);
+    const client = new FetchSigV4Service({
+      baseUrl: udpConfig.apiUrl,
+      defaultHeaders: {
+        'x-api-key': udpConfig.apiKey,
+      },
+      credentials: {
+        region: udpConfig.region,
+        roleArn: udpConfig.consumerRoleArn,
+        service: 'execute-api',
+        externalId: 'UNS',
+      },
+    });
+
+    return new ProcessingAdapterUDP(client, observability);
   }
 
   public async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {

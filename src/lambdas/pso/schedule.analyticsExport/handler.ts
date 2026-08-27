@@ -11,11 +11,10 @@ import { Context, ScheduledEvent } from 'aws-lambda';
 export class AnalyticsExport extends ScheduleOperation {
   public operationId: string = 'analyticsExport';
 
-  public analyticsExportService!: AnalyticsExportService;
-
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
+    public analyticsExportService: AnalyticsExportService,
     dependencies?: () => HandlerDependencies<AnalyticsExport>
   ) {
     super(observability);
@@ -31,6 +30,8 @@ export class AnalyticsExport extends ScheduleOperation {
   }
 }
 
-export const handler = new AnalyticsExport(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  analyticsExportService: iocGetAnalyticsExportService(),
-})).handler();
+export const handler = new AnalyticsExport(
+  iocGetConfigurationService(),
+  iocGetObservabilityService(),
+  iocGetAnalyticsExportService()
+).handler();

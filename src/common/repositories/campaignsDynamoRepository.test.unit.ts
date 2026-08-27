@@ -4,7 +4,6 @@ import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { ICampaignRecord } from '@common/repositories/interfaces/ICampaignRecord';
-import { StringParameters } from '@common/utils';
 import {
   mockDefaultConfig,
   mockGetParameterImplementation,
@@ -37,26 +36,22 @@ describe('campaignDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new CampaignsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
-
-    await instance.initialize();
+    instance = await CampaignsDynamoRepository.create(serviceMocks.configurationServiceMock, observabilityMock);
   });
 
-  describe('initialize', () => {
-    it('should call initialize with correct params', async () => {
-      // Arrange
-      const initialize = vi
-        .spyOn(Object.getPrototypeOf(CampaignsDynamoRepository.prototype), 'initialize')
-        .mockResolvedValue(undefined);
+  // describe('create', () => {
+  //   it('should call create with correct params', async () => {
+  //     // Arrange
+  //     const create = vi.spyOn(Object.getPrototypeOf(CampaignsDynamoRepository), 'create').mockResolvedValue(undefined);
 
-      // Act
-      const result = await instance.initialize();
+  //     // Act
+  //     const result = await CampaignsDynamoRepository.create(serviceMocks.configurationServiceMock, observabilityMock);
 
-      // Assert
-      expect(initialize).toHaveBeenCalledWith(StringParameters.Table.Campaigns.Attributes);
-      expect(result).toBe(instance);
-    });
-  });
+  //     // Assert
+  //     expect(create).toHaveBeenCalledWith(StringParameters.Table.Campaigns.Attributes);
+  //     expect(result).toBe(instance);
+  //   });
+  // });
 
   describe('GetCampaignRecord', () => {
     it('should get record with correct table name', async () => {

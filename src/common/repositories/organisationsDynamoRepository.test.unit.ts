@@ -90,22 +90,24 @@ describe('OrganisationsDynamoRepository', () => {
       mockGetParameterImplementation(mockParameterStore)
     );
 
-    instance = new OrganisationsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
-    await instance.initialize();
+    instance = await OrganisationsDynamoRepository.create(serviceMocks.configurationServiceMock, observabilityMock);
   });
 
-  describe('initialize', () => {
-    it('should call super.initialize with correct parameters and return this', async () => {
+  describe('create', () => {
+    it('should call create with correct parameters and return this', async () => {
       // Arrange
-      const superInitialize = vi
-        .spyOn(Object.getPrototypeOf(OrganisationsDynamoRepository.prototype), 'initialize')
+      const create = vi
+        .spyOn(Object.getPrototypeOf(OrganisationsDynamoRepository.prototype), 'create')
         .mockResolvedValue(undefined);
 
       // Act
-      const result = await instance.initialize();
+      const result = await OrganisationsDynamoRepository.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMock
+      );
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.Organisations.Attributes);
+      expect(create).toHaveBeenCalledWith(StringParameters.Table.Organisations.Attributes);
       expect(result).toBe(instance);
     });
   });

@@ -1,4 +1,5 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
@@ -7,20 +8,21 @@ import { IGroupMessageMetadata } from '@project/lambdas';
 
 export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
   protected queueName: string = 'groupprocessing';
+
   constructor(
-    protected config: ConfigurationService,
-    protected observability: ObservabilityService
+    protected observability: ObservabilityService,
+    protected client: SQSClient,
+    protected sqsQueueUrl: string
   ) {
-    super(observability);
+    super(observability, client, sqsQueueUrl);
   }
 
-  async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.GroupProcessing.Url);
-
-    await super.initialize();
-    this.observability.logger.info('Group Processing Queue Service Initialised.');
-
-    return this;
+  public static async create(config: ConfigurationService, observability: ObservabilityService) {
+    return new GroupProcessingQueueService(
+      observability,
+      new SQSClient({ region: 'eu-west-2' }),
+      await config.getParameter(StringParameters.Queue.GroupProcessing.Url)
+    );
   }
 
   public addPublishingSuccessMetric(count: number) {

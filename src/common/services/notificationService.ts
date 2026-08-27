@@ -16,30 +16,30 @@ import { EnumParameters, segment } from '@common/utils';
 import * as z from 'zod';
 
 export class NotificationService {
-  public adapter!: NotificationAdapter;
-
   constructor(
+    public adapter: NotificationAdapter,
     protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService
+    protected config: ConfigurationService
   ) {}
 
-  async initialize() {
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMNamespacedConfigurationService
+  ) {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getEnumParameter(
+    const adapterConfig = await config.getEnumParameter(
       EnumParameters.Config.Dispatch.Adapter,
       z.enum([`VOID`, `OneSignal`])
     );
 
-    this.adapter =
-      adapter == 'OneSignal'
-        ? new NotificationAdapterOneSignal(this.observability, this.config, this.smConfig)
-        : new NotificationAdapterVoid(this.observability, this.config, this.smConfig);
+    // Select adapter based on the configuration
+    const adapter =
+      adapterConfig == 'OneSignal'
+        ? await NotificationAdapterOneSignal.create(observability, config, smConfig)
+        : NotificationAdapterVoid.create(observability, config);
 
-    // Initialize the adapter
-    await this.adapter.initialize();
-
-    return this;
+    return new NotificationService(adapter, observability, config);
   }
 
   async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {

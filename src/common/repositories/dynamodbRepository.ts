@@ -11,31 +11,21 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
+import { IDynamoAttributes } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 import { zodErrorFormatter } from '@common/utils';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
-  private client!: DynamoDB;
-  protected tableAttributes!: IDynamoAttributes;
   protected abstract recordSchema: RecordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    protected observability: ObservabilityService
-  ) {}
-
-  public async initialize(tableAttributesParameter: string) {
-    this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-
-    const client = new DynamoDB({
-      region: 'eu-west-2',
-    });
-
-    this.client = client;
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
+  ) {
     this.observability.tracer.captureAWSv3Client(this.client);
-    return this;
   }
 
   public async observeCapacity<

@@ -1,4 +1,6 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import {
   IMessageRecord,
   IMessageRecordSchema,
@@ -15,15 +17,23 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
   protected recordSchema = recordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.Inbound.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService) {
+    return new NotificationsDynamoRepository(
+      config,
+      observability,
+      new DynamoDB({
+        region: 'eu-west-2',
+      }),
+      await config.getParameterAsType(StringParameters.Table.Inbound.Attributes, IDynamoAttributesSchema)
+    );
   }
 
   public async addEvent(event: IAnalytics) {

@@ -1,6 +1,5 @@
 import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { SerializationError } from '@common/models/Errors/BadRequestError';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services/observabilityService';
 
 export const serializeRecordBodyToJson = <InputType>(body: InputType, observability: ObservabilityService): string => {
@@ -18,20 +17,13 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
 
 export abstract class QueueService<InputType> {
   protected abstract queueName: string;
-  protected client!: SQSClient;
-  protected sqsQueueUrl!: string;
 
-  constructor(protected observability: ObservabilityService) {}
-
-  // eslint-disable-next-line @typescript-eslint/require-await
-  public async initialize() {
-    if (this.sqsQueueUrl == undefined) {
-      this.observability.logger.error(`Failed to fetch SQS Queue URL for queue`, { queueName: this.queueName });
-      throw new ServiceMisconfigurationError();
-    }
-    this.client = new SQSClient({ region: 'eu-west-2' });
+  constructor(
+    protected readonly observability: ObservabilityService,
+    protected readonly client: SQSClient,
+    protected readonly sqsQueueUrl: string
+  ) {
     this.observability.tracer.captureAWSv3Client(this.client);
-    return this;
   }
 
   public getQueueName() {

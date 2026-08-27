@@ -26,6 +26,10 @@ import { ProcessingService } from '@common/services/processingService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { ValidationService } from '@common/services/validationService';
+import {
+  mockDefaultConfig,
+  mockGetParameterImplementation,
+} from '@common/utils/mockConfigurationImplementation.test.util';
 import { Mocked } from 'vitest';
 
 // Observability mocks
@@ -70,13 +74,16 @@ export const awsClientSpies = (): AwsClientMocks => {
   Factory to initialize the mock service and repository layers.
   Organises the dependency injection of mocked services and repositories and ensuring they all share the same observability context.
 */
-export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) => {
+export const ServiceSpies = async (observabilityMock: Mocked<ObservabilityService>) => {
   // Config
   const configurationServiceMock = new ConfigurationService(observabilityMock) as Mocked<ConfigurationService>;
   const smConfigurationServiceMock = new SMConfigurationService(observabilityMock) as Mocked<SMConfigurationService>;
   const smNamespacedConfigurationServiceMock = new SMNamespacedConfigurationService(
     observabilityMock
   ) as Mocked<SMNamespacedConfigurationService>;
+
+  const mockParameterStore = mockDefaultConfig();
+  configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
 
   // Queues
   const processingQueueServiceMock = new ProcessingQueueService(
@@ -97,23 +104,26 @@ export const ServiceSpies = (observabilityMock: Mocked<ObservabilityService>) =>
   ) as Mocked<AnalyticsQueueService>;
 
   // Dynamodb
-  const notificationsDynamoRepositoryMock = new NotificationsDynamoRepository(
+  const notificationsDynamoRepositoryMock = (await NotificationsDynamoRepository.create(
     configurationServiceMock,
     observabilityMock
-  ) as Mocked<NotificationsDynamoRepository>;
-  const mtlsRevocationDynamoRepositoryMock = new MTLSRevocationDynamoRepository(
+  )) as Mocked<NotificationsDynamoRepository>;
+  const mtlsRevocationDynamoRepositoryMock = (await MTLSRevocationDynamoRepository.create(
     configurationServiceMock,
     observabilityMock
-  ) as Mocked<MTLSRevocationDynamoRepository>;
-  const campaignsDynamoRepositoryMock = new CampaignsDynamoRepository(
+  )) as Mocked<MTLSRevocationDynamoRepository>;
+  const campaignsDynamoRepositoryMock = (await CampaignsDynamoRepository.create(
     configurationServiceMock,
     observabilityMock
-  ) as Mocked<CampaignsDynamoRepository>;
-  const organisationsDynamoRepositoryMock = new OrganisationsDynamoRepository(
+  )) as Mocked<CampaignsDynamoRepository>;
+  const organisationsDynamoRepositoryMock = (await OrganisationsDynamoRepository.create(
     configurationServiceMock,
     observabilityMock
-  ) as Mocked<OrganisationsDynamoRepository>;
-  const groupStoreDynamoRepositoryMock = new GroupStoreDynamoRepository(configurationServiceMock, observabilityMock);
+  )) as Mocked<OrganisationsDynamoRepository>;
+  const groupStoreDynamoRepositoryMock = await GroupStoreDynamoRepository.create(
+    configurationServiceMock,
+    observabilityMock
+  );
 
   // Services
   const analyticsServiceMock = new AnalyticsService(

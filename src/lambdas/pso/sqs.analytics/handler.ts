@@ -54,11 +54,11 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema, typ
   public cache!: CacheService;
   public notifications!: NotificationsDynamoRepository;
   public campaigns!: CampaignsDynamoRepository;
-  public analyticsExportService!: AnalyticsExportService;
 
   constructor(
     protected config: ConfigurationService,
     protected observability: ObservabilityService,
+    protected analyticsExportService: AnalyticsExportService,
     dependencies?: () => HandlerDependencies<Analytics>
   ) {
     super(config, observability);
@@ -115,9 +115,13 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema, typ
   }
 }
 
-export const handler = new Analytics(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  cache: iocGetCacheService().connect(),
-  notifications: iocGetNotificationDynamoRepository(),
-  campaigns: iocGetCampaignsDynamoRepository(),
-  analyticsExportService: iocGetAnalyticsExportService(),
-})).handler();
+export const handler = new Analytics(
+  iocGetConfigurationService(),
+  iocGetObservabilityService(),
+  iocGetAnalyticsExportService(),
+  () => ({
+    cache: iocGetCacheService().connect(),
+    notifications: iocGetNotificationDynamoRepository(),
+    campaigns: iocGetCampaignsDynamoRepository(),
+  })
+).handler();
