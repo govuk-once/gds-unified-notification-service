@@ -6,6 +6,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { CampaignsDynamoRepository } from '@common/repositories';
@@ -16,6 +17,7 @@ import z from 'zod';
 
 const requestBodySchema = z.any();
 const responseBodySchema = campaignStatusSchema;
+const authorizerSchema = psoAuthorizerSchema;
 
 /**
  * Sample event received by Lambda from API Gateway
@@ -34,10 +36,15 @@ const responseBodySchema = campaignStatusSchema;
   }
  **/
 
-export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class GetCampaignStatus extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
   public operationId: string = 'getCampaignStatus';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
 
   public campaignsDynamoRepository!: CampaignsDynamoRepository;
 
@@ -50,18 +57,19 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
 
-    const organisationID = event.requestContext.authorizer?.Organization as string;
+    const organisationID = event.requestContext.authorizer.Organization;
     if (!organisationID) {
       throw new BadRequestError(['Missing DepartmentID']);
     }
 
     const departmentID = event.queryStringParameters?.departmentID;
+    console.log(departmentID);
     const compositeID = CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID);
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
 
