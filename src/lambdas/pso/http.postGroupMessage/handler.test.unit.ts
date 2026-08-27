@@ -686,7 +686,11 @@ describe('PostGroupMessage Handler', () => {
       expect(JSON.parse(result.body)).toEqual({
         Status: 400,
         HttpError: 'BadRequest',
-        Errors: ['Authorizer did not match expected schema', 'Invalid input → at OrganisationConfig.MessageRetention.'],
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Min message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Min.',
+          'Max message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Max.',
+        ],
       });
     });
 
