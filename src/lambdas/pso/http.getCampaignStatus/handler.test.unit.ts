@@ -21,6 +21,7 @@ describe('GetCampaignStatus Handler', () => {
   let handler: ReturnType<typeof GetCampaignStatus.prototype.handler>;
 
   const mockCampaignID = 'CAMP01';
+  const mockOrganisationID = 'ORG01';
   const mockDepartmentID = 'DEPO1';
   const mockCampaignRecord = {
     CompositeID: `${mockDepartmentID}/${mockCampaignID}`,
@@ -64,7 +65,13 @@ describe('GetCampaignStatus Handler', () => {
       },
       requestContext: {
         authorizer: {
-          Organization: mockDepartmentID,
+          Organization: mockOrganisationID,
+          OrganisationConfig: JSON.stringify({
+            MessageRetention: {
+              Allowed: false,
+            },
+            Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+          }),
         },
         requestTimeEpoch: 1428582896000,
         requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
@@ -162,7 +169,7 @@ describe('GetCampaignStatus Handler', () => {
 
   it('should return 400 if organisation is missing', async () => {
     // Arrange
-    mockEvent.requestContext.authorizer = undefined;
+    mockEvent.requestContext.authorizer = undefined as unknown as never;
 
     // Act
     const result = await handler(mockEvent, mockContext);
@@ -172,20 +179,17 @@ describe('GetCampaignStatus Handler', () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Missing DepartmentID'],
+      Errors: ['Authorizer did not match expected schema', 'Invalid input: expected object, received undefined → at .'],
     });
   });
 
   it('should look up org/department/campaign key when departmentID query param is provided', async () => {
     // Arrange
-    const organisationID = 'ORG01';
-    const departmentID = 'DEPO1';
-    mockEvent.requestContext.authorizer = { Organization: organisationID };
-    mockEvent.queryStringParameters = { departmentID };
+    mockEvent.queryStringParameters = { departmentID: mockDepartmentID };
 
     const threePartRecord = {
       ...mockCampaignRecord,
-      CompositeID: `${organisationID}/${departmentID}/${mockCampaignID}`,
+      CompositeID: `${mockOrganisationID}/${mockDepartmentID}/${mockCampaignID}`,
     };
     serviceMocks.campaignsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(threePartRecord);
 
@@ -194,7 +198,7 @@ describe('GetCampaignStatus Handler', () => {
 
     // Assert
     expect(serviceMocks.campaignsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(
-      `${organisationID}/${departmentID}/${mockCampaignID}`
+      `${mockOrganisationID}/${mockDepartmentID}/${mockCampaignID}`
     );
 
     expect(result.statusCode).toBe(200);

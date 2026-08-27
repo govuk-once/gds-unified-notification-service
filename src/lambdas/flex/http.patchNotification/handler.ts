@@ -50,8 +50,8 @@ export class PatchNotification extends FlexAPIHandler<typeof requestBodySchema, 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public analytics: AnalyticsService;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public analytics!: AnalyticsService;
 
   constructor(
     protected config: ConfigurationService,
