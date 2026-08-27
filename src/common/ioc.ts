@@ -315,7 +315,7 @@ export const iocGetCircuitBreakerService = (platform: string): Promise<CircuitBr
 // Services - Other
 export const iocGetContentValidationService = ioc(
   'ContentValidationService',
-  Mode.SINGLETON,
+  Mode.TIMEBOUND_SINGLETON,
   async () =>
     new ContentValidationService(
       iocGetObservabilityService(),
@@ -327,7 +327,7 @@ export const iocGetContentValidationService = ioc(
 
 export const iocGetValidationService = ioc(
   'ValidationService',
-  Mode.SINGLETON,
+  Mode.TIMEBOUND_SINGLETON,
   async () =>
     new ValidationService(await iocGetContentValidationService(), await iocGetConfigurationService().getFeatureFlags())
 );
