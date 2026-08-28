@@ -171,7 +171,7 @@ describe('NotificationService', () => {
       expect(postSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           body: expect.objectContaining({
-            data: { deeplink: `govuk://travel?country=spain&notificationID=${mockRequest.NotificationID}` },
+            data: { deeplink: `govuk://travel?country=spain&notificationID=${request.NotificationID}` },
           }),
           path: '/notifications?c=push',
         })
