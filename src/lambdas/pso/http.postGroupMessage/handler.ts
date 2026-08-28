@@ -15,6 +15,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
@@ -24,6 +25,7 @@ import z from 'zod';
 
 const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
 const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
+const authorizerSchema = psoAuthorizerSchema;
 
 /**
 {
@@ -54,10 +56,15 @@ const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), U
 }
  */
 
-export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class PostGroupMessage extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
 
   public readonly cacheService!: CacheService;
   public readonly groupProcessingQueue!: GroupProcessingQueueService;
@@ -74,11 +81,12 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
+    const organisationID = event.requestContext.authorizer.Organization;
+    const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
     const messages: IGroupMessage[] = event.body.map((body) => ({
       ...body,

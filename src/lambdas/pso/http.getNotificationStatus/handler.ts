@@ -21,7 +21,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
