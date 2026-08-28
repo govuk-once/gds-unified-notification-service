@@ -420,10 +420,10 @@ describe('PostGroupMessage Handler', () => {
   describe('authorizerMiddleware', () => {
     it('should return 202 when authorizer contains with MessageRetention not allowed OrganisationConfig', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithMessageRetention = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -436,7 +436,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithMessageRetention, context);
 
       // Assert
       expect(result.statusCode).toEqual(202);
@@ -444,10 +444,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 202 when authorizer contains with MessageRetention allowed and min max provided', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithMessageRetention = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -462,7 +462,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithMessageRetention, context);
 
       // Assert
       expect(result.statusCode).toEqual(202);
@@ -470,10 +470,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 202 when authorizer contains allow control channels', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithChannelControls = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -484,7 +484,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithChannelControls, context);
 
       // Assert
       expect(result.statusCode).toEqual(202);
@@ -492,10 +492,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 202 when authorizer contains DeeplinkAllowList array', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithDeeplink = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -510,7 +510,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithDeeplink, context);
 
       // Assert
       expect(result.statusCode).toEqual(202);
@@ -518,16 +518,16 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 400 when authorizer does not match the authorizer schema', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithoutAuthorizer = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: undefined,
         },
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithoutAuthorizer, context);
 
       // Assert
       expect(result.statusCode).toEqual(400);
@@ -543,10 +543,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 400 when authorizer does not contain Organization', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithoutOrganization = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             OrganisationConfig: JSON.stringify({
               MessageRetention: {
@@ -559,7 +559,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithoutOrganization, context);
 
       // Assert
       expect(result.statusCode).toEqual(400);
@@ -575,10 +575,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 400 when authorizer does not contain OrganisationConfig', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithOrganisationConfig = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
           },
@@ -586,7 +586,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithOrganisationConfig, context);
 
       // Assert
       expect(result.statusCode).toEqual(400);
@@ -602,10 +602,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 400 when authorizer contains with MessageRetention allowed but no min max provided', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithMessageRetention = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -619,7 +619,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithMessageRetention, context);
 
       // Assert
       expect(result.statusCode).toEqual(400);
@@ -636,10 +636,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 400 when authorizer does contains unsupported Channels', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithUnsupportChannel = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -650,7 +650,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithUnsupportChannel, context);
 
       // Assert
       expect(result.statusCode).toEqual(400);
@@ -666,10 +666,10 @@ describe('PostGroupMessage Handler', () => {
 
     it('should return 400 when authorizer has DeeplinkAllowList but does not contain protocol or hostname', async () => {
       // Arrange
-      const event = {
-        ...mockEvent,
+      const eventWithDeeplinkAllowList = {
+        ...event,
         requestContext: {
-          ...mockEvent.requestContext,
+          ...event.requestContext,
           authorizer: {
             Organization: 'ORG01',
             OrganisationConfig: JSON.stringify({
@@ -684,7 +684,7 @@ describe('PostGroupMessage Handler', () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(event, mockContext);
+      const result = await handler(eventWithDeeplinkAllowList, context);
 
       // Assert
       expect(result.statusCode).toEqual(400);
