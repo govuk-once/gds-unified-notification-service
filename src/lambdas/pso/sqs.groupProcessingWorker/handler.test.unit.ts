@@ -35,7 +35,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
   let handler: ReturnType<typeof GroupProcessingWorker.prototype.handler>;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -69,9 +69,9 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     instance = new GroupProcessingWorker(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
-      dispatchQueue: serviceMocks.dispatchQueueServiceMock.initialize(),
-      groupProcessingQueue: serviceMocks.groupProcessingQueueServiceMock.initialize(),
-      notificationsRepository: serviceMocks.notificationsDynamoRepositoryMock.initialize(),
+      dispatchQueue: Promise.resolve(serviceMocks.dispatchQueueServiceMock),
+      groupProcessingQueue: Promise.resolve(serviceMocks.groupProcessingQueueServiceMock),
+      notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
     handler = instance.handler();
   });

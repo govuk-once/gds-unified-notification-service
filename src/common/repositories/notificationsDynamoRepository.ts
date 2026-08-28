@@ -1,10 +1,12 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import {
-  IDynamoAttributes, IDynamoAttributesSchema, IMessageRecord,
+  IDynamoAttributes,
+  IDynamoAttributesSchema,
+  IMessageRecord,
   IMessageRecordSchema,
   IProcessedMessageRecord,
-  IProcessedMessageRecordSchema
+  IProcessedMessageRecordSchema,
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';

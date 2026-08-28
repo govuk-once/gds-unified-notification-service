@@ -8,11 +8,13 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { SSMClient } from '@aws-sdk/client-ssm';
 import { STSClient } from '@aws-sdk/client-sts';
 import { CircuitBreakerStateEnum } from '@common/models';
-import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
-import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
-import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
-import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
+import {
+  CampaignsDynamoRepository,
+  GroupStoreDynamoRepository,
+  MTLSRevocationDynamoRepository,
+  NotificationsDynamoRepository,
+  OrganisationsDynamoRepository,
+} from '@common/repositories';
 import {
   AnalyticsExportService,
   AnalyticsQueueService,
@@ -23,10 +25,8 @@ import {
   ContentValidationService,
   DispatchQueueService,
   GroupProcessingQueueService,
-  NotificationAdapterOneSignal,
   NotificationService,
   ObservabilityService,
-  ProcessingAdapterUDP,
   ProcessingQueueService,
   ProcessingService,
   SMConfigurationService,
@@ -167,16 +167,11 @@ export const ServiceSpies = async (
     observabilityMock,
     analyticsQueueServiceMock
   ) as Mocked<AnalyticsService>;
-  const notificationAdapter = (await NotificationAdapterOneSignal.create(
+  const notificationServiceMock = (await NotificationService.create(
     observabilityMock,
     configurationServiceMock,
     smNamespacedConfigurationServiceMock
-  )) as Mocked<NotificationAdapterOneSignal>;
-  const notificationServiceMock = new NotificationService(
-    notificationAdapter,
-    observabilityMock,
-    configurationServiceMock
-  ) as Mocked<NotificationService>;
+  )) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
   const circuitBreakerServiceMock = new CircuitBreakerService(
     observabilityMock,
@@ -190,21 +185,17 @@ export const ServiceSpies = async (
     ['govuk:', 'https:'],
     ['*.gov.uk']
   ) as Mocked<ContentValidationService>;
-  const processingAdapter = (await ProcessingAdapterUDP.create(
+  const processingServiceMock = (await ProcessingService.create(
     observabilityMock,
     configurationServiceMock,
-    smNamespacedConfigurationServiceMock
-  )) as Mocked<ProcessingAdapterUDP>;
-  const processingServiceMock = new ProcessingService(
-    processingAdapter,
-    observabilityMock
-  ) as Mocked<ProcessingService>;
-  const analyticsExportServiceMock = new AnalyticsExportService(
+    smConfigurationServiceMock
+  )) as Mocked<ProcessingService>;
+  const analyticsExportServiceMock = (await AnalyticsExportService.create(
     observabilityMock,
     configurationServiceMock,
     cacheServiceMock,
     clientMocks.cloudWatchLogsClientMock
-  ) as Mocked<AnalyticsExportService>;
+  )) as Mocked<AnalyticsExportService>;
   const validationServiceMock = new ValidationService(contentValidationServiceMock, {
     channelControls: true,
     deeplinkUrl: true,
@@ -278,7 +269,6 @@ export const mockServicesExpectedBehaviour = (serviceMocks: Awaited<ReturnType<t
   serviceMocks.analyticsServiceMock.publishEvent = vi.fn().mockResolvedValue(undefined);
   serviceMocks.analyticsServiceMock.publishMultipleEvents = vi.fn().mockResolvedValue(undefined);
 
-  serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValue(undefined);
   serviceMocks.cacheServiceMock.store = vi.fn().mockResolvedValue(undefined);
   serviceMocks.cacheServiceMock.increment = vi.fn().mockResolvedValue(1);
   serviceMocks.cacheServiceMock.rateLimit = vi.fn().mockResolvedValue({ exceeded: false, capacityRemaining: 10 });

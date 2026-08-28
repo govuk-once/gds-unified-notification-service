@@ -1,3 +1,4 @@
+import { IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -15,11 +16,11 @@ vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-describe('OrganisationsDynamoRepository', () => {
+describe('OrganisationsDynamoRepository', async () => {
   let instance: OrganisationsDynamoRepository;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   const organisationRecord = mockIOrganisationRecord();
@@ -36,30 +37,28 @@ describe('OrganisationsDynamoRepository', () => {
     // Mock SSM store and services responses
     mockServicesExpectedBehaviour(serviceMocks);
 
-    instance = new OrganisationsDynamoRepository(
+    instance = await OrganisationsDynamoRepository.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.dynamoDBClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.dynamoDBClientMock
     );
-    await instance.initialize();
   });
 
   describe('create', () => {
-    it('should call create with correct parameters and return this', async () => {
-      // Arrange
-      const create = vi
-        .spyOn(Object.getPrototypeOf(OrganisationsDynamoRepository.prototype), 'create')
-        .mockResolvedValue(undefined);
-
+    it('should call create with correct params', async () => {
       // Act
       const result = await OrganisationsDynamoRepository.create(
         serviceMocks.configurationServiceMock,
-        observabilityMock
+        observabilityMocks,
+        awsClientMocks.dynamoDBClientMock
       );
 
       // Assert
-      expect(create).toHaveBeenCalledWith(StringParameters.Table.Organisations.Attributes);
-      expect(result).toBe(instance);
+      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
+        StringParameters.Table.Organisations.Attributes,
+        IDynamoAttributesSchema
+      );
+      expect(result).toBeInstanceOf(OrganisationsDynamoRepository);
     });
   });
 

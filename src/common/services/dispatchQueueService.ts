@@ -21,7 +21,7 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
     return new DispatchQueueService(
       observability,
       client,
-      await config.getParameter(StringParameters.Queue.Analytics.Url)
+      await config.getParameter(StringParameters.Queue.Dispatch.Url)
     );
   }
 

@@ -31,7 +31,7 @@ describe('Validation QueueHandler', async () => {
   let handler: ReturnType<typeof Validation.prototype.handler>;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -59,8 +59,8 @@ describe('Validation QueueHandler', async () => {
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
-      notificationsRepository: serviceMocks.notificationsDynamoRepositoryMock,
-      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      processingQueue: Promise.resolve(serviceMocks.processingQueueServiceMock),
     }));
     handler = instance.handler();
   });

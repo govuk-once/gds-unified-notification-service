@@ -17,11 +17,11 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/analyticsQueueService', { spy: true });
 
-describe('analyticsService', () => {
+describe('analyticsService', async () => {
   let instance: AnalyticsService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   const analyticsEvents = mockAnalyticsEvents();

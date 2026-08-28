@@ -12,11 +12,11 @@ vi.mock('@aws-sdk/client-sqs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
 
-describe('ProcessingQueueService', () => {
+describe('ProcessingQueueService', async () => {
   let processingQueueService: ProcessingQueueService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -32,12 +32,11 @@ describe('ProcessingQueueService', () => {
     const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
     mockParameterStore = resetMockParameterStore;
 
-    processingQueueService = new ProcessingQueueService(
+    processingQueueService = await ProcessingQueueService.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.sqsClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.sqsClientMock
     );
-    await processingQueueService.initialize();
   });
 
   describe('getQueueName', () => {
@@ -50,16 +49,20 @@ describe('ProcessingQueueService', () => {
     });
   });
 
-  describe('initialize', () => {
+  describe('create', () => {
     it('should retrieve the queue url and log when the processing queue service is initialised.', async () => {
       // Act
-      const result = await processingQueueService.initialize();
+      const result = await ProcessingQueueService.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.sqsClientMock
+      );
 
       // Assert
-      expectTypeOf(result).toEqualTypeOf<ProcessingQueueService>();
-
-      // Assert
-      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Processing Queue Service Initialised.');
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        StringParameters.Queue.Processing.Url
+      );
+      expect(result).toBeInstanceOf(ProcessingQueueService);
     });
   });
 

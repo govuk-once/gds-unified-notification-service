@@ -1,7 +1,7 @@
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { ICampaignRecord } from '@common/repositories/interfaces';
+import { ICampaignRecord, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { StringParameters } from '@common/utils';
 import { iocSpies, mockAWSClientsExpectedBehaviour, mockServicesExpectedBehaviour } from '@test/mocks';
 
@@ -34,9 +34,6 @@ describe('campaignDynamoRepository', async () => {
 
   describe('create', () => {
     it('should call create with correct params', async () => {
-      // Arrange
-      const create = vi.spyOn(Object.getPrototypeOf(CampaignsDynamoRepository), 'create').mockResolvedValue(undefined);
-
       // Act
       const result = await CampaignsDynamoRepository.create(
         serviceMocks.configurationServiceMock,
@@ -45,8 +42,11 @@ describe('campaignDynamoRepository', async () => {
       );
 
       // Assert
-      expect(create).toHaveBeenCalledWith(StringParameters.Table.Campaigns.Attributes);
-      expect(result).toBe(instance);
+      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
+        StringParameters.Table.Campaigns.Attributes,
+        IDynamoAttributesSchema
+      );
+      expect(result).toBeInstanceOf(CampaignsDynamoRepository);
     });
   });
 

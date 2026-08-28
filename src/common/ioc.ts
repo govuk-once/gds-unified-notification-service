@@ -263,8 +263,8 @@ export const iocGetAnalyticsQueue = ioc(
 export const iocGetAnalyticsExportService = ioc(
   'AnalyticsExportService',
   Mode.SINGLETON,
-  () =>
-    new AnalyticsExportService(
+  async () =>
+    await AnalyticsExportService.create(
       iocGetObservabilityService(),
       iocGetConfigurationService(),
       iocGetCacheService(),

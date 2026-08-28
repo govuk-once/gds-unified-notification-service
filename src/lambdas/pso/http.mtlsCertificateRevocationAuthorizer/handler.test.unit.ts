@@ -20,11 +20,11 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('MTLSApiGatewayAuthorizer Handler', () => {
+describe('MTLSApiGatewayAuthorizer Handler', async () => {
   let instance: MtlsCertificateRevocationAuthorizer;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   const { mtlsRevocationDynamoRepositoryMock, organisationsDynamoRepositoryMock } = serviceMocks;
 
@@ -45,8 +45,8 @@ describe('MTLSApiGatewayAuthorizer Handler', () => {
     mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new MtlsCertificateRevocationAuthorizer(observabilityMocks, () => ({
-      mtlsRevocationDynamoRepository: mtlsRevocationDynamoRepositoryMock.initialize(),
-      organisationsDynamoRepository: organisationsDynamoRepositoryMock.initialize(),
+      mtlsRevocationDynamoRepository: Promise.resolve(mtlsRevocationDynamoRepositoryMock),
+      organisationsDynamoRepository: Promise.resolve(organisationsDynamoRepositoryMock),
     }));
   });
 
