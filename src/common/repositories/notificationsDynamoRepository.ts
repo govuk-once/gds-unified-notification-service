@@ -1,15 +1,14 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import {
-  IMessageRecord,
+  IDynamoAttributes, IDynamoAttributesSchema, IMessageRecord,
   IMessageRecordSchema,
   IProcessedMessageRecord,
-  IProcessedMessageRecordSchema,
-} from '@common/repositories/interfaces/IMessageRecord';
+  IProcessedMessageRecordSchema
+} from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { StringParameters } from '@common/utils';
+import { IAnalytics } from '@project/lambdas';
 
 const recordSchema = IMessageRecordSchema;
 
@@ -25,13 +24,11 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
     super(config, observability, client, tableAttributes);
   }
 
-  static async create(config: ConfigurationService, observability: ObservabilityService) {
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
     return new NotificationsDynamoRepository(
       config,
       observability,
-      new DynamoDB({
-        region: 'eu-west-2',
-      }),
+      client,
       await config.getParameterAsType(StringParameters.Table.Inbound.Attributes, IDynamoAttributesSchema)
     );
   }

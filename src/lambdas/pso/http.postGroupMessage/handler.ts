@@ -26,19 +26,32 @@ const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: tru
 const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
 
 /**
+{
+  "body": "{\n  \"Namespace\": \"travel\", \n  \"Group\": \"france\",\n  \"Subgroup\": \"immediate\",\n  \"GroupNotificationID\": \"TO_GROUP_ID\",\n  \"CampaignID\": \"CAM_ID\",\n  \"NotificationTitle\": \"You have a new Notification\",\n  \"NotificationBody\": \"Here is the Notification body.\",\n  \"MessageTitle\": \"You have a new Message\",\n  \"MessageBody\": \"Open Notification Centre to read your notifications\",\n  \"DeeplinkURL\": \"myappid://path/to/page\"\n}",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "requestContext": {
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTimeEpoch": 1428582896000,
+    "authorizer": { "Organization": "ORG01", "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}" }
+  }
+}
+*/
+/**
 * Sample post body:
-    {
-      "Namespace": "travel",
-      "Group": "france",
-      "Subgroup": "immediate",
-      "GroupNotificationID": "TO_GROUP_ID"
-      "CampaignID:" "CAM_ID",
-      "NotificationTitle": "You have a new Notification",
-      "NotificationBody": "Here is the Notification body."
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
-      "DeeplinkURL": "myappid://path/to/page"
-    }
+{
+  "Namespace": "travel", 
+  "Group": "france",
+  "Subgroup": "immediate",
+  "GroupNotificationID": "TO_GROUP_ID",
+  "CampaignID": "CAM_ID",
+  "NotificationTitle": "You have a new Notification",
+  "NotificationBody": "Here is the Notification body.",
+  "MessageTitle": "You have a new Message",
+  "MessageBody": "Open Notification Centre to read your notifications",
+  "DeeplinkURL": "myappid://path/to/page"
+}
  */
 
 export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {

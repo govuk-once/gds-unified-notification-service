@@ -1,4 +1,4 @@
-import { ContentValidationError } from '@common/models/Errors/BadRequestError';
+import { ContentValidationError } from '@common/models';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';

@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 
 export class AnalyticsQueueService extends QueueService<unknown> {
   protected queueName: string = 'analytics';
@@ -16,10 +16,10 @@ export class AnalyticsQueueService extends QueueService<unknown> {
     super(observability, client, queueUrl);
   }
 
-  public static async create(config: ConfigurationService, observability: ObservabilityService) {
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
     return new AnalyticsQueueService(
       observability,
-      new SQSClient({ region: 'eu-west-2' }),
+      client,
       await config.getParameter(StringParameters.Queue.Analytics.Url)
     );
   }

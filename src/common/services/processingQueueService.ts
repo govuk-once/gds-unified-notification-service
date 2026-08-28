@@ -3,8 +3,8 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { StringParameters } from '@common/utils';
+import { IMessage } from '@project/lambdas';
 
 export class ProcessingQueueService extends QueueService<IMessage> {
   protected queueName: string = 'processing';
@@ -17,10 +17,10 @@ export class ProcessingQueueService extends QueueService<IMessage> {
     super(observability, client, sqsQueueUrl);
   }
 
-  public static async create(config: ConfigurationService, observability: ObservabilityService) {
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
     return new ProcessingQueueService(
       observability,
-      new SQSClient({ region: 'eu-west-2' }),
+      client,
       await config.getParameter(StringParameters.Queue.Processing.Url)
     );
   }

@@ -1,6 +1,6 @@
 import { IRequestEvent } from '@common/middlewares';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetNotificationStatus } from '@project/lambdas/pso/http.getNotificationStatus/handler';
+import { iocSpies, mockEventContext } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -12,25 +12,23 @@ vi.mock('@common/repositories', { spy: true });
 
 describe('GetNotificationStatus Handler', () => {
   let instance: GetNotificationStatus;
-  let mockContext: Context;
-  let mockEvent: IRequestEvent;
-
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
   let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
+
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
+
+  // Test fixtures
+  let context: Context;
+  let event: IRequestEvent;
+
   beforeEach(() => {
+    // Test Fixtures
+    context = mockEventContext('getNotificationStatus');
+    event = {} as unknown as IRequestEvent;
+
     instance = new GetNotificationStatus(observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
-
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'getNotificationStatus',
-      awsRequestId: '12345',
-    } as unknown as Context;
-
-    // Mock the QueueEvent (Mapping to your InputType)
-    mockEvent = {} as unknown as typeof mockEvent;
     handler = instance.handler();
   });
 
@@ -44,7 +42,7 @@ describe('GetNotificationStatus Handler', () => {
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(undefined);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(404);

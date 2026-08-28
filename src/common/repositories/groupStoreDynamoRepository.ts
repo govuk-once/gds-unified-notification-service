@@ -24,13 +24,11 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
     super(config, observability, client, tableAttributes);
   }
 
-  static async create(config: ConfigurationService, observability: ObservabilityService) {
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
     return new GroupStoreDynamoRepository(
       config,
       observability,
-      new DynamoDB({
-        region: 'eu-west-2',
-      }),
+      client,
       await config.getParameterAsType(StringParameters.Table.GroupStore.Attributes, IDynamoAttributesSchema)
     );
   }

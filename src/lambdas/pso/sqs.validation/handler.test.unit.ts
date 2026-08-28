@@ -1,128 +1,60 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { SQSClient } from '@aws-sdk/client-sqs';
-import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { IMessage } from '@project/lambdas/interfaces';
 import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
+import {
+  iocSpies,
+  mockDefaultConfig,
+  mockEventContext,
+  mockFailedIMessage,
+  mockIMessage,
+  mockQueueEvent,
+  mockQueueMultiEvents,
+  mockServicesExpectedBehaviour,
+  mockUnidentifiableIMessage,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
-import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-vi.mock('@common/repositories', { spy: true });
-vi.mock('@common/services', { spy: true });
 
-mockClient(SQSClient);
+vi.mock('@common/services', { spy: true });
+vi.mock('@common/repositories', { spy: true });
 
 describe('Validation QueueHandler', async () => {
   let instance: Validation;
   let handler: ReturnType<typeof Validation.prototype.handler>;
 
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
+
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = await ServiceSpies(observabilityMocks);
+  // Test fixtures
+  let context: Context;
+  let event: QueueEvent<IMessage>;
 
-  // Data presents
-  const mockContext: Context = {
-    functionName: 'validation',
-    awsRequestId: '12345',
-  } as unknown as Context;
-
-  const mockMessageBody: IMessage = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-    DepartmentID: 'TEST01',
-    UserID: 'UserID',
-    CampaignID: 'CAM_ID',
-    NotificationTitle: 'Hi there',
-    NotificationBody: 'You have a new message in the message center',
-    MessageTitle: 'Hi there',
-    MessageBody: 'MOCK_LONG_MESSAGE',
-    OrganisationID: 'ORG01',
-  };
-
-  const mockEvent: QueueEvent<IMessage> = {
-    Records: [
-      {
-        messageId: 'mockMessageId_1',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
-        body: mockMessageBody,
-      },
-    ],
-  };
-
-  const mockFailedEvent: QueueEvent<IMessage> = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        body: {
-          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-          UserID: 'invalid-id',
-          DepartmentID: 'invalid-id',
-          CampaignID: 'CAMP01',
-          OrganisationID: 'ORG01',
-          // Missed out on purpose NotificationTitle, NotificationBody
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IMessage>;
-
-  const mockPartialFailedEvent: QueueEvent<IMessage> = {
-    Records: [mockEvent.Records[0], mockFailedEvent.Records[0]],
-  };
-
-  const mockUnidentifiableEvent: QueueEvent<IMessage> = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        body: {
-          NotificationID: 'invalid-notification-id',
-          UserID: 'invalid-id',
-          NotificationTitle: 'Boom',
-          NotificationBody: 'psst',
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IMessage>;
+  const message = mockIMessage();
+  const failedMessage = mockFailedIMessage();
+  const unidentifiableMessage = mockUnidentifiableIMessage();
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Test Fixtures
+    context = mockEventContext('validation');
+    event = mockQueueEvent(message);
 
-    // Mocking successful completion of service functions
-    serviceMocks.processingQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.createRecord.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
@@ -139,48 +71,34 @@ describe('Validation QueueHandler', async () => {
   });
 
   it('should log when the handler is called and when it completes successfully.', async () => {
-    // Arrange
-    const mockIncomingEvent = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: JSON.stringify(mockEvent.Records[0].body),
-        },
-      ],
-    };
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
-    await handler(mockIncomingEvent as never, mockContext);
+    await handler(event, context);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request received`, { event: mockEvent });
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request received`, { event });
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request completed`);
   });
 
   it('should log when the handler fails to parse the message body.', async () => {
-    // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue('');
-    serviceMocks.configurationServiceMock.getBooleanParameter.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
-      raw: mockEvent.Records[0].body,
+      raw: event.Records[0].body,
     });
   });
 
   it('should throw an error when the message title equals "FAIL_AT_VALIDATION".', async () => {
     // Arrange
-    const mockFailOnTriggerEvent = {
-      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody, NotificationTitle: 'FAIL_AT_VALIDATION' } }],
+    const messageWithFailTrigger = {
+      ...message,
+      NotificationTitle: 'FAIL_AT_VALIDATION',
     };
+    const event = mockQueueEvent(messageWithFailTrigger);
 
     // Act
-    const result = handler(mockFailOnTriggerEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
@@ -193,11 +111,12 @@ describe('Validation QueueHandler', async () => {
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
     async (commonEnabled: string, validationEnabled: string, expectErrorMessage: string) => {
       // Arrange
+      const event = mockQueueEvent(message);
       mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
       mockParameterStore[BoolParameters.Config.Validation.Enabled] = validationEnabled;
 
       // Act
-      const result = handler(mockEvent, mockContext);
+      const result = handler(event, context);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
@@ -207,30 +126,30 @@ describe('Validation QueueHandler', async () => {
 
   it('should publish analytics events when lambda beings validating record.', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
-        OrganisationID: mockMessageBody.OrganisationID,
+        DepartmentID: message.DepartmentID,
+        NotificationID: message.NotificationID,
+        UserID: message.UserID,
+        CampaignID: message.CampaignID,
+        OrganisationID: message.OrganisationID,
       },
       NotificationStateEnum.VALIDATING
     );
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody.DepartmentID,
-        MessageBody: mockMessageBody.MessageBody,
-        MessageTitle: mockMessageBody.MessageTitle,
-        NotificationBody: mockMessageBody.NotificationBody,
-        NotificationID: mockMessageBody.NotificationID,
-        NotificationTitle: mockMessageBody.NotificationTitle,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
-        OrganisationID: mockMessageBody.OrganisationID,
+        DepartmentID: message.DepartmentID,
+        MessageBody: message.MessageBody,
+        MessageTitle: message.MessageTitle,
+        NotificationBody: message.NotificationBody,
+        NotificationID: message.NotificationID,
+        NotificationTitle: message.NotificationTitle,
+        UserID: message.UserID,
+        CampaignID: message.CampaignID,
+        OrganisationID: message.OrganisationID,
       },
       NotificationStateEnum.VALIDATED
     );
@@ -238,20 +157,20 @@ describe('Validation QueueHandler', async () => {
 
   it('should send a message to processing queue', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
-    expect(serviceMocks.processingQueueServiceMock.publishMessage).toHaveBeenCalledWith(mockMessageBody);
+    expect(serviceMocks.processingQueueServiceMock.publishMessage).toHaveBeenCalledWith(message);
   });
 
   it('should store data in the notifications message table', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        ...mockMessageBody,
+        ...message,
         ReceivedDateTime: '202601021513',
       })
     );
@@ -259,35 +178,28 @@ describe('Validation QueueHandler', async () => {
 
   it('should validate messages with valid markdown.', async () => {
     // Arrange
-    const mockMarkdownMessageBody = {
-      ...mockMessageBody,
+    const messageWithMarkdown = {
+      ...message,
       MessageBody:
         'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
     };
-    const mockEventWithMarkdown: QueueEvent<IMessage> = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: mockMarkdownMessageBody,
-        },
-      ],
-    };
+    const event = mockQueueEvent(messageWithMarkdown);
 
     // Act
-    await handler(mockEventWithMarkdown, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMarkdownMessageBody.DepartmentID,
-        MessageBody: mockMarkdownMessageBody.MessageBody,
-        MessageTitle: mockMarkdownMessageBody.MessageTitle,
-        NotificationBody: mockMarkdownMessageBody.NotificationBody,
-        NotificationID: mockMarkdownMessageBody.NotificationID,
-        NotificationTitle: mockMarkdownMessageBody.NotificationTitle,
-        UserID: mockMarkdownMessageBody.UserID,
-        CampaignID: mockMarkdownMessageBody.CampaignID,
-        OrganisationID: mockMarkdownMessageBody.OrganisationID,
+        DepartmentID: messageWithMarkdown.DepartmentID,
+        MessageBody: messageWithMarkdown.MessageBody,
+        MessageTitle: messageWithMarkdown.MessageTitle,
+        NotificationBody: messageWithMarkdown.NotificationBody,
+        NotificationID: messageWithMarkdown.NotificationID,
+        NotificationTitle: messageWithMarkdown.NotificationTitle,
+        UserID: messageWithMarkdown.UserID,
+        CampaignID: messageWithMarkdown.CampaignID,
+        OrganisationID: messageWithMarkdown.OrganisationID,
       },
       NotificationStateEnum.VALIDATED
     );
@@ -295,31 +207,24 @@ describe('Validation QueueHandler', async () => {
 
   it('should reject messages that contain invalid markdown.', async () => {
     // Arrange
-    const mockInvalidMarkdownMessageBody = {
-      ...mockMessageBody,
+    const invalidMarkdownBody = {
+      ...message,
       MessageBody: '# Heading\n\nThis is a [link](https://example.com) with an unapproved hostname.',
     };
-    const mockEventInvalidMarkdown: QueueEvent<IMessage> = {
-      Records: [
-        {
-          ...mockEvent.Records[0],
-          body: mockInvalidMarkdownMessageBody,
-        },
-      ],
-    };
+    const event = mockQueueEvent(invalidMarkdownBody);
 
     // Act
-    const result = handler(mockEventInvalidMarkdown, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody.DepartmentID,
-        NotificationID: mockMessageBody.NotificationID,
-        UserID: mockMessageBody.UserID,
-        CampaignID: mockMessageBody.CampaignID,
-        OrganisationID: mockMessageBody.OrganisationID,
+        DepartmentID: message.DepartmentID,
+        NotificationID: message.NotificationID,
+        UserID: message.UserID,
+        CampaignID: message.CampaignID,
+        OrganisationID: message.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
       ['https://example.com is using example.com hostname which is not on the allow list → at MessageBody.']
@@ -327,8 +232,11 @@ describe('Validation QueueHandler', async () => {
   });
 
   it('should return a list of all failed processes when it partial fails.', async () => {
+    // Arrange
+    const partialFailedEvent = mockQueueMultiEvents([message, failedMessage]);
+
     // Act
-    const result = await handler(mockPartialFailedEvent, mockContext);
+    const result = await handler(partialFailedEvent, context);
 
     // Assert
     expect(result).toEqual({
@@ -341,8 +249,11 @@ describe('Validation QueueHandler', async () => {
   });
 
   it('should add a metric for the number of failed processes for a partial failure.', async () => {
+    // Arrange
+    const partialFailedEvent = mockQueueMultiEvents([message, failedMessage]);
+
     // Act
-    await handler(mockPartialFailedEvent, mockContext);
+    await handler(partialFailedEvent, context);
 
     // Assert
     expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
@@ -353,28 +264,31 @@ describe('Validation QueueHandler', async () => {
   });
 
   it('should return and error and trigger analytics for failed events', async () => {
+    // Arrange
+    const failedEvent = mockQueueEvent(failedMessage);
+
     // Act
-    const result = handler(mockFailedEvent, mockContext);
+    const result = handler(failedEvent, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        NotificationID: mockFailedEvent.Records[0].body.NotificationID,
-        DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
-        CampaignID: mockFailedEvent.Records[0].body.CampaignID,
-        UserID: mockFailedEvent.Records[0].body.UserID,
-        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
+        NotificationID: failedMessage.NotificationID,
+        DepartmentID: failedMessage.DepartmentID,
+        CampaignID: failedMessage.CampaignID,
+        UserID: failedMessage.UserID,
+        OrganisationID: failedMessage.OrganisationID,
       },
       NotificationStateEnum.VALIDATING
     );
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        NotificationID: mockFailedEvent.Records[0].body.NotificationID,
-        DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
-        UserID: mockFailedEvent.Records[0].body.UserID,
-        CampaignID: mockFailedEvent.Records[0].body.CampaignID,
-        OrganisationID: mockFailedEvent.Records[0].body.OrganisationID,
+        NotificationID: failedMessage.NotificationID,
+        DepartmentID: failedMessage.DepartmentID,
+        UserID: failedMessage.UserID,
+        CampaignID: failedMessage.CampaignID,
+        OrganisationID: failedMessage.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
       [
@@ -385,8 +299,11 @@ describe('Validation QueueHandler', async () => {
   });
 
   it('should return an error and log when a message has an invalid NotificationID', async () => {
+    // Arrange
+    const unidentifiableEvent = mockQueueEvent(unidentifiableMessage);
+
     // Act
-    const result = instance.handler()(mockUnidentifiableEvent, mockContext);
+    const result = instance.handler()(unidentifiableEvent, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
@@ -394,32 +311,28 @@ describe('Validation QueueHandler', async () => {
       `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
         error: expect.stringContaining('NotificationID'),
-        raw: mockUnidentifiableEvent.Records[0].body,
+        raw: unidentifiableMessage,
       })
     );
   });
 
   it('should return an error and reject message with unknown deeplinks', async () => {
+    // Arrange
+    const bodyWithBadDeeplink = { ...message, MessageBody: 'https://example.com' };
+    const event = mockQueueEvent(bodyWithBadDeeplink);
+
     // Act
-    const result = handler(
-      {
-        ...mockEvent,
-        Records: [
-          { ...mockEvent.Records[0], body: { ...mockEvent.Records[0].body, MessageBody: 'https://example.com' } },
-        ],
-      },
-      mockContext
-    );
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        DepartmentID: 'TEST01',
-        CampaignID: 'CAM_ID',
-        UserID: 'UserID',
-        OrganisationID: 'ORG01',
+        NotificationID: message.NotificationID,
+        DepartmentID: message.DepartmentID,
+        CampaignID: message.CampaignID,
+        UserID: message.UserID,
+        OrganisationID: message.OrganisationID,
       },
       'VALIDATION_FAILED',
       [`https://example.com is using example.com hostname which is not on the allow list → at MessageBody.`]

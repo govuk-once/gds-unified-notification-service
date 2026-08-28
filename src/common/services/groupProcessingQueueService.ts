@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 import { IGroupMessageMetadata } from '@project/lambdas';
 
 export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
@@ -17,10 +17,10 @@ export class GroupProcessingQueueService extends QueueService<IGroupMessageMetad
     super(observability, client, sqsQueueUrl);
   }
 
-  public static async create(config: ConfigurationService, observability: ObservabilityService) {
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
     return new GroupProcessingQueueService(
       observability,
-      new SQSClient({ region: 'eu-west-2' }),
+      client,
       await config.getParameter(StringParameters.Queue.GroupProcessing.Url)
     );
   }

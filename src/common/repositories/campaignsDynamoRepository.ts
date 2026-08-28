@@ -18,13 +18,11 @@ export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampai
     super(config, observability, client, tableAttributes);
   }
 
-  static async create(config: ConfigurationService, observability: ObservabilityService) {
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
     return new CampaignsDynamoRepository(
       config,
       observability,
-      new DynamoDB({
-        region: 'eu-west-2',
-      }),
+      client,
       await config.getParameterAsType(StringParameters.Table.Campaigns.Attributes, IDynamoAttributesSchema)
     );
   }
