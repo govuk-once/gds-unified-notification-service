@@ -1,3 +1,4 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
@@ -11,9 +12,10 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {

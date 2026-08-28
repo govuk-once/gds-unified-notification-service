@@ -1,17 +1,19 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { NotificationStateEnum } from '@common/models';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces/ICampaignRecord';
+import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 
 export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampaignRecordSchema> {
   protected recordSchema = ICampaignRecordSchema;
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {

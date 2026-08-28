@@ -1,13 +1,14 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import {
   IMessageRecord,
   IMessageRecordSchema,
   IProcessedMessageRecord,
   IProcessedMessageRecordSchema,
-} from '@common/repositories/interfaces/IMessageRecord';
+} from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { StringParameters } from '@common/utils';
+import { IAnalytics } from '@project/lambdas';
 
 const recordSchema = IMessageRecordSchema;
 
@@ -16,9 +17,10 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {

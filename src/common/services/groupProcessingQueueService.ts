@@ -1,17 +1,19 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
+import { StringParameters } from '@common/utils';
 import { IGroupMessageMetadata } from '@project/lambdas';
 
 export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
   protected queueName: string = 'groupprocessing';
   constructor(
     protected config: ConfigurationService,
+    protected client: SQSClient,
     protected observability: ObservabilityService
   ) {
-    super(observability);
+    super(client, observability);
   }
 
   async initialize() {

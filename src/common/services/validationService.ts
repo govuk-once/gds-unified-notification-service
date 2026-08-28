@@ -1,7 +1,6 @@
-import { BadRequestError, ContentValidationError } from '@common/models/Errors/BadRequestError';
-import { IOrganisationConfig } from '@common/repositories';
-import { ContentValidationService } from '@common/services/contentValidationService';
-import { FeatureFlags } from '@common/services/interfaces';
+import { BadRequestError, ContentValidationError } from '@common/models';
+import { IOrganisationConfig } from '@common/repositories/interfaces/IOrganisationRecord';
+import { ContentValidationService, FeatureFlags } from '@common/services';
 import { filters, maps } from '@common/utils/array';
 import { IMessageFields } from '@project/lambdas';
 
@@ -62,7 +61,6 @@ export class ValidationService {
       if (message.Channel) {
         // Validates message channel against channel controls
         if (this.featureFlags.channelControls) {
-          console.log(organisationConfig.Channels);
           if (!organisationConfig.Channels?.includes(message.Channel)) {
             throw new BadRequestError([
               'Invalid input: invalid Channel, this channel is unsupported for this organisation',

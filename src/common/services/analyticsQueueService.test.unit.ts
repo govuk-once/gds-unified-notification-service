@@ -1,45 +1,32 @@
-import { SQSClient } from '@aws-sdk/client-sqs';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { StringParameters } from '@common/utils/parameters';
-import { mockClient } from 'aws-sdk-client-mock';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
+import { StringParameters } from '@common/utils';
+import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-sqs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('AnalyticsQueueService', () => {
   let analyticsQueueService: AnalyticsQueueService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
-  const sqsMock = mockClient(SQSClient);
-
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
-    sqsMock.reset();
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
 
-    analyticsQueueService = new AnalyticsQueueService(serviceMocks.configurationServiceMock, observabilityMock);
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
+    analyticsQueueService = new AnalyticsQueueService(
+      serviceMocks.configurationServiceMock,
+      awsClientMocks.sqsClientMock,
+      observabilityMocks
+    );
     await analyticsQueueService.initialize();
   });
 
@@ -63,7 +50,7 @@ describe('AnalyticsQueueService', () => {
         StringParameters.Queue.Analytics.Url
       );
       expectTypeOf(result).toEqualTypeOf<AnalyticsQueueService>();
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');
     });
   });
 });
