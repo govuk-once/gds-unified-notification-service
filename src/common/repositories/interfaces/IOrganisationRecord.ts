@@ -10,7 +10,6 @@ export const IOrganisationConfigSchema = z.object({
         } else if (value == false || value == undefined || value === 'false') {
           return false;
         } else {
-          console.log({ value });
           throw new Error("The string must be 'true' or 'false'");
         }
       }),
