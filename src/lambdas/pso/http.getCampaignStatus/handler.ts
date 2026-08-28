@@ -69,7 +69,6 @@ export class GetCampaignStatus extends APIHandler<
     }
 
     const departmentID = event.queryStringParameters?.departmentID;
-    console.log(departmentID);
     const compositeID = CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID);
     const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
 
