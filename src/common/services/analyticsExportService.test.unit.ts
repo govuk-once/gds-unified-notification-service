@@ -1,29 +1,22 @@
-import { InvalidCharacterError } from '@common/models/Errors/BadRequestError';
-import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { InvalidCharacterError, NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { AnalyticsExportService, AnalyticsLog } from '@common/services/analyticsExportService';
 import { StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { awsClientSpies, observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalytics } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-cloudwatch-logs', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/cacheService', { spy: true });
 
 describe('AnalyticsExportService', () => {
   let instance: AnalyticsExportService;
 
-  // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -66,19 +59,15 @@ describe('AnalyticsExportService', () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-
-    // Mock successful response from external services
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     // Mock successful response from the client
     awsClientMocks.cloudWatchLogsClientMock.send.mockResolvedValue(undefined);
 
     instance = new AnalyticsExportService(
-      observabilityMock,
+      observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.cacheServiceMock,
       awsClientMocks.cloudWatchLogsClientMock
@@ -87,15 +76,17 @@ describe('AnalyticsExportService', () => {
   });
 
   describe('logAnalytics', () => {
-    it('should get log stream name from cache and push the analytic to the log group.', async () => {
-      // Arrange
+    const date = new Date(2026, 1, 1, 12, 30, 0);
+    const logStreamName = date.toISOString().split(':').shift() ?? '';
+
+    beforeEach(() => {
       vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
       vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
 
       serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
+    });
 
+    it('should get log stream name from cache and push the analytic to the log group.', async () => {
       // Act
       await instance.logAnalytics(mockAnalytics);
 
@@ -118,13 +109,6 @@ describe('AnalyticsExportService', () => {
 
     it('should handle optional values when converting to csv.', async () => {
       // Arrange
-      vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
-      vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
-
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
-
       const mockAnalyticsNoDepID = { ...mockAnalytics, DepartmentID: undefined };
       const mockCsvNoDepID = [
         '',
@@ -159,12 +143,6 @@ describe('AnalyticsExportService', () => {
 
     it('should throw an error if an analytics object contain an invalid char , .', async () => {
       // Arrange
-      vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
-      vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
-
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
       const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp,' };
       const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp,' };
 
@@ -175,7 +153,7 @@ describe('AnalyticsExportService', () => {
       await expect(result).rejects.toThrow(
         new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.'])
       );
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
         'Analytics contains invalid char , or " for csv format.',
         {
           field: 'CampaignID',
@@ -186,12 +164,6 @@ describe('AnalyticsExportService', () => {
 
     it('should throw an error if an analytics object contain an invalid char " .', async () => {
       // Arrange
-      vi.useFakeTimers();
-      const date = new Date(2026, 1, 1, 12, 30, 0);
-      vi.setSystemTime(date);
-      const logStreamName = date.toISOString().split(':').shift() ?? '';
-
-      serviceMocks.cacheServiceMock.get.mockResolvedValue(logStreamName);
       const mockInvalidAnalytics = { ...mockAnalytics, CampaignID: 'invalid-camp"' };
       const mockInvalidAnalyticsLog = { ...mockAnalyticsLog, CampaignID: 'invalid-camp"' };
 
@@ -202,7 +174,7 @@ describe('AnalyticsExportService', () => {
       await expect(result).rejects.toThrow(
         new InvalidCharacterError(['Analytics contains invalid char , or " for csv format.'])
       );
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
         'Analytics contains invalid char , or " for csv format.',
         {
           field: 'CampaignID',

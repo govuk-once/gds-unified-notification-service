@@ -1,26 +1,18 @@
-import { ContentValidationError } from '@common/models/Errors/BadRequestError';
-import { ConfigurationService } from '@common/services/configurationService';
+import { ContentValidationError } from '@common/models';
 import { ContentValidationService } from '@common/services/contentValidationService';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('ContentValidationService', () => {
   let instance: ContentValidationService;
 
-  // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   const expectedError = (content: string) => {
     return new ContentValidationError([content]);
@@ -30,13 +22,12 @@ describe('ContentValidationService', () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new ContentValidationService(
-      observabilityMock,
-      configurationServiceMock,
+      observabilityMocks,
+      serviceMocks.configurationServiceMock,
       ['govuk:', 'https:'],
       ['*.gov.uk']
     );

@@ -65,7 +65,7 @@ export class GetCampaignStatus extends APIHandler<
 
     const organisationID = event.requestContext.authorizer.Organization;
     if (!organisationID) {
-      throw new BadRequestError(['Missing DepartmentID']);
+      throw new BadRequestError(['OrganisationID is missing from request authorizer']);
     }
 
     const departmentID = event.queryStringParameters?.departmentID;

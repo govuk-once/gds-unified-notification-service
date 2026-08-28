@@ -1,7 +1,6 @@
-import { BadRequestError, ContentValidationError } from '@common/models/Errors/BadRequestError';
-import { IOrganisationConfig } from '@common/repositories';
-import { ContentValidationService } from '@common/services/contentValidationService';
-import { FeatureFlags } from '@common/services/interfaces';
+import { BadRequestError, ContentValidationError } from '@common/models';
+import { IOrganisationConfig } from '@common/repositories/interfaces/IOrganisationRecord';
+import { ContentValidationService, FeatureFlags } from '@common/services';
 import { filters, maps } from '@common/utils/array';
 import { IMessageFields } from '@project/lambdas';
 

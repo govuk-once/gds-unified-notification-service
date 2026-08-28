@@ -147,7 +147,6 @@ export abstract class APIHandler<
       // Call DI before each request is handled
       await initializeDependencies(this, this.dependencies);
 
-      //
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,
         context

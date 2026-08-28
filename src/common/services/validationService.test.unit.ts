@@ -1,54 +1,35 @@
-import { ChannelsEnum } from '@common/models';
-import { BadRequestError, ContentValidationError } from '@common/models/Errors/BadRequestError';
+import { BadRequestError, ChannelsEnum, ContentValidationError } from '@common/models';
 import { IOrganisationConfig } from '@common/repositories';
 import { ValidationService } from '@common/services/validationService';
 import { BoolParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { IMessageFields } from '@project/lambdas';
+import { iocSpies, mockDefaultConfig, mockIMessageFields, mockServicesExpectedBehaviour } from '@test/mocks';
+import { mockOrganisationConfig } from '@test/mocks/models/IOrganisationRecord.fixtures';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
 vi.mock('@common/services/configurationService.ts', { spy: true });
 
 describe('ValidationService', () => {
   let instance: ValidationService;
 
-  // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  // Initialize mock services, clients, and repositories
+  const { serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
-  const mockMessage: IMessageFields = {
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-  };
-  const mockOrganisationConfig: IOrganisationConfig = {
-    MessageRetention: {
-      Allowed: true,
-      Min: 10,
-      Max: 30,
-    },
-    Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY],
-  };
+  const message = mockIMessageFields();
+  const organisationConfig = mockOrganisationConfig();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     instance = new ValidationService(
       serviceMocks.contentValidationServiceMock,
@@ -197,12 +178,12 @@ describe('ValidationService', () => {
   describe('validateMessage', () => {
     it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', () => {
       // Arrange
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         MessageBody: 'https://readme.gov.uk/hello-world?q=1',
       };
       // Act
-      const result = instance.messageValidation([mockMessageWithDeeplink], mockOrganisationConfig);
+      const result = instance.messageValidation([messageWithDeeplink], organisationConfig);
 
       // Assert
       expect(result).toBe(undefined);
@@ -210,13 +191,13 @@ describe('ValidationService', () => {
 
     it('should throw an error when called with a message containing deeplink that is not on the allowlist', () => {
       // Arrange
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         MessageBody: 'https://example.com',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithDeeplink], mockOrganisationConfig);
+      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfig);
 
       // Assert
       expect(result).toThrow(
@@ -226,14 +207,14 @@ describe('ValidationService', () => {
 
     it('should validate messages that contain valid markdown.', () => {
       // Arrange
-      const mockMarkdownMessageBody = {
-        ...mockMessage,
+      const markdownMessageBody = {
+        ...message,
         MessageBody:
           'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
       };
 
       // Act
-      const result = instance.messageValidation([mockMarkdownMessageBody], mockOrganisationConfig);
+      const result = instance.messageValidation([markdownMessageBody], organisationConfig);
 
       // Assert
       expect(result).toBe(undefined);
@@ -241,13 +222,13 @@ describe('ValidationService', () => {
 
     it('should reject messages that contain invalid markdown.', () => {
       // Arrange
-      const mockMarkdownMessageBody = {
-        ...mockMessage,
+      const markdownMessageBody = {
+        ...message,
         MessageBody: '    const x = 10;\n    const y = 20;',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMarkdownMessageBody], mockOrganisationConfig);
+      const result = () => instance.messageValidation([markdownMessageBody], organisationConfig);
 
       // Assert
       expect(result).toThrow(
@@ -263,13 +244,13 @@ describe('ValidationService', () => {
         serviceMocks.contentValidationServiceMock,
         await serviceMocks.configurationServiceMock.getFeatureFlags()
       );
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'https://example.com',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithDeeplink], mockOrganisationConfig);
+      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfig);
 
       // Assert
       expect(result).toThrow(new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']));
@@ -283,13 +264,13 @@ describe('ValidationService', () => {
         serviceMocks.contentValidationServiceMock,
         await serviceMocks.configurationServiceMock.getFeatureFlags()
       );
-      const mockMessageWithExpiresInDays = {
-        ...mockMessage,
+      const messageWithExpiresInDays = {
+        ...message,
         ExpiresInDays: 25,
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithExpiresInDays], mockOrganisationConfig);
+      const result = () => instance.messageValidation([messageWithExpiresInDays], organisationConfig);
 
       // Assert
       expect(result).toThrow(new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']));
@@ -304,12 +285,12 @@ describe('ValidationService', () => {
         await serviceMocks.configurationServiceMock.getFeatureFlags()
       );
       const messageWithChannel = {
-        ...mockMessage,
+        ...message,
         Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithChannel], mockOrganisationConfig);
+      const result = () => instance.messageValidation([messageWithChannel], organisationConfig);
 
       // Assert
       expect(result).toThrow(new BadRequestError(['Invalid input: unexpected Channel at .']));
@@ -320,13 +301,13 @@ describe('ValidationService', () => {
       const organisationConfigWithAllowedChannel = {
         Channels: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE],
       };
-      const mockMessageWithPushChannel = {
-        ...mockMessage,
+      const messageWithPushChannel = {
+        ...message,
         Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
       };
 
       // Act
-      const result = instance.messageValidation([mockMessageWithPushChannel], organisationConfigWithAllowedChannel);
+      const result = instance.messageValidation([messageWithPushChannel], organisationConfigWithAllowedChannel);
 
       // Assert
       expect(result).toBe(undefined);
@@ -337,10 +318,10 @@ describe('ValidationService', () => {
       const organisationConfigWithAllowedChannel = {
         Channels: [ChannelsEnum.MESSAGE_CENTRE_ONLY],
       };
-      const mockMessageWithMessageChannel = { ...mockMessage, Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY };
+      const messageWithMessageChannel = { ...message, Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY };
 
       // Act
-      const result = instance.messageValidation([mockMessageWithMessageChannel], organisationConfigWithAllowedChannel);
+      const result = instance.messageValidation([messageWithMessageChannel], organisationConfigWithAllowedChannel);
 
       // Assert
       expect(result).toBe(undefined);
@@ -351,14 +332,13 @@ describe('ValidationService', () => {
       const organisationConfigWithAllowedChannel = {
         Channels: [ChannelsEnum.MESSAGE_CENTRE_ONLY],
       };
-      const mockMessageWithPushChannel = {
-        ...mockMessage,
+      const messageWithPushChannel = {
+        ...message,
         Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
       };
 
       // Act
-      const result = () =>
-        instance.messageValidation([mockMessageWithPushChannel], organisationConfigWithAllowedChannel);
+      const result = () => instance.messageValidation([messageWithPushChannel], organisationConfigWithAllowedChannel);
 
       // Assert
       expect(result).toThrow(
@@ -369,13 +349,13 @@ describe('ValidationService', () => {
     it('should return 400 when organisation has no allowed channels configured', () => {
       // Arrange
       const organisationConfigWithNoChannel = {};
-      const mockMessageWithPushChannel = {
-        ...mockMessage,
+      const messageWithPushChannel = {
+        ...message,
         Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithPushChannel], organisationConfigWithNoChannel);
+      const result = () => instance.messageValidation([messageWithPushChannel], organisationConfigWithNoChannel);
 
       // Assert
       expect(result).toThrow(
@@ -388,7 +368,7 @@ describe('ValidationService', () => {
       const organisationConfigWithNoChannel = {};
 
       // Act
-      const result = instance.messageValidation([mockMessage], organisationConfigWithNoChannel);
+      const result = instance.messageValidation([message], organisationConfigWithNoChannel);
 
       // Assert
       expect(result).toBe(undefined);
@@ -399,13 +379,13 @@ describe('ValidationService', () => {
       const organisationConfigWithNoChannel = {
         Channels: [],
       };
-      const mockMessageWithPushChannel = {
-        ...mockMessage,
+      const messageWithPushChannel = {
+        ...message,
         Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithPushChannel], organisationConfigWithNoChannel);
+      const result = () => instance.messageValidation([messageWithPushChannel], organisationConfigWithNoChannel);
 
       // Assert
       expect(result).toThrow(
@@ -418,13 +398,13 @@ describe('ValidationService', () => {
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
       };
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'https://example.com',
       };
 
       // Act
-      const result = instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toBe(undefined);
@@ -434,13 +414,13 @@ describe('ValidationService', () => {
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
       };
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'https://not-example.com',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toThrow(
@@ -455,13 +435,13 @@ describe('ValidationService', () => {
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
       };
-      const mockMessageWithDeeplink = {
-        ...mockMessage,
+      const messageWithDeeplink = {
+        ...message,
         DeeplinkURL: 'mailto://example@example.com',
       };
 
       // Act
-      const result = () => instance.messageValidation([mockMessageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toThrow(

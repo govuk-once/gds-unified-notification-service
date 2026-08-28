@@ -1,57 +1,51 @@
 // Unbound methods are allowed as that's how vi.mocked works
-import { ChannelsEnum } from '@common/models';
-import { BadGatewayError } from '@common/models/Errors';
-import { NotificationAdapterOneSignal, NotificationAdapterVoid, NotificationService } from '@common/services';
+import { BadGatewayError, ChannelsEnum } from '@common/models';
+import { NotificationAdapterOneSignal, NotificationAdapterVoid } from '@common/services/adapters';
+import { NotificationService } from '@common/services/notificationService';
 import { BoolParameters, EnumParameters, StringParameters } from '@common/utils';
+import { StringSecret } from '@common/utils/secrets';
 import {
+  iocSpies,
   mockDefaultConfig,
   mockDefaultSecrets,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { StringSecret } from '@common/utils/secrets';
+  mockNotificationAdapterRequest,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-secrets-manager', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/smNamespacedConfigurationService', { spy: true });
 vi.mock('@common/adapters/notificationAdapterOneSignal', { spy: true });
+vi.mock('@common/adapters/notificationAdapterVoid', { spy: true });
 
 describe('NotificationService', () => {
   let instance: NotificationService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
   let mockSecrets = mockDefaultSecrets();
 
-  const mockRequest = {
-    NotificationID: 'test01',
-    ExternalUserID: 'sample_external_user_id',
-    NotificationTitle: 'UNS Test 01 - Title',
-    NotificationBody: 'UNS Test 01 - Body',
-  };
+  // Test Fixtures
+  const request = mockNotificationAdapterRequest();
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-    mockSecrets = mockDefaultSecrets();
-    serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockSecrets)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore, resetMockSecrets } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
+    mockSecrets = resetMockSecrets;
 
     instance = new NotificationService(
-      observabilityMock,
+      observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.smNamespacedConfigurationServiceMock
     );
@@ -103,17 +97,17 @@ describe('NotificationService', () => {
     it('Sends a request to the void when adapter is set to Void', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'VOID';
+      await instance.initialize();
 
       // Act
-      await instance.initialize();
-      await instance.send(mockRequest);
+      await instance.send(request);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
-        NotificationID: mockRequest.NotificationID,
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
+        NotificationID: request.NotificationID,
       });
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using Void adapter`, {
-        NotificationID: mockRequest.NotificationID,
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Sending notification using Void adapter`, {
+        NotificationID: request.NotificationID,
       });
     });
 
@@ -121,19 +115,18 @@ describe('NotificationService', () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
       mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
-
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+      await instance.initialize();
 
       // Act
-      await instance.initialize();
-      await instance.send(mockRequest);
+      await instance.send(request);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
-        NotificationID: mockRequest.NotificationID,
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
+        NotificationID: request.NotificationID,
       });
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
-        NotificationID: mockRequest.NotificationID,
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
+        NotificationID: request.NotificationID,
       });
     });
 
@@ -147,7 +140,7 @@ describe('NotificationService', () => {
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act
-      await instance.send(mockRequest);
+      await instance.send(request);
 
       // Assert
       expect(postSpy).toHaveBeenCalledWith(
@@ -170,7 +163,7 @@ describe('NotificationService', () => {
 
       // Act
       await instance.send({
-        ...mockRequest,
+        ...request,
         DeeplinkURL: 'govuk://travel?country=spain',
       });
 
@@ -187,25 +180,24 @@ describe('NotificationService', () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
       mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
-
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
+      await instance.initialize();
 
       // Act
-      await instance.initialize();
-      const result = instance.send(mockRequest);
+      const result = instance.send(request);
 
       // Assert
       await expect(result).rejects.toThrow(new BadGatewayError(['API [POST] /notifications?c=push Failed with 400']));
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
-        NotificationID: mockRequest.NotificationID,
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Dispatching notification`, {
+        NotificationID: request.NotificationID,
       });
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
-        NotificationID: mockRequest.NotificationID,
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Sending notification using OneSignal adapter`, {
+        NotificationID: request.NotificationID,
       });
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         `Failed to dispatch notification using OneSignal adapter`,
         {
-          NotificationID: mockRequest.NotificationID,
+          NotificationID: request.NotificationID,
           error: {
             message: 'API [POST] /notifications?c=push Failed with 400',
             name: 'Error',
@@ -219,8 +211,8 @@ describe('NotificationService', () => {
 
     it('Uses onesignal adapter but does not sends a request to onesignal when channel is MESSAGE_CENTER_ONLY', async () => {
       // Arrange
-      const mockRequestWithChannel = {
-        ...mockRequest,
+      const requestWithChannel = {
+        ...request,
         Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
       };
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
@@ -232,21 +224,21 @@ describe('NotificationService', () => {
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act
-      const result = await instance.send(mockRequestWithChannel);
+      const result = await instance.send(requestWithChannel);
 
       // Assert
-      expect(result).toEqual({ notification: mockRequestWithChannel });
+      expect(result).toEqual({ notification: requestWithChannel });
       expect(postSpy).not.toHaveBeenCalled();
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal`,
-        { NotificationID: mockRequestWithChannel.NotificationID }
+        { NotificationID: requestWithChannel.NotificationID }
       );
     });
 
     it('Uses onesignal adapter and sends a request to onesignal when channel is PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
       // Arrange
-      const mockRequestWithChannel = {
-        ...mockRequest,
+      const requestWithChannel = {
+        ...request,
         Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
       };
       mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
@@ -257,10 +249,10 @@ describe('NotificationService', () => {
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act
-      const result = await instance.send(mockRequestWithChannel);
+      const result = await instance.send(requestWithChannel);
 
       // Assert
-      expect(result).toEqual({ notification: mockRequestWithChannel, requestId: 'abc-123' });
+      expect(result).toEqual({ notification: requestWithChannel, requestId: 'abc-123' });
       expect(postSpy).toHaveBeenCalled();
     });
   });
