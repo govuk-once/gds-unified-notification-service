@@ -10,30 +10,25 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
-import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
-import { zodErrorFormatter } from '@common/utils';
+import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
+import { ConfigurationService } from '@common/services/configurationService';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
+import { zodErrorFormatter } from '@common/utils/zod';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
-  private client!: DynamoDB;
   protected tableAttributes!: IDynamoAttributes;
   protected abstract recordSchema: RecordSchema;
 
   constructor(
     protected config: ConfigurationService,
+    protected client: DynamoDB,
     protected observability: ObservabilityService
   ) {}
 
   public async initialize(tableAttributesParameter: string) {
     this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-
-    const client = new DynamoDB({
-      region: 'eu-west-2',
-    });
-
-    this.client = client;
     this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }

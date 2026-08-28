@@ -18,10 +18,12 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
 
 export abstract class QueueService<InputType> {
   protected abstract queueName: string;
-  protected client!: SQSClient;
   protected sqsQueueUrl!: string;
 
-  constructor(protected observability: ObservabilityService) {}
+  constructor(
+    protected client: SQSClient,
+    protected observability: ObservabilityService
+  ) {}
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async initialize() {
@@ -29,7 +31,6 @@ export abstract class QueueService<InputType> {
       this.observability.logger.error(`Failed to fetch SQS Queue URL for queue`, { queueName: this.queueName });
       throw new ServiceMisconfigurationError();
     }
-    this.client = new SQSClient({ region: 'eu-west-2' });
     this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }

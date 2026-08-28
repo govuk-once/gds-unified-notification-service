@@ -1,4 +1,4 @@
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { ObservabilityService } from '@common/services/observabilityService';
 import * as z from 'zod';
 
@@ -15,6 +15,7 @@ export abstract class BaseConfigurableValueService {
     deserialize: boolean = true
   ): Promise<z.infer<T>> {
     const parameterValue = await this.getParameter(namespace);
+
     // Parse parameter
     try {
       const result = schema.safeParse(deserialize ? JSON.parse(parameterValue) : parameterValue);

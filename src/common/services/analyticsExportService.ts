@@ -7,13 +7,12 @@ import {
   PutLogEventsCommand,
   PutLogEventsCommandInput,
 } from '@aws-sdk/client-cloudwatch-logs';
-import { InvalidCharacterError } from '@common/models/Errors/BadRequestError';
-import { ParsingFailedError } from '@common/models/Errors/InternalServerError';
+import { InvalidCharacterError, ParsingFailedError } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { StringParameters } from '@common/utils';
-import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalytics } from '@project/lambdas';
 
 export interface AnalyticsLog {
   EventID: string;

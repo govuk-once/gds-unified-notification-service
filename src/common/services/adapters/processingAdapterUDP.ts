@@ -20,8 +20,8 @@ const UDPConfigSchema = z.object({
 });
 
 export class ProcessingAdapterUDP implements ProcessingAdapter {
-  public client: FetchService;
-  public udpConfig: z.infer<typeof UDPConfigSchema>;
+  public client!: FetchService;
+  public udpConfig!: z.infer<typeof UDPConfigSchema>;
 
   constructor(
     protected observability: ObservabilityService,
@@ -47,6 +47,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
       // Fetch config from UDPs AWS Acc
       this.udpConfig = await this.smConfig.getParameterAsType(config, UDPConfigSchema, true);
+
       this.client = new FetchSigV4Service({
         baseUrl: this.udpConfig.apiUrl,
         defaultHeaders: {

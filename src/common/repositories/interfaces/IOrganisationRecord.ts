@@ -1,13 +1,24 @@
+import { ChannelsEnum } from '@common/models';
 import z from 'zod';
 
 export const IOrganisationConfigSchema = z.object({
   MessageRetention: z
     .object({
-      Allowed: z.coerce.boolean(),
+      Allowed: z.transform((value) => {
+        if (value == true || value === 'true') {
+          return true;
+        } else if (value == false || value == undefined || value === 'false') {
+          return false;
+        } else {
+          console.log({ value });
+          throw new Error("The string must be 'true' or 'false'");
+        }
+      }),
       Min: z.coerce.number().int().positive().min(1).optional(),
       Max: z.coerce.number().int().positive().min(1).optional(),
     })
     .superRefine((data, ctx) => {
+      console.log({ data });
       if (data.Allowed) {
         if (data.Min === undefined) {
           ctx.addIssue({
@@ -32,6 +43,21 @@ export const IOrganisationConfigSchema = z.object({
         }
       }
     })
+    .optional(),
+  Channels: z.enum(ChannelsEnum).array().optional(),
+
+  DeeplinkAllowList: z
+    .object({
+      protocol: z.string(),
+      hostname: z.string().optional(),
+    })
+    .or(
+      z.object({
+        protocol: z.string().optional(),
+        hostname: z.string(),
+      })
+    )
+    .array()
     .optional(),
 });
 export type IOrganisationConfig = z.infer<typeof IOrganisationConfigSchema>;

@@ -1,6 +1,4 @@
-import { ContentValidationError } from '@common/models/Errors/BadRequestError';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
-import { IOrganisationConfig } from '@common/repositories';
+import { ContentValidationError } from '@common/models';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
@@ -73,10 +71,20 @@ export class ContentValidationService {
     return input;
   }
 
-  public validateUrls(input: string | undefined) {
+  public validateUrls(
+    input: string | undefined,
+    overrides?: {
+      protocols: ContentValidationService['protocols'];
+      hostnames: ContentValidationService['hostnames'];
+    }
+  ) {
     if (input == undefined || input == '') {
       return input;
     }
+
+    // Use overrides if availalble, otherwise fall on defaults
+    const protocols = overrides?.protocols ?? this.protocols;
+    const hostnames = overrides?.hostnames ?? this.hostnames;
 
     // Split string by whitespace
     const segments = input.split(/(\s+)/);
@@ -94,7 +102,7 @@ export class ContentValidationService {
         continue;
       }
       // Validate protocol is on the list
-      if (!this.protocols.includes(url.protocol)) {
+      if (!protocols.includes(url.protocol)) {
         throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${this.protocols.join(',')}`
         );
@@ -102,7 +110,7 @@ export class ContentValidationService {
 
       // Validate hostnames for https protocols
       if (url.protocol == 'https:') {
-        const validHostname = this.hostnames
+        const validHostname = hostnames
           .map((hostname) => {
             // If hostname starts with *, strip it - then check if URLs hostname ends with it
             if (hostname.startsWith('*')) {
@@ -149,31 +157,6 @@ export class ContentValidationService {
       for (const child of token.children) {
         this.validateMarkdown(child);
       }
-    }
-  }
-
-  public validateExpirationForOrganisation(expiresInDays: number, organisationConfig: IOrganisationConfig) {
-    if (!organisationConfig.MessageRetention) {
-      throw new ServiceMisconfigurationError([
-        'Organisation Config is misconfigured, Message Retention is missing from Organisation Config',
-      ]);
-    }
-
-    const { Allowed, Min, Max } = organisationConfig.MessageRetention;
-    if (!Allowed) {
-      throw this.createError(
-        'Invalid input: unexpected ExpiresInDays at ., message retention is disabled for this organisation'
-      );
-    }
-    if (Min && expiresInDays < Min) {
-      throw this.createError(
-        `Invalid input: invalid ExpiresInDays at ., message retention is less than the minimum set for this organisation ${Min} days`
-      );
-    }
-    if (Max && expiresInDays > Max) {
-      throw this.createError(
-        `Invalid input: invalid ExpiresInDays at ., message retention is greater than the maximum set for this organisation ${Max} days`
-      );
     }
   }
 }

@@ -1,190 +1,68 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { SQSClient } from '@aws-sdk/client-sqs';
-import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
-import { ServiceMisconfigurationError, SimulatedError } from '@common/models/Errors/InternalServerError';
-import { QueueEvent } from '@common/operations';
-import { CircuitBreakerOpenError, MetricsLabels } from '@common/services';
-import { NotificationAdapterResult } from '@common/services/interfaces';
+import { ServiceMisconfigurationError, SimulatedError } from '@common/models';
+import { QueueEvent } from '@common/operations/queueOperation';
+import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
 import { BoolParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockDefaultSecrets,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { IProcessedMessage } from '@project/lambdas/interfaces';
 import { Dispatch } from '@project/lambdas/pso/sqs.dispatch/handler';
+import {
+  iocSpies,
+  mockDefaultConfig,
+  mockEventContext,
+  mockFailedIProcessedMessage,
+  mockIProcessedMessage,
+  mockQueueEvent,
+  mockQueueMultiEvents,
+  mockServicesExpectedBehaviour,
+  mockUnidentifiableIMessage,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
-import { mockClient } from 'aws-sdk-client-mock';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
-vi.mock('@common/repositories', { spy: true });
 vi.mock('@common/services', { spy: true });
-
-mockClient(SQSClient);
+vi.mock('@common/repositories', { spy: true });
 
 describe('Dispatch QueueHandler', () => {
   let instance: Dispatch;
   let handler: ReturnType<typeof Dispatch.prototype.handler>;
 
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
-  let mockSecrets = mockDefaultSecrets();
 
-  // Data presets
-  const mockContext: Context = {
-    functionName: 'dispatch',
-    awsRequestId: '12345',
-  } as unknown as Context;
+  // Test fixtures
+  let context: Context;
+  let event: QueueEvent<IProcessedMessage>;
 
-  const mockMessageBody_1: IProcessedMessage = {
-    NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
-    UserID: 'test_id_01',
-    ExternalUserID: 'test',
-    DepartmentID: 'Dev',
-    CampaignID: 'CAM_ID',
-    NotificationTitle: 'Boom',
-    NotificationBody: 'psst',
-    OrganisationID: 'ORG01',
-  };
+  const message = mockIProcessedMessage();
+  const failedMessage = mockFailedIProcessedMessage();
+  const unidentifiableMessage = mockUnidentifiableIMessage();
 
-  const mockMessageBody_2: IProcessedMessage = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
-    DepartmentID: 'DVLA01',
-    UserID: 'UserID_2',
-    NotificationTitle: 'Test message - 002',
-    NotificationBody: "You've got a message in the message centre - 2",
-    MessageTitle: '',
-    MessageBody: '',
-    ExternalUserID: 'test_2',
-    OrganisationID: 'ORG01',
-  };
-
-  const mockEvent: QueueEvent<IProcessedMessage> = {
-    Records: [
-      {
-        messageId: 'mockMessageId_1',
-        receiptHandle: 'mockReceiptHandle',
-        attributes: {
-          ApproximateReceiveCount: '2',
-          SentTimestamp: '202601021513',
-          SenderId: 'mockSenderId',
-          ApproximateFirstReceiveTimestamp: '202601021513',
-        },
-        messageAttributes: {},
-        md5OfBody: 'mockMd5OfBody',
-        md5OfMessageAttributes: 'mockMd5OfMessageAttributes',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'mockEventSourceARN',
-        awsRegion: 'eu-west2',
-        body: mockMessageBody_1,
-      },
-    ],
-  };
-
-  const mockEvents: QueueEvent<IProcessedMessage> = {
-    Records: [
-      mockEvent.Records[0],
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_2',
-        body: mockMessageBody_2,
-      },
-    ],
-  };
-
-  const mockFailedEvent: QueueEvent<IProcessedMessage> = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_2',
-        body: {
-          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d2',
-          UserID: 'invalid-id',
-          DepartmentID: 'invalid-id',
-          ExternalUserID: 'test',
-          CampaignID: 'invalid-id',
-          OrganisationID: 'ORG01',
-          // Missed out on purpose NotificationTitle, NotificationBody
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IProcessedMessage>;
-
-  const mockPartialFailedEvent: QueueEvent<IProcessedMessage> = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_1',
-        body: {
-          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-          UserID: 'invalid-id',
-          DepartmentID: 'invalid-id',
-          CampaignID: 'invalid-id',
-          OrganisationID: 'ORG01',
-          // Missed out on purpose NotificationTitle, NotificationBody
-        },
-      },
-      {
-        ...mockEvent.Records[0],
-        messageId: 'mockMessageId_2',
-        body: mockMessageBody_2,
-      },
-    ],
-  } as unknown as QueueEvent<IProcessedMessage>;
-
-  const mockUnidentifiableEvent: QueueEvent<IProcessedMessage> = {
-    Records: [
-      {
-        ...mockEvent.Records[0],
-        body: {
-          NotificationID: 'invalid-notification-id',
-          UserID: 'invalid-id',
-          ExternalUserID: 'test',
-          NotificationTitle: 'Boom',
-          NotificationBody: 'psst',
-        },
-      },
-    ],
-  } as unknown as QueueEvent<IProcessedMessage>;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Test Fixtures
+    context = mockEventContext('dispatch');
+    event = mockQueueEvent(message);
 
-    mockSecrets = mockDefaultSecrets();
-    serviceMocks.smNamespacedConfigurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockSecrets)
-    );
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
-    serviceMocks.notificationsDynamoRepositoryMock.updateRecord.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.analyticsServiceMock.publishEvent.mockResolvedValue(undefined);
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
+      requestId: '123',
+      success: true,
+    } as unknown as NotificationAdapterResult);
 
-    await serviceMocks.analyticsQueueServiceMock.initialize();
-    await serviceMocks.notificationServiceMock.initialize();
-
-    serviceMocks.cacheServiceMock.rateLimit.mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
-    serviceMocks.circuitBreakerServiceMock.checkCircuit.mockResolvedValue(undefined);
-    serviceMocks.circuitBreakerServiceMock.recordSuccess.mockResolvedValue(undefined);
-    serviceMocks.circuitBreakerServiceMock.recordFailure.mockResolvedValue(undefined);
-    serviceMocks.circuitBreakerServiceMock.getState.mockResolvedValue(CircuitBreakerStateEnum.CLOSED);
     instance = new Dispatch(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
@@ -202,12 +80,13 @@ describe('Dispatch QueueHandler', () => {
 
   it('should throw an error when the message title equals "FAIL_AT_DISPATCH".', async () => {
     // Arrange
-    const mockFailOnTriggerEvent = {
-      Records: [{ ...mockEvent.Records[0], body: { ...mockMessageBody_1, NotificationTitle: 'FAIL_AT_DISPATCH' } }],
-    };
+    const failTriggerEvent = mockQueueEvent({
+      ...message,
+      NotificationTitle: 'FAIL_AT_DISPATCH',
+    });
 
     // Act
-    const result = handler(mockFailOnTriggerEvent, mockContext);
+    const result = handler(failTriggerEvent, context);
 
     // Assert
     await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
@@ -224,7 +103,7 @@ describe('Dispatch QueueHandler', () => {
       mockParameterStore[BoolParameters.Config.Dispatch.Enabled] = dispatchEnabled;
 
       // Act
-      const result = handler(mockEvent, mockContext);
+      const result = handler(event, context);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
@@ -239,62 +118,75 @@ describe('Dispatch QueueHandler', () => {
     } as unknown as NotificationAdapterResult);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody_1.DepartmentID,
-        NotificationID: mockMessageBody_1.NotificationID,
-        UserID: mockMessageBody_1.UserID,
-        CampaignID: mockMessageBody_1.CampaignID,
-        OrganisationID: mockMessageBody_1.OrganisationID,
+        DepartmentID: message.DepartmentID,
+        NotificationID: message.NotificationID,
+        UserID: message.UserID,
+        CampaignID: message.CampaignID,
+        OrganisationID: message.OrganisationID,
       },
       'DISPATCHING'
     );
   });
 
   it('should trigger notification service for valid messages', async () => {
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
+      ExternalUserID: message.ExternalUserID,
+      NotificationID: message.NotificationID,
+      NotificationTitle: message.NotificationTitle,
+      NotificationBody: message.NotificationBody,
+    });
+  });
+
+  it('should trigger notification service for valid messages - with deeplink when feature flag is on', async () => {
     // Arrange
+    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'true';
+    const messageWithDeeplink = { ...message, DeeplinkURL: 'govuk://travel' };
+    const event = mockQueueEvent(messageWithDeeplink);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({
       requestId: '123',
       success: true,
     } as unknown as NotificationAdapterResult);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
-      ExternalUserID: mockMessageBody_1.ExternalUserID,
-      NotificationID: mockMessageBody_1.NotificationID,
-      NotificationTitle: mockMessageBody_1.NotificationTitle,
-      NotificationBody: mockMessageBody_1.NotificationBody,
+      ExternalUserID: message.ExternalUserID,
+      NotificationID: message.NotificationID,
+      NotificationTitle: message.NotificationTitle,
+      NotificationBody: message.NotificationBody,
+      DeeplinkURL: 'govuk://travel',
     });
   });
 
   it('should update data in the notifications message table', async () => {
     // Arrange
-    serviceMocks.notificationServiceMock.send.mockResolvedValue({
-      requestId: '123',
-      success: true,
-    } as unknown as NotificationAdapterResult);
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
       {
-        DepartmentID: mockMessageBody_1.DepartmentID,
-        NotificationID: mockMessageBody_1.NotificationID,
-        UserID: mockMessageBody_1.UserID,
-        CampaignID: mockMessageBody_1.CampaignID,
+        DepartmentID: message.DepartmentID,
+        NotificationID: message.NotificationID,
+        UserID: message.UserID,
+        CampaignID: message.CampaignID,
         DispatchedDateTime: date.toISOString(),
-        OrganisationID: mockMessageBody_1.OrganisationID,
+        OrganisationID: message.OrganisationID,
       },
       { resetExpirationDate: true }
     );
@@ -302,52 +194,65 @@ describe('Dispatch QueueHandler', () => {
 
   it('should send a analytics event when a notification is dispatched', async () => {
     // Arrange
-    serviceMocks.notificationServiceMock.send.mockResolvedValue({
-      requestId: '123',
-      success: true,
-    } as unknown as NotificationAdapterResult);
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockEvent.Records[0].body.DepartmentID,
-        NotificationID: mockEvent.Records[0].body.NotificationID,
-        CampaignID: mockEvent.Records[0].body.CampaignID,
-        UserID: mockEvent.Records[0].body.UserID,
-        OrganisationID: mockEvent.Records[0].body.OrganisationID,
+        DepartmentID: message.DepartmentID,
+        NotificationID: message.NotificationID,
+        CampaignID: message.CampaignID,
+        UserID: message.UserID,
+        OrganisationID: message.OrganisationID,
       },
       'DISPATCHED'
     );
   });
 
   it('should dispatch multiple messages to the notification service when messages are valid.', async () => {
+    // Arrange
+    serviceMocks.notificationServiceMock.send
+      .mockResolvedValueOnce({
+        requestId: '123',
+        success: true,
+      } as unknown as NotificationAdapterResult)
+      .mockResolvedValueOnce({
+        requestId: '124',
+        success: true,
+      } as unknown as NotificationAdapterResult);
+
+    const message_2 = mockIProcessedMessage();
+    const event = mockQueueMultiEvents([message, message_2]);
+
     // Act
-    await handler(mockEvents, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
-      ExternalUserID: mockMessageBody_1.ExternalUserID,
-      NotificationID: mockMessageBody_1.NotificationID,
-      NotificationTitle: mockMessageBody_1.NotificationTitle,
-      NotificationBody: mockMessageBody_1.NotificationBody,
+      ExternalUserID: message.ExternalUserID,
+      NotificationID: message.NotificationID,
+      NotificationTitle: message.NotificationTitle,
+      NotificationBody: message.NotificationBody,
     });
     expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith({
-      ExternalUserID: mockMessageBody_2.ExternalUserID,
-      NotificationID: mockMessageBody_2.NotificationID,
-      NotificationTitle: mockMessageBody_2.NotificationTitle,
-      NotificationBody: mockMessageBody_2.NotificationBody,
+      ExternalUserID: message_2.ExternalUserID,
+      NotificationID: message_2.NotificationID,
+      NotificationTitle: message_2.NotificationTitle,
+      NotificationBody: message_2.NotificationBody,
     });
   });
 
   it('should return a list of all failed processes when it partial fails.', async () => {
+    // Arrange
+    const event = mockQueueMultiEvents([message, failedMessage]);
+
     // Act
-    const result = await handler(mockPartialFailedEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result).toEqual({
@@ -360,8 +265,11 @@ describe('Dispatch QueueHandler', () => {
   });
 
   it('should add a metric for the number of failed processes for a partial failure.', async () => {
+    // Arrange
+    const event = mockQueueMultiEvents([message, failedMessage]);
+
     // Act
-    await handler(mockPartialFailedEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
@@ -373,24 +281,25 @@ describe('Dispatch QueueHandler', () => {
 
   it('should return and error and trigger analytics for failure events for invalid messages.', async () => {
     // Arrange
+    const event = mockQueueEvent(failedMessage);
 
     // Act
-    const result = handler(mockFailedEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
-        DepartmentID: mockFailedEvent.Records[0].body.DepartmentID,
-        NotificationID: mockFailedEvent.Records[0].body.NotificationID,
-        UserID: mockFailedEvent.Records[0].body.UserID,
-        CampaignID: mockFailedEvent.Records[0].body.CampaignID,
-        OrganisationID: mockEvent.Records[0].body.OrganisationID,
+        DepartmentID: failedMessage.DepartmentID,
+        NotificationID: failedMessage.NotificationID,
+        UserID: failedMessage.UserID,
+        CampaignID: failedMessage.CampaignID,
+        OrganisationID: failedMessage.OrganisationID,
       },
       'DISPATCHING_FAILED',
       [
-        `Invalid input: expected string, received undefined → at body.NotificationTitle.`,
-        `Invalid input: expected string, received undefined → at body.NotificationBody.`,
+        `Invalid input: expected string, received undefined → at NotificationTitle.`,
+        `Invalid input: expected string, received undefined → at NotificationBody.`,
       ]
     );
   });
@@ -400,7 +309,7 @@ describe('Dispatch QueueHandler', () => {
     serviceMocks.cacheServiceMock.rateLimit.mockResolvedValueOnce({ capacityRemaining: 0, exceeded: true });
 
     // Act
-    const result = handler(mockEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
@@ -411,51 +320,42 @@ describe('Dispatch QueueHandler', () => {
     serviceMocks.notificationServiceMock.send.mockRejectedValueOnce(new Error('Notification failed to send.'));
 
     // Act
-    const result = handler(mockEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
   });
 
   it('should return an error and log when a message has an invalid NotificationID', async () => {
+    // Arrange
+    const event = mockQueueEvent(unidentifiableMessage as IProcessedMessage);
+
     // Act
-    const result = handler(mockUnidentifiableEvent, mockContext);
+    const result = handler(event, context);
 
     // Assert
     await expect(result).rejects.toThrow(FullBatchFailureError);
     expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
       `Supplied message does not contain required record fields, rejecting record`,
       expect.objectContaining({
-        error: expect.stringContaining('body.NotificationID'),
-        raw: mockUnidentifiableEvent.Records[0].body,
+        error: expect.stringContaining('NotificationID'),
+        raw: unidentifiableMessage,
       })
     );
   });
 
   describe('circuit breaker integration', () => {
     it('should check the circuit breaker before dispatching', async () => {
-      // Arrange
-      serviceMocks.notificationServiceMock.send.mockResolvedValue({
-        requestId: '123',
-        success: true,
-      } as unknown as NotificationAdapterResult);
-
       // Act
-      await handler(mockEvent, mockContext);
+      await handler(event, context);
 
       // Assert
       expect(serviceMocks.circuitBreakerServiceMock.checkCircuit).toHaveBeenCalled();
     });
 
     it('should record success when notification is dispatched successfully', async () => {
-      // Arrange
-      serviceMocks.notificationServiceMock.send.mockResolvedValue({
-        requestId: '123',
-        success: true,
-      } as unknown as NotificationAdapterResult);
-
       // Act
-      await handler(mockEvent, mockContext);
+      await handler(event, context);
 
       // Assert
       expect(serviceMocks.circuitBreakerServiceMock.recordSuccess).toHaveBeenCalled();
@@ -467,7 +367,7 @@ describe('Dispatch QueueHandler', () => {
       serviceMocks.notificationServiceMock.send.mockRejectedValueOnce(new Error('Service unavailable'));
 
       // Act
-      const result = handler(mockEvent, mockContext);
+      const result = handler(event, context);
 
       // Assert
       await expect(result).rejects.toThrow(FullBatchFailureError);
@@ -477,11 +377,10 @@ describe('Dispatch QueueHandler', () => {
 
     it('should record failure and rethrow when notification service throws', async () => {
       // Arrange
-      const unexpectedError = new Error('Connection timeout');
-      serviceMocks.notificationServiceMock.send.mockRejectedValue(unexpectedError);
+      serviceMocks.notificationServiceMock.send.mockRejectedValue(new Error('Connection timeout'));
 
       // Act
-      const result = handler(mockEvent, mockContext);
+      const result = handler(event, context);
 
       // Assert
       await expect(result).rejects.toThrow(FullBatchFailureError);
@@ -490,11 +389,12 @@ describe('Dispatch QueueHandler', () => {
 
     it('should throw an error and without recording an additional failure when the circuit is open', async () => {
       // Arrange
-      const circuitOpenError = new CircuitBreakerOpenError('notification_dispatch');
-      serviceMocks.circuitBreakerServiceMock.checkCircuit.mockRejectedValue(circuitOpenError);
+      serviceMocks.circuitBreakerServiceMock.checkCircuit.mockRejectedValue(
+        new CircuitBreakerOpenError('notification_dispatch')
+      );
 
       // Act
-      const result = handler(mockEvent, mockContext);
+      const result = handler(event, context);
 
       // Assert
       await expect(result).rejects.toThrow(FullBatchFailureError);

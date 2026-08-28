@@ -2,17 +2,15 @@ import {
   AnalyticsEventFromIMessage,
   AnalyticsService,
   APIHandler,
-  BoolParameters,
   ConfigurationService,
-  ContentValidationService,
   HandlerDependencies,
   IMessageRecord,
   iocGetAnalyticsService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
+  iocGetValidationService,
   NotificationsDynamoRepository,
   ObservabilityService,
   ProcessingQueueService,
@@ -20,7 +18,7 @@ import {
   type ITypedRequestResponse,
 } from '@common';
 import { NotificationStateEnum } from '@common/models';
-import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { ValidationService } from '@common/services/validationService';
 import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -44,7 +42,7 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000,
-    "authorizer": {."Organization": "ORG01" }
+    "authorizer": { "Organization": "ORG01", "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}" }
   }
 }
 * Sample post body:
@@ -66,9 +64,9 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   public responseBodySchema = responseBodySchema;
 
   public analyticsService!: AnalyticsService;
-  public contentValidationService!: ContentValidationService;
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
   public processingQueue!: ProcessingQueueService;
+  public validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
@@ -91,32 +89,8 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
       OrganisationID: organisationID,
     }));
 
-    // Pre-validate all messages & reject request when one of them contains unsupported url
-    const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.DeepLinkUrl
-    );
-    const featureEnabledMessageRetention = await this.config.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.MessageRetention
-    );
-    for (const message of messages) {
-      this.contentValidationService.validate(message.MessageBody);
-
-      if (featureEnabledDeepLinkUrl) {
-        this.contentValidationService.validateUrls(message.DeeplinkURL);
-      } else {
-        if (message.DeeplinkURL) {
-          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
-        }
-      }
-
-      if (message.ExpiresInDays) {
-        if (featureEnabledMessageRetention) {
-          this.contentValidationService.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
-        } else {
-          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
-        }
-      }
-    }
+    // Validates all messages & reject request when contents or configurations are unsupported
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Publish analytics & push items to the processing queue
     this.observability.logger.info('Publishing analytics events for validated messages.');
@@ -159,7 +133,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
 export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
-  contentValidationService: iocGetContentValidationService(),
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   processingQueue: iocGetProcessingQueueService(),
+  validationService: iocGetValidationService(),
 })).handler();

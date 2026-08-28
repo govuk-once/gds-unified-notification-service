@@ -1,76 +1,43 @@
-export const devOrgMetadata = {
-  DVLA: {
-    DisplayName: 'DVLA',
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: false,
+import {
+  ChannelsControlPreset,
+  IOrganisationRecordBuilder,
+  MessageRetentionPresent,
+} from '@common/models/OrganisationMetadata';
+import { EnvVars } from 'infrastructure/cdk/config';
+
+export const orgMetadata = {
+  // Internal test account
+  UNS: IOrganisationRecordBuilder('UNS', {
+    Channels: ChannelsControlPreset.All,
+    MessageRetention: MessageRetentionPresent.OneMonth,
+    DeeplinkAllowList: [
+      {
+        protocol: 'govuk:',
       },
-    },
-  },
-  UNS: {
-    DisplayName: 'UNS',
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: true,
-        Min: 2,
-        Max: 30,
+      {
+        protocol: 'https:',
       },
-    },
-  },
-  EventsAggregator: {
-    DisplayName: 'Foreign Travel Advice',
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: false,
-      },
-    },
-  },
+    ],
+  }),
+
+  // Consumers
+  DVLA: IOrganisationRecordBuilder('DVLA', {
+    Channels: ChannelsControlPreset.None,
+    MessageRetention: MessageRetentionPresent.NotAllowed,
+  }),
+
+  EventsAggregator: IOrganisationRecordBuilder('Foreign Travel Advice', {
+    Channels: ChannelsControlPreset.Standard,
+    MessageRetention: MessageRetentionPresent.NotAllowed,
+  }),
 } as const;
 
-export const stgOrgMetadata = {
-  DVLA: {
-    DisplayName: 'DVLA',
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: false,
-      },
-    },
-  },
-  UNS: {
-    DisplayName: 'UNS',
-    OrganisationConfig: {
-      MessageRetention: {
-        Allowed: true,
-        Min: 2,
-        Max: 30,
-      },
-    },
-  },
-} as const;
+type OrgMetadata = Record<string, { DisplayName: string } & ReturnType<typeof IOrganisationRecordBuilder>>;
 
-export const prodOrgMetadata = {
-  DVLA: {
-    DisplayName: 'DVLA',
-    OrganisationConfig: {},
-  },
-  UNS: {
-    DisplayName: 'UNS',
-    OrganisationConfig: {},
-  },
-} as const;
-
-export const getConsumersMetadata = (env: string) => {
-  switch (env) {
-    case 'dev':
-      return devOrgMetadata;
-
-    case 'stg':
-      return stgOrgMetadata;
-
-    case 'prod':
-      return prodOrgMetadata;
-
-    default:
-      return devOrgMetadata;
-  }
+export const getConsumersMetadata = (config: EnvVars): OrgMetadata => {
+  return Object.fromEntries(
+    Object.entries(orgMetadata).map(([orgId, org]) => {
+      return [orgId, org];
+    })
+  );
 };

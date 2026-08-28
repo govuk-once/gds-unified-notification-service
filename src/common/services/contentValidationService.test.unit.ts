@@ -1,27 +1,18 @@
-import { ContentValidationError } from '@common/models/Errors/BadRequestError';
-import { IOrganisationConfig } from '@common/repositories';
-import { ConfigurationService } from '@common/services/configurationService';
+import { ContentValidationError } from '@common/models';
 import { ContentValidationService } from '@common/services/contentValidationService';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 
 describe('ContentValidationService', () => {
   let instance: ContentValidationService;
 
-  // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   const expectedError = (content: string) => {
     return new ContentValidationError([content]);
@@ -31,13 +22,12 @@ describe('ContentValidationService', () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new ContentValidationService(
-      observabilityMock,
-      configurationServiceMock,
+      observabilityMocks,
+      serviceMocks.configurationServiceMock,
       ['govuk:', 'https:'],
       ['*.gov.uk']
     );
@@ -153,144 +143,6 @@ describe('ContentValidationService', () => {
         // Assert
         expect(result).toThrow(exception);
       });
-    });
-  });
-
-  describe('validateExpirationForOrganisation', () => {
-    it('rejects if provided ExpiresInDays has a value when MessageRetention Allowed is false', () => {
-      // Arrange
-      const expiresInDays = 30;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: false,
-        },
-      };
-
-      // Act
-      const result = () => instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(result).toThrow(
-        new ContentValidationError([
-          'Invalid input: unexpected ExpiresInDays at ., message retention is disabled for this organisation',
-        ])
-      );
-    });
-
-    it('rejects if provided ExpiresInDays is less than the organisation minimum', () => {
-      // Arrange
-      const expiresInDays = 25;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: true,
-          Min: 30,
-          Max: 30,
-        },
-      };
-
-      // Act
-      const result = () => instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(result).toThrow(
-        new ContentValidationError([
-          'Invalid input: invalid ExpiresInDays at ., message retention is less than the minimum set for this organisation 30 days',
-        ])
-      );
-    });
-
-    it('rejects if provided ExpiresInDays is less than the organisation maximum', () => {
-      // Arrange
-      const expiresInDays = 30;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: true,
-          Min: 10,
-          Max: 20,
-        },
-      };
-
-      // Act
-      const result = () => instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(result).toThrow(
-        new ContentValidationError([
-          'Invalid input: invalid ExpiresInDays at ., message retention is greater than the maximum set for this organisation 20 days',
-        ])
-      );
-    });
-
-    it('validates if the MessageRetention Allows is true and provided ExpiresInDays falls within the minimum and maximum range', () => {
-      // Arrange
-      const expiresInDays = 25;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: true,
-          Min: 20,
-          Max: 30,
-        },
-      };
-
-      // Act
-      const result = instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(() => result).not.toThrow(ContentValidationError);
-    });
-
-    it('validates if the provided ExpiresInDays is equal to the minimum', () => {
-      // Arrange
-      const expiresInDays = 20;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: true,
-          Min: 20,
-          Max: 30,
-        },
-      };
-
-      // Act
-      const result = instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(() => result).not.toThrow(ContentValidationError);
-    });
-
-    it('validates if the provided ExpiresInDays is equal to the maximum', () => {
-      // Arrange
-      const expiresInDays = 30;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: true,
-          Min: 20,
-          Max: 30,
-        },
-      };
-
-      // Act
-      const result = instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(() => result).not.toThrow(ContentValidationError);
-    });
-
-    it('validates if the provided ExpiresInDays is equal to the minimum and maximum', () => {
-      // Arrange
-      const expiresInDays = 30;
-      const organisationConfig: IOrganisationConfig = {
-        MessageRetention: {
-          Allowed: true,
-          Min: 30,
-          Max: 30,
-        },
-      };
-
-      // Act
-      const result = instance.validateExpirationForOrganisation(expiresInDays, organisationConfig);
-
-      // Assert
-      expect(() => result).not.toThrow(ContentValidationError);
     });
   });
 });

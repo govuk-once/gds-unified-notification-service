@@ -28,6 +28,7 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [BoolParameters.Config.GroupProcessingWorker.Enabled]: `true`,
     [BoolParameters.Config.Validation.Enabled]: `true`,
     [BoolParameters.Config.FeatureFlags.DeepLinkUrl]: `true`,
+    [BoolParameters.Config.FeatureFlags.ChannelControls]: `true`,
     [BoolParameters.Config.FeatureFlags.MessageRetention]: `true`,
     // Enums
     [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
@@ -79,6 +80,18 @@ export const mockDefaultSecrets = (): Record<string, string | Error> =>
   Object.entries({
     // Strings
     [StringSecret.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
+  }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
+
+export const mockDefaultExternalSecrets = (): Record<string, string | Error> =>
+  Object.entries({
+    // Strings
+    ['arn:of:sm:secret']: JSON.stringify({
+      apiAccountId: '1231231231',
+      apiKey: 'abc',
+      apiUrl: 'https://udp',
+      consumerRoleArn: 'arn:iam:consumer',
+      region: 'eu-west-2',
+    }),
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockGetParameterImplementation = (records: Record<string, string | Error>) => {

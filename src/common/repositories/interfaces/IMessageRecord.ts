@@ -34,7 +34,6 @@ export const IMessageRecordSchema = z.object({
   // Events - appended via analytics handler
   Events: z.array(IAnalyticsSchema),
 });
-
 export type IMessageRecord = z.infer<typeof IMessageRecordSchema>;
 
 export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
@@ -44,5 +43,4 @@ export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
   ProcessedDateTime: z.string(),
   ExpirationDateTime: z.string(),
 });
-
 export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

@@ -12,6 +12,7 @@ import { NotificationDispatchedStateEnum } from '@common/models/NotificationStat
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import { filters } from '@common/utils/array';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -91,7 +92,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         return true;
       })
       .map((n) => IMessageRecordToIFlexNotification(n, organisations, this.observability))
-      .filter((n) => n !== undefined)
+      .filter(filters.isDefined)
       .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
       .sort((a, b) => {
         // Sort by dispatch time, most recent first

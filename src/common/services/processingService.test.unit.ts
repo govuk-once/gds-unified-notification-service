@@ -1,16 +1,9 @@
 // Unbound methods are allowed as that's how vi.mocked works
-import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';
 import * as awsCredentialsProvider from '@aws-sdk/credential-providers';
-import { ProcessingAdapterUDP, ProcessingAdapterVoid, ProcessingService } from '@common/services';
-import { ProcessingAdapterRequest } from '@common/services/interfaces';
+import { ProcessingAdapterUDP, ProcessingAdapterVoid } from '@common/services/adapters';
+import { ProcessingService } from '@common/services/processingService';
 import { EnumParameters, StringParameters } from '@common/utils';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { mockClient } from 'aws-sdk-client-mock';
+import { iocSpies, mockDefaultConfig, mockProcessingAdapterRequest, mockServicesExpectedBehaviour } from '@test/mocks';
 import { Mocked } from 'vitest';
 
 vi.mock(import('@smithy/signature-v4'), () => {
@@ -33,23 +26,14 @@ vi.mock(import('@smithy/signature-v4'), () => {
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/credential-providers', { spy: true });
+
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/smConfigurationService', { spy: true });
 vi.mock('@common/adapters/processingAdapterUDP', { spy: true });
-vi.mock('@aws-sdk/credential-providers', { spy: true });
+vi.mock('@common/adapters/processingAdapterVoid', { spy: true });
 
 describe('ProcessingService', () => {
-  const smMock = mockClient(SecretsManagerClient);
-  const stsMock = mockClient(STSClient);
-  stsMock.on(AssumeRoleCommand).resolvesOnce({
-    Credentials: {
-      AccessKeyId: '1',
-      SecretAccessKey: '2',
-      SessionToken: '3',
-      Expiration: new Date(Date.now() + 3600 * 1000),
-    },
-  });
-
   const awsCredentialsProviderSpy = awsCredentialsProvider as Mocked<typeof awsCredentialsProvider>;
   awsCredentialsProviderSpy.fromTemporaryCredentials.mockImplementation(
     () =>
@@ -65,42 +49,25 @@ describe('ProcessingService', () => {
   );
   let instance: ProcessingService;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
 
   // Mock request
-  const mockRequest: ProcessingAdapterRequest = {
-    userID: 'bob',
-  };
-  const mockSMContents = {
-    apiAccountId: '1231231231',
-    apiKey: 'abc',
-    apiUrl: 'https://udp',
-    consumerRoleArn: 'arn:iam:consumer',
-    region: 'eu-west-2',
-  };
+  const request = mockProcessingAdapterRequest();
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
 
-    smMock.reset();
-
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
-
-    // Mock SM Value return
-    serviceMocks.smConfigurationServiceMock.getParameter.mockResolvedValueOnce(JSON.stringify(mockSMContents));
+    // Mock SSM store and services responses
+    const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
+    mockParameterStore = resetMockParameterStore;
 
     instance = new ProcessingService(
-      observabilityMock,
+      observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.smConfigurationServiceMock
     );
@@ -148,13 +115,13 @@ describe('ProcessingService', () => {
 
       // Act
       await instance.initialize();
-      await instance.send(mockRequest);
+      await instance.send(request);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Processing using Void adapter - mapping userID to externalUserID`,
         {
-          userID: mockRequest.userID,
+          userID: request.userID,
         }
       );
     });
@@ -165,13 +132,13 @@ describe('ProcessingService', () => {
 
       // Act
       await instance.initialize();
-      const result = await instance.send(mockRequest);
+      const result = await instance.send(request);
 
       // Assert
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith(
+      expect(observabilityMocks.logger.info).toHaveBeenCalledWith(
         `Processing using UDP adapter - mapping userID to externalUserID`,
         {
-          userID: mockRequest.userID,
+          userID: request.userID,
         }
       );
       expect(result.externalUserID).toEqual('bob:app:push:id');

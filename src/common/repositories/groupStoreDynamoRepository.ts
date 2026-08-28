@@ -1,7 +1,9 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
+import { filters } from '@common/utils/array';
 import { IGroups, IModifyGroups } from '@project/lambdas';
 import { v4 as uuid } from 'uuid';
 
@@ -10,9 +12,10 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
 
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {
@@ -76,7 +79,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
           Subgroup: g.Subgroup,
         };
       })
-      .filter((g) => g !== undefined);
+      .filter(filters.isDefined);
 
     await this.createRecordBatch(record);
 

@@ -1,17 +1,19 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
+import { FeatureFlags } from '@common/services/interfaces/featureFlags';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { InMemoryTTLCache } from '@common/utils';
+import { BoolParameters, InMemoryTTLCache } from '@common/utils';
 
 export class ConfigurationService extends BaseConfigurableValueService {
   protected inMemoryCache = new InMemoryTTLCache<string, string>(60000);
   protected prefix = process.env.PREFIX;
-  private readonly client;
 
-  constructor(protected observability: ObservabilityService) {
+  constructor(
+    protected client: SSMClient,
+    protected observability: ObservabilityService
+  ) {
     super(observability);
-    this.client = new SSMClient({ region: 'eu-west-2' });
     this.observability.tracer.captureAWSv3Client(this.client);
   }
   public async refreshCache(nextToken?: string): Promise<void> {
@@ -83,5 +85,21 @@ export class ConfigurationService extends BaseConfigurableValueService {
         throw new ServiceMisconfigurationError();
       }
     }
+  }
+
+  public async getFeatureFlags(): Promise<FeatureFlags> {
+    const channelControlsFeatureFlag = await this.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.ChannelControls
+    );
+    const deeplinkUrlFeatureFlag = await this.getBooleanParameter(BoolParameters.Config.FeatureFlags.DeepLinkUrl);
+    const messageRetentionFeatureFlag = await this.getBooleanParameter(
+      BoolParameters.Config.FeatureFlags.MessageRetention
+    );
+
+    return {
+      channelControls: channelControlsFeatureFlag,
+      deeplinkUrl: deeplinkUrlFeatureFlag,
+      messageRetention: messageRetentionFeatureFlag,
+    };
   }
 }

@@ -1,24 +1,22 @@
 import {
   APIHandler,
-  BoolParameters,
   CacheService,
   ConfigurationService,
-  ContentValidationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetGroupProcessingQueueService,
   iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
+  iocGetValidationService,
   NumericParameters,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
@@ -28,19 +26,32 @@ const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: tru
 const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
 
 /**
+{
+  "body": "{\n  \"Namespace\": \"travel\", \n  \"Group\": \"france\",\n  \"Subgroup\": \"immediate\",\n  \"GroupNotificationID\": \"TO_GROUP_ID\",\n  \"CampaignID\": \"CAM_ID\",\n  \"NotificationTitle\": \"You have a new Notification\",\n  \"NotificationBody\": \"Here is the Notification body.\",\n  \"MessageTitle\": \"You have a new Message\",\n  \"MessageBody\": \"Open Notification Centre to read your notifications\",\n  \"DeeplinkURL\": \"myappid://path/to/page\"\n}",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "requestContext": {
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTimeEpoch": 1428582896000,
+    "authorizer": { "Organization": "ORG01", "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}" }
+  }
+}
+*/
+/**
 * Sample post body:
-    {
-      "Namespace": "travel",
-      "Group": "france",
-      "Subgroup": "immediate",
-      "GroupNotificationID": "TO_GROUP_ID"
-      "CampaignID:" "CAM_ID",
-      "NotificationTitle": "You have a new Notification",
-      "NotificationBody": "Here is the Notification body."
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
-      "DeeplinkURL": "myappid://path/to/page"
-    }
+{
+  "Namespace": "travel", 
+  "Group": "france",
+  "Subgroup": "immediate",
+  "GroupNotificationID": "TO_GROUP_ID",
+  "CampaignID": "CAM_ID",
+  "NotificationTitle": "You have a new Notification",
+  "NotificationBody": "Here is the Notification body.",
+  "MessageTitle": "You have a new Message",
+  "MessageBody": "Open Notification Centre to read your notifications",
+  "DeeplinkURL": "myappid://path/to/page"
+}
  */
 
 export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
@@ -48,10 +59,10 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public readonly contentValidationService!: ContentValidationService;
   public readonly cacheService!: CacheService;
   public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly groupStoreDynamoRepository!: GroupStoreDynamoRepository;
+  public readonly validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
@@ -74,32 +85,8 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
       OrganisationID: organisationID,
     }));
 
-    // Pre-validate all messages & reject request when one of them contains unsupported url
-    const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.DeepLinkUrl
-    );
-    const featureEnabledMessageRetention = await this.config.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.MessageRetention
-    );
-    for (const message of messages) {
-      this.contentValidationService.validate(message.MessageBody);
-
-      if (featureEnabledDeepLinkUrl) {
-        this.contentValidationService.validateUrls(message.DeeplinkURL);
-      } else {
-        if (message.DeeplinkURL) {
-          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
-        }
-      }
-
-      if (message.ExpiresInDays) {
-        if (featureEnabledMessageRetention) {
-          this.contentValidationService.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
-        } else {
-          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
-        }
-      }
-    }
+    // Validates all messages & reject request when contents or configurations are unsupported
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Get the number of workers to be used to process the group message
     const numberOfWorkers = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerCount);
@@ -168,8 +155,8 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 }
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  contentValidationService: iocGetContentValidationService(),
   cacheService: iocGetCacheService().connect(),
   groupProcessingQueue: iocGetGroupProcessingQueueService(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
+  validationService: iocGetValidationService(),
 })).handler();
