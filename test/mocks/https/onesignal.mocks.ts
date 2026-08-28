@@ -3,7 +3,6 @@ import { http, HttpResponse } from 'msw';
 export const handlers = [
   // Scenario responses can be adjusted for tests by changing API key
   http.post('https://api.onesignal.com/notifications', (request) => {
-    console.log(request);
     const scenario = `${request.request.headers.get(`Authorization`)}`;
     switch (scenario) {
       case `Key ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01`:
