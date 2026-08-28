@@ -1,3 +1,6 @@
-import type { APIGatewayAuthorizerEvent, APIGatewayEvent, APIGatewayProxyEventV2 } from 'aws-lambda';
+import { ITypedAPIGatewayRequestAuthorizerEvent } from '@common/middlewares/interfaces/ITypedAPIGatewayRequestAuthorizerEvent';
+import { APIGatewayEvent, APIGatewayProxyEventV2 } from 'aws-lambda';
 
-export type IRequestEvent = APIGatewayEvent & APIGatewayProxyEventV2 & APIGatewayAuthorizerEvent;
+export type IRequestEvent<A = never> = APIGatewayEvent &
+  APIGatewayProxyEventV2 &
+  ITypedAPIGatewayRequestAuthorizerEvent<A>;

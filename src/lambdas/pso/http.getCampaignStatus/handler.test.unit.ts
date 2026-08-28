@@ -136,7 +136,7 @@ describe('GetCampaignStatus Handler', async () => {
         ...event.requestContext,
         authorizer: undefined,
       },
-    };
+    } as unknown as EventType;
 
     // Act
     const result = await handler(eventMissingOrganisation, context);
@@ -146,7 +146,7 @@ describe('GetCampaignStatus Handler', async () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['OrganisationID is missing from request authorizer'],
+      Errors: ['Authorizer did not match expected schema', 'Invalid input: expected object, received undefined → at .'],
     });
   });
 

@@ -73,6 +73,18 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     }
 
     try {
+      // Always generate deeplinkURL from template, if an explicit deeplink URL is used - overwrite the default
+      // If explicit deeplinkURL points at the app - append notificationID query parameter
+      let deeplinkURL = this.deeplinkTemplate.replace('{id}', request.NotificationID);
+      if (request.DeeplinkURL) {
+        deeplinkURL = request.DeeplinkURL;
+        if (request.DeeplinkURL.startsWith(`govuk://`)) {
+          const url = new URL(request.DeeplinkURL);
+          url.searchParams.append(`notificationID`, request.NotificationID);
+          deeplinkURL = url.toString();
+        }
+      }
+
       this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);
       const result = await this.client.post<OneSignalPushNotificationResponse>({
         path: `/notifications?c=push`,
@@ -84,9 +96,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           target_channel: 'push',
           include_aliases: { external_id: [request.ExternalUserID] },
           data: {
-            deeplink: request.DeeplinkURL
-              ? request.DeeplinkURL
-              : this.deeplinkTemplate.replace('{id}', request.NotificationID),
+            deeplink: deeplinkURL,
           },
         },
       });

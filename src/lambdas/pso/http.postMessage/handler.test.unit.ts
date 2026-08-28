@@ -76,20 +76,20 @@ describe('PostMessage Handler', async () => {
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
-      { ...message, OrganisationID: event.requestContext.authorizer?.Organization },
+      { ...message, OrganisationID: 'ORG01' },
     ]);
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
           ...message,
-          OrganisationID: event.requestContext.authorizer!.Organization,
+          OrganisationID: 'ORG01',
           APIGWExtendedID: event.requestContext.requestId,
         },
       ],
       NotificationStateEnum.VALIDATED_API_CALL
     );
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
-      expect.objectContaining({ OrganisationID: event.requestContext.authorizer!.Organization }),
+      expect.objectContaining({ OrganisationID: 'ORG01' }),
     ]);
   });
 
@@ -332,6 +332,288 @@ describe('PostMessage Handler', async () => {
       Errors: [
         'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
       ],
+    });
+  });
+
+  describe('authorizerMiddleware', () => {
+    it('should return 202 when authorizer contains with MessageRetention not allowed OrganisationConfig', async () => {
+      // Arrange
+      const eventWithMessageRetention = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: false,
+              },
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithMessageRetention, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 202 when authorizer contains with MessageRetention allowed and min max provided', async () => {
+      // Arrange
+      const eventWithMessageRetention = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: true,
+                Min: 2,
+                Max: 30,
+              },
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithMessageRetention, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 202 when authorizer contains allow control channels', async () => {
+      // Arrange
+      const eventWithChannelControls = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithChannelControls, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 202 when authorizer contains DeeplinkAllowList array', async () => {
+      // Arrange
+      const eventWithDeeplink = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              DeeplinkAllowList: [
+                {
+                  protocol: 'https:',
+                },
+              ],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithDeeplink, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 400 when authorizer does not match the authorizer schema', async () => {
+      // Arrange
+      const eventWithoutAuthorizer = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: undefined,
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutAuthorizer, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input: expected object, received undefined → at .',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer does not contain Organization', async () => {
+      // Arrange
+      const eventWithoutOrganization = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: false,
+              },
+              Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutOrganization, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input: expected string, received undefined → at Organization.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer does not contain OrganisationConfig', async () => {
+      // Arrange
+      const eventWithOrganisationConfig = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithOrganisationConfig, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input: expected string, received undefined → at OrganisationConfig.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer contains with MessageRetention allowed but no min max provided', async () => {
+      // Arrange
+      const eventMessageRetention = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: true,
+              },
+              Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventMessageRetention, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Min message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Min.',
+          'Max message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Max.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer does contains unsupported Channels', async () => {
+      // Arrange
+      const eventWithoutSupportedChannels = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              Channels: ['Unsupported'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutSupportedChannels, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid option: expected one of "PUSH_NOTIFICATION_AND_MESSAGE_CENTRE"|"MESSAGE_CENTRE_ONLY" → at OrganisationConfig.Channels.0.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer has DeeplinkAllowList but does not contain protocol or hostname', async () => {
+      // Arrange
+      const eventWithoutDeeplink = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              DeeplinkAllowList: [
+                {
+                  prot: 'https:',
+                },
+              ],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutDeeplink, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input → at OrganisationConfig.DeeplinkAllowList.0.',
+        ],
+      });
     });
   });
 });
