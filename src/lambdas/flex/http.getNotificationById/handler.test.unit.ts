@@ -1,5 +1,6 @@
+import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
-import { mockIFlexNotification } from '@project/lambdas/interfaces';
+import { mockIAnalytics, mockIFlexNotification } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
@@ -149,10 +150,50 @@ describe('GetNotificationById Handler', () => {
       { OrganisationID: messageRecord.OrganisationID }
     );
   });
-
-  it('should return 400 when externalUserID/pushID is undefined', async () => {
+  it('should return 400 when notificationID is missing', async () => {
     // Arrange
-    const eventWithNoPushID = mockFlexAPIEvent({ pathParameters: {} }) as unknown as EventType;
+    const eventWithNoNotificationID = mockFlexAPIEvent({
+      pathParameters: {},
+      queryStringParameters: { externalUserID },
+    }) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithNoNotificationID, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['notificationID has not been provided'],
+    });
+  });
+
+  it('should return a 400 when both externalUserID and pushID are missing', async () => {
+    // Arrange
+    const eventWithNoPushID = mockFlexAPIEvent({
+      pathParameters: { notificationID },
+      queryStringParameters: {},
+    }) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithNoPushID, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['pushID has not been provided'],
+    });
+  });
+
+  it('should return 400 when externalUserId query parameter is an empty string', async () => {
+    // Arrange
+    const eventWithNoPushID = mockFlexAPIEvent({
+      pathParameters: { notificationID },
+      queryStringParameters: { externalUserID: '' },
+    }) as unknown as EventType;
 
     // Act
     const result = await handler(eventWithNoPushID, context);
@@ -161,25 +202,42 @@ describe('GetNotificationById Handler', () => {
     expect(result.statusCode).toEqual(400);
   });
 
-  it('should return 400 when pushId is an empty string', async () => {
+  it('should return 400 when the notification is missing from the database', async () => {
     // Arrange
-    const eventWithNoPushID = mockFlexAPIEvent({ pathParameters: { pushID: '' } }) as unknown as EventType;
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue(undefined);
 
     // Act
-    const result = await handler(eventWithNoPushID, context);
+    const result = await handler(event, context);
 
     // Assert
-    expect(result.statusCode).toEqual(400);
+    expect(result.statusCode).toEqual(404);
   });
 
-  it('should return 400 when externalUserID is an empty string', async () => {
+  it('should return a 404 when user is not the owner of the notification', async () => {
     // Arrange
-    const eventWithNoPushID = mockFlexAPIEvent({ pathParameters: { externalUserID: '' } }) as unknown as EventType;
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue({
+      ...messageRecord,
+      ExternalUserID: 'another_user',
+    });
 
     // Act
-    const result = await handler(eventWithNoPushID, context);
+    const result = await handler(event, context);
 
     // Assert
-    expect(result.statusCode).toEqual(400);
+    expect(result.statusCode).toEqual(404);
+  });
+
+  it('should return 404 when the noitification is marked as hidden in the database', async () => {
+    // Arrange
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue({
+      ...messageRecord,
+      Events: [mockIAnalytics(NotificationDispatchedStateEnum.HIDDEN)],
+    });
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(404);
   });
 });
