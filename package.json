@@ -28,6 +28,7 @@
     "test:report:review": "npx vite preview --outDir html",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
+    "test:ui": "vitest --ui --coverage --project unit",
     "upgrade": "ncu -u -d 'pnpm run test:unit' && pnpm audit --omit dev",
     "upgrade:diff": "ncu -x @eslint/js -x eslint-plugin-markdownlint -x eslint-plugin-prettier"
   },
