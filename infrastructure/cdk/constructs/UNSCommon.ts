@@ -13,9 +13,11 @@ import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBCons
 import { UNSElasticacheConstruct } from 'infrastructure/cdk/constructs/bases/UNSElasticacheConstruct';
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
+import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { UNSSlackAlert } from 'infrastructure/cdk/constructs/bases/UNSSlackIntegration';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
+import { ObjectLockRetention } from 'node_modules/aws-cdk-lib/aws-s3/lib/bucket';
 
 const interfaceEndpoints = {
   // API
@@ -50,6 +52,8 @@ export class UNSCommon extends Construct {
 
   public readonly codeSigning: CodeSigningConfig;
   public readonly codeSigningProfile: SigningProfile;
+
+  public readonly accessLogs: UNSS3Bucket;
 
   public readonly vpc: UNSVpcConstruct<typeof interfaceEndpoints, typeof gatewayEndpoints>;
 
@@ -131,7 +135,14 @@ export class UNSCommon extends Construct {
       signingProfiles: [this.codeSigningProfile],
       untrustedArtifactOnDeployment: UntrustedArtifactOnDeployment.WARN,
     });
-
+    //// =====================================================
+    // S3 Access Logs Bucket
+    //// =====================================================
+    // Retention is set to 30 days for main envs, and no retention for other envs
+    this.accessLogs = new UNSS3Bucket(this, config, {
+      name: ['s3-accesslogs'],
+      objectLockDefaultRetention: config.isMainEnv ? ObjectLockRetention.compliance(Duration.days(30)) : undefined,
+    });
     //// =====================================================
     // VPC Configuration & Endpoints
     //// =====================================================
@@ -141,6 +152,7 @@ export class UNSCommon extends Construct {
       zones: config.vpc.zones,
       interfaceEndpoints: interfaceEndpoints,
       gatewayEndpoints: gatewayEndpoints,
+      accessLogsBucket: this.accessLogs.bucket,
     });
 
     //// =====================================================
