@@ -17,6 +17,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { NotificationStateEnum } from '@common/models';
 import { ValidationService } from '@common/services/validationService';
 import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
@@ -25,6 +26,7 @@ import z from 'zod';
 
 const requestBodySchema = z.array(IValidateMessageSchema.strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
+const authorizerSchema = psoAuthorizerSchema;
 
 /**
  * Lambda handling incoming messages from a api request
@@ -58,10 +60,15 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
     }
  */
 
-export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class PostMessage extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
   public operationId: string = 'postMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
 
   public analyticsService!: AnalyticsService;
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
@@ -78,11 +85,13 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-    const { organisationID, organisationConfig } = this.extractOrganisationConfiguration(event);
+
+    const organisationID = event.requestContext.authorizer.Organization;
+    const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
     const messages: IMessage[] = event.body.map((body) => ({
       ...body,

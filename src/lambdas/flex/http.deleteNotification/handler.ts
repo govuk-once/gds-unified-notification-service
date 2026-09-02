@@ -42,8 +42,8 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public analyticsService: AnalyticsService;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public analyticsService!: AnalyticsService;
 
   constructor(
     protected config: ConfigurationService,

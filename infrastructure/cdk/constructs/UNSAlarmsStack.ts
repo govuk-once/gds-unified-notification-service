@@ -12,6 +12,19 @@ import { UNSResourceContract } from 'infrastructure/cdk/constructs/UNSResourceCo
 import { ProviderDimension } from '../../../src/common/services/observabilityService';
 
 export class UNSAlarmsStack extends Stack {
+  public readonly apiGatewayAlarmsFLEXConstruct: UNSApiGatewayAlarmsConstruct;
+  public readonly apiGatewayAlarmsPSOConstruct: UNSApiGatewayAlarmsConstruct;
+
+  public readonly authenticationAlarmsConstruct: UNSAuthenticationAlarmsConstruct;
+  public readonly operationalAlarmsConstruct: UNSOperationalAlarmsConstruct;
+  public readonly performanceAlarmsConstructs: UNSPerformanceAlarmsConstructs;
+
+  public readonly integrationAlarmsPSOConstruct: UNSIntegrationAlarmsConstruct;
+  public readonly integrationAlarmsFLEXConstruct: UNSIntegrationAlarmsConstruct;
+
+  public readonly wafAlarmsPSOConstruct: UNSWAFAlarmsConstruct;
+  public readonly wafAlarmsFlexConstruct: UNSWAFAlarmsConstruct;
+
   constructor(scope: Construct, id: string, props: StackProps, config: EnvVars, resources: UNSResourceContract) {
     super(scope, id, props);
 
@@ -21,24 +34,24 @@ export class UNSAlarmsStack extends Stack {
     const pso = new Construct(this, 'pso-alarms');
     const psoServiceName = 'pso';
 
-    new UNSApiGatewayAlarmsConstruct(pso, config, {
+    this.apiGatewayAlarmsPSOConstruct = new UNSApiGatewayAlarmsConstruct(pso, config, {
       restApiName: resources.pso.restApiName,
       alertTopic,
       group: psoServiceName,
     });
 
-    new UNSAuthenticationAlarmsConstruct(pso, config, {
+    this.authenticationAlarmsConstruct = new UNSAuthenticationAlarmsConstruct(pso, config, {
       alertTopic,
       group: psoServiceName,
     });
 
-    new UNSWAFAlarmsConstruct(pso, config, {
+    this.wafAlarmsPSOConstruct = new UNSWAFAlarmsConstruct(pso, config, {
       wafName: resources.pso.wafName,
       alertTopic,
       group: psoServiceName,
     });
 
-    new UNSOperationalAlarmsConstruct(pso, config, {
+    this.operationalAlarmsConstruct = new UNSOperationalAlarmsConstruct(pso, config, {
       alertTopic,
       group: psoServiceName,
       queues: Object.entries(resources.pso.queueNames).map(([name, queueName]) => ({ name, queueName })),
@@ -46,7 +59,7 @@ export class UNSAlarmsStack extends Stack {
 
     const psoLambdas = resources.pso.lambdaFunctionNames;
 
-    new UNSPerformanceAlarmsConstructs(pso, config, {
+    this.performanceAlarmsConstructs = new UNSPerformanceAlarmsConstructs(pso, config, {
       lambdas: Object.entries(psoLambdas)
         .filter((entry): entry is [string, string] => entry[1] !== undefined)
         .filter(([name]) => !['postGroupMessage', 'groupProcessingWorker', 'analytics'].includes(name))
@@ -55,7 +68,7 @@ export class UNSAlarmsStack extends Stack {
       group: psoServiceName,
     });
 
-    new UNSIntegrationAlarmsConstruct(pso, config, {
+    this.integrationAlarmsPSOConstruct = new UNSIntegrationAlarmsConstruct(pso, config, {
       alertTopic,
       group: psoServiceName,
       providers: [
@@ -71,19 +84,19 @@ export class UNSAlarmsStack extends Stack {
     const flex = new Construct(this, 'flex-alarms');
     const flexServiceName = 'flex';
 
-    new UNSApiGatewayAlarmsConstruct(flex, config, {
+    this.apiGatewayAlarmsFLEXConstruct = new UNSApiGatewayAlarmsConstruct(flex, config, {
       restApiName: resources.flex.restApiName,
       alertTopic,
       group: flexServiceName,
     });
 
-    new UNSWAFAlarmsConstruct(flex, config, {
+    this.wafAlarmsFlexConstruct = new UNSWAFAlarmsConstruct(flex, config, {
       wafName: resources.flex.wafName,
       alertTopic,
       group: flexServiceName,
     });
 
-    new UNSIntegrationAlarmsConstruct(flex, config, {
+    this.integrationAlarmsFLEXConstruct = new UNSIntegrationAlarmsConstruct(flex, config, {
       alertTopic,
       group: flexServiceName,
       lambdas: Object.entries(resources.flex.lambdaFunctionNames)
