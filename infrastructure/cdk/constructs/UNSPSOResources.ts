@@ -182,7 +182,7 @@ export class UNSPSOResource extends Construct {
         },
       ],
       serverAccessLogsBucket: refs.accessLogs.bucket,
-      serverAccessLogsPrefix: config.prefix,
+      serverAccessLogsPrefix: namingHelper('analytics-export'),
     });
     applyCheckovSkipsS3Bucket(analyticsExportBucket);
 

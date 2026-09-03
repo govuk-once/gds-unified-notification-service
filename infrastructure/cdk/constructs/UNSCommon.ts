@@ -17,7 +17,6 @@ import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketCons
 import { UNSSlackAlert } from 'infrastructure/cdk/constructs/bases/UNSSlackIntegration';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
-import { ObjectLockRetention } from 'node_modules/aws-cdk-lib/aws-s3/lib/bucket';
 
 const interfaceEndpoints = {
   // API
@@ -141,7 +140,7 @@ export class UNSCommon extends Construct {
     // Retention is set to 30 days for main envs, and no retention for other envs
     this.accessLogs = new UNSS3Bucket(this, config, {
       name: ['s3-accesslogs'],
-      objectLockDefaultRetention: config.isMainEnv ? ObjectLockRetention.compliance(Duration.days(30)) : undefined,
+      objectLockDefaultRetention: config.objectLockDefaultRetention,
     });
     //// =====================================================
     // VPC Configuration & Endpoints

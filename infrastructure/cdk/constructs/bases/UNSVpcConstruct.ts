@@ -217,7 +217,7 @@ export class UNSVpcConstruct<
         ],
         serverAccessLogs: {
           bucket: props.accessLogsBucket,
-          prefix: config.prefix,
+          prefix: namingHelper(...props.name, 'flow-log'),
         },
       });
 
