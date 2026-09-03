@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { camelCase } from './utils/camelCase';
+import { ObjectLockRetention } from 'node_modules/aws-cdk-lib/aws-s3/lib';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
@@ -94,6 +95,7 @@ export const config = {
   deletionPolicy: isMainEnv ? CfnDeletionPolicy.RETAIN : CfnDeletionPolicy.DELETE,
   retention: isMainEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
   expiration: isNonDevEnv ? Duration.days(365) : Duration.days(30),
+  objectLockDefaultRetention: isMainEnv ? ObjectLockRetention.compliance(Duration.days(30)) : undefined,
 
   // Flags
   isMainEnv,
