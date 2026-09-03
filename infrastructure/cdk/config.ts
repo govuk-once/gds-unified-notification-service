@@ -129,9 +129,12 @@ export const config = {
     certificateConsumers: await fromSSMJSON<Record<string, string>>(`/${namespace}/certificate/consumers`, {}),
   },
 
-  // Feature flag for travel alerts
+  // Feature flag for travel alerts and deeplinkUrls
   featureFlag: {
     groups: env !== 'prod',
+    deeplinkUrl: env !== 'prod',
+    messageRetention: env !== 'prod',
+    channelControls: env !== 'prod',
   },
 
   // VPC

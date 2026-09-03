@@ -1,17 +1,19 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { StringParameters } from '@common/utils';
+import { IMessage } from '@project/lambdas';
 
 export class ProcessingQueueService extends QueueService<IMessage> {
   protected queueName: string = 'processing';
   constructor(
     protected config: ConfigurationService,
+    client: SQSClient,
     protected observability: ObservabilityService
   ) {
-    super(observability);
+    super(client, observability);
   }
 
   async initialize() {

@@ -12,6 +12,7 @@ export const configurableParameters = {
   'config/common/enabled': 'true',
   'config/validation/enabled': 'true',
   'config/processing/enabled': 'true',
+  'config/groupProcessingWorker/enabled': 'true',
   'config/dispatch/enabled': 'true',
 
   // Processing
@@ -30,6 +31,11 @@ export const configurableParameters = {
   'config/dispatch/circuitBreaker/windowDuration': '60',
   'config/dispatch/circuitBreaker/rateLimitWhenOpen': '5',
 
+  // Feature Flags
+  'config/featureFlag/deeplinkUrl': String(config.featureFlag.deeplinkUrl),
+  'config/featureFlag/messageRetention': String(config.featureFlag.messageRetention),
+  'config/featureFlag/channelControls': String(config.featureFlag.channelControls),
+
   // Default values for url content control within the data
   'content/allowed/protocols': 'govuk:,https:',
   'content/allowed/urlHostnames': '*.gov.uk',
@@ -38,6 +44,10 @@ export const configurableParameters = {
   // Alert configuration
   'alerts/slack/workspaceId': 'null',
   'alerts/slack/channelId': 'null',
+
+  // Group Notifications
+  'group/dispatch/workerCount': '5',
+  'group/dispatch/workerBatchSize': '100',
 
   // AccountId for consumer to generate certificates for
   'certificate/consumers': '{}',

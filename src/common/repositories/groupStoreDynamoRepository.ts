@@ -1,15 +1,21 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IGroupStoreRecord } from '@common/repositories/interfaces';
+import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
-import { IGroup } from '@project/lambdas';
+import { filters } from '@common/utils/array';
+import { IGroups, IModifyGroups } from '@project/lambdas';
+import { v4 as uuid } from 'uuid';
 
-export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRecord> {
+export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroupStoreRecordSchema> {
+  protected recordSchema = IGroupStoreRecordSchema;
+
   constructor(
     protected config: ConfigurationService,
+    client: DynamoDB,
     protected observability: ObservabilityService
   ) {
-    super(config, observability);
+    super(config, client, observability);
   }
 
   async initialize() {
@@ -17,32 +23,109 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     return this;
   }
 
-  public async addToGroup(groupID: string, pushID: string, group: IGroup) {
-    const record: IGroupStoreRecord = {
-      GroupID: groupID,
-      PushID: pushID,
-      CompositeID: group.subgroup
-        ? `${group.namespace}/${group.group}/${group.subgroup}`
-        : `${group.namespace}/${group.group}`,
-      Group: group.group,
-      Namespace: group.namespace,
-      Subgroup: group.subgroup,
-    };
-
-    await this.createRecord(record);
-  }
-
-  public async getUsersGroups(pushID: string): Promise<IGroup[]> {
-    const records = await this.getRecords({ field: 'pushID', value: pushID });
+  public async getUsersGroups(pushID: string): Promise<IGroups[]> {
+    const records = await this.getRecordsQuery({ field: 'PushID', value: pushID }, 'PushIDIndex');
 
     return records
-      ? records.map((record) => {
-          return {
-            namespace: record.Namespace,
-            group: record.Group,
-            subgroup: record.Subgroup,
-          };
-        })
+      ? records.map((record) => ({
+          GroupID: record.GroupID,
+          CompositeID: record.CompositeID,
+          Namespace: record.Namespace,
+          Group: record.Group,
+          Subgroup: record.Subgroup,
+        }))
       : [];
+  }
+
+  public async getUsersInGroup(namespace: string, group: string, subgroup?: string): Promise<string[]> {
+    const compositeID = this.buildCompositeId(namespace, group, subgroup);
+    const records = await this.getRecordsQuery({ field: 'CompositeID', value: compositeID }, 'CompositeIDIndex');
+
+    return records ? records.map((record) => record.PushID) : [];
+  }
+
+  public async joinGroups(
+    pushID: string,
+    groupsToJoin: IModifyGroups[],
+    usersGroups: IGroups[] = []
+  ): Promise<IGroups[]> {
+    if (groupsToJoin.length === 0) {
+      this.observability.logger.debug('No groups to join provided - returning usersGroups', {
+        pushID,
+      });
+      return usersGroups;
+    }
+
+    const record: IGroupStoreRecord[] = groupsToJoin
+      .map((g) => {
+        const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
+        const existingRecord = usersGroups.find((u) => u.CompositeID === compositeID);
+
+        if (existingRecord) {
+          this.observability.logger.warn('Request tried to join a group user is already part of', {
+            PushID: pushID,
+            CompositeID: compositeID,
+          });
+          return undefined;
+        }
+
+        return {
+          GroupID: uuid(),
+          PushID: pushID,
+          CompositeID: g.Subgroup ? `${g.Namespace}/${g.Group}/${g.Subgroup}` : `${g.Namespace}/${g.Group}`,
+          Date: new Date().toISOString(),
+          Group: g.Group,
+          Namespace: g.Namespace,
+          Subgroup: g.Subgroup,
+        };
+      })
+      .filter(filters.isDefined);
+
+    await this.createRecordBatch(record);
+
+    return [
+      ...usersGroups,
+      ...record.map((r) => ({
+        GroupID: r.GroupID,
+        CompositeID: r.CompositeID,
+        Namespace: r.Namespace,
+        Group: r.Group,
+        Subgroup: r.Subgroup,
+      })),
+    ];
+  }
+
+  public async leaveGroups(
+    pushID: string,
+    groupsToLeave: IModifyGroups[],
+    usersGroups: IGroups[] = []
+  ): Promise<IGroups[]> {
+    if (usersGroups.length === 0) {
+      this.observability.logger.debug('No user groups found for pushID - returning empty array', {
+        pushID,
+      });
+      return [];
+    }
+    if (groupsToLeave.length === 0) {
+      this.observability.logger.debug('No groups to leave provided - returning usersGroups', {
+        pushID,
+      });
+      return usersGroups;
+    }
+
+    const leaveKeys = new Set(groupsToLeave.map((g) => this.buildCompositeId(g.Namespace, g.Group, g.Subgroup)));
+    const groupIDsToDelete = usersGroups.filter((u) => leaveKeys.has(u.CompositeID)).map((u) => u.GroupID);
+
+    await Promise.allSettled(
+      groupIDsToDelete.map(async (id) => {
+        await this.deleteRecord(id, pushID);
+      })
+    );
+
+    return usersGroups.filter((u) => !leaveKeys.has(u.CompositeID));
+  }
+
+  private buildCompositeId(namespace: string, group: string, subgroup?: string) {
+    return subgroup ? `${namespace}/${group}/${subgroup}` : `${namespace}/${group}`;
   }
 }

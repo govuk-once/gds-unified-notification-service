@@ -1,5 +1,6 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
+  AttributeValue,
   ConsumedCapacity,
   DeleteItemCommandInput,
   DynamoDB,
@@ -9,26 +10,25 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces/IDynamoKeys';
-import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
+import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
+import { ConfigurationService } from '@common/services/configurationService';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
+import { zodErrorFormatter } from '@common/utils/zod';
+import z, { ZodObject } from 'zod';
 
-export abstract class DynamodbRepository<RecordType extends object> {
-  private client!: DynamoDB;
+export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   protected tableAttributes!: IDynamoAttributes;
+  protected abstract recordSchema: RecordSchema;
 
   constructor(
     protected config: ConfigurationService,
+    protected client: DynamoDB,
     protected observability: ObservabilityService
   ) {}
 
   public async initialize(tableAttributesParameter: string) {
     this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
-
-    const client = new DynamoDB({
-      region: 'eu-west-2',
-    });
-
-    this.client = client;
     this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }
@@ -64,15 +64,21 @@ export abstract class DynamodbRepository<RecordType extends object> {
     return result;
   }
 
-  public async createRecord(record: RecordType): Promise<void> {
+  public async createRecord(record: z.infer<RecordSchema>): Promise<void> {
     this.observability.logger.info('Creating record in table', { tableName: this.tableAttributes.name });
+
+    const { data, error } = this.recordSchema.safeParse(record);
+    if (error) {
+      this.observability.logger.error('Input to create record does not match the record schema', record);
+      throw new ParsingFailedError(['Input to create record does not match the record schema']);
+    }
 
     try {
       await this.observeCapacity(
         this.createRecord.name,
         this.client.putItem({
           TableName: this.tableAttributes.name,
-          Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
+          Item: marshall(this.beforeCreate(data), { removeUndefinedValues: true }),
           ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
         })
       );
@@ -86,10 +92,26 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async createRecordBatch(batchRecords: RecordType[]): Promise<void> {
+  public async createRecordBatch(batchRecords: z.infer<RecordSchema>[]): Promise<void> {
     this.observability.logger.info('Creating records in table', {
       batchRecordLength: batchRecords.length,
       tableName: this.tableAttributes.name,
+    });
+
+    const parsedBatchRecords = batchRecords.flatMap((record) => {
+      const { data, error } = this.recordSchema.safeParse(record);
+
+      if (error) {
+        this.observability.logger.error(
+          'An item in array to create a batch of records does not match the record schema',
+          record
+        );
+        throw new ParsingFailedError([
+          'An item in array to create a batch of records does not match the record schema',
+        ]);
+      }
+
+      return [data];
     });
 
     try {
@@ -98,14 +120,14 @@ export abstract class DynamodbRepository<RecordType extends object> {
         return;
       }
       if (batchRecords.length > 25) {
-        throw new Error('To create batch records, array length must be no greater than 25.');
+        throw new Error('To create batch records, array length must be no greater than 25');
       }
 
       await this.observeCapacity(
         this.createRecordBatch.name,
         this.client.batchWriteItem({
           RequestItems: {
-            [this.tableAttributes.name]: batchRecords.map((record) => ({
+            [this.tableAttributes.name]: parsedBatchRecords.map((record) => ({
               PutRequest: {
                 Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
               },
@@ -126,7 +148,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
   }
 
   public async updateRecord(
-    recordFields: Partial<RecordType>,
+    recordFields: Partial<z.infer<RecordSchema>>,
     options?: { resetExpirationDate: boolean }
   ): Promise<void> {
     this.observability.logger.info('Update record in table', {
@@ -134,13 +156,16 @@ export abstract class DynamodbRepository<RecordType extends object> {
       key: this.tableAttributes.hashKey,
     });
 
-    const keyValue = recordFields[this.tableAttributes.hashKey as keyof RecordType];
-    if (!keyValue) {
-      throw new Error(
-        `No key value was found in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
+    const { data, error } = this.recordSchema.partial().safeParse(recordFields);
+    if (error) {
+      this.observability.logger.error(
+        'Fields used to update record in table do not match the record schema',
+        recordFields
       );
+      throw new ParsingFailedError(['Fields used to update record in table do not match the record schema']);
     }
 
+    const keyValue = data[this.tableAttributes.hashKey];
     const attributes = new Set([
       this.tableAttributes.hashKey,
       this.tableAttributes.rangeKey,
@@ -221,7 +246,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async getRecord(keyValue: string): Promise<RecordType | null> {
+  public async getRecord(keyValue: string): Promise<z.infer<RecordSchema> | null> {
     this.observability.logger.info('Retrieving record in table', {
       tableName: this.tableAttributes.name,
       key: this.tableAttributes.hashKey,
@@ -247,15 +272,25 @@ export abstract class DynamodbRepository<RecordType extends object> {
         return null;
       }
 
-      const response = unmarshall(Item) as RecordType;
+      const result = unmarshall(Item);
+      const { data, error } = this.recordSchema.safeParse(result);
+
+      if (error) {
+        this.observability.logger.error('Record in table failed to parse to record schema', {
+          tableName: this.tableAttributes.name,
+          key: this.tableAttributes.hashKey,
+          value: keyValue,
+        });
+        throw new ParsingFailedError(['Record in table failed to parse to record schema', ...zodErrorFormatter(error)]);
+      }
 
       this.observability.logger.info('Retrieved record in table', {
         tableName: this.tableAttributes.name,
         key: this.tableAttributes.hashKey,
         value: keyValue,
-        response,
+        result,
       });
-      return response;
+      return data;
     } catch (error) {
       this.observability.logger.error('Failure in getting record for table', {
         tableName: this.tableAttributes.name,
@@ -265,16 +300,28 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async deleteRecord(keyValue: string): Promise<void> {
+  public async deleteRecord(partitionKeyValue: string, sortKeyValue?: string): Promise<void> {
     this.observability.logger.info('Deleting record in table', {
       tableName: this.tableAttributes.name,
       key: this.tableAttributes.hashKey,
-      value: keyValue,
+      partitionKeyValue: partitionKeyValue,
+      sortKeyValue: sortKeyValue,
     });
+
+    if (sortKeyValue && !this.tableAttributes.rangeKey) {
+      throw new ServiceMisconfigurationError(['A sort key value has been used for a table with no sort key']);
+    }
+
+    if (this.tableAttributes.rangeKey && !sortKeyValue) {
+      throw new ServiceMisconfigurationError(['Table requires a sort key to delete record, but none was provided']);
+    }
+
     const params: DeleteItemCommandInput = {
       TableName: this.tableAttributes.name,
       Key: marshall({
-        [this.tableAttributes.hashKey]: keyValue,
+        [this.tableAttributes.hashKey]: partitionKeyValue,
+        // Adds sort key to params if the table requires a sort key
+        ...(this.tableAttributes.rangeKey && sortKeyValue ? { [this.tableAttributes.rangeKey]: sortKeyValue } : {}),
       }),
       ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
     };
@@ -291,10 +338,14 @@ export abstract class DynamodbRepository<RecordType extends object> {
         key: this.tableAttributes.hashKey,
         error: this.observability.formatError(error),
       });
+      throw error;
     }
   }
 
-  public async getRecords(filter?: { field: string; value: string }, indexName?: string): Promise<RecordType[]> {
+  public async getRecords(
+    filter?: { field: string; value: string },
+    indexName?: string
+  ): Promise<z.infer<RecordSchema>[]> {
     const params: ScanCommandInput = {
       TableName: this.tableAttributes.name,
       ...(filter && {
@@ -311,7 +362,8 @@ export abstract class DynamodbRepository<RecordType extends object> {
       if (!Items || Items.length === 0) {
         return [];
       }
-      return Items.map((item) => unmarshall(item) as RecordType);
+
+      return this.parseArrayOfRecords(Items);
     } catch (error) {
       this.observability.logger.error('Failure in getting records for table', {
         tableName: this.tableAttributes.name,
@@ -321,10 +373,10 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async getRecordsQuery<RecordType>(
+  public async getRecordsQuery(
     filter?: { field: string; value: string },
     indexName?: string
-  ): Promise<RecordType[]> {
+  ): Promise<z.infer<RecordSchema>[]> {
     const params: QueryCommandInput = {
       TableName: this.tableAttributes.name,
       ...(filter && {
@@ -340,7 +392,7 @@ export abstract class DynamodbRepository<RecordType extends object> {
       if (!Items || Items.length === 0) {
         return [];
       }
-      return Items.map((item) => unmarshall(item) as RecordType);
+      return this.parseArrayOfRecords(Items);
     } catch (error) {
       this.observability.logger.error('Failure in getting records (query) for table', {
         tableName: this.tableAttributes.name,
@@ -350,11 +402,11 @@ export abstract class DynamodbRepository<RecordType extends object> {
     }
   }
 
-  public async incrementRecord(record: RecordType, counter: string): Promise<void> {
+  public async incrementRecord(record: z.infer<RecordSchema>, counter: string): Promise<void> {
     this.observability.logger.info('Incrementing record in table', { tableName: this.tableAttributes.name });
 
     try {
-      const keyValue = record[this.tableAttributes.hashKey as keyof RecordType];
+      const keyValue = record[this.tableAttributes.hashKey as keyof z.infer<RecordSchema>];
       if (!keyValue) {
         throw new Error(
           `No key value was found in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
@@ -393,20 +445,32 @@ export abstract class DynamodbRepository<RecordType extends object> {
 
   // Generates expiration field that can be injected as partial into create/update calls
   // When expirationAttribute is not set, or expirationDurationInSeconds is 0 - empty object is returned instead
-  protected createExpirationDatePartial(): Partial<RecordType> {
-    return this.tableAttributes.expirationAttribute &&
+  protected createExpirationDatePartial(expirationInDays?: number): Partial<z.infer<RecordSchema>> {
+    if (this.tableAttributes.expirationAttribute && expirationInDays) {
+      return {
+        [this.tableAttributes.expirationAttribute]: new Date(
+          Date.now() + expirationInDays * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      } as Partial<z.infer<RecordSchema>>;
+    }
+
+    if (
+      this.tableAttributes.expirationAttribute &&
       this.tableAttributes.expirationDurationInSeconds &&
       this.tableAttributes.expirationDurationInSeconds > 0
-      ? ({
-          [this.tableAttributes.expirationAttribute]: new Date(
-            Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
-          ).toISOString(),
-        } as Partial<RecordType>)
-      : {};
+    ) {
+      return {
+        [this.tableAttributes.expirationAttribute]: new Date(
+          Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
+        ).toISOString(),
+      } as Partial<z.infer<RecordSchema>>;
+    }
+
+    return {};
   }
 
   // Allows overwriting logic before triggers
-  public beforeCreate(record: RecordType) {
+  public beforeCreate(record: z.infer<RecordSchema>) {
     return {
       ...record,
       // Dynamically inject expiration date if table calls for it
@@ -414,11 +478,29 @@ export abstract class DynamodbRepository<RecordType extends object> {
     };
   }
 
-  public beforeUpdate(partial: Partial<RecordType>, options?: { resetExpirationDate: boolean }) {
+  public beforeUpdate(partial: Partial<z.infer<RecordSchema>>, options?: { resetExpirationDate: boolean }) {
     return {
       ...partial,
       // Inject expiration date property dynamically during updates if relevant option has been set
       ...(options?.resetExpirationDate ? this.createExpirationDatePartial() : {}),
     };
+  }
+
+  private parseArrayOfRecords(items: Record<string, AttributeValue>[]): z.infer<RecordSchema>[] {
+    return items.flatMap((rawItem) => {
+      const unmarshalledItem = unmarshall(rawItem);
+      const { data, error } = this.recordSchema.safeParse(unmarshalledItem);
+
+      if (error) {
+        this.observability.logger.error('Record in table failed to parse to record schema, filtering out record', {
+          tableName: this.tableAttributes.name,
+          key: this.tableAttributes.hashKey,
+          value: unmarshalledItem[this.tableAttributes.hashKey] ?? undefined,
+          zodErrors: zodErrorFormatter(error),
+        });
+        return [];
+      }
+      return [data];
+    });
   }
 }

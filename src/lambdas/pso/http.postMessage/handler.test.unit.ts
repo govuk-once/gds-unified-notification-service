@@ -1,10 +1,15 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { ChannelsEnum, NotificationStateEnum } from '@common/models';
 import { PostMessage } from '@project/lambdas/pso/http.postMessage/handler';
+import {
+  iocSpies,
+  mockAPIPostMessageEvent,
+  mockEventContext,
+  mockIMessage_NoOrgID,
+  mockPsoAPIEventWithChannelsControl,
+  mockPsoAPIEventWithMessageRetention,
+  mockServicesExpectedBehaviour,
+  mockUnauthorizedPsoAPIEvent,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -19,70 +24,35 @@ describe('PostMessage Handler', () => {
   let handler: ReturnType<typeof PostMessage.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
-  // Initialize the mock service and repository layers
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Test fixtures
+  let context: Context;
+  let event: EventType;
 
-  // Mock Message Body
-  const mockMessageBody = {
-    NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-    DepartmentID: 'DEP01',
-    UserID: 'UserID',
-    CampaignID: 'CAM_ID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-  };
-
-  // Mock AWS Lambda Context
-  const mockContext = {
-    functionName: 'postMessage',
-    awsRequestId: '12345',
-  } as unknown as Context;
-
-  // Mock the event
-  let mockEvent: EventType;
+  const message = mockIMessage_NoOrgID();
 
   beforeEach(() => {
     // Reset all mock
     vi.resetAllMocks();
     vi.useRealTimers();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
-    );
+    // Test fixtures
+    context = mockEventContext('postMessage');
+    event = mockAPIPostMessageEvent([message]) as unknown as EventType;
 
-    mockEvent = {
-      body: JSON.stringify([mockMessageBody]),
-      headers: {
-        'x-api-key': 'mockApiKey',
-        'Content-Type': `application/json`,
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        authorizer: { Organization: 'ORG01' },
-      },
-    } as unknown as EventType;
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     // Mocking retrieving store apiKey
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      validationService: Promise.resolve(serviceMocks.validationServiceMock),
     }));
     handler = instance.handler();
-
-    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockResolvedValue(undefined);
-    serviceMocks.processingQueueServiceMock.publishMessageBatch.mockResolvedValue(undefined);
-    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockResolvedValue(undefined);
   });
 
   it('should have the correct operationId', () => {
@@ -92,59 +62,43 @@ describe('PostMessage Handler', () => {
 
   it('should send messages to processing queue.', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
-      { ...mockMessageBody, OrganisationID: 'ORG01' },
+      { ...message, OrganisationID: 'ORG01' },
     ]);
   });
 
   it('should stamp OrganisationID from the mTLS cert onto queued, recorded and analytics messages', async () => {
-    // Arrange
-    const organisationID = 'ORG01';
-    const authorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        ...mockEvent.requestContext,
-        authorizer: { Organization: organisationID },
-      },
-    } as unknown as EventType;
-
     // Act
-    await handler(authorizedEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
-      { ...mockMessageBody, OrganisationID: organisationID },
+      { ...message, OrganisationID: 'ORG01' },
     ]);
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
       [
         {
-          ...mockMessageBody,
-          OrganisationID: organisationID,
-          APIGWExtendedID: authorizedEvent.requestContext.requestId,
+          ...message,
+          OrganisationID: 'ORG01',
+          APIGWExtendedID: event.requestContext.requestId,
         },
       ],
       NotificationStateEnum.VALIDATED_API_CALL
     );
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
-      expect.objectContaining({ OrganisationID: organisationID }),
+      expect.objectContaining({ OrganisationID: 'ORG01' }),
     ]);
   });
 
-  it('should return 400 when mTLS certificate does not resolve an organsation', async () => {
+  it('should return 400 when mTLS certificate does not resolve an organisation', async () => {
     // Arrange
-    const noAuthorizedEvent = {
-      ...mockEvent,
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-    } as unknown as EventType;
+    const unauthorizedEvent = mockUnauthorizedPsoAPIEvent(message) as unknown as EventType;
 
     // Act
-    const result = await handler(noAuthorizedEvent, mockContext);
+    const result = await handler(unauthorizedEvent, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
@@ -158,111 +112,508 @@ describe('PostMessage Handler', () => {
     vi.setSystemTime(date);
 
     // Act
-    await handler({ ...mockEvent }, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
-        ...mockMessageBody,
+        ...message,
         OrganisationID: 'ORG01',
-        APIGWExtendedID: mockEvent.requestContext.requestId,
-        ReceivedDateTime: new Date(mockEvent.requestContext.requestTimeEpoch).toISOString(),
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
         Events: [],
       },
     ]);
   });
 
+  it('should make a record using expire in days if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const messageWithExpiresInDay = { ...message, ExpiresInDays: 25 };
+    const eventWithExpiresInDay = mockPsoAPIEventWithMessageRetention([
+      messageWithExpiresInDay,
+    ]) as unknown as EventType;
+
+    // Act
+    await handler(eventWithExpiresInDay, context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        ...message,
+        OrganisationID: 'ORG01',
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: date.toISOString(),
+        RequestedDaysToExpire: 25,
+        Events: [],
+      },
+    ]);
+  });
+
+  it('should reject any notification where the ExpiresInDays is a negative', async () => {
+    // Arrange
+    const messageWithInvalidExpiresInDays = {
+      ...message,
+      ExpiresInDays: -1,
+    };
+    const eventWithInvalidExpiresInDays = mockAPIPostMessageEvent([
+      messageWithInvalidExpiresInDays,
+    ]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithInvalidExpiresInDays, context);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Too small: expected number to be >0 → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
+
+  it('should reject any notification where the ExpiresInDays is a float', async () => {
+    // Arrange
+    const messageWithInvalidExpiresInDays = {
+      ...message,
+      ExpiresInDays: 0.5,
+    };
+    const eventWithInvalidExpiresInDays = mockAPIPostMessageEvent([
+      messageWithInvalidExpiresInDays,
+    ]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithInvalidExpiresInDays, context);
+
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          Status: 400,
+          HttpError: 'BadRequest',
+          Errors: ['Invalid input: expected int, received number → at 0.ExpiresInDays.'],
+        }),
+        statusCode: 400,
+      })
+    );
+  });
+
   it('should send VALIDATED_API_CALL event to analytics queue.', async () => {
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).toHaveBeenCalledWith(
-      [{ ...mockMessageBody, OrganisationID: 'ORG01', APIGWExtendedID: mockEvent.requestContext.requestId }],
+      [{ ...message, OrganisationID: 'ORG01', APIGWExtendedID: event.requestContext.requestId }],
       NotificationStateEnum.VALIDATED_API_CALL
     );
   });
 
   it('should return a status 202 and list of NotificationIDs when call is successful.', async () => {
     // Act
-    const result = await handler({ ...mockEvent }, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
-    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: message.NotificationID }]);
   });
 
-  it('should NOT throw an error when called with a message containing deeplink that is on the allowlist', async () => {
+  it('should accept a message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {
+    // Arrange
+    const messageWithChannel = {
+      ...message,
+      Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+    };
+    const eventWithChannel = mockPsoAPIEventWithChannelsControl([messageWithChannel]) as unknown as EventType;
+
     // Act
-    const result = await handler(
-      {
-        ...mockEvent,
-        body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://readme.gov.uk/hello-world?q=1' }]),
-      },
-      mockContext
-    );
+    const result = await handler(eventWithChannel, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: message.NotificationID }]);
+  });
+
+  it('should accept a message with Channel set to MESSAGE_CENTRE_ONLY', async () => {
+    // Arrange
+    const messageWithChannel = {
+      ...message,
+      Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
+    };
+    const eventWithChannel = mockPsoAPIEventWithChannelsControl([messageWithChannel]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithChannel, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    expect(JSON.parse(result.body)).toEqual([{ NotificationID: messageWithChannel.NotificationID }]);
+  });
+
+  it('should accept a message when Channel is omitted', async () => {
+    // Arrange
+    const eventWithChannel = mockPsoAPIEventWithChannelsControl([message]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithChannel, context);
 
     // Assert
     expect(result.statusCode).toEqual(202);
   });
 
-  it('should throw an error when called with a message containing deeplink that is not on the allowlist', async () => {
+  it('should return 400 when Channel is an empty string', async () => {
+    // Arrange
+    const messageWithEmptyChannel = {
+      ...message,
+      Channel: '',
+    };
+    const eventWithEmptyChannel = mockAPIPostMessageEvent([messageWithEmptyChannel]) as unknown as EventType;
+
     // Act
-    const result = await handler(
-      { ...mockEvent, body: JSON.stringify([{ ...mockMessageBody, MessageBody: 'https://example.com' }]) },
-      mockContext
-    );
+    const result = await handler(eventWithEmptyChannel, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['https://example.com is using example.com hostname which is not on the allow list'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
     });
   });
 
-  it('should validate messages that contain valid markdown.', async () => {
+  it('should return 400 when Channel is an invalid enum value', async () => {
     // Arrange
-    const mockMarkdownMessageBody = {
-      ...mockMessageBody,
-      MessageBody:
-        'This is a **long message** containing structural details that are valid under the markdown rules. We want to ensure that *all* allowable elements function seamlessly.',
+    const messageWithInvalidChannel = {
+      ...message,
+      Channel: 'INVALID_CHANNEL',
     };
-    const mockEventWithMarkdown = {
-      ...mockEvent,
-      body: JSON.stringify([mockMarkdownMessageBody]),
-    };
+    const eventWithInvalidChannel = mockAPIPostMessageEvent([messageWithInvalidChannel]) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEventWithMarkdown, mockContext);
-
-    // Assert
-    expect(result.statusCode).toEqual(202);
-    expect(JSON.parse(result.body)).toEqual([{ NotificationID: mockMessageBody.NotificationID }]);
-  });
-
-  it('should reject messages that contain invalid markdown.', async () => {
-    // Arrange
-    const mockInvalidMarkdownMessageBody = {
-      ...mockMessageBody,
-      MessageBody: '    const x = 10;\n    const y = 20;',
-    };
-    const mockEventInvalidMarkdown = {
-      ...mockEvent,
-      body: JSON.stringify([mockInvalidMarkdownMessageBody]),
-    };
-
-    // Act
-    const result = await handler(mockEventInvalidMarkdown, mockContext);
+    const result = await handler(eventWithInvalidChannel, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Message body contains markdown elements which are not valid: code_block'],
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  it('should return 400 when Channel is a lowercase variant of a valid enum', async () => {
+    // Arrange
+    const messageWithLowercaseChannel = {
+      ...message,
+      Channel: 'push_notification_and_message_centre',
+    };
+    const eventWithLowercaseChannel = mockAPIPostMessageEvent([messageWithLowercaseChannel]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithLowercaseChannel, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: [
+        'Invalid option: expected one of \"PUSH_NOTIFICATION_AND_MESSAGE_CENTRE\"|\"MESSAGE_CENTRE_ONLY\" → at 0.Channel.',
+      ],
+    });
+  });
+
+  describe('authorizerMiddleware', () => {
+    it('should return 202 when authorizer contains with MessageRetention not allowed OrganisationConfig', async () => {
+      // Arrange
+      const eventWithMessageRetention = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: false,
+              },
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithMessageRetention, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 202 when authorizer contains with MessageRetention allowed and min max provided', async () => {
+      // Arrange
+      const eventWithMessageRetention = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: true,
+                Min: 2,
+                Max: 30,
+              },
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithMessageRetention, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 202 when authorizer contains allow control channels', async () => {
+      // Arrange
+      const eventWithChannelControls = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithChannelControls, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 202 when authorizer contains DeeplinkAllowList array', async () => {
+      // Arrange
+      const eventWithDeeplink = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              DeeplinkAllowList: [
+                {
+                  protocol: 'https:',
+                },
+              ],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithDeeplink, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(202);
+    });
+
+    it('should return 400 when authorizer does not match the authorizer schema', async () => {
+      // Arrange
+      const eventWithoutAuthorizer = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: undefined,
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutAuthorizer, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input: expected object, received undefined → at .',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer does not contain Organization', async () => {
+      // Arrange
+      const eventWithoutOrganization = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: false,
+              },
+              Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutOrganization, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input: expected string, received undefined → at Organization.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer does not contain OrganisationConfig', async () => {
+      // Arrange
+      const eventWithOrganisationConfig = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithOrganisationConfig, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input: expected string, received undefined → at OrganisationConfig.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer contains with MessageRetention allowed but no min max provided', async () => {
+      // Arrange
+      const eventMessageRetention = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              MessageRetention: {
+                Allowed: true,
+              },
+              Channels: ['PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', 'MESSAGE_CENTRE_ONLY'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventMessageRetention, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Min message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Min.',
+          'Max message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Max.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer does contains unsupported Channels', async () => {
+      // Arrange
+      const eventWithoutSupportedChannels = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              Channels: ['Unsupported'],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutSupportedChannels, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid option: expected one of "PUSH_NOTIFICATION_AND_MESSAGE_CENTRE"|"MESSAGE_CENTRE_ONLY" → at OrganisationConfig.Channels.0.',
+        ],
+      });
+    });
+
+    it('should return 400 when authorizer has DeeplinkAllowList but does not contain protocol or hostname', async () => {
+      // Arrange
+      const eventWithoutDeeplink = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: {
+            Organization: 'ORG01',
+            OrganisationConfig: JSON.stringify({
+              DeeplinkAllowList: [
+                {
+                  prot: 'https:',
+                },
+              ],
+            }),
+          },
+        },
+      } as unknown as EventType;
+
+      // Act
+      const result = await handler(eventWithoutDeeplink, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+      expect(JSON.parse(result.body)).toEqual({
+        Status: 400,
+        HttpError: 'BadRequest',
+        Errors: [
+          'Authorizer did not match expected schema',
+          'Invalid input → at OrganisationConfig.DeeplinkAllowList.0.',
+        ],
+      });
     });
   });
 });

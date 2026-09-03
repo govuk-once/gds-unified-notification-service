@@ -1,5 +1,5 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { CircuitBreakerStateEnum } from '@common/models/CircuitBreakerStateEnum';
+import { CircuitBreakerStateEnum } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';

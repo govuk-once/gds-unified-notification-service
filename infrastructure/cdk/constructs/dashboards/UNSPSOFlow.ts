@@ -1,4 +1,4 @@
-import { Stack } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -7,312 +7,232 @@ import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
 export class UNSPSOFlow extends Construct {
   constructor(scope: Construct, id: string, config: EnvVars, refs: { pso: UNSPSOResource }) {
     super(scope, id);
-    const stack = Stack.of(this);
 
-    // TODO: Refactor to use proper widget defintions, this is just initial TF migration 1:1
-    const rawDashboard = {
-      widgets: [
-        {
-          type: 'metric',
-          x: 6,
-          y: 0,
-          width: 6,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                'AWS/SQS',
-                'NumberOfMessagesSent',
-                'QueueName',
-                refs?.pso.queues.incoming.queue.queueName,
-                {
-                  region: config.region,
-                },
-              ],
-              [
-                '.',
-                'NumberOfMessagesReceived',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                },
-              ],
-              [
-                '.',
-                'ApproximateNumberOfMessagesVisible',
-                '.',
-                '.',
-                {
-                  label: 'Queue Depth',
-                  region: config.region,
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: false,
-            region: config.region,
-            stat: 'Sum',
-            period: 1,
-            title: 'Processing Queue',
-            liveData: true,
-          },
-        },
-        {
-          type: 'metric',
-          x: 6,
-          y: 6,
-          width: 6,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                'AWS/Lambda',
-                'Invocations',
-                'FunctionName',
-                refs?.pso.lambdas.sqs.processing.fn.functionName,
-                {
-                  region: config.region,
-                },
-              ],
-              [
-                '.',
-                'Errors',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: false,
-            region: config.region,
-            period: 1,
-            stat: 'Sum',
-            title: 'Notifications Processed',
-            liveData: true,
-          },
-        },
-        {
-          type: 'metric',
-          x: 12,
-          y: 0,
-          width: 6,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                'AWS/SQS',
-                'NumberOfMessagesSent',
-                'QueueName',
+    const period = Duration.seconds(1);
+    const statistic = 'Sum';
 
-                refs?.pso.queues.dispatch.queue.queueName,
-                {
-                  region: config.region,
-                },
-              ],
-              [
-                '.',
-                'NumberOfMessagesReceived',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                },
-              ],
-              [
-                '.',
-                'ApproximateNumberOfMessagesVisible',
-                '.',
-                '.',
-                {
-                  label: 'Queue Depth',
-                  region: config.region,
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: false,
-            region: config.region,
-            stat: 'Sum',
-            period: 1,
-            title: 'Dispatch Queue',
-            liveData: true,
+    // Row 1: WAF | Processing Queue | Dispatch Queue | OneSignal
+    const wafWidget = new cw.GraphWidget({
+      title: 'Web App Firewall per Second',
+      width: 6,
+      height: 6,
+      stacked: true,
+      region: config.region,
+      left: [
+        new cw.Metric({
+          namespace: 'AWS/WAFV2',
+          metricName: 'BlockedRequests',
+          dimensionsMap: {
+            WebACL: refs.pso.gateway.waf.name!,
+            Region: config.region,
+            Rule: 'ALL',
           },
-        },
-        {
-          type: 'metric',
-          x: 12,
-          y: 6,
-          width: 6,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                'AWS/Lambda',
-                'Invocations',
-                'FunctionName',
-                refs?.pso.lambdas.sqs.dispatch.fn.functionName,
-                {
-                  region: config.region,
-                },
-              ],
-              [
-                '.',
-                'Errors',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: false,
-            region: config.region,
-            period: 1,
-            stat: 'Sum',
-            title: 'Notifications Dispatched',
-            liveData: true,
+          statistic,
+          period,
+          color: '#d62728',
+        }),
+        new cw.Metric({
+          namespace: 'AWS/WAFV2',
+          metricName: 'AllowedRequests',
+          dimensionsMap: {
+            WebACL: refs.pso.gateway.waf.name!,
+            Region: config.region,
+            Rule: 'ALL',
           },
-        },
-        {
-          type: 'metric',
-          x: 0,
-          y: 0,
-          width: 6,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                'AWS/WAFV2',
-                'BlockedRequests',
-                'WebACL',
-                refs?.pso.gateway.waf.name,
-                'Region',
-                config.region,
-                'Rule',
-                'ALL',
-                {
-                  region: config.region,
-                  color: '#d62728',
-                },
-              ],
-              [
-                '.',
-                'AllowedRequests',
-                '.',
-                '.',
-                '.',
-                '.',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                  color: '#2ca02c',
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: true,
-            region: config.region,
-            stat: 'Sum',
-            period: 1,
-            title: 'Web App Firewall per Second',
-          },
-        },
-        {
-          type: 'metric',
-          x: 18,
-          y: 0,
-          width: 5,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                'global',
-                'SentToOneSignalComplete',
-                {
-                  region: config.region,
-                  label: 'Accepted',
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: true,
-            region: config.region,
-            stat: 'Sum',
-            period: 1,
-            title: 'Sent to OneSignal per Second',
-          },
-        },
-        {
-          type: 'metric',
-          x: 0,
-          y: 6,
-          width: 6,
-          height: 6,
-          properties: {
-            metrics: [
-              [
-                {
-                  expression: 'm3-m1-m2',
-                  label: '2xx Reponse',
-                  id: 'e1',
-                  color: '#9467bd',
-                },
-              ],
-              [
-                'AWS/ApiGateway',
-                '4XXError',
-                'ApiName',
-                refs?.pso.gateway.restApi.restApiName,
-                {
-                  region: config.region,
-                  id: 'm1',
-                  label: '4XX Error',
-                },
-              ],
-              [
-                '.',
-                '5XXError',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                  id: 'm2',
-                  label: '5XX Error',
-                  color: '#d62728',
-                },
-              ],
-              [
-                '.',
-                'Count',
-                '.',
-                '.',
-                {
-                  region: config.region,
-                  id: 'm3',
-                  label: 'Incoming',
-                  color: '#2ca02c',
-                },
-              ],
-            ],
-            view: 'timeSeries',
-            stacked: true,
-            region: config.region,
-            stat: 'Sum',
-            period: 1,
-            title: 'API per Second',
-          },
-        },
+          statistic,
+          period,
+          color: '#2ca02c',
+        }),
       ],
-    };
-
-    new cw.CfnDashboard(this, 'dashboard', {
-      dashboardName: config.utils.namingHelper(id),
-      dashboardBody: stack.toJsonString(rawDashboard),
     });
+
+    const processingQueueWidget = new cw.GraphWidget({
+      title: 'Processing Queue',
+      width: 6,
+      height: 6,
+      region: config.region,
+      liveData: true,
+      left: [
+        new cw.Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'NumberOfMessagesSent',
+          dimensionsMap: { QueueName: refs.pso.queues.incoming.queue.queueName },
+          statistic,
+          period,
+        }),
+        new cw.Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'NumberOfMessagesReceived',
+          dimensionsMap: { QueueName: refs.pso.queues.incoming.queue.queueName },
+          statistic,
+          period,
+        }),
+        new cw.Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'ApproximateNumberOfMessagesVisible',
+          dimensionsMap: { QueueName: refs.pso.queues.incoming.queue.queueName },
+          label: 'Queue Depth',
+          statistic,
+          period,
+        }),
+      ],
+    });
+
+    const dispatchQueueWidget = new cw.GraphWidget({
+      title: 'Dispatch Queue',
+      width: 6,
+      height: 6,
+      region: config.region,
+      liveData: true,
+      left: [
+        new cw.Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'NumberOfMessagesSent',
+          dimensionsMap: { QueueName: refs.pso.queues.dispatch.queue.queueName },
+          statistic,
+          period,
+        }),
+        new cw.Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'NumberOfMessagesReceived',
+          dimensionsMap: { QueueName: refs.pso.queues.dispatch.queue.queueName },
+          statistic,
+          period,
+        }),
+        new cw.Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'ApproximateNumberOfMessagesVisible',
+          dimensionsMap: { QueueName: refs.pso.queues.dispatch.queue.queueName },
+          label: 'Queue Depth',
+          statistic,
+          period,
+        }),
+      ],
+    });
+
+    const oneSignalWidget = new cw.GraphWidget({
+      title: 'Sent to OneSignal per Second',
+      width: 5,
+      height: 6,
+      stacked: true,
+      region: config.region,
+      left: [
+        new cw.Metric({
+          namespace: 'global',
+          metricName: 'SentToOneSignalComplete',
+          label: 'Accepted',
+          statistic,
+          period,
+        }),
+      ],
+    });
+
+    // Row 2: API | Processed | Dispatched
+    const apiGateway4xx = new cw.Metric({
+      namespace: 'AWS/ApiGateway',
+      metricName: '4XXError',
+      dimensionsMap: { ApiName: refs.pso.gateway.restApi.restApiName },
+      label: '4XX Error',
+      statistic,
+      period,
+    });
+
+    const apiGateway5xx = new cw.Metric({
+      namespace: 'AWS/ApiGateway',
+      metricName: '5XXError',
+      dimensionsMap: { ApiName: refs.pso.gateway.restApi.restApiName },
+      label: '5XX Error',
+      statistic,
+      period,
+      color: '#d62728',
+    });
+
+    const apiGatewayCount = new cw.Metric({
+      namespace: 'AWS/ApiGateway',
+      metricName: 'Count',
+      dimensionsMap: { ApiName: refs.pso.gateway.restApi.restApiName },
+      label: 'Incoming',
+      statistic,
+      period,
+      color: '#2ca02c',
+    });
+
+    const apiGateway2xx = new cw.MathExpression({
+      expression: 'm3 - m1 - m2',
+      usingMetrics: {
+        m1: apiGateway4xx,
+        m2: apiGateway5xx,
+        m3: apiGatewayCount,
+      },
+      label: '2xx Response',
+      color: '#9467bd',
+      period,
+    });
+
+    const apiWidget = new cw.GraphWidget({
+      title: 'API per Second',
+      width: 6,
+      height: 6,
+      stacked: true,
+      region: config.region,
+      left: [apiGateway2xx, apiGateway4xx, apiGateway5xx, apiGatewayCount],
+    });
+
+    const processedWidget = new cw.GraphWidget({
+      title: 'Notifications Processed',
+      width: 6,
+      height: 6,
+      region: config.region,
+      liveData: true,
+      left: [
+        new cw.Metric({
+          namespace: 'AWS/Lambda',
+          metricName: 'Invocations',
+          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.processing.fn.functionName },
+          statistic,
+          period,
+        }),
+        new cw.Metric({
+          namespace: 'AWS/Lambda',
+          metricName: 'Errors',
+          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.processing.fn.functionName },
+          statistic,
+          period,
+        }),
+      ],
+    });
+
+    const dispatchedWidget = new cw.GraphWidget({
+      title: 'Notifications Dispatched',
+      width: 6,
+      height: 6,
+      region: config.region,
+      liveData: true,
+      left: [
+        new cw.Metric({
+          namespace: 'AWS/Lambda',
+          metricName: 'Invocations',
+          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.dispatch.fn.functionName },
+          statistic,
+          period,
+        }),
+        new cw.Metric({
+          namespace: 'AWS/Lambda',
+          metricName: 'Errors',
+          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.dispatch.fn.functionName },
+          statistic,
+          period,
+        }),
+      ],
+    });
+
+    const dashboard = new cw.Dashboard(this, 'dashboard', {
+      dashboardName: config.utils.namingHelper(id),
+    });
+    // TODO: Delete this - Used to migrate from JSON to CDK
+    dashboard.applyRemovalPolicy(RemovalPolicy.RETAIN);
+
+    dashboard.addWidgets(wafWidget, processingQueueWidget, dispatchQueueWidget, oneSignalWidget);
+    dashboard.addWidgets(apiWidget, processedWidget, dispatchedWidget);
   }
 }

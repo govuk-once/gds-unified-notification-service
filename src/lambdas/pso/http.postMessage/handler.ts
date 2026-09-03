@@ -3,29 +3,30 @@ import {
   AnalyticsService,
   APIHandler,
   ConfigurationService,
-  ContentValidationService,
   HandlerDependencies,
   IMessageRecord,
   iocGetAnalyticsService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   iocGetProcessingQueueService,
+  iocGetValidationService,
   NotificationsDynamoRepository,
   ObservabilityService,
   ProcessingQueueService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { NotificationStateEnum } from '@common/models';
-import { BadRequestError } from '@common/models/Errors/BadRequestError';
-import { IMessageSchema } from '@project/lambdas/interfaces';
+import { ValidationService } from '@common/services/validationService';
+import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
+const requestBodySchema = z.array(IValidateMessageSchema.strict()).min(1);
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
+const authorizerSchema = psoAuthorizerSchema;
 
 /**
  * Lambda handling incoming messages from a api request
@@ -36,14 +37,14 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
  * 
  * Sample event received by Lambda from API Gateway
 {
-  "body":"[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
+  "body": "[{\"NotificationID\":\"200f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"USER_ID\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"You have a new Message\",\"MessageBody\":\"Open Notification Centre to read your notifications\",\"NotificationTitle\":\"You have a new Notification\",\"NotificationBody\":\"Here is the Notification body.\"}]",
   "headers": {
     "Content-Type": "application/json"
   },
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000,
-    "authorizer": {."Organization": "ORG01" }
+    "authorizer": { "Organization": "ORG01", "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}" }
   }
 }
 * Sample post body:
@@ -59,15 +60,20 @@ const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(
     }
  */
 
-export class PostMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class PostMessage extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
   public operationId: string = 'postMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
 
-  public analyticsService: AnalyticsService;
-  public contentValidationService: ContentValidationService;
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public processingQueue: ProcessingQueueService;
+  public analyticsService!: AnalyticsService;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public processingQueue!: ProcessingQueueService;
+  public validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
@@ -79,36 +85,29 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
 
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
+    const organisationID = event.requestContext.authorizer.Organization;
+    const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
-
-    const messages = event.body.map((body) => ({
+    const messages: IMessage[] = event.body.map((body) => ({
       ...body,
       OrganisationID: organisationID,
     }));
 
-    // Pre-validate all messages & reject request when one of them contains unsupported url
-    for (const message of messages) {
-      this.contentValidationService.validate(message.MessageBody);
-    }
+    // Validates all messages & reject request when contents or configurations are unsupported
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Publish analytics & push items to the processing queue
     this.observability.logger.info('Publishing analytics events for validated messages.');
     await this.analyticsService.publishMultipleEvents(
-      messages.map(
-        (body): AnalyticsEventFromIMessage => ({
-          ...body,
-          APIGWExtendedID: event.requestContext.requestId,
-        })
-      ),
+      messages.map((body): AnalyticsEventFromIMessage => ({
+        ...body,
+        APIGWExtendedID: event.requestContext.requestId,
+      })),
       NotificationStateEnum.VALIDATED_API_CALL
     );
 
@@ -119,15 +118,14 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
     // Create a record of message in Dynamodb
     this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
-      messages.map(
-        (body): IMessageRecord => ({
-          ...body,
-          APIGWExtendedID: event.requestContext.requestId,
-          ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
-          ValidatedDateTime: new Date().toISOString(),
-          Events: [],
-        })
-      )
+      messages.map((body): IMessageRecord => ({
+        ...{ ...body, ExpiresInDays: undefined },
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: body.ExpiresInDays,
+        Events: [],
+      }))
     );
 
     // Return placeholder status
@@ -144,7 +142,7 @@ export class PostMessage extends APIHandler<typeof requestBodySchema, typeof res
 
 export const handler = new PostMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
-  contentValidationService: iocGetContentValidationService(),
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   processingQueue: iocGetProcessingQueueService(),
+  validationService: iocGetValidationService(),
 })).handler();

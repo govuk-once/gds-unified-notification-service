@@ -23,6 +23,7 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
@@ -35,6 +36,7 @@ export class UNSPSOResource extends Construct {
   public readonly queues: {
     incoming: UNSQueueConstruct;
     processing: UNSQueueConstruct;
+    groupProcessing?: UNSQueueConstruct;
     dispatch: UNSQueueConstruct;
     analytics: UNSQueueConstruct;
   };
@@ -51,6 +53,7 @@ export class UNSPSOResource extends Construct {
     sqs: {
       validation: UNSLambdaConstruct;
       processing: UNSLambdaConstruct;
+      groupProcessingWorker?: UNSLambdaConstruct;
       dispatch: UNSLambdaConstruct;
       analytics: UNSLambdaConstruct;
     };
@@ -80,6 +83,7 @@ export class UNSPSOResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
+      orgs: UNSOrganisationsCommon;
       mtls: {
         revocationTableArn: string;
         revocationTableAttributes: object;
@@ -123,6 +127,19 @@ export class UNSPSOResource extends Construct {
           maxRetries: 3,
         },
       }),
+      groupProcessing: config.featureFlag.groups
+        ? new UNSQueueConstruct(this, config, {
+            name: ['groupprocessing'],
+            tags: {},
+            messageRetentionSeconds: Duration.days(7).toSeconds(),
+            resources: {
+              kmsKey: refs.kms,
+            },
+            deadLetterQueue: {
+              maxRetries: 3,
+            },
+          })
+        : undefined,
       dispatch: new UNSQueueConstruct(this, config, {
         name: ['dispatch'],
         tags: {},
@@ -306,6 +323,7 @@ export class UNSPSOResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           revocationTable: UNSDynamoDb.createPermissionMapping(props.mtls.revocationTableArn, true, false, false),
+          organisations: props.orgs.organisationsTable.permissions.readOnly,
         },
         // Sandbox use case: Allow authorizer to use decrypt on mtls tables
         kms: config.isMainEnv ? [] : [config.sandbox.shared.kms],
@@ -367,17 +385,21 @@ export class UNSPSOResource extends Construct {
     });
 
     let postGroupMessage: UNSLambdaConstruct | undefined = undefined;
-    if (config.featureFlag.groups) {
+    if (config.featureFlag.groups && refs.dynamodb.groupStore && this.queues.groupProcessing) {
       postGroupMessage = new UNSLambdaConstruct(this, config, {
         ...baseHTTP(`postGroupMessage`),
         environment: {},
         resources: {
           kms: refs.kms,
+          vpc: basePrivateVPC,
         },
         iam: {
           ssmNamespaces: [config.namespace],
-          sqsSend: [],
-          dynamodb: {},
+          sqsSend: [this.queues.groupProcessing.queue.queueArn],
+          dynamodb: {
+            messages: refs.dynamodb.groupStore.permissions.readOnly,
+          },
+          elasticache: refs.elasticache.arns,
         },
       });
     }
@@ -426,6 +448,34 @@ export class UNSPSOResource extends Construct {
       },
     });
     applyExposureTag(processing, 'Internal');
+
+    const groupProcessingWorker =
+      config.featureFlag.groups && this.queues.groupProcessing && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseSQS(`groupProcessingWorker`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+              dlq: this.queues.groupProcessing.dlq,
+              vpc: basePrivateVPC,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [
+                this.queues.groupProcessing.queue.queueArn,
+                this.queues.dispatch.queue.queueArn,
+                this.queues.analytics.queue.queueArn,
+              ],
+              dynamodb: {
+                messages: refs.dynamodb.messages.permissions.readAndWrite,
+              },
+              elasticache: refs.elasticache.arns,
+            },
+            triggers: {
+              queues: [this.queues.groupProcessing.queue],
+            },
+          })
+        : undefined;
 
     const dispatch = new UNSLambdaConstruct(this, config, {
       ...baseSQS(`dispatch`),
@@ -503,6 +553,7 @@ export class UNSPSOResource extends Construct {
       sqs: {
         validation,
         processing,
+        groupProcessingWorker,
         dispatch,
         analytics,
       },
@@ -573,10 +624,10 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     this.dashboards = {
-      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
+      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
         pso: this,
       }),
-      flow: new UNSPSOFlow(this, `pso-flow-dashboard`, config, {
+      flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
         pso: this,
       }),
       service: new StandardServiceDashboardFactory(
@@ -610,6 +661,11 @@ export class UNSPSOResource extends Construct {
 
       // SQS Queue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,
+      ...(config.featureFlag.groups && this.queues.groupProcessing?.queue.queueUrl
+        ? {
+            'queue/groupprocessing/url': this.queues.groupProcessing?.queue.queueUrl,
+          }
+        : {}),
       'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export

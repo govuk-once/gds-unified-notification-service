@@ -22,7 +22,7 @@ allowBuilds:
   msw: false
 
 # Defines the minimum number of minutes that must pass after a version is published before pnpm will install it
-minimumReleaseAge: 20160 # 14 days in minutes
+minimumReleaseAge: 10080 # 7 days in minutes
 # Minimum release age exclusions - only for recommendations raised via dependabot
 minimumReleaseAgeExclude:
   - fast-uri@3.1.4

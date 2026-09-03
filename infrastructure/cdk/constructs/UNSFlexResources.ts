@@ -1,3 +1,4 @@
+import { filters } from '@common/utils/array';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
@@ -45,12 +46,13 @@ export class UNSFlexResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
-      organisationsRef: UNSOrganisationsCommon;
+      orgs: UNSOrganisationsCommon;
     }
   ) {
     super(scope, 'flex');
 
-    const { refs, organisationsRef } = props;
+    const { refs, orgs } = props;
+
     //// =====================================================
     // Lambdas
     //// =====================================================
@@ -70,7 +72,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnly,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -86,7 +88,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -124,33 +126,42 @@ export class UNSFlexResource extends Construct {
     });
 
     // GET /v1/groups
-    const getGroups = new UNSLambdaConstruct(this, config, {
-      ...baseHTTP(`getGroups`),
-      environment: {},
-      resources: {
-        kms: refs.kms,
-      },
-      iam: {
-        ssmNamespaces: [config.namespace],
-        sqsSend: [],
-        dynamodb: {},
-      },
-    });
+    const getGroups =
+      config.featureFlag.groups && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseHTTP(`getGroups`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [],
+              dynamodb: {
+                groupstore: refs.dynamodb.groupStore.permissions.readAndWrite,
+              },
+            },
+          })
+        : undefined;
+
     // POST /v1/groups
-    const modifyGroups = config.featureFlag.groups
-      ? new UNSLambdaConstruct(this, config, {
-          ...baseHTTP(`modifyGroups`),
-          environment: {},
-          resources: {
-            kms: refs.kms,
-          },
-          iam: {
-            ssmNamespaces: [config.namespace],
-            sqsSend: [],
-            dynamodb: {},
-          },
-        })
-      : undefined;
+    const modifyGroups =
+      config.featureFlag.groups && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseHTTP(`modifyGroups`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [],
+              dynamodb: {
+                groupstore: refs.dynamodb.groupStore.permissions.readAndWrite,
+              },
+            },
+          })
+        : undefined;
 
     this.lambdas = {
       http: {
@@ -225,7 +236,7 @@ export class UNSFlexResource extends Construct {
     });
     applyExposureTag(this.gateway.waf, 'Perimeter');
 
-    for (const gateway of [this.publicGateway, this.gateway].filter((gateway) => gateway !== undefined)) {
+    for (const gateway of [this.publicGateway, this.gateway].filter(filters.isDefined)) {
       gateway
         .GET('getNotifications', '/notifications', this.lambdas.http.getNotifications.integration)
         .GET(
@@ -254,6 +265,7 @@ export class UNSFlexResource extends Construct {
     //// =====================================================
     // Xray Dashboards
     //// =====================================================
+
     this.dashboards = {
       service: new StandardServiceDashboardFactory(
         this,
@@ -263,10 +275,10 @@ export class UNSFlexResource extends Construct {
         config.utils.namingProvider()
       ).createDashboard(`flex-service`, {
         lambdas: Object.values(this.lambdas.http)
-          .filter((x) => x !== undefined)
+          .filter(filters.isDefined)
           .map((x) => x.fn),
         name: config.utils.namingHelper(`flex-service`),
-        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter((api) => api !== undefined),
+        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
     };
@@ -274,6 +286,7 @@ export class UNSFlexResource extends Construct {
     //// =====================================================
     // Consumer configuration
     //// =====================================================
+
     const flexConsumerKMS = new UNSKMSConstruct(this, config, {
       name: ['kms', 'flex', 'consumer'],
       policies: {

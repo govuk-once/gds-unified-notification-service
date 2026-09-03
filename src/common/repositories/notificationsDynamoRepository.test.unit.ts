@@ -1,49 +1,47 @@
-import {
-  BatchWriteItemCommand,
-  DynamoDB,
-  GetItemCommand,
-  PutItemCommand,
-  UpdateItemCommand,
-} from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
+import { marshall } from '@aws-sdk/util-dynamodb';
+import { ParsingFailedError } from '@common/models';
+import { IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
-import { mockClient } from 'aws-sdk-client-mock';
+  iocSpies,
+  mockAWSClientsExpectedBehaviour,
+  mockIMessageRecord,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/util-dynamodb', { spy: true });
+
 vi.mock('@common/services', { spy: true });
 
 describe('NotificationsDynamoRepository', () => {
   let instance: NotificationsDynamoRepository;
 
-  // Initialize the mock service and repository layers
-  const observabilityMock = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMock);
-  const dynamoMock = mockClient(DynamoDB);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
 
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Test Fixtures
+  const message = mockIProcessedMessage();
+  const messageRecord = mockIMessageRecord(message);
 
   beforeEach(async () => {
     // Reset all mock
     vi.resetAllMocks();
-    dynamoMock.reset();
+    vi.useRealTimers();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    serviceMocks.configurationServiceMock.getParameter.mockImplementation(
-      mockGetParameterImplementation(mockParameterStore)
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+    mockAWSClientsExpectedBehaviour(awsClientMocks);
+
+    instance = new NotificationsDynamoRepository(
+      serviceMocks.configurationServiceMock,
+      awsClientMocks.dynamoDBClientMock,
+      observabilityMocks
     );
-
-    instance = new NotificationsDynamoRepository(serviceMocks.configurationServiceMock, observabilityMock);
     await instance.initialize();
   });
 
@@ -77,59 +75,97 @@ describe('NotificationsDynamoRepository', () => {
 
     it('marshall record should be sent', async () => {
       // Arrange
-      const record: IMessageRecord = recordBody;
-      dynamoMock.on(PutItemCommand).resolvesOnce({
-        ConsumedCapacity: {
-          ReadCapacityUnits: 1,
-          WriteCapacityUnits: 1,
-        },
-      });
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+      const expirationDate = new Date(date.getTime() + 30 * 60 * 60 * 24 * 1000).toISOString();
 
       // Act
-      await instance.createRecord(record);
+      await instance.createRecord(messageRecord);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as PutItemCommand;
+      expect(awsClientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          TableName: 'mockNotificationsDynamoRepositoryName',
+          Item: marshall({ ...messageRecord, ExpirationDateTime: expirationDate }, { removeUndefinedValues: true }),
+        })
+      );
+    });
 
-      expect(command.input.TableName).toBe('mockNotificationsDynamoRepositoryName');
-      expect(unmarshall(command.input.Item!)).toEqual({ ...record, ExpirationDateTime: expect.any(String) });
+    it('should throw an error if record does not match the message record schema', async () => {
+      // Arrange
+      const invalidRecord = {
+        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
+        DepartmentID: 'TEST01',
+        UserID: 'UserID',
+        NotificationTitle: 'Hi there',
+        NotificationBody: 'You have a new message in the message center',
+        Events: [],
+      } as unknown as IMessageRecord;
+
+      // Act
+      const result = instance.createRecord(invalidRecord);
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        new ParsingFailedError(['Input to create record does not match the record schema'])
+      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Input to create record does not match the record schema',
+        invalidRecord
+      );
     });
 
     it('should log an error if the request fails.', async () => {
       // Arrange
       const record: IMessageRecord = recordBody;
       const error = new Error('Connection Failure');
-      dynamoMock.on(PutItemCommand).rejectsOnce(error);
+      awsClientMocks.dynamoDBClientMock.putItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.createRecord(record);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating record table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating record table', {
         error: error.message,
         tableName: 'mockNotificationsDynamoRepositoryName',
       });
     });
+
+    it('should calculate TTL for a notification using RequestedDaysToExpire if a record request contains it', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      const date = new Date();
+      vi.setSystemTime(date);
+      awsClientMocks.dynamoDBClientMock.putItem = vi.fn().mockResolvedValueOnce({
+        ConsumedCapacity: {
+          ReadCapacityUnits: 1,
+          WriteCapacityUnits: 1,
+        },
+      });
+
+      const record: IMessageRecord = { ...recordBody, RequestedDaysToExpire: 25 };
+      const expirationDateTime = new Date(date.getTime() + 25 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Act
+      await instance.createRecord(record);
+
+      // Assert
+      expect(awsClientMocks.dynamoDBClientMock.putItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          TableName: 'mockNotificationsDynamoRepositoryName',
+          Item: marshall({ ...record, ExpirationDateTime: expirationDateTime }),
+        })
+      );
+    });
   });
 
   describe('CreateRecordBatch', () => {
-    const recordBody = {
-      NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-      DepartmentID: 'TEST01',
-      UserID: 'UserID',
-      NotificationTitle: 'Hi there',
-      NotificationBody: 'You have a new message in the message center',
-      ReceivedDateTime: '202601021513',
-      Events: [],
-      OrganisationID: 'ORG01',
-    };
-
     it('should create a PutRequest request out of marshalled record and should be sent with batchWriteItem', async () => {
       // Arrange
-      const record: IMessageRecord[] = [recordBody];
-      dynamoMock.on(BatchWriteItemCommand).resolvesOnce({
+      const record: IMessageRecord[] = [messageRecord];
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: [
           {
             ReadCapacityUnits: 1,
@@ -142,17 +178,22 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecordBatch(record);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as BatchWriteItemCommand;
-      expect(command.input.RequestItems).toEqual({
-        mockNotificationsDynamoRepositoryName: [
-          {
-            PutRequest: {
-              Item: { ...marshall(record[0]), ExpirationDateTime: { S: expect.any(String) } },
-            },
+      expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          RequestItems: {
+            mockNotificationsDynamoRepositoryName: [
+              {
+                PutRequest: {
+                  Item: {
+                    ...marshall(record[0], { removeUndefinedValues: true }),
+                    ExpirationDateTime: { S: expect.any(String) },
+                  },
+                },
+              },
+            ],
           },
-        ],
-      });
+        })
+      );
     });
 
     it('should log an error if an empty list is given', async () => {
@@ -163,23 +204,46 @@ describe('NotificationsDynamoRepository', () => {
       await instance.createRecordBatch(record);
 
       // Assert
-      expect(observabilityMock.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(`Triggered createRecordBatch with an empty array`);
     });
 
-    it('should throw an error if record list is greater than 25.', async () => {
+    it('should throw an error if an item in the input array does not match the record schema', async () => {
+      // Arrange
+      const records = [
+        messageRecord,
+        {
+          ...messageRecord,
+          OrganisationID: undefined,
+        },
+      ] as unknown as IMessageRecord[];
+
+      // Act
+      const result = instance.createRecordBatch(records);
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        new ParsingFailedError(['An item in array to create a batch of records does not match the record schema'])
+      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'An item in array to create a batch of records does not match the record schema',
+        records[1]
+      );
+    });
+
+    it('should throw an error if record list is greater than 25', async () => {
       // Arrange
       const record: IMessageRecord[] = [];
       for (let i = 0; i < 27; i++) {
-        record.push(recordBody);
+        record.push(messageRecord);
       }
-      const error = new Error('To create batch records, array length must be no greater than 25.');
+      const error = new Error('To create batch records, array length must be no greater than 25');
 
       // Act
       const result = instance.createRecordBatch(record);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         error: error.message,
       });
@@ -187,16 +251,16 @@ describe('NotificationsDynamoRepository', () => {
 
     it('should log an error if the request fails', async () => {
       // Arrange
-      const record: IMessageRecord[] = [recordBody];
+      const record: IMessageRecord[] = [messageRecord];
       const error = new Error('Connection Failure');
-      dynamoMock.on(BatchWriteItemCommand).rejectsOnce(error);
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.createRecordBatch(record);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         error: error.message,
       });
@@ -211,7 +275,7 @@ describe('NotificationsDynamoRepository', () => {
         ProcessedDateTime: '202601021513',
         ExternalUserID: 'External-1234',
       };
-      dynamoMock.on(UpdateItemCommand).resolvesOnce({
+      awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce({
         ConsumedCapacity: {
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
@@ -222,9 +286,7 @@ describe('NotificationsDynamoRepository', () => {
       await instance.updateRecord(mockUpdatedRecord);
 
       // Assert
-      expect(dynamoMock.calls()).toHaveLength(1);
-      const command = dynamoMock.call(0).args[0] as UpdateItemCommand;
-      expect(command.input).toEqual({
+      expect(awsClientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledWith({
         TableName: 'mockNotificationsDynamoRepositoryName',
         Key: marshall({
           ['NotificationID']: mockUpdatedRecord.NotificationID,
@@ -248,92 +310,63 @@ describe('NotificationsDynamoRepository', () => {
 
     it('should log an error if the request fails', async () => {
       // Arrange
-      const record: Partial<IMessageRecord> = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        ProcessedDateTime: '202601021513',
-        ExternalUserID: 'External-1234',
-      };
       const error = new Error('Connection Failure');
-      dynamoMock.on(UpdateItemCommand).rejectsOnce(error);
+      awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockRejectedValueOnce(error);
+
+      // Act
+      const result = instance.updateRecord(messageRecord);
+
+      // Assert
+      await expect(result).rejects.toThrow(error);
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Failure in updating record table',
+        expect.objectContaining({
+          tableName: 'mockNotificationsDynamoRepositoryName',
+          error: error.message,
+        })
+      );
+    });
+
+    it('should throw an error fields for the items does not match the record schema', async () => {
+      // Arrange
+      const record = {
+        NotificationID: 12345678,
+      } as unknown as IMessageRecord;
 
       // Act
       const result = instance.updateRecord(record);
 
       // Assert
-      await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in updating record table', {
-        tableName: 'mockNotificationsDynamoRepositoryName',
-        error: error.message,
-        params: {
-          ExpressionAttributeNames: {
-            '#ExternalUserID': 'ExternalUserID',
-            '#ProcessedDateTime': 'ProcessedDateTime',
-          },
-          ExpressionAttributeValues: {
-            ':ExternalUserID': {
-              S: 'External-1234',
-            },
-            ':ProcessedDateTime': {
-              S: '202601021513',
-            },
-          },
-          Key: {
-            NotificationID: {
-              S: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-            },
-          },
-          ReturnConsumedCapacity: 'TOTAL',
-          TableName: 'mockNotificationsDynamoRepositoryName',
-          UpdateExpression: 'set #ProcessedDateTime = :ProcessedDateTime, #ExternalUserID = :ExternalUserID',
-        },
-        recordFields: {
-          ExternalUserID: 'External-1234',
-          NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-          ProcessedDateTime: '202601021513',
-        },
-        entries: [
-          ['ProcessedDateTime', '202601021513'],
-          ['ExternalUserID', 'External-1234'],
-        ],
-      });
+      await expect(result).rejects.toThrow(
+        new ParsingFailedError(['Fields used to update record in table do not match the record schema'])
+      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Fields used to update record in table do not match the record schema',
+        record
+      );
     });
   });
 
   describe('GetRecord', () => {
     it('should return unmarshall data', async () => {
       // Arrange
-      const mockNotificationID = '2536bd9b-611b-453c-ba3d-e34783e4c9d1';
-      const mockRecord: IMessageRecord = {
-        NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
-        DepartmentID: 'DVLA01',
-        UserID: 'UserID',
-        MessageTitle: 'You have a new Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'You have a new medical driving license',
-        NotificationBody: 'The DVLA has issued you a new license.',
-        ReceivedDateTime: '202601021513',
-        Events: [],
-        OrganisationID: 'ORG01',
-      };
+      const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
 
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: marshall(mockRecord),
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+        Item: marshall(messageRecord, { removeUndefinedValues: true }),
       });
 
       // Act
-      const result = await instance.getRecord(mockNotificationID);
+      const result = await instance.getRecord(notificationID);
 
       // Assert
-      expect(result).toEqual(mockRecord);
+      expect(result).toEqual(messageRecord);
     });
 
     it('if item is not found null should be returned', async () => {
       // Arrange
       const mockNotificationID = '1234';
-
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: undefined,
-      });
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
       const result = await instance.getRecord(mockNotificationID);
@@ -346,16 +379,47 @@ describe('NotificationsDynamoRepository', () => {
       // Arrange
       const mockNotificationID = '1234';
       const error = new Error('Connection Failure');
-      dynamoMock.on(GetItemCommand).rejectsOnce(error);
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
       const result = instance.getRecord(mockNotificationID);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in getting record for table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
         error: error.message,
+      });
+    });
+
+    it('should throw an error if the record retrieved from the table does not match the record schema', async () => {
+      // Arrange
+      const mockInvalidRecord = {
+        NotificationID: 12345678,
+      } as unknown as IMessageRecord;
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+        Item: marshall(mockInvalidRecord),
+      });
+      const keyValue = '111111111';
+
+      // Act
+      const result = instance.getRecord(keyValue);
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        new ParsingFailedError([
+          'Record in table failed to parse to record schema',
+          'Invalid input: expected string, received number → at NotificationID.',
+          'Invalid input: expected string, received undefined → at OrganisationID.',
+          'Invalid input: expected string, received undefined → at NotificationTitle.',
+          'Invalid input: expected string, received undefined → at NotificationBody.',
+          'Invalid input: expected array, received undefined → at Events.',
+        ])
+      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Record in table failed to parse to record schema', {
+        tableName: 'mockNotificationsDynamoRepositoryName',
+        key: 'NotificationID',
+        value: keyValue,
       });
     });
   });

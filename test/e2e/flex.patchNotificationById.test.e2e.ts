@@ -6,7 +6,7 @@ const url = (notificationID: string, pushID?: string) =>
 const body = { Status: `READ` };
 
 describe('PATCH {{flex}}/notifications/{{notificationID}} - Update notification status', () => {
-  describe(`Unahppy paths`, () => {
+  describe(`Unhappy paths`, () => {
     test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
       mockNotificationID,
