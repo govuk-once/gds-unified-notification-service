@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { camelCase } from './utils/camelCase';
-import { ObjectLockRetention } from 'node_modules/aws-cdk-lib/aws-s3/lib';
+import { ObjectLockRetention } from 'aws-cdk-lib/aws-s3';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
