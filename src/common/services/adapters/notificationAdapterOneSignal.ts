@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
 import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
 import { ConfigurationService, ObservabilityService, ProviderDimension } from '@common/services';
@@ -26,10 +27,10 @@ interface OneSignalPushNotificationResponse {
 }
 
 export class NotificationAdapterOneSignal implements NotificationAdapter {
-  public client: FetchService;
-  protected key: string;
-  protected appId: string;
-  protected deeplinkTemplate: string;
+  public client!: FetchService;
+  protected key!: string;
+  protected appId!: string;
+  protected deeplinkTemplate!: string;
 
   constructor(
     protected observability: ObservabilityService,
@@ -61,10 +62,28 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     const metadata = {
       NotificationID: request.NotificationID,
     };
-
     this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'call');
 
+    if (request.Channel === ChannelsEnum.MESSAGE_CENTRE_ONLY) {
+      this.observability.logger.info(`Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal`, metadata);
+      return {
+        notification: request,
+      };
+    }
+
     try {
+      // Always generate deeplinkURL from template, if an explicit deeplink URL is used - overwrite the default
+      // If explicit deeplinkURL points at the app - append notificationID query parameter
+      let deeplinkURL = this.deeplinkTemplate.replace('{id}', request.NotificationID);
+      if (request.DeeplinkURL) {
+        deeplinkURL = request.DeeplinkURL;
+        if (request.DeeplinkURL.startsWith(`govuk://`)) {
+          const url = new URL(request.DeeplinkURL);
+          url.searchParams.append(`notificationID`, request.NotificationID);
+          deeplinkURL = url.toString();
+        }
+      }
+
       this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);
       const result = await this.client.post<OneSignalPushNotificationResponse>({
         path: `/notifications?c=push`,
@@ -76,7 +95,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           target_channel: 'push',
           include_aliases: { external_id: [request.ExternalUserID] },
           data: {
-            deeplink: this.deeplinkTemplate.replace('{id}', request.NotificationID),
+            deeplink: deeplinkURL,
           },
         },
       });

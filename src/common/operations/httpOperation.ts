@@ -13,6 +13,7 @@ import {
   responseValidatorMiddleware,
   serializeBodyToJson,
 } from '@common/middlewares';
+import { authorizerValidatorMiddleware } from '@common/middlewares/authorizerValidatorMiddleware';
 import { httpErrorHandlerMiddleware } from '@common/middlewares/httpErrorHandlerMiddleware';
 import { NotImplementedError } from '@common/models/Errors/InternalServerError';
 import { MetricsLabels, ObservabilityService } from '@common/services';
@@ -29,12 +30,14 @@ export type RequestEvent = APIGatewayEvent | APIGatewayProxyEventV2 | ALBEvent;
 export abstract class APIHandler<
   InputSchema extends ZodType = ZodAny,
   OutputSchema extends ZodType = ZodAny,
+  AuthorizerSchema extends ZodType = never,
   InferredInputSchema = z.infer<InputSchema>,
   InferredOutputSchema = z.infer<OutputSchema>,
 > {
   public abstract operationId: string;
   public abstract requestBodySchema: InputSchema;
   public abstract responseBodySchema: OutputSchema;
+  public authorizerSchema?: AuthorizerSchema;
 
   constructor(protected observability: ObservabilityService) {}
 
@@ -101,11 +104,14 @@ export abstract class APIHandler<
    * Adds layers of structure enforcement for incoming and outcoming data
    */
   protected validationMiddlewares(middy: IMiddleware): IMiddleware {
-    return middy.use(requestValidatorMiddleware(this.requestBodySchema)).use(
-      responseValidatorMiddleware((message: string, errors: { errors: string[] }) => {
-        this.observability.logger.error(message, { errors });
-      }, this.responseBodySchema)
-    );
+    return middy
+      .use(requestValidatorMiddleware(this.requestBodySchema))
+      .use(authorizerValidatorMiddleware(this.authorizerSchema))
+      .use(
+        responseValidatorMiddleware((message: string, errors: { errors: string[] }) => {
+          this.observability.logger.error(message, { errors });
+        }, this.responseBodySchema)
+      );
   }
 
   /**
@@ -141,7 +147,6 @@ export abstract class APIHandler<
       // Call DI before each request is handled
       await initializeDependencies(this, this.dependencies);
 
-      //
       return (await this.implementation(
         event as unknown as ITypedRequestEvent<InferredInputSchema>,
         context

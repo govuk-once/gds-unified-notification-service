@@ -1,6 +1,12 @@
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
 import { GetGroups } from '@project/lambdas/flex/http.getGroups/handler';
 import { IGroups } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockMultipleIGroup,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -15,57 +21,34 @@ describe('GetGroups Handler', () => {
   let handler: ReturnType<typeof GetGroups.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
-  const mockContext = {
-    functionName: 'getGroups',
-    awsRequestId: '12345',
-  } as unknown as Context;
+  // Test Fixtures
+  let context: Context;
+  let event: EventType;
 
-  let mockEvent: EventType;
-
+  const groups = mockMultipleIGroup();
   const pushID = `abc-cdef-ghi`;
-  const mockGroups: IGroups[] = [
-    {
-      GroupID: '7fdc189d-f2df-4642-bdf2-8ce047fd9250',
-      Namespace: 'travel',
-      Group: 'france',
-      Subgroup: 'IMMEDIATE',
-      CompositeID: 'travel/france/IMMEDIATE',
-    },
-    {
-      GroupID: '6e2fa888-aeea-409b-a3cf-bb338e202d94',
-      Namespace: 'travel',
-      Group: 'spain',
-      Subgroup: 'DAILY',
-      CompositeID: 'travel/spain/DAILY',
-    },
-  ];
 
   beforeEach(() => {
+    // Reset all mocks
     vi.clearAllMocks();
 
-    mockEvent = {
-      headers: {
-        'x-api-key': 'mockApiKey',
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-      },
-      queryStringParameters: {
-        pushID,
-      },
-    } as unknown as EventType;
+    // Test Fixtures
+    context = mockEventContext('getGroups');
+    event = mockFlexAPIEvent({ queryStringParameters: { pushID } }) as unknown as EventType;
+
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
+    // Mocking successful completion of service functions
+    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups.mockResolvedValue(groups);
 
     instance = new GetGroups(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       groupStoreDynamoRepository: Promise.resolve(serviceMocks.groupStoreDynamoRepositoryMock),
     }));
-
     handler = instance.handler();
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValue(`mockApiKey`);
-    serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValue(mockGroups);
   });
 
   it('should have the correct operationId', () => {
@@ -89,7 +72,7 @@ describe('GetGroups Handler', () => {
     ];
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
@@ -101,7 +84,7 @@ describe('GetGroups Handler', () => {
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce([]);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
@@ -121,7 +104,7 @@ describe('GetGroups Handler', () => {
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersGroups = vi.fn().mockResolvedValueOnce(mockGroupsNoSubgroup);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);
@@ -135,31 +118,31 @@ describe('GetGroups Handler', () => {
 
   it('should return 400 when pushID is undefined', async () => {
     // Arrange
-    const mockBadRequestEvent = { ...mockEvent, queryStringParameters: {} };
+    const eventWithNoPushID = mockFlexAPIEvent({ pathParameters: {} }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockBadRequestEvent, mockContext);
+    const result = await handler(eventWithNoPushID, context);
 
     // Assert
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 
   it('should return 400 when pushID is an empty string', async () => {
     // Arrange
-    const mockBadRequestEvent = { ...mockEvent, queryStringParameters: { pushID: '' } };
+    const eventWithNoPushID = mockFlexAPIEvent({ pathParameters: { pushID: '' } }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockBadRequestEvent, mockContext);
+    const result = await handler(eventWithNoPushID, context);
 
     // Assert
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['PushID has not been provided'],
+      Errors: ['pushID has not been provided'],
     });
   });
 });

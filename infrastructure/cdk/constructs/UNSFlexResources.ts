@@ -1,3 +1,4 @@
+import { filters } from '@common/utils/array';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
@@ -44,12 +45,12 @@ export class UNSFlexResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
-      organisationsRef: UNSOrganisationsCommon;
+      orgs: UNSOrganisationsCommon;
     }
   ) {
     super(scope, 'flex');
 
-    const { refs, organisationsRef } = props;
+    const { refs, orgs } = props;
 
     //// =====================================================
     // Lambdas
@@ -70,7 +71,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnly,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -86,7 +87,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -232,7 +233,7 @@ export class UNSFlexResource extends Construct {
       },
     });
 
-    for (const gateway of [this.publicGateway, this.gateway].filter((gateway) => gateway !== undefined)) {
+    for (const gateway of [this.publicGateway, this.gateway].filter(filters.isDefined)) {
       gateway
         .GET('getNotifications', '/notifications', this.lambdas.http.getNotifications.integration)
         .GET(
@@ -271,10 +272,10 @@ export class UNSFlexResource extends Construct {
         config.utils.namingProvider()
       ).createDashboard(`flex-service`, {
         lambdas: Object.values(this.lambdas.http)
-          .filter((x) => x !== undefined)
+          .filter(filters.isDefined)
           .map((x) => x.fn),
         name: config.utils.namingHelper(`flex-service`),
-        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter((api) => api !== undefined),
+        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
     };

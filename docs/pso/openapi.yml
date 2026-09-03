@@ -235,6 +235,10 @@ components:
         MessageBody:
           type: string
           description: (Optional) Contents of the message displayed in the GovUK app's notification centre, falls back on notification body
+        DeeplinkURL:
+          type: string
+          format: url
+          description: (Optional) Explicit deeplink url to define for push notification - (Subject to feature flag being enabled) 
     MessageRequest:
       allOf:
         - $ref: '#/components/schemas/MessageRequestProperties'

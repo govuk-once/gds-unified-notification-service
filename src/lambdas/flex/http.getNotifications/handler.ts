@@ -11,8 +11,8 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import { filters } from '@common/utils/array';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -43,8 +43,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public organisationsDynamoRepository: OrganisationsDynamoRepository;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -72,18 +72,12 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('PushID has not been provided - returning 400');
-      throw new BadRequestError(['PushID has not been provided.']);
+      this.observability.logger.debug('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided.']);
     }
 
     // Get notifications of user from dynamoDB
-    const notifications = await this.notificationsDynamoRepository.getRecordsQuery(
-      {
-        field: 'ExternalUserID',
-        value: externalUserID,
-      },
-      'ExternalUserIDIndex'
-    );
+    const notifications = await this.notificationsDynamoRepository.getProcessedMessages(externalUserID);
 
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations(notifications);
@@ -92,13 +86,13 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
-        if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+        if (new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
           return false;
         }
         return true;
       })
       .map((n) => IMessageRecordToIFlexNotification(n, organisations, this.observability))
-      .filter((n) => n !== undefined)
+      .filter(filters.isDefined)
       .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
       .sort((a, b) => {
         // Sort by dispatch time, most recent first

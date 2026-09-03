@@ -9,7 +9,7 @@ import { HttpRequest } from '@smithy/protocol-http';
 import { createClient } from 'redis';
 
 export class CacheService {
-  public cache: ReturnType<typeof createClient>;
+  public cache!: ReturnType<typeof createClient>;
   constructor(
     protected config: ConfigurationService,
     public observability: ObservabilityService
@@ -96,12 +96,6 @@ export class CacheService {
     return undefined;
   }
 
-  // Demo FN
-  async counter() {
-    const value = (await this.get<number>('counter', { factory: () => 0 })) as number;
-    return await this.store(`counter`, value + 1);
-  }
-
   async increment(key: string, ttlSeconds: number): Promise<number> {
     const count = await this.cache.incrBy(key, 1);
     await this.cache.expire(key, ttlSeconds);
@@ -124,7 +118,7 @@ export class CacheService {
     }
     const state = {
       exceeded: counter >= maxPerMinute,
-      capacityRemaining: Math.max(0, counter - maxPerMinute),
+      capacityRemaining: Math.max(0, maxPerMinute - counter),
     };
     const percentage = counter / maxPerMinute;
 

@@ -9,11 +9,16 @@ export const BoolParameters = {
     Processing: {
       Enabled: 'config/processing/enabled',
     },
+    GroupProcessingWorker: {
+      Enabled: 'config/groupProcessingWorker/enabled',
+    },
     Dispatch: {
       Enabled: 'config/dispatch/enabled',
     },
     FeatureFlags: {
+      ChannelControls: 'config/featureFlag/channelControls',
       DeepLinkUrl: 'config/featureFlag/deeplinkUrl',
+      MessageRetention: 'config/featureFlag/messageRetention',
     },
   },
 } as const;
@@ -107,6 +112,12 @@ export const NumericParameters = {
     WindowDuration: 'config/dispatch/circuitBreaker/windowDuration',
     HalfOpenAfter: 'config/dispatch/circuitBreaker/halfOpenAfter',
     RateLimitWhenOpen: 'config/dispatch/circuitBreaker/rateLimitWhenOpen',
+  },
+  Group: {
+    Dispatch: {
+      WorkerCount: 'group/dispatch/workerCount',
+      WorkerBatchSize: 'group/dispatch/workerBatchSize',
+    },
   },
 } as const;
 

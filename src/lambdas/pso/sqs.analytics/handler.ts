@@ -12,10 +12,13 @@ import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsExportService, CacheService, MetricsLabels, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
+import { IIdentifiableMessageSchema } from '@project/lambdas/interfaces';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 const requestBodySchema = IAnalyticsSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
 /**
  * Lambda handling storing analytics events into the dedicated events DynamoDB Table, it also updates cache keys within elasticache
@@ -42,14 +45,16 @@ const requestBodySchema = IAnalyticsSchema;
 }
  */
 
-export class Analytics extends BatchQueueOperation<typeof requestBodySchema> {
+export class Analytics extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public operationId: string = 'analytics';
-  public requestBodySchema = requestBodySchema;
 
-  public cache: CacheService;
-  public notifications: NotificationsDynamoRepository;
-  public campaigns: CampaignsDynamoRepository;
-  public analyticsExportService: AnalyticsExportService;
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
+
+  public cache!: CacheService;
+  public notifications!: NotificationsDynamoRepository;
+  public campaigns!: CampaignsDynamoRepository;
+  public analyticsExportService!: AnalyticsExportService;
 
   constructor(
     protected config: ConfigurationService,

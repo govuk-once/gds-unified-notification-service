@@ -1,11 +1,15 @@
+import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
 
 export class SMNamespacedConfigurationService extends SMConfigurationService {
   protected prefix = process.env.PREFIX;
 
-  constructor(protected observability: ObservabilityService) {
-    super(observability);
+  constructor(
+    client: SecretsManagerClient,
+    protected observability: ObservabilityService
+  ) {
+    super(client, observability);
   }
 
   public async getParameter(secretId: string): Promise<string> {

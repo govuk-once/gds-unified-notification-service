@@ -127,7 +127,9 @@ export const config = {
   // Feature flag for travel alerts and deeplinkUrls
   featureFlag: {
     groups: env !== 'prod',
-    deepLinkUrl: env !== 'prod',
+    deeplinkUrl: env !== 'prod',
+    messageRetention: env !== 'prod',
+    channelControls: env !== 'prod',
   },
 
   // VPC

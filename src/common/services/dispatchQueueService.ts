@@ -1,17 +1,19 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils/parameters';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import { StringParameters } from '@common/utils';
+import { IProcessedMessage } from '@project/lambdas';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {
   protected queueName: string = 'dispatch';
   constructor(
     protected config: ConfigurationService,
+    client: SQSClient,
     protected observability: ObservabilityService
   ) {
-    super(observability);
+    super(client, observability);
   }
 
   async initialize() {

@@ -23,6 +23,7 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
@@ -51,6 +52,7 @@ export class UNSPSOResource extends Construct {
     sqs: {
       validation: UNSLambdaConstruct;
       processing: UNSLambdaConstruct;
+      groupProcessingWorker?: UNSLambdaConstruct;
       dispatch: UNSLambdaConstruct;
       analytics: UNSLambdaConstruct;
     };
@@ -80,6 +82,7 @@ export class UNSPSOResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
+      orgs: UNSOrganisationsCommon;
       mtls: {
         revocationTableArn: string;
         revocationTableAttributes: object;
@@ -319,6 +322,7 @@ export class UNSPSOResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           revocationTable: UNSDynamoDb.createPermissionMapping(props.mtls.revocationTableArn, true, false, false),
+          organisations: props.orgs.organisationsTable.permissions.readOnly,
         },
         // Sandbox use case: Allow authorizer to use decrypt on mtls tables
         kms: config.isMainEnv ? [] : [config.sandbox.shared.kms],
@@ -386,6 +390,7 @@ export class UNSPSOResource extends Construct {
         environment: {},
         resources: {
           kms: refs.kms,
+          vpc: basePrivateVPC,
         },
         iam: {
           ssmNamespaces: [config.namespace],
@@ -393,6 +398,7 @@ export class UNSPSOResource extends Construct {
           dynamodb: {
             messages: refs.dynamodb.groupStore.permissions.readOnly,
           },
+          elasticache: refs.elasticache.arns,
         },
       });
     }
@@ -440,6 +446,34 @@ export class UNSPSOResource extends Construct {
         queues: [this.queues.processing.queue],
       },
     });
+
+    const groupProcessingWorker =
+      config.featureFlag.groups && this.queues.groupProcessing && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseSQS(`groupProcessingWorker`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+              dlq: this.queues.groupProcessing.dlq,
+              vpc: basePrivateVPC,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [
+                this.queues.groupProcessing.queue.queueArn,
+                this.queues.dispatch.queue.queueArn,
+                this.queues.analytics.queue.queueArn,
+              ],
+              dynamodb: {
+                messages: refs.dynamodb.messages.permissions.readAndWrite,
+              },
+              elasticache: refs.elasticache.arns,
+            },
+            triggers: {
+              queues: [this.queues.groupProcessing.queue],
+            },
+          })
+        : undefined;
 
     const dispatch = new UNSLambdaConstruct(this, config, {
       ...baseSQS(`dispatch`),
@@ -515,6 +549,7 @@ export class UNSPSOResource extends Construct {
       sqs: {
         validation,
         processing,
+        groupProcessingWorker,
         dispatch,
         analytics,
       },
@@ -584,10 +619,10 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     this.dashboards = {
-      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
+      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
         pso: this,
       }),
-      flow: new UNSPSOFlow(this, `pso-flow-dashboard`, config, {
+      flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
         pso: this,
       }),
       service: new StandardServiceDashboardFactory(

@@ -1,7 +1,14 @@
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { observabilitySpies, ServiceSpies } from '@common/utils/mockInstanceFactory.test.util';
+import { NotificationStateEnum } from '@common/models';
 import { PatchNotification } from '@project/lambdas/flex/http.patchNotification/handler';
+import { mockIAnalytics } from '@project/lambdas/interfaces';
+import {
+  iocSpies,
+  mockEventContext,
+  mockFlexAPIEvent,
+  mockIProcessedMessage,
+  mockIProcessedMessageRecord,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -16,75 +23,45 @@ describe('PatchNotification Handler', () => {
   let handler: ReturnType<typeof PatchNotification.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
-  const observabilityMocks = observabilitySpies();
-  const serviceMocks = ServiceSpies(observabilityMocks);
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = iocSpies();
 
-  const mockContext = {
-    functionName: 'patchNotification',
-    awsRequestId: '12345',
-  } as unknown as Context;
+  // Test Fixtures
+  let context: Context;
 
-  let mockEvent: EventType;
-  let mockUnauthorizedEvent: EventType;
-  let mockMissingIdEvent: EventType;
+  const message = mockIProcessedMessage();
+  const analyticEvent = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const messageRecord = mockIProcessedMessageRecord(message, {
+    DispatchedDateTime: true,
+    Events: [analyticEvent],
+  });
 
-  const notificationID = `efe72235-d02a-45a9-b9d4-a04ff992fcc3`;
-  const externalUserID = `abc-cdef-ghi`;
-
-  const mockDbRecord: IMessageRecord = {
-    NotificationID: notificationID,
-    DepartmentID: 'DEP01',
-    UserID: 'UserID',
-    MessageTitle: 'You have a new Message',
-    MessageBody: 'Open Notification Centre to read your notifications',
-    NotificationTitle: 'You have a new Notification',
-    NotificationBody: 'Here is the Notification body.',
-    ExternalUserID: externalUserID,
-    OrganisationID: 'ORG01',
-    Events: [
-      {
-        EventID: '00000000-0000-0000-0000-a04ff992fcc3',
-        NotificationID: notificationID,
-        DepartmentID: 'abc',
-        Event: NotificationStateEnum.RECEIVED,
-        EventDateTime: new Date().toISOString(),
-        EventReason: '',
-        APIGWExtendedID: 'Test',
-        OrganisationID: 'ORG_ID',
-      },
-    ],
-    DispatchedDateTime: '2026-02-13',
-  };
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-02-13T10:00:00Z'));
-
-    mockEvent = {
-      headers: {
-        'x-api-key': 'mockApiKey',
-        'content-type': 'application/json',
-      },
-      requestContext: {
-        requestTimeEpoch: 1428582896000,
-        requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+  const mockPatchNotificationEvent = (status: string) =>
+    mockFlexAPIEvent({
+      body: {
+        Status: status,
       },
       pathParameters: {
-        notificationID: mockDbRecord.NotificationID,
+        notificationID: messageRecord.NotificationID,
       },
-      body: JSON.stringify({
-        Status: 'READ',
-      }),
       queryStringParameters: {
-        externalUserID,
+        externalUserID: messageRecord.ExternalUserID,
       },
-    } as unknown as EventType;
+    }) as unknown as EventType;
 
-    mockMissingIdEvent = {
-      ...mockEvent,
-      pathParameters: {},
-    };
+  beforeEach(() => {
+    // Reset all mocks
+    vi.resetAllMocks();
+    vi.useRealTimers();
+
+    // Test Fixtures
+    context = mockEventContext('patchNotification');
+
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
+    // Mocking successful completion of service functions
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
 
     instance = new PatchNotification(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
@@ -92,13 +69,6 @@ describe('PatchNotification Handler', () => {
     }));
 
     handler = instance.handler();
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(mockDbRecord);
-    serviceMocks.notificationsDynamoRepositoryMock.updateRecord = vi.fn().mockResolvedValue(undefined);
-    serviceMocks.analyticsQueueServiceMock.publishMessage.mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it('should have the correct operationId', () => {
@@ -116,18 +86,10 @@ describe('PatchNotification Handler', () => {
     'should accept valid enums (upper and lowercased) and return 202 - %s, while rejecting any other',
     async (enumValue: string, expectedStatusCode: number) => {
       // Arrange
-      serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+      const event = mockPatchNotificationEvent(enumValue);
 
       // Act
-      const result = await handler(
-        {
-          ...mockEvent,
-          body: JSON.stringify({
-            Status: enumValue,
-          }),
-        },
-        mockContext
-      );
+      const result = await handler(event, context);
 
       // Assert
       expect(result.statusCode).toEqual(expectedStatusCode);
@@ -136,99 +98,131 @@ describe('PatchNotification Handler', () => {
 
   it('should call publishEvent to update the notification', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    const event = mockPatchNotificationEvent(NotificationStateEnum.READ);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
-      mockDbRecord,
+      messageRecord,
       NotificationStateEnum.READ
     );
   });
 
   it('should log info when updating notification status', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    const event = mockPatchNotificationEvent(NotificationStateEnum.READ);
 
     // Act
-    await handler(mockEvent, mockContext);
+    await handler(event, context);
 
     // Assert
     expect(observabilityMocks.logger.debug).toHaveBeenCalledWith('Successful request - returning 200', {
-      notificationID: mockDbRecord.NotificationID,
+      notificationID: messageRecord.NotificationID,
       status: 'READ',
     });
   });
 
   it('should log and return 400 when notificationID is missing', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
+    const event = mockFlexAPIEvent({
+      body: {
+        Status: 'READ',
+      },
+      pathParameters: {},
+      queryStringParameters: {
+        externalUserID: messageRecord.ExternalUserID,
+      },
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockMissingIdEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
-      'NotificationID has not been provided - returning 400'
+      'notificationID has not been provided - returning 400'
     );
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['NotificationID has not been provided'],
+      Errors: ['notificationID has not been provided'],
     });
   });
 
   it('should return 404 when notifications does not exist', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue(null);
+    const event = mockPatchNotificationEvent(NotificationStateEnum.READ);
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(404);
     expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
+
   it('should return 400 when externalUserID/pushID is undefined', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    mockEvent.queryStringParameters = {};
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
+    const event = mockFlexAPIEvent({
+      body: {
+        Status: 'READ',
+      },
+      pathParameters: {
+        notificationID: messageRecord.NotificationID,
+      },
+      queryStringParameters: {},
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
   });
+
   it('should return 400 when externalUserID is an empty string', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    mockEvent.queryStringParameters = {
-      externalUserID: '',
-    };
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
+    const event = mockFlexAPIEvent({
+      body: {
+        Status: 'READ',
+      },
+      pathParameters: {
+        notificationID: messageRecord.NotificationID,
+      },
+      queryStringParameters: {
+        externalUserID: '',
+      },
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);
   });
+
   it('should return 400 when pushID is an empty string', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(`mockApiKey`);
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(mockDbRecord);
-    mockEvent.queryStringParameters = {
-      pushID: '',
-    };
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord.mockResolvedValue(messageRecord);
+    const event = mockFlexAPIEvent({
+      body: {
+        Status: 'READ',
+      },
+      pathParameters: {
+        notificationID: messageRecord.NotificationID,
+      },
+      queryStringParameters: {
+        pushID: '',
+      },
+    }) as unknown as EventType;
 
     // Act
-    const result = await handler(mockEvent, mockContext);
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(400);

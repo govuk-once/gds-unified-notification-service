@@ -11,5 +11,4 @@ export const IModifyGroupsSchema = z.object({
   Subgroup: z.string().optional(),
   Action: z.enum(GroupActionEnum),
 });
-
 export type IModifyGroups = z.infer<typeof IModifyGroupsSchema>;
