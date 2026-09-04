@@ -28,6 +28,7 @@ import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { IBucket } from 'node_modules/aws-cdk-lib/aws-s3/lib/bucket';
 
@@ -97,6 +98,12 @@ export class UNSVpcConstruct<
       enableDnsSupport: true,
       createInternetGateway: true,
     });
+    this.vpc.privateSubnets.forEach((privateSubnet) => {
+      applyExposureTag(privateSubnet, 'Internal');
+    });
+    this.vpc.isolatedSubnets.forEach((isolatedSubnet) => {
+      applyExposureTag(isolatedSubnet, 'Isolated');
+    });
 
     // Define Security Groups
     const privateEgress = new SecurityGroup(this, constructNamingHelper('sg', 'private'), {
@@ -129,6 +136,7 @@ export class UNSVpcConstruct<
         },
         open: true,
       });
+      applyExposureTag(endpoint, 'Isolated');
       interfaceEndpointsMap[key] = endpoint;
     }
     this.interfaceEndpoints = interfaceEndpointsMap as { [K in keyof InterfaceEndpoints]: InterfaceVpcEndpoint };
