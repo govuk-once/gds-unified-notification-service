@@ -173,11 +173,9 @@ export class UNSFlexResource extends Construct {
         modifyGroups,
       },
     };
-    for (const value of Object.values(this.lambdas.http)) {
-      if (value) {
-        applyExposureTag(value, 'Internal');
-      }
-    }
+
+    // Flex HTTP Lambdas are only accessible via private api gateways / vpce's
+    Object.values(this.lambdas.http).forEach((lambda) => applyExposureTag(lambda, 'Internal'));
 
     //// =====================================================
     // API Gateway

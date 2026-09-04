@@ -80,6 +80,7 @@ export const config = {
   namespace,
   defaultTags: () => ({
     // https://gdsgovukagents.atlassian.net/wiki/spaces/GOP/pages/81461354/AWS+Resource+Tagging+Standard
+    // https://gdsgovukagents.atlassian.net/wiki/spaces/GOS/pages/184385681/Network-Level+Exposure+Classification+Standard
     Product: 'uns',
     BillingProject: 'uns',
     Service: config.project,

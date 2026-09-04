@@ -154,12 +154,10 @@ export class UNSPSOResource extends Construct {
       }),
     };
 
-    for (const value of Object.values(this.queues)) {
-      if (value) {
-        applyPiiTag(value, 'true');
-        applyExposureTag(value, 'Isolated');
-      }
-    }
+    Object.values(this.queues).forEach((queue) => {
+      applyPiiTag(queue, 'true');
+      applyExposureTag(queue, 'Isolated');
+    });
 
     // //// =====================================================
     // // Log Groups
@@ -570,10 +568,10 @@ export class UNSPSOResource extends Construct {
       },
     };
 
-    // Endpoints need a Perimeter exposed tag as they're reachable from internal (Via APIGW )
-    for (const value of [...Object.values(this.lambdas.http), ...Object.values(this.lambdas.authorizers)]) {
-      applyExposureTag(value, 'Perimeter');
-    }
+    // Endpoints need a Perimeter exposed tag as they're reachable from internal (Via APIGW)
+    [...Object.values(this.lambdas.http), ...Object.values(this.lambdas.authorizers)].forEach((lambda) => {
+      applyExposureTag(lambda, 'Perimeter');
+    });
 
     //// =====================================================
     // API Gateway
