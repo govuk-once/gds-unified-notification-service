@@ -11,11 +11,11 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services/configurationService.ts', { spy: true });
 
-describe('ValidationService', () => {
+describe('ValidationService', async () => {
   let instance: ValidationService;
 
   // Initialize mock services, clients, and repositories
-  const { serviceMocks } = iocSpies();
+  const { serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();

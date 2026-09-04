@@ -1,7 +1,7 @@
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { ICampaignRecord } from '@common/repositories/interfaces';
+import { ICampaignRecord, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { StringParameters } from '@common/utils';
 import { iocSpies, mockAWSClientsExpectedBehaviour, mockServicesExpectedBehaviour } from '@test/mocks';
 
@@ -12,11 +12,11 @@ vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-describe('campaignDynamoRepository', () => {
+describe('campaignDynamoRepository', async () => {
   let instance: CampaignsDynamoRepository;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -25,28 +25,28 @@ describe('campaignDynamoRepository', () => {
     mockServicesExpectedBehaviour(serviceMocks);
     mockAWSClientsExpectedBehaviour(awsClientMocks);
 
-    instance = new CampaignsDynamoRepository(
+    instance = await CampaignsDynamoRepository.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.dynamoDBClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.dynamoDBClientMock
     );
-
-    await instance.initialize();
   });
 
-  describe('initialize', () => {
-    it('should call initialize with correct params', async () => {
-      // Arrange
-      const initialize = vi
-        .spyOn(Object.getPrototypeOf(CampaignsDynamoRepository.prototype), 'initialize')
-        .mockResolvedValue(undefined);
-
+  describe('create', () => {
+    it('should call create with correct params', async () => {
       // Act
-      const result = await instance.initialize();
+      const result = await CampaignsDynamoRepository.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.dynamoDBClientMock
+      );
 
       // Assert
-      expect(initialize).toHaveBeenCalledWith(StringParameters.Table.Campaigns.Attributes);
-      expect(result).toBe(instance);
+      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
+        StringParameters.Table.Campaigns.Attributes,
+        IDynamoAttributesSchema
+      );
+      expect(result).toBeInstanceOf(CampaignsDynamoRepository);
     });
   });
 

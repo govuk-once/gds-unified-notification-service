@@ -33,7 +33,7 @@ vi.mock('@common/services/smConfigurationService', { spy: true });
 vi.mock('@common/adapters/processingAdapterUDP', { spy: true });
 vi.mock('@common/adapters/processingAdapterVoid', { spy: true });
 
-describe('ProcessingService', () => {
+describe('ProcessingService', async () => {
   const awsCredentialsProviderSpy = awsCredentialsProvider as Mocked<typeof awsCredentialsProvider>;
   awsCredentialsProviderSpy.fromTemporaryCredentials.mockImplementation(
     () =>
@@ -50,7 +50,7 @@ describe('ProcessingService', () => {
   let instance: ProcessingService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -65,21 +65,19 @@ describe('ProcessingService', () => {
     // Mock SSM store and services responses
     const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
     mockParameterStore = resetMockParameterStore;
-
-    instance = new ProcessingService(
-      observabilityMocks,
-      serviceMocks.configurationServiceMock,
-      serviceMocks.smConfigurationServiceMock
-    );
   });
 
-  describe('initialize', () => {
+  describe('create', () => {
     it('should fetch data from configuration service and initialize relevant adapter (void)', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'VOID';
 
       // Act
-      await instance.initialize();
+      const instance = await ProcessingService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getEnumParameter).toHaveBeenCalledTimes(1);
@@ -96,7 +94,11 @@ describe('ProcessingService', () => {
       const expectedParamCalls = [EnumParameters.Config.Processing.Adapter, StringParameters.UDP.Config.SM];
 
       // Act
-      await instance.initialize();
+      const instance = await ProcessingService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getEnumParameter).toHaveBeenCalledTimes(1); //
@@ -112,9 +114,13 @@ describe('ProcessingService', () => {
     it('Sends a request to the void when using Void adapter', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'VOID';
+      const instance = await ProcessingService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Act
-      await instance.initialize();
       await instance.send(request);
 
       // Assert
@@ -129,9 +135,13 @@ describe('ProcessingService', () => {
     it('Sends a request to the UDP when using UDP Adapter', async () => {
       // Arrange
       mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'UDP';
+      const instance = await ProcessingService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Act
-      await instance.initialize();
       const result = await instance.send(request);
 
       // Assert

@@ -19,13 +19,13 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('PostMessage Handler', () => {
+describe('PostMessage Handler', async () => {
   let instance: PostMessage;
   let handler: ReturnType<typeof PostMessage.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Test fixtures
   let context: Context;
@@ -49,7 +49,7 @@ describe('PostMessage Handler', () => {
     instance = new PostMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
-      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      processingQueue: Promise.resolve(serviceMocks.processingQueueServiceMock),
       validationService: Promise.resolve(serviceMocks.validationServiceMock),
     }));
     handler = instance.handler();

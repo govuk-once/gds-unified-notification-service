@@ -8,10 +8,8 @@ export class ProcessingAdapterVoid implements ProcessingAdapter {
     protected config: ConfigurationService
   ) {}
 
-  // Empty shim
-  async initialize(): Promise<void> {
-    await Promise.resolve();
-    return;
+  public static create(observability: ObservabilityService, config: ConfigurationService) {
+    return new ProcessingAdapterVoid(observability, config);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

@@ -1,6 +1,6 @@
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models';
-import { IMessageRecord } from '@common/repositories/interfaces';
+import { IDynamoAttributesSchema, IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
 import { StringParameters } from '@common/utils';
 import {
@@ -18,11 +18,11 @@ vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-describe('NotificationsDynamoRepository', () => {
+describe('NotificationsDynamoRepository', async () => {
   let instance: NotificationsDynamoRepository;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   const message = mockIProcessedMessage();
@@ -37,27 +37,28 @@ describe('NotificationsDynamoRepository', () => {
     mockServicesExpectedBehaviour(serviceMocks);
     mockAWSClientsExpectedBehaviour(awsClientMocks);
 
-    instance = new NotificationsDynamoRepository(
+    instance = await NotificationsDynamoRepository.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.dynamoDBClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.dynamoDBClientMock
     );
-    await instance.initialize();
   });
 
-  describe('initialize', () => {
-    it('should call super.initialize with correct parameters and return this', async () => {
-      // Arrange
-      const superInitialize = vi
-        .spyOn(Object.getPrototypeOf(NotificationsDynamoRepository.prototype), 'initialize')
-        .mockResolvedValue(undefined);
-
+  describe('create', () => {
+    it('should call create with correct params', async () => {
       // Act
-      const result = await instance.initialize();
+      const result = await NotificationsDynamoRepository.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.dynamoDBClientMock
+      );
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.Inbound.Attributes);
-      expect(result).toBe(instance);
+      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
+        StringParameters.Table.Inbound.Attributes,
+        IDynamoAttributesSchema
+      );
+      expect(result).toBeInstanceOf(NotificationsDynamoRepository);
     });
   });
 

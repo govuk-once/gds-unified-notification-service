@@ -17,7 +17,6 @@ export const IOrganisationConfigSchema = z.object({
       Max: z.coerce.number().int().positive().min(1).optional(),
     })
     .superRefine((data, ctx) => {
-      console.log({ data });
       if (data.Allowed) {
         if (data.Min === undefined) {
           ctx.addIssue({

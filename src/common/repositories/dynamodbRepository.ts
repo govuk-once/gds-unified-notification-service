@@ -10,27 +10,22 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models';
-import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
-import { ConfigurationService } from '@common/services/configurationService';
-import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
-import { zodErrorFormatter } from '@common/utils/zod';
+import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { IDynamoAttributes } from '@common/repositories/interfaces/IDynamoKeys';
+import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
+import { zodErrorFormatter } from '@common/utils';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
-  protected tableAttributes!: IDynamoAttributes;
   protected abstract recordSchema: RecordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    protected client: DynamoDB,
-    protected observability: ObservabilityService
-  ) {}
-
-  public async initialize(tableAttributesParameter: string) {
-    this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
+  ) {
     this.observability.tracer.captureAWSv3Client(this.client);
-    return this;
   }
 
   public async observeCapacity<

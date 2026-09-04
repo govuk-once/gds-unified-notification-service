@@ -1,14 +1,18 @@
 import { ChannelsEnum } from '@common/models';
 import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
 import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
-import { ConfigurationService, ObservabilityService, ProviderDimension } from '@common/services';
+import {
+  ConfigurationService,
+  ObservabilityService,
+  ProviderDimension,
+  SMNamespacedConfigurationService,
+} from '@common/services';
 import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
 import { StringParameters } from '@common/utils';
 import { StringSecret } from '@common/utils/secrets';
 
@@ -27,35 +31,32 @@ interface OneSignalPushNotificationResponse {
 }
 
 export class NotificationAdapterOneSignal implements NotificationAdapter {
-  public client!: FetchService;
-  protected key!: string;
-  protected appId!: string;
-  protected deeplinkTemplate!: string;
-
   constructor(
-    protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService
+    public readonly client: FetchService,
+    protected readonly observability: ObservabilityService,
+    protected readonly config: ConfigurationService,
+    protected readonly appId: string,
+    protected readonly deeplinkTemplate: string
   ) {}
 
-  public async initialize(): Promise<void> {
-    // Initialize only if the client has not been previously initialized
-    if (this.client !== undefined) {
-      return;
-    }
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMNamespacedConfigurationService
+  ) {
+    const key = await smConfig.getParameter(StringSecret.Dispatch.OneSignal.ApiKey);
+    const appId = await config.getParameter(StringParameters.Dispatch.OneSignal.AppId);
+    const deeplinkTemplate = await config.getParameter(StringParameters.Notification.DeeplinkTemplate);
 
-    // Fetch configs
-    this.key = await this.smConfig.getParameter(StringSecret.Dispatch.OneSignal.ApiKey);
-    this.appId = await this.config.getParameter(StringParameters.Dispatch.OneSignal.AppId);
-    this.deeplinkTemplate = await this.config.getParameter(StringParameters.Notification.DeeplinkTemplate);
-
-    this.client = new FetchService({
+    const client = new FetchService({
       baseUrl: `https://api.onesignal.com/`,
       defaultHeaders: {
-        Authorization: `Key ${this.key}`,
+        Authorization: `Key ${key}`,
         'Content-Type': 'application/json',
       },
     });
+
+    return new NotificationAdapterOneSignal(client, observability, config, appId, deeplinkTemplate);
   }
 
   public async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {
