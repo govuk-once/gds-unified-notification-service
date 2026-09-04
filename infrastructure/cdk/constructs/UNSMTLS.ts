@@ -15,6 +15,8 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { v4 } from 'uuid';
 
@@ -51,6 +53,9 @@ export class UNSMTLSCommon extends Construct {
       autoDeleteObjects: !config.isMainEnv,
     });
     applyCheckovSkipsS3Bucket(truststoreBucket);
+    applyExposureTag(truststoreBucket, 'Isolated');
+    applyPiiTag(truststoreBucket, 'false');
+
     // Note: only main environments create & manage certificates - sandbox environments
     if (config.isMainEnv) {
       //// =====================================================
@@ -67,6 +72,9 @@ export class UNSMTLSCommon extends Construct {
           kms: common.kms,
         },
       });
+
+      applyExposureTag(this.revocationTable, 'Isolated');
+      applyPiiTag(this.revocationTable, 'false');
 
       //// =====================================================
       // Certificate authority

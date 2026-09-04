@@ -15,6 +15,8 @@ import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConst
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSSlackAlert } from 'infrastructure/cdk/constructs/bases/UNSSlackIntegration';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 const interfaceEndpoints = {
@@ -174,6 +176,9 @@ export class UNSCommon extends Construct {
       ],
     });
 
+    applyExposureTag(messagesTable, 'Isolated');
+    applyPiiTag(messagesTable, 'true');
+
     const campaignsTable = new UNSDynamoDb(this, config, {
       name: ['campaigns'],
       partitionKey: 'CompositeID',
@@ -185,6 +190,9 @@ export class UNSCommon extends Construct {
       },
       globalSecondaryIndexes: [],
     });
+
+    applyExposureTag(campaignsTable, 'Isolated');
+    applyPiiTag(campaignsTable, 'false');
 
     const groupStoreTable = config.featureFlag.groups
       ? new UNSDynamoDb(this, config, {
@@ -215,6 +223,11 @@ export class UNSCommon extends Construct {
         })
       : undefined;
 
+    if (groupStoreTable) {
+      applyExposureTag(groupStoreTable, 'Isolated');
+      applyPiiTag(groupStoreTable, 'true');
+    }
+
     this.dynamodb = {
       messages: messagesTable,
       campaigns: campaignsTable,
@@ -229,6 +242,8 @@ export class UNSCommon extends Construct {
       vpc: this.vpc,
       kms: this.kms,
     });
+    applyExposureTag(this.elasticache, 'Isolated');
+    applyPiiTag(this.elasticache, 'true');
 
     //// =====================================================
     // SQS Queues
@@ -246,6 +261,8 @@ export class UNSCommon extends Construct {
         },
       }),
     };
+    applyExposureTag(this.queues.analytics, 'Isolated');
+    applyPiiTag(this.queues.analytics, 'true');
 
     //// =====================================================
     // SSM

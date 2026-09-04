@@ -79,19 +79,18 @@ export const config = {
   version,
   namespace,
   defaultTags: () => ({
-    // Applying https://gdsgovukagents.atlassian.net/wiki/spaces/GOP/pages/81461354/AWS+Resource+Tagging+Standard
+    // https://gdsgovukagents.atlassian.net/wiki/spaces/GOP/pages/81461354/AWS+Resource+Tagging+Standard
+    Product: 'uns',
+    BillingProject: 'uns',
     Service: config.project,
+    Component: 'unified-notification-service',
     Environment: environmentLabels[config.env] ?? 'sandbox',
     Owner: 'govuk-once-uns-dl@digital.cabinet-office.gov.uk',
     Source: 'https://github.com/govuk-once/gds-unified-notification-service',
     CostCentre: 'ONCE-001',
     ManagedBy: 'CDK',
     Version: config.version,
-
-    Product: 'uns',
-    Component: 'platform-constructs',
-    DataClassification: 'OFFICIAL', // IS THIS ALL ASSETS?
-    Retain: env === 'prod' ? 'true' : 'false', // IS STAGING INCLUDED IN DEVELOPMENT STACK
+    retain: 'true',
   }),
 
   // Delete / retain policy - main environment resources should avoid deletion

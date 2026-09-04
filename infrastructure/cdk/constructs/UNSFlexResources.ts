@@ -173,6 +173,11 @@ export class UNSFlexResource extends Construct {
         modifyGroups,
       },
     };
+    for (const value of Object.values(this.lambdas.http)) {
+      if (value) {
+        applyExposureTag(value, 'Internal');
+      }
+    }
 
     //// =====================================================
     // API Gateway
@@ -201,6 +206,7 @@ export class UNSFlexResource extends Construct {
           e2e: {},
         },
       });
+      applyExposureTag(this.publicGateway, 'Perimeter');
       applyExposureTag(this.publicGateway.waf, 'Perimeter');
     }
 
@@ -234,7 +240,8 @@ export class UNSFlexResource extends Construct {
         flex: {},
       },
     });
-    applyExposureTag(this.gateway.waf, 'Perimeter');
+    applyExposureTag(this.gateway, 'Isolated');
+    applyExposureTag(this.gateway.waf, 'Internal');
 
     for (const gateway of [this.publicGateway, this.gateway].filter(filters.isDefined)) {
       gateway
