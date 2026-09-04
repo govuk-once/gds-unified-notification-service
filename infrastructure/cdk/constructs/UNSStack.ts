@@ -6,9 +6,11 @@ import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources'
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
+import { UNSResourceContract } from 'infrastructure/cdk/constructs/UNSResourceContract';
 import { applyCheckovSkipsS3Bucket, findResource } from 'infrastructure/cdk/utils/applyCheckovSkip';
 
 export class UNSStack extends Stack {
+  public readonly common: UNSCommon;
   public readonly pso: UNSPSOResource;
   public readonly flex: UNSFlexResource;
 
@@ -20,7 +22,8 @@ export class UNSStack extends Stack {
   ) {
     super(scope, id, props);
 
-    const common = new UNSCommon(this, config);
+    this.common = new UNSCommon(this, config);
+    const common = this.common;
     const mtls = new UNSMTLSCommon(this, config, common);
     const organisations = new UNSOrganisationsCommon(this, config, common);
     this.pso = new UNSPSOResource(this, config, {
@@ -45,6 +48,49 @@ export class UNSStack extends Stack {
 
     this.applyTags(this, config);
     this.applyCheckovSkips();
+  }
+
+  resourceNames(): UNSResourceContract {
+    return {
+      alertTopicArn: this.common.alertTopic.topicArn,
+      pso: {
+        restApiName: this.pso.gateway.restApi.restApiName,
+        wafName: this.pso.gateway.waf.name!,
+        queueNames: {
+          incoming: this.pso.queues.incoming.queue.queueName,
+          processing: this.pso.queues.processing.queue.queueName,
+          dispatch: this.pso.queues.dispatch.queue.queueName,
+          analytics: this.pso.queues.analytics.queue.queueName,
+        },
+        lambdaFunctionNames: {
+          mtlsCertificateRevocationAuthorizer:
+            this.pso.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn.functionName,
+          getHealthcheck: this.pso.lambdas.http.getHealthcheck.fn.functionName,
+          getNotificationStatus: this.pso.lambdas.http.getNotificationStatus.fn.functionName,
+          getCampaignStatus: this.pso.lambdas.http.getCampaignStatus.fn.functionName,
+          postMessage: this.pso.lambdas.http.postMessage.fn.functionName,
+          postGroupMessage: this.pso.lambdas.http.postGroupMessage?.fn.functionName,
+          validation: this.pso.lambdas.sqs.validation.fn.functionName,
+          processing: this.pso.lambdas.sqs.processing.fn.functionName,
+          groupProcessingWorker: this.pso.lambdas.sqs.groupProcessingWorker?.fn.functionName,
+          dispatch: this.pso.lambdas.sqs.dispatch.fn.functionName,
+          analytics: this.pso.lambdas.sqs.analytics.fn.functionName,
+          analyticsExport: this.pso.lambdas.schedule.analyticsExport.fn.functionName,
+        },
+      },
+      flex: {
+        restApiName: this.flex.gateway.restApi.restApiName,
+        wafName: this.flex.gateway.waf.name!,
+        lambdaFunctionNames: {
+          getNotifications: this.flex.lambdas.http.getNotifications.fn.functionName,
+          getNotificationById: this.flex.lambdas.http.getNotificationById.fn.functionName,
+          patchNotification: this.flex.lambdas.http.patchNotification.fn.functionName,
+          deleteNotification: this.flex.lambdas.http.deleteNotification.fn.functionName,
+          getGroups: this.flex.lambdas.http.getGroups?.fn.functionName,
+          modifyGroups: this.flex.lambdas.http.modifyGroups?.fn.functionName,
+        },
+      },
+    };
   }
 
   public applyTags(scope: Construct, config: EnvVars) {

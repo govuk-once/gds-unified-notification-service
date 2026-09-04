@@ -2,7 +2,6 @@ import { ComparisonOperator, Stats } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { AlarmPeriod, alarmPriority, numericThreshold, UNSAlarmsConstruct, UNSAlarmsProps } from './UNSAlarmConstructs';
-import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 
 export const PerformanceMetricsLabels = {
   COLD_START: 'ColdStart',
@@ -11,7 +10,7 @@ export const PerformanceMetricsLabels = {
 interface UNSPerformanceAlarmsProps extends UNSAlarmsProps {
   lambdas: {
     name: string;
-    lambda: UNSLambdaConstruct;
+    functionName: string;
   }[];
 }
 
@@ -33,7 +32,7 @@ export class UNSPerformanceAlarmsConstructs extends UNSAlarmsConstruct {
           PerformanceMetricsLabels.COLD_START,
           Stats.SUM,
           AlarmPeriod.FIVE_MINUTES,
-          item.lambda.fn.functionName
+          item.functionName
         ),
         threshold: numericThreshold.TWENTY_THRESHOLD,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,

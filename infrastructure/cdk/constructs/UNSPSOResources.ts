@@ -9,12 +9,6 @@ import { Construct } from 'constructs';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
-import { UNSAuthenticationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct';
-import { UNSIntegrationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct';
-import { UNSOperationalAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct';
-import { UNSPerformanceAlarmsConstructs } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
-import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
@@ -28,7 +22,6 @@ import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { ProviderDimension } from '../../../src/common/services/observabilityService';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -61,15 +54,6 @@ export class UNSPSOResource extends Construct {
     };
   };
   public readonly gateway: UNSAPIGatewayGateway;
-
-  public readonly alarms: {
-    apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
-    authenticationAlarms: UNSAuthenticationAlarmsConstruct;
-    wafAlarms: UNSWAFAlarmsConstruct;
-    operationalAlarms: UNSOperationalAlarmsConstruct;
-    performanceAlarms: UNSPerformanceAlarmsConstructs;
-    integrationAlarms: UNSIntegrationAlarmsConstruct;
-  };
 
   public readonly dashboards: {
     flow: UNSPSOFlow;
@@ -669,70 +653,5 @@ export class UNSPSOResource extends Construct {
       'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
       'analytics/export/bucket/name': analyticsExportBucket.bucketName,
     });
-
-    //// =====================================================
-    // CloudWatch Alarms
-    //// =====================================================
-
-    this.alarms = {
-      apiGatewayAlarms: new UNSApiGatewayAlarmsConstruct(this, config, {
-        restApi: this.gateway.restApi,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      authenticationAlarms: new UNSAuthenticationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
-        waf: this.gateway.waf,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      operationalAlarms: new UNSOperationalAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-        queues: [
-          { name: 'incoming', queue: this.queues.incoming.queue },
-          { name: 'processing', queue: this.queues.processing.queue },
-          { name: 'dispatch', queue: this.queues.dispatch.queue },
-          { name: 'analytics', queue: this.queues.analytics.queue },
-        ],
-      }),
-      performanceAlarms: new UNSPerformanceAlarmsConstructs(this, config, {
-        lambdas: [
-          {
-            name: 'mtlsCertificateRevocationAuthorizer',
-            lambda: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer,
-          },
-          { name: 'getCampaignStatus', lambda: this.lambdas.http.getCampaignStatus },
-          { name: 'postMessage', lambda: this.lambdas.http.postMessage },
-          { name: 'getHealthcheck', lambda: this.lambdas.http.getHealthcheck },
-          { name: 'getNotificationStatus', lambda: this.lambdas.http.getNotificationStatus },
-          { name: 'validation', lambda: this.lambdas.sqs.validation },
-          { name: 'processing', lambda: this.lambdas.sqs.processing },
-          { name: 'dispatch', lambda: this.lambdas.sqs.dispatch },
-          { name: 'analyticsExport', lambda: this.lambdas.schedule.analyticsExport },
-        ],
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-        providers: [
-          { name: 'OneSignal', provider: ProviderDimension.ONESIGNAL, direction: 'downstream' },
-          { name: 'UDP', provider: ProviderDimension.UDP, direction: 'upstream' },
-        ],
-        lambdas: [
-          ...Object.entries(this.lambdas.http)
-            .filter(([, fn]) => fn !== undefined)
-            .map(([name, func]) => ({ name, func: func.fn })),
-          ...Object.entries(this.lambdas.sqs).map(([name, func]) => ({ name, func: func.fn })),
-          ...Object.entries(this.lambdas.authorizers).map(([name, func]) => ({ name, func: func.fn })),
-          ...Object.entries(this.lambdas.schedule).map(([name, func]) => ({ name, func: func.fn })),
-        ],
-      }),
-    };
   }
 }

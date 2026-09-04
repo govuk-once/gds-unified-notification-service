@@ -1,5 +1,4 @@
-import { Alarm, ComparisonOperator, Stats } from 'aws-cdk-lib/aws-cloudwatch';
-import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import { Alarm, ComparisonOperator, Metric, Stats } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { MetricsLabels } from '../../../../src/common/services/observabilityService';
@@ -22,7 +21,7 @@ export const OperationalAlarmThreshold = {
 
 interface QueueTarget {
   name: string;
-  queue: IQueue;
+  queueName: string;
 }
 
 interface UNSOperationalAlarmsProps extends UNSAlarmsProps {
@@ -40,12 +39,15 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
     const { group, queues } = props;
 
     // SQS Depth Alarm
-    for (const { name, queue } of queues) {
+    for (const { name, queueName } of queues) {
       this.addAlarm({
         id: constructNamingHelper('sqsDepthAlarm', group, name),
         name: namingHelper(alarmPriority.HIGH, group, 'SqsQueueDepthHigh', name),
         description: `SQS queue '${name}' exceeded ${OperationalAlarmThreshold.QUEUE_DEPTH} visible messages for 5 consecutive minutes.`,
-        metric: queue.metricApproximateNumberOfMessagesVisible({
+        metric: new Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'ApproximateNumberOfMessagesVisible',
+          dimensionsMap: { QueueName: queueName },
           statistic: Stats.MAXIMUM,
           period: AlarmPeriod.ONE_MINUTE,
         }),
