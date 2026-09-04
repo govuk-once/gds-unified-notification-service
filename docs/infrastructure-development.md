@@ -126,7 +126,7 @@ If you need a value editable between deploys without CDK reverting it, add it to
 
 ## Networking
 
-Confirmed from [`UNSVpcConstruct`](/infrastructure/cdk/constructs/bases/UNSVpcConstruct.ts): this service **does** provision its own VPC in main environments — it is not a VPC-less, fully serverless deployment.
+This service **does** provision its own VPC in main environments.
 
 ```typescript
 // UNSCommon.ts
