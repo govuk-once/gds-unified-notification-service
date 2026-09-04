@@ -181,6 +181,8 @@ export class UNSPSOResource extends Construct {
           expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
         },
       ],
+      serverAccessLogsBucket: refs.accessLogs.bucket,
+      serverAccessLogsPrefix: namingHelper('analytics-export'),
     });
     applyCheckovSkipsS3Bucket(analyticsExportBucket);
 
