@@ -31,10 +31,12 @@ export class UNSGlobalStack extends Stack {
     });
 
     // DNS query logging
-    new UNSRoute53QueryLoggingConstruct(this, config, {
-      name: ['route53-query-logging'],
-      kms: kms.key,
-    });
+    if (config.isMainEnv) {
+      new UNSRoute53QueryLoggingConstruct(this, config, {
+        name: ['route53-query-logging'],
+        kms: kms.key,
+      });
+    }
 
     for (const [key, value] of Object.entries(config.defaultTags())) {
       Tags.of(this).add(key, value);
