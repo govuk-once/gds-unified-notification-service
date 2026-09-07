@@ -139,8 +139,7 @@ export class UNSCommon extends Construct {
     //// =====================================================
     // Retention is set to 30 days for main envs, and no retention for other envs
     this.accessLogs = new UNSS3Bucket(this, config, {
-      name: ['s3-accesslogs'],
-      objectLockDefaultRetention: config.objectLockDefaultRetention,
+      name: ['s3-accesslog'],
     });
     //// =====================================================
     // VPC Configuration & Endpoints
