@@ -4,9 +4,6 @@ import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
-import { UNSIntegrationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct';
-import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
@@ -19,11 +16,6 @@ export class UNSFlexResource extends Construct {
   public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
 
-  public readonly alarms: {
-    apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
-    wafAlarms: UNSWAFAlarmsConstruct;
-    integrationAlarms: UNSIntegrationAlarmsConstruct;
-  };
   public readonly lambdas: {
     http: {
       getNotifications: UNSLambdaConstruct;
@@ -317,29 +309,5 @@ export class UNSFlexResource extends Construct {
         })
       );
     }
-
-    //// =====================================================
-    // CloudWatch Alarms
-    //// =====================================================
-
-    this.alarms = {
-      apiGatewayAlarms: new UNSApiGatewayAlarmsConstruct(this, config, {
-        restApi: this.gateway.restApi,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
-        waf: this.gateway.waf,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-        lambdas: Object.entries(this.lambdas.http)
-          .filter(([, fn]) => fn !== undefined)
-          .map(([name, func]) => ({ name, func: func.fn })),
-      }),
-    };
   }
 }
