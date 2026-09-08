@@ -1,10 +1,11 @@
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { GetFlexNotificationById } from '@project/lambdas/flex/http.getNotificationById/handler';
-import { mockIAnalytics, mockIFlexNotification } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
   mockFlexAPIEvent,
+  mockIAnalytics,
+  mockIFlexNotification,
   mockIOrganisationRecord,
   mockIProcessedMessage,
   mockIProcessedMessageRecord,
