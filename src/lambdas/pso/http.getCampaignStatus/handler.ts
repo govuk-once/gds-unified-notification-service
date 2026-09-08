@@ -79,7 +79,7 @@ export class GetCampaignStatus extends APIHandler<
     console.log(campaign.CompositeID);
 
     const compositeSegments = campaign.CompositeID.split('/');
-    const campaignId = compositeSegments[compositeSegments.length - 1];
+    const campaignId = compositeSegments.at(-1)!;
 
     return {
       body: {
