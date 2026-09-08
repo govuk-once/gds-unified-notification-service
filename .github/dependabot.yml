@@ -13,6 +13,7 @@ updates:
   # Enables version updates for pnpm
   - package-ecosystem: 'npm'
     directory: '/'
+    minimum-release-age: '7 days'
     schedule:
       interval: 'weekly'
     labels:
@@ -36,6 +37,7 @@ updates:
   # Enables version updates for github actions
   - package-ecosystem: 'github-actions'
     directory: '/'
+    minimum-release-age: '7 days'
     schedule:
       interval: 'weekly'
     labels:
