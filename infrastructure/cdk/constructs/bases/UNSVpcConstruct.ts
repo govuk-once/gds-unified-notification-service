@@ -30,6 +30,7 @@ import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketCons
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
+import { IBucket } from 'node_modules/aws-cdk-lib/aws-s3/lib/bucket';
 
 export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
   readonly name: string[];
@@ -37,6 +38,7 @@ export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
   readonly zones: string[];
   readonly interfaceEndpoints?: InterfaceEndpoints;
   readonly gatewayEndpoints?: GatewayEndpoints;
+  readonly accessLogsBucket: IBucket;
 }
 
 export class UNSVpcConstruct<
@@ -221,6 +223,10 @@ export class UNSVpcConstruct<
             expiration: config.expiration,
           },
         ],
+        serverAccessLogs: {
+          bucket: props.accessLogsBucket,
+          prefix: namingHelper(...props.name, 'flow-log'),
+        },
       });
 
       new FlowLog(this, namingHelper('flow-log', 's3'), {

@@ -51,6 +51,9 @@ export class UNSMTLSCommon extends Construct {
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
+
+      serverAccessLogsBucket: common.accessLogs.bucket,
+      serverAccessLogsPrefix: namingHelper('mtls-certificates'),
     });
     applyCheckovSkipsS3Bucket(truststoreBucket);
     applyExposureTag(truststoreBucket, 'Isolated');
