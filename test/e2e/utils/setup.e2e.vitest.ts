@@ -225,7 +225,7 @@ export const test = baseTest
     'validPushID',
     ({}) =>
       ({
-        dev: `dNVRHHR-Ik3vzs_QBsIv2WB7nCr-sROc6jIXxOqPRQQ`,
+        dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
       })[config.env] ?? 'cde456'
   );
 
