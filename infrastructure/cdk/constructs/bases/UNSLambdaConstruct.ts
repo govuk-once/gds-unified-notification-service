@@ -131,7 +131,7 @@ export class UNSLambdaConstruct extends Construct {
     );
 
     // Allow use of DynamoDB Access Configurations, independent perms per table
-    for (const [table, { arn, scan, read, write }] of Object.entries(props.iam?.dynamodb ?? {})) {
+    for (const { arn, scan, read, write } of Object.values(props.iam?.dynamodb ?? {})) {
       this.addPermissionsToRole(
         [
           ...(scan ? ['dynamodb:Query', 'dynamodb:Scan'] : []),

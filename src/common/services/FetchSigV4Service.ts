@@ -75,14 +75,12 @@ export class FetchSigV4Service extends FetchService {
     return await super.fetch(url, {
       ...init,
       headers: {
-        ...(init?.headers ?? {}),
-        ...{
-          Authorization: headers.authorization,
-          'X-Amz-Date': headers['x-amz-date'],
-          'X-Amz-Security-Token': headers['x-amz-security-token'],
-          'X-Amz-Content-Sha256': headers['x-amz-content-sha256'],
-          host: headers['host'],
-        },
+        ...init?.headers,
+        Authorization: headers.authorization,
+        'X-Amz-Date': headers['x-amz-date'],
+        'X-Amz-Security-Token': headers['x-amz-security-token'],
+        'X-Amz-Content-Sha256': headers['x-amz-content-sha256'],
+        host: headers['host'],
       },
     });
   }

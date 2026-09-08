@@ -11,7 +11,6 @@ export class ProcessingAdapterVoid implements ProcessingAdapter {
   // Empty shim
   async initialize(): Promise<void> {
     await Promise.resolve();
-    return;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

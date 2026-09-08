@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -229,8 +229,6 @@ export class UNSPSOFlow extends Construct {
     const dashboard = new cw.Dashboard(this, 'dashboard', {
       dashboardName: config.utils.namingHelper(id),
     });
-    // TODO: Delete this - Used to migrate from JSON to CDK
-    dashboard.applyRemovalPolicy(RemovalPolicy.RETAIN);
 
     dashboard.addWidgets(wafWidget, processingQueueWidget, dispatchQueueWidget, oneSignalWidget);
     dashboard.addWidgets(apiWidget, processedWidget, dispatchedWidget);

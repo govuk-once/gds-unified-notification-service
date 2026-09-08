@@ -52,10 +52,8 @@ export class ValidationService {
           protocols: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('protocol')).filter(filters.isDefined),
           hostnames: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('hostname')).filter(filters.isDefined),
         });
-      } else {
-        if (message.DeeplinkURL) {
-          throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
-        }
+      } else if (message.DeeplinkURL) {
+        throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
       }
 
       if (message.Channel) {

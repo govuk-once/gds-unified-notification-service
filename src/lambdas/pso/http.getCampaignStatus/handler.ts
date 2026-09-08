@@ -76,9 +76,10 @@ export class GetCampaignStatus extends APIHandler<
     if (campaign == null) {
       throw new NotFoundError();
     }
+    console.log(campaign.CompositeID);
 
     const compositeSegments = campaign.CompositeID.split('/');
-    const campaignId = compositeSegments.at(compositeSegments.length - 1)!;
+    const campaignId = compositeSegments[compositeSegments.length - 1];
 
     return {
       body: {
