@@ -188,7 +188,7 @@ export class UNSCommon extends Construct {
     });
 
     applyExposureTag(messagesTable, 'Isolated');
-    applyPiiTag(messagesTable, 'true');
+    applyPiiTag(messagesTable, 'unknown');
 
     const campaignsTable = new UNSDynamoDb(this, config, {
       name: ['campaigns'],
@@ -236,7 +236,7 @@ export class UNSCommon extends Construct {
 
     if (groupStoreTable) {
       applyExposureTag(groupStoreTable, 'Isolated');
-      applyPiiTag(groupStoreTable, 'true');
+      applyPiiTag(groupStoreTable, 'false');
     }
 
     this.dynamodb = {
@@ -254,7 +254,7 @@ export class UNSCommon extends Construct {
       kms: this.kms,
     });
     applyExposureTag(this.elasticache, 'Isolated');
-    applyPiiTag(this.elasticache, 'true');
+    applyPiiTag(this.elasticache, 'false');
 
     //// =====================================================
     // SQS Queues
@@ -273,7 +273,7 @@ export class UNSCommon extends Construct {
       }),
     };
     applyExposureTag(this.queues.analytics, 'Isolated');
-    applyPiiTag(this.queues.analytics, 'true');
+    applyPiiTag(this.queues.analytics, 'false');
 
     //// =====================================================
     // SSM
