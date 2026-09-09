@@ -132,6 +132,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
       const notificationID = generateNotificationIDForGroupMessage(pushID, groupMessage);
       processedMessages.push({
         NotificationID: notificationID,
+        GroupNotificationID: groupMessage.GroupNotificationID,
         OrganisationID: groupMessage.OrganisationID,
         ExternalUserID: pushID,
         CampaignID: groupMessage.CampaignID,
@@ -140,8 +141,9 @@ export class GroupProcessingWorker extends BatchQueueOperation<
         MessageTitle: groupMessage.MessageTitle,
         MessageBody: groupMessage.MessageBody,
         ExpiresInDays: groupMessage.ExpiresInDays,
-        DeeplinkURL: groupMessage.DeeplinkURL,
         Channel: groupMessage.Channel,
+        DeeplinkURL: groupMessage.DeeplinkURL,
+        // UserID is explicitly omitted here
       });
     }
 
