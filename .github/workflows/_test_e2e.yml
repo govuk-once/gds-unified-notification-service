@@ -5,6 +5,9 @@ permissions:
   id-token: write
 
 on:
+  push:
+    branches:
+      - feat/NOT-447-e2e-testing
   workflow_call:
     inputs:
       ENVIRONMENT:
