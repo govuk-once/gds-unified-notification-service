@@ -8,6 +8,7 @@ export const IIdentifiableMessageSchema = z.object({
   NotificationID: z.uuid({ version: 'v4' }).default(() => uuid()),
   OrganisationID: z.string(),
   DepartmentID: z.string().optional(),
+  GroupNotificationID: z.string().optional(),
   UserID: z.string().optional(),
   CampaignID: z.string().optional(),
 });

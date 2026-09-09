@@ -1,3 +1,4 @@
+import { ChannelsEnum } from '@common/models';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import * as z from 'zod';
 
@@ -6,6 +7,7 @@ export const IMessageRecordSchema = z.object({
   NotificationID: z.string(),
   OrganisationID: z.string(), // Derived from the mTLS certificate
   DepartmentID: z.string().optional(),
+  GroupNotificationID: z.string().optional(),
   UserID: z.string().optional(), // ID Supplied by PSO's
   ExternalUserID: z.string().optional(), // ID Resolved via UDP using PSO's UserID
   CampaignID: z.string().optional(),
@@ -20,6 +22,7 @@ export const IMessageRecordSchema = z.object({
   MessageTitle: z.string().optional(),
   MessageBody: z.string().optional(),
   DeeplinkURL: z.string().optional(),
+  Channel: z.enum(ChannelsEnum).optional(),
 
   // Event timestamps - triggered during handler logic
   ReceivedDateTime: z.string().optional(),
