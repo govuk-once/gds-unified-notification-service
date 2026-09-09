@@ -76,6 +76,10 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
       throw new BadRequestError(['notificationID has not been provided']);
     }
 
+    if (notificationID == undefined) {
+      console.log('Help');
+    }
+
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
       this.observability.logger.debug('pushID has not been provided - returning 400');
