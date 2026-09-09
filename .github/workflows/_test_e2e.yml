@@ -11,10 +11,22 @@ on:
         description: 'Github environment to use'
         type: string
         required: true
-      VERSION:
-        description: 'Version label'
+      SOURCE_BUCKET:
+        description: 'S3 bucket the e2e CodeBuild projects reads its source from'
         type: string
         required: true
+        default: 'uns-mehedi-a6a1-e2e-runner-builds'
+  workflow_dispatch:
+    inputs:
+      ENVIRONMENT:
+        description: 'Github environment to use'
+        type: string
+        required: true
+      SOURCE_BUCKET:
+        description: 'S3 bucket the e2e CodeBuild projects reads its source from'
+        type: string
+        required: true
+        default: 'uns-mehedi-a6a1-e2e-runner-builds'
 
 jobs:
   test:
@@ -46,5 +58,5 @@ jobs:
       - name: Upload source for e2e CodeBuild run
         run: |
           zip -rqy source.zip . 
-          SOURCE_KEY="e2e/${{github.ref_name}}/source-${{github.run_id}}-${{github.sha}}"
-          aws s3 cp source.zip "uns-mehedi-a6a1-s3-e2e-runner-builds"
+          SOURCE_KEY="e2e/${{github.ref_name}}/source-${{github.run_id}}-${{github.sha}}.zip"
+          aws s3 cp source.zip "s3://${{ inputs.SOURCE_BUCKET }}/$SOURCE_KEY"
