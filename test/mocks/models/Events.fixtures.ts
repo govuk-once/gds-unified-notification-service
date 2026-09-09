@@ -145,7 +145,7 @@ export const mockPsoAPIEventWithDeeplinks = <T>(body: T[]) => ({
             protocol: 'https:',
           },
           {
-            hostname: 'example.com',
+            hostname: 'govuk:',
           },
         ],
       }),
