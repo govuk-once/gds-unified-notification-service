@@ -334,6 +334,9 @@ describe('GroupProcessingWorker QueueHandler', () => {
         ProcessedDateTime: date.toISOString(),
         ValidatedDateTime: message.ValidatedDateTime,
         RequestedDaysToExpire: 25,
+        Channel: undefined,
+        DeeplinkURL: undefined,
+        GroupNotificationID: message.GroupNotificationID,
         Events: [],
       },
     ]);
