@@ -115,7 +115,6 @@ jobs:
 
       - name: 🕵🏻 SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
-        continue-on-error: true
         uses: sonarsource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
         if: success() || failure()
         with:
