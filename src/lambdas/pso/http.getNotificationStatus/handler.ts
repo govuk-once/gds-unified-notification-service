@@ -6,6 +6,7 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { BadGatewayError } from '@common/models';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
@@ -42,6 +43,10 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     // If it doesn't exist - 404
     if (notification == null) {
       throw new NotFoundError();
+    }
+
+    if (notification == null) {
+      throw new BadGatewayError();
     }
 
     this.observability.logger.info(`Found notification`, { notification });
