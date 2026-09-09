@@ -59,7 +59,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
     const record: IGroupStoreRecord[] = groupsToJoin
       .map((g) => {
         const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
-        const existingRecord = usersGroups.find((u) => u.CompositeID === compositeID);
+        const existingRecord = usersGroups.some((u) => u.CompositeID === compositeID);
 
         if (existingRecord) {
           this.observability.logger.warn('Request tried to join a group user is already part of', {

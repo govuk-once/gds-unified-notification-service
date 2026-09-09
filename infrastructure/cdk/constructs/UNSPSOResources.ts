@@ -623,7 +623,7 @@ export class UNSPSOResource extends Construct {
           ...Object.values(this.lambdas.sqs),
           ...Object.values(this.lambdas.authorizers),
         ]
-          .filter((x) => x !== undefined && x.fn !== undefined)
+          .filter((x) => x?.fn !== undefined)
           .map((x) => x.fn),
         name: config.utils.namingHelper(`pso-service`),
         restApis: [this.gateway.restApi],
