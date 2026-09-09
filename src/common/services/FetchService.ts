@@ -73,14 +73,14 @@ export class FetchService {
       Accept: 'application/json',
       'Cache-Control': 'max-age=0',
       'Content-Type': 'application/json',
-      ...(this.props.defaultHeaders ?? {}),
+      ...this.props.defaultHeaders,
       ...headers,
     };
 
     let response: Response;
     try {
       response = await this.fetch(url, {
-        ...(this.props.fetchOptions ?? {}),
+        ...this.props.fetchOptions,
         method,
         headers: requestHeaders,
         body: body && requestHeaders['Content-Type'] == 'application/json' ? JSON.stringify(body) : undefined,

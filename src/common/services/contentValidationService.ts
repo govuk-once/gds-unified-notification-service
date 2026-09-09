@@ -2,6 +2,7 @@ import { ContentValidationError } from '@common/models';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
+import z, { ZodType } from 'zod';
 
 const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   // Standard text containment
@@ -35,7 +36,7 @@ const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   'link_close',
 ]);
 
-const PROTOCOLS = ['mailto:', 'tel:', 'sms:', 'https:', 'http:', 'file:', 'data:', 'blob:', 'geo:'];
+const PROTOCOLS = new Set(['mailto:', 'tel:', 'sms:', 'https:', 'http:', 'file:', 'data:', 'blob:', 'geo:']);
 
 export class ContentValidationService {
   private readonly parser = new MarkdownIt({
@@ -53,6 +54,25 @@ export class ContentValidationService {
 
   private createError(content: string) {
     return new ContentValidationError([content]);
+  }
+
+  public validateRecords(data: z.core.output<ZodType>, ctx: z.core.$RefinementCtx<z.core.output<ZodType>>) {
+    try {
+      const body = data as Record<string, unknown>;
+      if (typeof body.MessageBody === 'string') {
+        this.validate(body.MessageBody);
+      }
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['MessageBody'] });
+        return;
+      }
+      ctx.addIssue({
+        code: 'custom',
+        message: e instanceof Error ? e.message : 'Unknown error in content validation',
+        path: ['MessageBody'],
+      });
+    }
   }
 
   public validate(input: string | undefined): string {
@@ -94,7 +114,7 @@ export class ContentValidationService {
       let url: URL;
       try {
         url = new URL(segment);
-        if (!PROTOCOLS.includes(url.protocol)) {
+        if (!PROTOCOLS.has(url.protocol)) {
           continue;
         }
       } catch {

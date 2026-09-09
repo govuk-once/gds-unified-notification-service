@@ -5,9 +5,9 @@ export const IOrganisationConfigSchema = z.object({
   MessageRetention: z
     .object({
       Allowed: z.transform((value) => {
-        if (value == true || value === 'true') {
+        if (value || value === 'true') {
           return true;
-        } else if (value == false || value == undefined || value === 'false') {
+        } else if (!value || value == undefined || value === 'false') {
           return false;
         } else {
           throw new Error("The string must be 'true' or 'false'");
