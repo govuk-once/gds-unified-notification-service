@@ -20,6 +20,8 @@ import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
@@ -136,6 +138,14 @@ export class UNSPSOResource extends Construct {
       }),
     };
 
+    Object.values(this.queues).forEach((queue) => {
+      applyPiiTag(queue, 'unknown');
+      applyPiiTag(queue.dlq, 'unknown');
+      applyExposureTag(queue, 'Isolated');
+    });
+    applyPiiTag(this.queues.analytics.queue, 'false');
+    applyPiiTag(this.queues.analytics.dlq, 'false');
+
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
@@ -169,6 +179,8 @@ export class UNSPSOResource extends Construct {
       serverAccessLogsPrefix: namingHelper('analytics-export'),
     });
     applyCheckovSkipsS3Bucket(analyticsExportBucket);
+    applyExposureTag(analyticsExportBucket, 'Isolated');
+    applyPiiTag(analyticsExportBucket, 'false');
 
     analyticsExportBucket.addToResourcePolicy(
       new PolicyStatement({
@@ -432,6 +444,7 @@ export class UNSPSOResource extends Construct {
         queues: [this.queues.processing.queue],
       },
     });
+    applyExposureTag(processing, 'Internal');
 
     const groupProcessingWorker =
       config.featureFlag.groups && this.queues.groupProcessing && refs.dynamodb.groupStore
@@ -544,6 +557,11 @@ export class UNSPSOResource extends Construct {
       },
     };
 
+    // Endpoints need a Perimeter exposed tag as they're reachable from internal (Via APIGW)
+    [...Object.values(this.lambdas.http), ...Object.values(this.lambdas.authorizers)].forEach((lambda) => {
+      applyExposureTag(lambda, 'Perimeter');
+    });
+
     //// =====================================================
     // API Gateway
     //// =====================================================
@@ -587,6 +605,10 @@ export class UNSPSOResource extends Construct {
       .GET(`getNotificationStatus`, `/status/{notificationID}`, this.lambdas.http.getNotificationStatus.integration)
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, this.lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, this.lambdas.http.postMessage.integration);
+
+    // PSO API Gateway & WAF only accept mTLS filtered internetl traffic
+    applyExposureTag(this.gateway, 'Perimeter');
+    applyExposureTag(this.gateway.waf, 'Perimeter');
 
     if (this.lambdas.http.postGroupMessage) {
       this.gateway = this.gateway.POST(
