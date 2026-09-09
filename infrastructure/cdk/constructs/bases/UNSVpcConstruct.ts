@@ -24,12 +24,12 @@ import {
   TrafficDirection,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
+import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
-import { IBucket } from 'node_modules/aws-cdk-lib/aws-s3/lib/bucket';
 
 export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
   readonly name: string[];

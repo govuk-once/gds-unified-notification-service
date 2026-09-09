@@ -93,25 +93,7 @@ export abstract class BatchQueueOperation<
     // Added strict validation and contents validation to schema if content validation service is provided
     const contentValidationService = this.contentValidationService;
     const schema = contentValidationService
-      ? this.requestBodySchema.superRefine((data, ctx) => {
-          // TODO: Shift out content validation away from this base class
-          try {
-            const body = data as Record<string, unknown>;
-            if (typeof body.MessageBody === 'string') {
-              contentValidationService.validate(body.MessageBody);
-            }
-          } catch (e) {
-            if (e instanceof ContentValidationError) {
-              ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['MessageBody'] });
-              return;
-            }
-            ctx.addIssue({
-              code: 'custom',
-              message: e instanceof Error ? e.message : 'Unknown error in content validation',
-              path: ['MessageBody'],
-            });
-          }
-        })
+      ? this.requestBodySchema.superRefine((data, ctx) => contentValidationService.validateRecords(data, ctx))
       : this.requestBodySchema;
 
     const { data, error } = await schema.safeParseAsync(record.body);

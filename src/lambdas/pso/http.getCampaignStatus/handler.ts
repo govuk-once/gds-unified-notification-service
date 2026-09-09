@@ -78,7 +78,7 @@ export class GetCampaignStatus extends APIHandler<
     }
 
     const compositeSegments = campaign.CompositeID.split('/');
-    const campaignId = compositeSegments.at(compositeSegments.length - 1)!;
+    const campaignId = compositeSegments.at(-1)!;
 
     return {
       body: {
