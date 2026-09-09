@@ -85,22 +85,13 @@ export class UNSAPIGatewayGateway extends Construct {
   //// =====================================================
   // Domain
   //// =====================================================
-  private setupConfig(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+  protected domainConfig(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
     const { namingHelper } = config.utils;
-
+    // Setup custom domain parameters via SSM configurations
     const rootDomain = config.ssm.hostedZoneName;
     const certificateArn = config.ssm.certificateArnRegional;
     const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
     const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
-
-    return { rootDomain, certificateArn, subdomain, fullDomain };
-  }
-
-  protected domainConfig(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
-    const { namingHelper } = config.utils;
-
-    // Setup custom domain parameters via SSM configurations
-    const { rootDomain, certificateArn, subdomain, fullDomain } = this.setupConfig(config, props);
 
     let hostedZone: route53.IHostedZone | null = null;
 
