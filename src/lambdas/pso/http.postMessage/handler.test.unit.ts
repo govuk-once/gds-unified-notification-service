@@ -6,6 +6,7 @@ import {
   mockEventContext,
   mockIMessage_NoOrgID,
   mockPsoAPIEventWithChannelsControl,
+  mockPsoAPIEventWithDeeplinks,
   mockPsoAPIEventWithMessageRetention,
   mockServicesExpectedBehaviour,
   mockUnauthorizedPsoAPIEvent,
@@ -122,6 +123,31 @@ describe('PostMessage Handler', () => {
         APIGWExtendedID: event.requestContext.requestId,
         ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
+        Events: [],
+      },
+    ]);
+  });
+
+  it('should make a record using deeplinkUrl in days if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const messageWithDeeplinkURL = { ...message, DeeplinkURL: 'https://example.com' };
+    const eventWithDeeplinkURL = mockPsoAPIEventWithDeeplinks([messageWithDeeplinkURL]) as unknown as EventType;
+
+    // Act
+    await handler(eventWithDeeplinkURL, context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        ...message,
+        OrganisationID: 'ORG01',
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: date.toISOString(),
+        DeeplinkURL: 'https://example.com',
         Events: [],
       },
     ]);
@@ -267,6 +293,34 @@ describe('PostMessage Handler', () => {
 
     // Assert
     expect(result.statusCode).toEqual(202);
+  });
+
+  it('should create a message record with channel when provided in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const messageWithChannel = {
+      ...message,
+      Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+    };
+    const eventWithChannel = mockPsoAPIEventWithChannelsControl([messageWithChannel]) as unknown as EventType;
+
+    // Act
+    await handler(eventWithChannel, context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        ...message,
+        Channel: 'PUSH_NOTIFICATION_AND_MESSAGE_CENTRE',
+        OrganisationID: 'ORG01',
+        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+        ReceivedDateTime: new Date(1428582896000).toISOString(),
+        ValidatedDateTime: date.toISOString(),
+        Events: [],
+      },
+    ]);
   });
 
   it('should return 400 when Channel is an empty string', async () => {

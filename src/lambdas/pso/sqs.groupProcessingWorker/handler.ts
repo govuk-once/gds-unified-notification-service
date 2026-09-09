@@ -140,6 +140,8 @@ export class GroupProcessingWorker extends BatchQueueOperation<
         MessageTitle: groupMessage.MessageTitle,
         MessageBody: groupMessage.MessageBody,
         ExpiresInDays: groupMessage.ExpiresInDays,
+        DeeplinkURL: groupMessage.DeeplinkURL,
+        Channel: groupMessage.Channel,
       });
     }
 

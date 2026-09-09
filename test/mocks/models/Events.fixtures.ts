@@ -124,6 +124,35 @@ export const mockAPIPostMessageEvent = <T>(body: T[]) => ({
   },
 });
 
+export const mockPsoAPIEventWithDeeplinks = <T>(body: T[]) => ({
+  body: JSON.stringify(body),
+  headers: {
+    'x-api-key': 'mockApiKey',
+    'Content-Type': `application/json`,
+  },
+  requestContext: {
+    requestTimeEpoch: 1428582896000,
+    requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+    authorizer: {
+      Organization: 'ORG01',
+      OrganisationConfig: JSON.stringify({
+        MessageRetention: {
+          Allowed: false,
+        },
+        Channels: [],
+        DeeplinkAllowList: [
+          {
+            protocol: 'https:',
+          },
+          {
+            hostname: 'example.com',
+          },
+        ],
+      }),
+    },
+  },
+});
+
 export const mockPsoAPIEventWithMessageRetention = <T>(body: T[]) => ({
   body: JSON.stringify(body),
   headers: {
