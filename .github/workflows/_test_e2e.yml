@@ -36,7 +36,7 @@ jobs:
     name: E2E (Codebuild)
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.ENVIRONMENT }}
+      name: ${{ inputs.ENVIRONMENT || 'dev' }}
     steps:
       - name: ⚙️ Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
