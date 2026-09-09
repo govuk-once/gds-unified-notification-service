@@ -348,7 +348,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
       ...message,
       GroupMessage: {
         ...message.GroupMessage,
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
       },
     };
     const event = mockQueueEvent(messageWithExpiresInDay);
@@ -371,7 +371,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
         ReceivedDateTime: message.ReceivedDateTime,
         ProcessedDateTime: date.toISOString(),
         ValidatedDateTime: message.ValidatedDateTime,
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
         Events: [],
       },
     ]);

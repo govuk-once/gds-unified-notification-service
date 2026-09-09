@@ -133,7 +133,7 @@ describe('PostMessage Handler', () => {
     vi.useFakeTimers();
     const date = new Date();
     vi.setSystemTime(date);
-    const messageWithDeeplinkURL = { ...message, DeeplinkURL: 'https://example.com' };
+    const messageWithDeeplinkURL = { ...message, DeeplinkURL: 'govuk://travel' };
     const eventWithDeeplinkURL = mockPsoAPIEventWithDeeplinks([messageWithDeeplinkURL]) as unknown as EventType;
 
     // Act
@@ -147,7 +147,7 @@ describe('PostMessage Handler', () => {
         APIGWExtendedID: event.requestContext.requestId,
         ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
         ValidatedDateTime: date.toISOString(),
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
         Events: [],
       },
     ]);
