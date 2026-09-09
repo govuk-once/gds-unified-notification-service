@@ -62,4 +62,4 @@ jobs:
         run: |
           zip -rqy source.zip . 
           SOURCE_KEY="e2e/${{github.ref_name}}/source-${{github.run_id}}-${{github.sha}}.zip"
-          aws s3 cp source.zip "s3://${{ inputs.SOURCE_BUCKET }}/$SOURCE_KEY"
+          aws s3 cp source.zip "s3//uns-mehedi-a6a1-e2e-runner-builds/$SOURCE_KEY"
