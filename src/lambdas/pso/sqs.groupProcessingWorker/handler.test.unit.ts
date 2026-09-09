@@ -363,6 +363,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         NotificationID: '524ef10e-aef1-4c51-a0e0-343f499f7201',
+        GroupNotificationID: message.GroupNotificationID,
         CampaignID: 'CAM_ID',
         OrganisationID: 'ORG01',
         ExternalUserID: 'pushID_1',
@@ -401,6 +402,7 @@ describe('GroupProcessingWorker QueueHandler', () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
       {
         NotificationID: '524ef10e-aef1-4c51-a0e0-343f499f7201',
+        GroupNotificationID: message.GroupNotificationID,
         CampaignID: 'CAM_ID',
         OrganisationID: 'ORG01',
         ExternalUserID: 'pushID_1',
