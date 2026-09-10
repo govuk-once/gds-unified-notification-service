@@ -91,9 +91,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
-    const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
-      SSMParameters.Config.FeatureFlags.DeepLinkUrl
-    );
+    const featureEnabledDeepLinkUrl = await this.config.getParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
     const data = await this.validateRecord(record);
     const message = data.body;
 
@@ -105,9 +103,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
       (
         await this.cacheService.rateLimit(
           `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-          await this.config.getNumericParameter(
-            SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute
-          )
+          await this.config.getParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute)
         )
       ).exceeded
     ) {
@@ -142,7 +138,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
     // Increment rate limiter post request
     await this.cacheService.rateLimit(
       `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-      await this.config.getNumericParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute),
+      await this.config.getParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute),
       1
     );
   };

@@ -32,7 +32,8 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
   public async initialize(): Promise<void> {
     if (this.client == undefined && this.udpConfig == undefined) {
       // Fetch value from SSM - it's serialized JSON to allow it to be nullable
-      const config = await this.config.getParameterAsType(SSMParameters.Config.UDP.SM, z.string().or(z.null()), true);
+      const rawConfig = await this.config.getParameter(SSMParameters.Config.UDP.SM);
+      const config = z.string().or(z.null()).parse(JSON.parse(rawConfig));
 
       if (config == null) {
         this.observability.logger.error(
@@ -43,7 +44,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
       // Fetch config from UDPs AWS Acc
       const configSecret: ParameterConfig<'json'> = { Path: config, Type: 'json' };
-      this.udpConfig = await this.smConfig.getParameterAsType(configSecret, UDPConfigSchema, true);
+      this.udpConfig = await this.smConfig.getSecret(configSecret, UDPConfigSchema, true);
 
       this.client = new FetchSigV4Service({
         baseUrl: this.udpConfig.apiUrl,

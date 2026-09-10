@@ -10,6 +10,7 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services/configurationService.ts', { spy: true });
+vi.mock('@common/services/smConfigurationService.ts', { spy: true });
 
 describe('ValidationService', () => {
   let instance: ValidationService;
@@ -238,7 +239,7 @@ describe('ValidationService', () => {
 
     it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
       // Arrange
-      mockParameterStore[SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path] = 'false';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path] = false;
       // Re-initialising with new feature flags
       const instance = new ValidationService(
         serviceMocks.contentValidationServiceMock,
@@ -258,7 +259,7 @@ describe('ValidationService', () => {
 
     it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
       // Arrange
-      mockParameterStore[SSMParameters.Config.FeatureFlags.MessageRetention.Path] = 'false';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.MessageRetention.Path] = false;
       // Re-initialising with new feature flags
       const instance = new ValidationService(
         serviceMocks.contentValidationServiceMock,
@@ -278,7 +279,7 @@ describe('ValidationService', () => {
 
     it('should return 400 when ControlChannels is disabled and Channel is a valid enum value', async () => {
       // Arrange
-      mockParameterStore[SSMParameters.Config.FeatureFlags.ChannelControls.Path] = 'false';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.ChannelControls.Path] = false;
       // Re-initialising with new feature flags
       const instance = new ValidationService(
         serviceMocks.contentValidationServiceMock,

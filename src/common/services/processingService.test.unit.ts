@@ -82,11 +82,12 @@ describe('ProcessingService', () => {
       await instance.initialize();
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getEnumParameter).toHaveBeenCalledTimes(1);
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
       expect(instance.adapter instanceof ProcessingAdapterVoid).toEqual(true);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        SSMParameters.Config.Processing.Adapter.Path
+        SSMParameters.Config.Processing.Adapter,
+        expect.any(Object)
       ); // Void Adapter should make not further param calls
     });
 
@@ -99,11 +100,13 @@ describe('ProcessingService', () => {
       await instance.initialize();
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getEnumParameter).toHaveBeenCalledTimes(1); //
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(2); //
       expect(instance.adapter instanceof ProcessingAdapterUDP).toEqual(true);
-      for (const param of expectedParamCalls) {
-        expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(param);
-      }
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        SSMParameters.Config.Processing.Adapter,
+        expect.any(Object)
+      );
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(SSMParameters.Config.UDP.SM);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(expectedParamCalls.length);
     });
   });

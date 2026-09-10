@@ -642,17 +642,17 @@ export class UNSPSOResource extends Construct {
       [SSMParameters.Table.MTLSRevocation.Attributes.Path]: props.mtls.revocationTableAttributes,
 
       // SQS Queue refs
-      'queue/processing/url': this.queues.processing.queue.queueUrl,
+      [SSMParameters.Queue.Processing.Url.Path]: this.queues.processing.queue.queueUrl,
       ...(config.featureFlag.groups && this.queues.groupProcessing?.queue.queueUrl
         ? {
-            'queue/groupprocessing/url': this.queues.groupProcessing?.queue.queueUrl,
+            [SSMParameters.Queue.GroupProcessing.Url.Path]: this.queues.groupProcessing?.queue.queueUrl,
           }
         : {}),
-      'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
+      [SSMParameters.Queue.Dispatch.Url.Path]: this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export
-      'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
-      'analytics/export/bucket/name': analyticsExportBucket.bucketName,
+      [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName,
+      [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket.bucketName,
     });
   }
 }

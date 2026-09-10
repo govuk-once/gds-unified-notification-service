@@ -41,7 +41,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
 
   private refreshCachePromise: Promise<void> | null = null;
 
-  public async getParameter(namespace: string): Promise<string> {
+  protected async getParameterRawValue(namespace: string): Promise<string> {
     this.observability.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
@@ -85,7 +85,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
     stageConfig: ParameterConfig<'boolean'>
   ) {
     for (const config of [commonConfig, stageConfig]) {
-      if ((await this.getBooleanParameter(config)) !== true) {
+      if ((await this.getParameter(config)) !== true) {
         this.observability.logger.error(`Service is disabled due to parameter ${config.Path} being set to false`);
         throw new ServiceMisconfigurationError();
       }
@@ -93,13 +93,9 @@ export class ConfigurationService extends BaseConfigurableValueService {
   }
 
   public async getFeatureFlags(): Promise<FeatureFlags> {
-    const channelControlsFeatureFlag = await this.getBooleanParameter(
-      SSMParameters.Config.FeatureFlags.ChannelControls
-    );
-    const deeplinkUrlFeatureFlag = await this.getBooleanParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
-    const messageRetentionFeatureFlag = await this.getBooleanParameter(
-      SSMParameters.Config.FeatureFlags.MessageRetention
-    );
+    const channelControlsFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.ChannelControls);
+    const deeplinkUrlFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
+    const messageRetentionFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.MessageRetention);
 
     return {
       channelControls: channelControlsFeatureFlag,

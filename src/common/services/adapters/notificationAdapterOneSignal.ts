@@ -1,15 +1,19 @@
 import { ChannelsEnum } from '@common/models';
 import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
 import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
-import { ConfigurationService, ObservabilityService, ProviderDimension } from '@common/services';
+import {
+  ConfigurationService,
+  ObservabilityService,
+  ProviderDimension,
+  SMConfigurationService,
+} from '@common/services';
 import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
-import { StringSecret } from '@common/utils/secrets';
+import SecretParameters from '@shared/secretParameters';
 import SSMParameters from '@shared/ssmParameter';
 
 interface OneSignalPushNotificationResponse {
@@ -35,7 +39,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService
+    protected smConfig: SMConfigurationService
   ) {}
 
   public async initialize(): Promise<void> {
@@ -45,9 +49,9 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     }
 
     // Fetch configs
-    this.key = await this.smConfig.getParameter(StringSecret.Dispatch.OneSignal.ApiKey);
-    this.appId = await this.config.getStringParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
-    this.deeplinkTemplate = await this.config.getStringParameter(SSMParameters.Notification.DeeplinkTemplate);
+    this.key = await this.smConfig.getNamespacedSecret(SecretParameters.Dispatch.OneSignal.ApiKey);
+    this.appId = await this.config.getParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
+    this.deeplinkTemplate = await this.config.getParameter(SSMParameters.Notification.DeeplinkTemplate);
 
     this.client = new FetchService({
       baseUrl: `https://api.onesignal.com/`,

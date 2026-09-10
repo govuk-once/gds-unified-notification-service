@@ -28,8 +28,8 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     protected observability: ObservabilityService
   ) {}
 
-  public async initialize(tableAttributesParameter: ParameterConfig) {
-    this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
+  public async initialize(tableAttributesParameter: ParameterConfig<'json'>) {
+    this.tableAttributes = await this.config.getParameter(tableAttributesParameter, IDynamoAttributesSchema);
     this.observability.tracer.captureAWSv3Client(this.client);
     return this;
   }

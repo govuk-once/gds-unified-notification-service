@@ -17,7 +17,7 @@ export class GroupProcessingQueueService extends QueueService<IGroupMessageMetad
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.GroupProcessing.Url);
+    this.sqsQueueUrl = await this.config.getParameter(SSMParameters.Queue.GroupProcessing.Url);
 
     await super.initialize();
     this.observability.logger.info('Group Processing Queue Service Initialised.');

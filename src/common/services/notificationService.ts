@@ -7,7 +7,7 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
 import { segment } from '@common/utils';
 import SSMParameters from '@shared/ssmParameter';
 import z from 'zod';
@@ -18,12 +18,12 @@ export class NotificationService {
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService
+    protected smConfig: SMConfigurationService
   ) {}
 
   async initialize() {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getEnumParameter(
+    const adapter = await this.config.getParameter(
       SSMParameters.Config.Dispatch.Adapter,
       z.enum([`VOID`, `OneSignal`])
     );

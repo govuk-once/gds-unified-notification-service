@@ -58,7 +58,7 @@ describe('Processing QueueHandler', () => {
     mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
-    serviceMocks.smConfigurationServiceMock.getParameterAsType = vi.fn().mockResolvedValueOnce({
+    serviceMocks.smConfigurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce({
       SecretString: JSON.stringify({
         apiAccountId: `abc`,
         apiKey: `cde`,
@@ -91,11 +91,11 @@ describe('Processing QueueHandler', () => {
   });
 
   it.each([
-    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [`true`, `false`, `Service is disabled due to parameter config/processing/enabled being set to false`],
+    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [true, false, `Service is disabled due to parameter config/processing/enabled being set to false`],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
+    async (commonEnabled: boolean, processingEnabled: boolean, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
       mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;

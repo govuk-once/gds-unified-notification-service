@@ -17,7 +17,7 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.Dispatch.Url);
+    this.sqsQueueUrl = await this.config.getParameter(SSMParameters.Queue.Dispatch.Url);
     await super.initialize();
 
     this.observability.logger.info('Dispatch Queue Service Initialised.');

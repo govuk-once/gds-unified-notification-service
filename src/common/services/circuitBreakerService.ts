@@ -61,10 +61,10 @@ export class CircuitBreakerService {
    */
   async checkCircuit(): Promise<void> {
     const [threshold, windowDuration, halfOpenAfter, rateLimitWhenOpen] = await Promise.all([
-      this.config.getNumericParameter(SSMParameters.Config.Dispatch.CircuitBreaker.Threshold),
-      this.config.getNumericParameter(SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration),
-      this.config.getNumericParameter(SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter),
-      this.config.getNumericParameter(SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.Threshold),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen),
     ]);
 
     const state = await this.getState();
@@ -126,8 +126,8 @@ export class CircuitBreakerService {
     this.observability.metrics.addMetric(MetricsLabels.CIRCUIT_BREAKER_FAILURE, MetricUnit.Count, 1);
 
     const [threshold, windowDuration] = await Promise.all([
-      this.config.getNumericParameter(SSMParameters.Config.Dispatch.CircuitBreaker.Threshold),
-      this.config.getNumericParameter(SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.Threshold),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration),
     ]);
 
     const windowKey = this.currentWindowKey(windowDuration);

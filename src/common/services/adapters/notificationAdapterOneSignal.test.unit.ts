@@ -28,7 +28,7 @@ describe('NotificationAdapterOneSignal', () => {
     instance = new NotificationAdapterOneSignal(
       observabilityMocks,
       serviceMocks.configurationServiceMock,
-      serviceMocks.smNamespacedConfigurationServiceMock
+      serviceMocks.smConfigurationServiceMock
     );
     await instance.initialize();
     instance.client.post = postMock;

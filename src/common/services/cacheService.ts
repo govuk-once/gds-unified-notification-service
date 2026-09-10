@@ -47,9 +47,9 @@ export class CacheService {
   }
 
   async connect() {
-    const cacheName = await this.config.getStringParameter(SSMParameters.Config.Common.Cache.Name);
-    const cacheHost = await this.config.getStringParameter(SSMParameters.Config.Common.Cache.Host);
-    const cacheUser = await this.config.getStringParameter(SSMParameters.Config.Common.Cache.User);
+    const cacheName = await this.config.getParameter(SSMParameters.Config.Common.Cache.Name);
+    const cacheHost = await this.config.getParameter(SSMParameters.Config.Common.Cache.Host);
+    const cacheUser = await this.config.getParameter(SSMParameters.Config.Common.Cache.User);
 
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),

@@ -17,7 +17,7 @@ export class ProcessingQueueService extends QueueService<IMessage> {
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.Processing.Url);
+    this.sqsQueueUrl = await this.config.getParameter(SSMParameters.Queue.Processing.Url);
 
     await super.initialize();
     this.observability.logger.info('Processing Queue Service Initialised.');

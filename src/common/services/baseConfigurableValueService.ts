@@ -1,21 +1,21 @@
 import { ServiceMisconfigurationError } from '@common/models';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { ParameterConfig } from '@shared/ssmParameter';
-import * as z from 'zod';
+import z, { ZodEnum, ZodType } from 'zod';
 
 export abstract class BaseConfigurableValueService {
   constructor(protected observability: ObservabilityService) {}
 
   // Implements value fetching logic - and string value getting
-  abstract getParameter(namespace: string): Promise<string>;
+  protected abstract getParameterRawValue(namespace: string): Promise<string>;
 
   // Value parser
-  public async getParameterAsType<T extends z.Schema>(
+  protected async getParameterAsType<T extends ZodType>(
     parameter: ParameterConfig,
     schema: T,
     deserialize: boolean = true
   ): Promise<z.infer<T>> {
-    const parameterValue = await this.getParameter(parameter.Path);
+    const parameterValue = await this.getParameterRawValue(parameter.Path);
 
     // Parse parameter
     try {
@@ -44,7 +44,7 @@ export abstract class BaseConfigurableValueService {
     }
   }
 
-  public async getBooleanParameter(parameter: ParameterConfig<'boolean'>): Promise<boolean> {
+  protected async getBooleanParameter(parameter: ParameterConfig): Promise<boolean> {
     return this.getParameterAsType(
       parameter,
       z.coerce
@@ -57,7 +57,7 @@ export abstract class BaseConfigurableValueService {
     );
   }
 
-  public async getNumericParameter(parameter: ParameterConfig<'numeric'>): Promise<number> {
+  protected async getNumericParameter(parameter: ParameterConfig): Promise<number> {
     return this.getParameterAsType(
       parameter,
       z.coerce
@@ -73,14 +73,31 @@ export abstract class BaseConfigurableValueService {
     );
   }
 
-  public async getEnumParameter<T extends z.ZodEnum>(
-    parameter: ParameterConfig<'enum'>,
-    schema: T
-  ): Promise<z.infer<T>> {
-    return await this.getParameterAsType(parameter, schema, false);
+  protected async getStringParameter(parameter: ParameterConfig): Promise<string> {
+    return this.getParameterRawValue(parameter.Path);
   }
 
-  public async getStringParameter(parameter: ParameterConfig<'string'>): Promise<string> {
-    return this.getParameter(parameter.Path);
+  public async getParameter(parameter: ParameterConfig<'boolean'>): Promise<boolean>;
+  public async getParameter(parameter: ParameterConfig<'numeric'>): Promise<number>;
+  public async getParameter(parameter: ParameterConfig<'string'>): Promise<string>;
+  public async getParameter<T extends ZodEnum>(parameter: ParameterConfig<'enum'>, schema: T): Promise<z.infer<T>>;
+  public async getParameter<T extends ZodType>(
+    parameter: ParameterConfig<'json'>,
+    schema: T,
+    deserialize?: boolean
+  ): Promise<z.infer<T>>;
+  public async getParameter(parameter: ParameterConfig, schema?: ZodType, deserialize?: boolean) {
+    switch (parameter.Type) {
+      case 'boolean':
+        return this.getBooleanParameter(parameter);
+      case 'numeric':
+        return this.getNumericParameter(parameter);
+      case 'string':
+        return this.getStringParameter(parameter);
+      case 'enum':
+        return this.getParameterAsType(parameter, schema!, false);
+      case 'json':
+        return this.getParameterAsType(parameter, schema!, deserialize);
+    }
   }
 }

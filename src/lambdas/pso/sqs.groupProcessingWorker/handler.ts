@@ -100,7 +100,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 
     const groupMessage = data.body.GroupMessage;
     const cacheKey = data.body.CacheKey;
-    const workerBatchSize = await this.config.getNumericParameter(SSMParameters.Group.Dispatch.WorkerBatchSize);
+    const workerBatchSize = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
     this.observability.logger.debug(`Retrieving list of pushIDs to process from cache.`);

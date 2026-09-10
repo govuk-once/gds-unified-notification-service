@@ -1,9 +1,9 @@
-import { StringSecret } from '@common/utils/secrets';
+import SecretParameters from '@shared/secretParameters';
 import SSMParameters from '@shared/ssmParameter';
 
 // Default config values for mocking
 // All of the values in SSM are strings
-export const mockDefaultConfig = (): Record<string, string | Error> =>
+export const mockDefaultConfig = (): Record<string, string | boolean | number | object | Error> =>
   Object.entries({
     // Strings
     [SSMParameters.Config.Common.Cache.Host.Path]: 'host',
@@ -22,85 +22,84 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
     [SSMParameters.Content.Allowed.UrlHostnames.Path]: '*.gov.uk',
     [SSMParameters.Notification.DeeplinkTemplate.Path]: 'govuk://notifications?id={id}',
     // Bool params
-    [SSMParameters.Config.Common.Enabled.Path]: `true`,
-    [SSMParameters.Config.Dispatch.Enabled.Path]: `true`,
-    [SSMParameters.Config.Processing.Enabled.Path]: `true`,
-    [SSMParameters.Config.GroupProcessingWorker.Enabled.Path]: `true`,
-    [SSMParameters.Config.Validation.Enabled.Path]: `true`,
-    [SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path]: `true`,
-    [SSMParameters.Config.FeatureFlags.ChannelControls.Path]: `true`,
-    [SSMParameters.Config.FeatureFlags.MessageRetention.Path]: `true`,
+    [SSMParameters.Config.Common.Enabled.Path]: true,
+    [SSMParameters.Config.Dispatch.Enabled.Path]: true,
+    [SSMParameters.Config.Processing.Enabled.Path]: true,
+    [SSMParameters.Config.GroupProcessingWorker.Enabled.Path]: true,
+    [SSMParameters.Config.Validation.Enabled.Path]: true,
+    [SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path]: true,
+    [SSMParameters.Config.FeatureFlags.ChannelControls.Path]: true,
+    [SSMParameters.Config.FeatureFlags.MessageRetention.Path]: true,
     // Enums
     [SSMParameters.Config.Dispatch.Adapter.Path]: 'OneSignal',
     [SSMParameters.Config.Processing.Adapter.Path]: 'UDP',
     // Numbers
-    [SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute.Path]: `100`,
-    [SSMParameters.Config.Dispatch.CircuitBreaker.Threshold.Path]: `5`,
-    [SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration.Path]: `60`,
-    [SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter.Path]: `30`,
-    [SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen.Path]: `5`,
-    [SSMParameters.Group.Dispatch.WorkerCount.Path]: `5`,
-    [SSMParameters.Group.Dispatch.WorkerBatchSize.Path]: `100`,
+    [SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute.Path]: 100,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.Threshold.Path]: 5,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration.Path]: 60,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter.Path]: 30,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen.Path]: 5,
+    [SSMParameters.Group.Dispatch.WorkerCount.Path]: 5,
+    [SSMParameters.Group.Dispatch.WorkerBatchSize.Path]: 1,
     // Nested objects
-    [SSMParameters.Table.Inbound.Attributes.Path]: JSON.stringify({
+    [SSMParameters.Table.Inbound.Attributes.Path]: {
       attributes: ['DepartmentID', 'NotificationID'],
       hashKey: 'NotificationID',
       rangeKey: null,
       name: 'mockNotificationsDynamoRepositoryName',
       expirationAttribute: 'ExpirationDateTime',
       expirationDurationInSeconds: 60 * 60 * 24 * 30,
-    }),
-    [SSMParameters.Table.MTLSRevocation.Attributes.Path]: JSON.stringify({
+    },
+    [SSMParameters.Table.MTLSRevocation.Attributes.Path]: {
       name: 'mockMtlsRevocationTableName',
       attributes: [],
       hashKey: 'Id',
       rangeKey: '',
-    }),
-    [SSMParameters.Table.Campaigns.Attributes.Path]: JSON.stringify({
+    },
+    [SSMParameters.Table.Campaigns.Attributes.Path]: {
       name: 'mockCampaignsDynamoRepositoryName',
       attributes: ['CompositeID'],
       hashKey: 'CompositeID',
       rangeKey: null,
-    }),
-    [SSMParameters.Table.Organisations.Attributes.Path]: JSON.stringify({
+    },
+    [SSMParameters.Table.Organisations.Attributes.Path]: {
       name: 'mockOrganisationsDynamoRepositoryName',
       attributes: [],
       hashKey: 'OrganisationID',
       rangeKey: null,
-    }),
-    [SSMParameters.Table.GroupStore.Attributes.Path]: JSON.stringify({
+    },
+    [SSMParameters.Table.GroupStore.Attributes.Path]: {
       name: 'mockGroupStoreDynamoRepositoryName',
       attributes: ['CompositeID'],
       hashKey: 'GroupID',
       rangeKey: 'PushID',
-    }),
+    },
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockDefaultSecrets = (): Record<string, string | Error> =>
   Object.entries({
     // Strings
-    [StringSecret.Dispatch.OneSignal.ApiKey]: 'mockOneSignalAppKey',
+    [SecretParameters.Dispatch.OneSignal.ApiKey.Path]: 'mockOneSignalAppKey',
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockDefaultExternalSecrets = (): Record<string, string | Error> =>
   Object.entries({
     // Strings
-    ['arn:of:sm:secret']: JSON.stringify({
+    ['arn:of:sm:secret']: {
       apiAccountId: '1231231231',
       apiKey: 'abc',
       apiUrl: 'https://udp',
       consumerRoleArn: 'arn:iam:consumer',
       region: 'eu-west-2',
-    }),
+    },
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
-export const mockGetParameterImplementation = (records: Record<string, string | Error>) => {
-  return (parameter: string) => {
-    // If the value stored is an error - throw it instead of returning
-    if (records[parameter] instanceof Error) {
-      throw records[parameter];
+export const mockGetParameterImplementation = (records: Record<string, string | boolean | number | object | Error>) => {
+  return (parameter: string | { Path: string }) => {
+    const key = typeof parameter === 'string' ? parameter : parameter.Path;
+    if (records[key] instanceof Error) {
+      throw records[key];
     }
-    // Otherwise just return value
-    return Promise.resolve(records[parameter]);
+    return Promise.resolve(records[key]);
   };
 };

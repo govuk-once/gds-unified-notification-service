@@ -30,7 +30,6 @@ import {
   ProcessingQueueService,
   ProcessingService,
   SMConfigurationService,
-  SMNamespacedConfigurationService,
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
@@ -138,12 +137,6 @@ export const iocGetSMConfigurationService = ioc(
   'SMConfigurationService',
   Mode.SINGLETON,
   () => new SMConfigurationService(iocGetSecretManagerClient(), iocGetObservabilityService())
-);
-
-export const iocGetSMNamespacedConfigurationService = ioc(
-  'SMPrefixedConfigurationService',
-  Mode.SINGLETON,
-  () => new SMNamespacedConfigurationService(iocGetSecretManagerClient(), iocGetObservabilityService())
 );
 
 export const iocGetCacheService = ioc(
@@ -257,7 +250,7 @@ export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOU
   new NotificationService(
     iocGetObservabilityService(),
     iocGetConfigurationService(),
-    iocGetSMNamespacedConfigurationService()
+    iocGetSMConfigurationService()
   ).initialize()
 );
 
@@ -321,8 +314,8 @@ export const iocGetContentValidationService = ioc(
     new ContentValidationService(
       iocGetObservabilityService(),
       iocGetConfigurationService(),
-      (await iocGetConfigurationService().getStringParameter(SSMParameters.Content.Allowed.Protocols)).split(','),
-      (await iocGetConfigurationService().getStringParameter(SSMParameters.Content.Allowed.UrlHostnames)).split(',')
+      (await iocGetConfigurationService().getParameter(SSMParameters.Content.Allowed.Protocols)).split(','),
+      (await iocGetConfigurationService().getParameter(SSMParameters.Content.Allowed.UrlHostnames)).split(',')
     )
 );
 

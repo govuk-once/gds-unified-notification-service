@@ -97,7 +97,7 @@ export class PostGroupMessage extends APIHandler<
     this.validationService.messageValidation(messages, organisationConfig);
 
     // Get the number of workers to be used to process the group message
-    const numberOfWorkers = await this.config.getNumericParameter(SSMParameters.Group.Dispatch.WorkerCount);
+    const numberOfWorkers = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerCount);
 
     const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
     for (const message of messages) {

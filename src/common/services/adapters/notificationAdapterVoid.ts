@@ -6,7 +6,7 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
 
 export class NotificationAdapterVoid implements NotificationAdapter {
   public supportedChannels: ChannelsEnum = ChannelsEnum.MESSAGE_CENTRE_ONLY;
@@ -14,7 +14,7 @@ export class NotificationAdapterVoid implements NotificationAdapter {
   constructor(
     protected observability: ObservabilityService,
     protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService
+    protected smConfig: SMConfigurationService
   ) {}
 
   // Empty shim

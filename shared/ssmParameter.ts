@@ -6,18 +6,18 @@ export interface ParameterConfig<T extends SSMParameterType = SSMParameterType> 
   Default?: string;
 }
 
-export type ParameterTree = {
+type ParameterTree = {
   readonly [key: string]: ParameterConfig | ParameterTree;
 };
 
-const staticParam = (Path: string, Type: SSMParameterType, Default: string): ParameterConfig<SSMParameterType> => ({
+const staticParam = <T extends SSMParameterType>(Path: string, Type: T, Default: string): ParameterConfig<T> => ({
   Path,
   Type,
   Default,
 });
-const infraParam = (Path: string, Type: SSMParameterType): ParameterConfig<SSMParameterType> => ({ Path, Type });
+const infraParam = <T extends SSMParameterType>(Path: string, Type: T): ParameterConfig<T> => ({ Path, Type });
 
-export const SSMParameters = {
+const SSMParameters = {
   Config: {
     Common: {
       Enabled: staticParam('config/common/enabled', 'boolean', 'true'),

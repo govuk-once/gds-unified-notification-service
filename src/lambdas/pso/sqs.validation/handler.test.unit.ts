@@ -105,11 +105,11 @@ describe('Validation QueueHandler', () => {
   });
 
   it.each([
-    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [`true`, `false`, `Service is disabled due to parameter config/validation/enabled being set to false`],
+    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [true, false, `Service is disabled due to parameter config/validation/enabled being set to false`],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: string, validationEnabled: string, expectErrorMessage: string) => {
+    async (commonEnabled: boolean, validationEnabled: boolean, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
       mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;

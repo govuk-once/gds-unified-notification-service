@@ -1,3 +1,4 @@
+import SSMParameters from '@shared/ssmParameter';
 import { Duration, Stack } from 'aws-cdk-lib';
 import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
 import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
@@ -262,22 +263,22 @@ export class UNSCommon extends Construct {
     //// =====================================================
     SSMFromObject(this, config, {
       // DynamoDB Tables
-      'table/inbound/attributes': this.dynamodb.messages.attributes,
-      'table/campaigns/attributes': this.dynamodb.campaigns.attributes,
+      [SSMParameters.Table.Inbound.Attributes.Path]: this.dynamodb.messages.attributes,
+      [SSMParameters.Table.Campaigns.Attributes.Path]: this.dynamodb.campaigns.attributes,
       ...(config.featureFlag.groups && this.dynamodb.groupStore
         ? {
-            'table/groupstore/attributes': this.dynamodb.groupStore?.attributes,
+            [SSMParameters.Table.GroupStore.Attributes.Path]: this.dynamodb.groupStore?.attributes,
           }
         : {}),
       //
 
       // Queues
-      'queue/analytics/url': this.queues.analytics.queue.queueUrl,
+      [SSMParameters.Queue.Analytics.Url.Path]: this.queues.analytics.queue.queueUrl,
 
       // Elasticache
-      'config/common/cache/name': this.elasticache.cache.serverlessCacheName,
-      'config/common/cache/host': this.elasticache.cache.attrEndpointAddress,
-      'config/common/cache/user': this.elasticache.user.userName,
+      [SSMParameters.Config.Common.Cache.Name.Path]: this.elasticache.cache.serverlessCacheName,
+      [SSMParameters.Config.Common.Cache.Host.Path]: this.elasticache.cache.attrEndpointAddress,
+      [SSMParameters.Config.Common.Cache.User.Path]: this.elasticache.user.userName,
     });
   }
 }

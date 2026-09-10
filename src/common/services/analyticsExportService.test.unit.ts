@@ -10,6 +10,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-cloudwatch-logs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 vi.mock('@common/services/cacheService', { spy: true });
 
 describe('AnalyticsExportService', () => {

@@ -16,7 +16,7 @@ export class AnalyticsQueueService extends QueueService<unknown> {
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.Analytics.Url);
+    this.sqsQueueUrl = await this.config.getParameter(SSMParameters.Queue.Analytics.Url);
     await super.initialize();
 
     this.observability.logger.info('Analytics Queue Service Initialised.');

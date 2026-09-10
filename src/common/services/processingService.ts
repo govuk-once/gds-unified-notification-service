@@ -18,10 +18,7 @@ export class ProcessingService {
 
   async initialize() {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getEnumParameter(
-      SSMParameters.Config.Processing.Adapter,
-      z.enum([`VOID`, `UDP`])
-    );
+    const adapter = await this.config.getParameter(SSMParameters.Config.Processing.Adapter, z.enum([`VOID`, `UDP`]));
 
     // Select adapter based on the configuration
     this.adapter =

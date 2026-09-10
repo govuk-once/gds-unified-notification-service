@@ -1,3 +1,4 @@
+import SSMParameters from '@shared/ssmParameter';
 import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
@@ -58,7 +59,7 @@ export class UNSOrganisationsCommon extends Construct {
     //// =====================================================
     SSMFromObject(this, config, {
       // DynamoDB Tables
-      'table/organisations/attributes': this.organisationsTable.attributes,
+      [SSMParameters.Table.Organisations.Attributes.Path]: this.organisationsTable.attributes,
     });
   }
 }
