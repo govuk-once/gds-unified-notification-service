@@ -1,6 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
+import { ChannelsEnum, NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { MetricsLabels } from '@common/services';
 import { BoolParameters } from '@common/utils';
@@ -337,6 +337,84 @@ describe('GroupProcessingWorker QueueHandler', () => {
         Channel: undefined,
         DeeplinkURL: undefined,
         GroupNotificationID: message.GroupNotificationID,
+        Events: [],
+      },
+    ]);
+  });
+
+  it('should make a record using deeplink if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const messageWithExpiresInDay: IGroupMessageMetadata = {
+      ...message,
+      GroupMessage: {
+        ...message.GroupMessage,
+        DeeplinkURL: 'govuk://travel',
+      },
+    };
+    const event = mockQueueEvent(messageWithExpiresInDay);
+
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        NotificationID: '524ef10e-aef1-4c51-a0e0-343f499f7201',
+        GroupNotificationID: message.GroupNotificationID,
+        CampaignID: 'CAM_ID',
+        OrganisationID: 'ORG01',
+        ExternalUserID: 'pushID_1',
+        NotificationTitle: 'Hey',
+        NotificationBody: "You've got a message in the message centre",
+        MessageTitle: 'Hi there',
+        MessageBody: 'MOCK_LONG_MESSAGE',
+        APIGWExtendedID: message.APIGWExtendedID,
+        ReceivedDateTime: message.ReceivedDateTime,
+        ProcessedDateTime: date.toISOString(),
+        ValidatedDateTime: message.ValidatedDateTime,
+        DeeplinkURL: 'govuk://travel',
+        Events: [],
+      },
+    ]);
+  });
+
+  it('should make a record using channel if given in payload', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    const messageWithExpiresInDay: IGroupMessageMetadata = {
+      ...message,
+      GroupMessage: {
+        ...message.GroupMessage,
+        Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+      },
+    };
+    const event = mockQueueEvent(messageWithExpiresInDay);
+
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
+      {
+        NotificationID: '524ef10e-aef1-4c51-a0e0-343f499f7201',
+        GroupNotificationID: message.GroupNotificationID,
+        CampaignID: 'CAM_ID',
+        OrganisationID: 'ORG01',
+        ExternalUserID: 'pushID_1',
+        NotificationTitle: 'Hey',
+        NotificationBody: "You've got a message in the message centre",
+        MessageTitle: 'Hi there',
+        MessageBody: 'MOCK_LONG_MESSAGE',
+        APIGWExtendedID: message.APIGWExtendedID,
+        ReceivedDateTime: message.ReceivedDateTime,
+        ProcessedDateTime: date.toISOString(),
+        ValidatedDateTime: message.ValidatedDateTime,
+        Channel: 'PUSH_NOTIFICATION_AND_MESSAGE_CENTRE',
         Events: [],
       },
     ]);
