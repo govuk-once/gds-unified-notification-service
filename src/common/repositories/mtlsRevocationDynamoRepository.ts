@@ -2,7 +2,7 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { mTLSRevocationRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mTLSRevocationRecordSchema> {
   protected recordSchema = mTLSRevocationRecordSchema;
@@ -16,7 +16,7 @@ export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mT
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.MTLSRevocation.Attributes);
+    await super.initialize(SSMParameters.Table.MTLSRevocation.Attributes);
     return this;
   }
 }

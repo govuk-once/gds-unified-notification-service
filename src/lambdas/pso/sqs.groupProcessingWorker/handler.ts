@@ -22,13 +22,13 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
-import { BoolParameters, NumericParameters } from '@common/utils';
 import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
 import {
   IGroupMessageMetadataSchema,
   IIdentifiableGroupMessageSchema,
   IProcessedMessage,
 } from '@project/lambdas/interfaces';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
@@ -74,7 +74,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
   typeof identifiableRecordSchema
 > {
   public operationId: string = 'groupProcessingWorker';
-  protected enableConfig: string = BoolParameters.Config.GroupProcessingWorker.Enabled;
+  protected enableConfig = SSMParameters.Config.GroupProcessingWorker.Enabled;
 
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;
@@ -100,7 +100,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 
     const groupMessage = data.body.GroupMessage;
     const cacheKey = data.body.CacheKey;
-    const workerBatchSize = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerBatchSize);
+    const workerBatchSize = await this.config.getNumericParameter(SSMParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
     this.observability.logger.debug(`Retrieving list of pushIDs to process from cache.`);

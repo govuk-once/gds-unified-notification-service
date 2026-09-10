@@ -3,7 +3,7 @@ import { NotificationStateEnum } from '@common/models';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampaignRecordSchema> {
   protected recordSchema = ICampaignRecordSchema;
@@ -17,7 +17,7 @@ export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampai
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Campaigns.Attributes);
+    await super.initialize(SSMParameters.Table.Campaigns.Attributes);
     return this;
   }
 

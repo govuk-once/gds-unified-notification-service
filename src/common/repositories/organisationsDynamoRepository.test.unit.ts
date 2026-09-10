@@ -1,5 +1,5 @@
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockIOrganisationRecord,
@@ -55,7 +55,7 @@ describe('OrganisationsDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.Organisations.Attributes);
+      expect(superInitialize).toHaveBeenCalledWith(SSMParameters.Table.Organisations.Attributes);
       expect(result).toBe(instance);
     });
   });

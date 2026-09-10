@@ -15,6 +15,7 @@ import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { zodErrorFormatter } from '@common/utils/zod';
+import { ParameterConfig } from '@shared/ssmParameter';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
@@ -27,7 +28,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     protected observability: ObservabilityService
   ) {}
 
-  public async initialize(tableAttributesParameter: string) {
+  public async initialize(tableAttributesParameter: ParameterConfig) {
     this.tableAttributes = await this.config.getParameterAsType(tableAttributesParameter, IDynamoAttributesSchema);
     this.observability.tracer.captureAWSv3Client(this.client);
     return this;

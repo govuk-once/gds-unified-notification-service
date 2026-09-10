@@ -2,9 +2,9 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { filters } from '@common/utils/array';
 import { IGroups, IModifyGroups } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import { v4 as uuid } from 'uuid';
 
 export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroupStoreRecordSchema> {
@@ -19,7 +19,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.GroupStore.Attributes);
+    await super.initialize(SSMParameters.Table.GroupStore.Attributes);
     return this;
   }
 

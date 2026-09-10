@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 export class AnalyticsQueueService extends QueueService<unknown> {
   protected queueName: string = 'analytics';
@@ -16,7 +16,7 @@ export class AnalyticsQueueService extends QueueService<unknown> {
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Analytics.Url);
+    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.Analytics.Url);
     await super.initialize();
 
     this.observability.logger.info('Analytics Queue Service Initialised.');

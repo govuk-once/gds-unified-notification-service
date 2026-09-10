@@ -9,8 +9,8 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
-import { StringParameters } from '@common/utils';
 import { StringSecret } from '@common/utils/secrets';
+import SSMParameters from '@shared/ssmParameter';
 
 interface OneSignalPushNotificationResponse {
   id: string;
@@ -46,8 +46,8 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
 
     // Fetch configs
     this.key = await this.smConfig.getParameter(StringSecret.Dispatch.OneSignal.ApiKey);
-    this.appId = await this.config.getParameter(StringParameters.Dispatch.OneSignal.AppId);
-    this.deeplinkTemplate = await this.config.getParameter(StringParameters.Notification.DeeplinkTemplate);
+    this.appId = await this.config.getStringParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
+    this.deeplinkTemplate = await this.config.getStringParameter(SSMParameters.Notification.DeeplinkTemplate);
 
     this.client = new FetchService({
       baseUrl: `https://api.onesignal.com/`,

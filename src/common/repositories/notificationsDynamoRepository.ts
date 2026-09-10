@@ -7,8 +7,8 @@ import {
   IProcessedMessageRecordSchema,
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { IAnalytics } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 const recordSchema = IMessageRecordSchema;
 
@@ -24,7 +24,7 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Inbound.Attributes);
+    await super.initialize(SSMParameters.Table.Inbound.Attributes);
     return this;
   }
 

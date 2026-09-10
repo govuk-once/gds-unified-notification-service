@@ -3,8 +3,8 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class ProcessingQueueService extends QueueService<IMessage> {
   protected queueName: string = 'processing';
@@ -17,7 +17,7 @@ export class ProcessingQueueService extends QueueService<IMessage> {
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
+    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.Processing.Url);
 
     await super.initialize();
     this.observability.logger.info('Processing Queue Service Initialised.');

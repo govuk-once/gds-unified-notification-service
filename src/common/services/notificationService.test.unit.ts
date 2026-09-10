@@ -2,8 +2,8 @@
 import { BadGatewayError, ChannelsEnum } from '@common/models';
 import { NotificationAdapterOneSignal, NotificationAdapterVoid } from '@common/services/adapters';
 import { NotificationService } from '@common/services/notificationService';
-import { BoolParameters, EnumParameters, StringParameters } from '@common/utils';
 import { StringSecret } from '@common/utils/secrets';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
@@ -54,7 +54,7 @@ describe('NotificationService', () => {
   describe('initialize', () => {
     it('should fetch data from configuration service, initialize void but not onesignal adapter when (void)', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'VOID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'VOID';
 
       // Act
       await instance.initialize();
@@ -64,17 +64,17 @@ describe('NotificationService', () => {
       expect(instance.adapter instanceof NotificationAdapterVoid).toEqual(true);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        EnumParameters.Config.Dispatch.Adapter
+        SSMParameters.Config.Dispatch.Adapter.Path
       ); // Void Adapter should make not further param calls
     });
 
     it('should fetch data from configuration service and initialize onesignal adapter when (onesignal)', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
       const expectedParamCalls = [
-        EnumParameters.Config.Dispatch.Adapter,
-        StringParameters.Dispatch.OneSignal.AppId,
-        StringParameters.Notification.DeeplinkTemplate,
+        SSMParameters.Config.Dispatch.Adapter.Path,
+        SSMParameters.Config.Dispatch.OneSignal.AppId.Path,
+        SSMParameters.Notification.DeeplinkTemplate.Path,
       ];
 
       // Act
@@ -96,7 +96,7 @@ describe('NotificationService', () => {
   describe('send', () => {
     it('Sends a request to the void when adapter is set to Void', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'VOID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'VOID';
       await instance.initialize();
 
       // Act
@@ -113,8 +113,8 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal when adapter is set to onesignal and parses valid response', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
       await instance.initialize();
 
@@ -132,8 +132,8 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal with a deeplink pointing at notification id', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
 
       await instance.initialize();
@@ -153,9 +153,9 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal with an explicit deeplink', async () => {
       // Arrange
-      mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'true';
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path] = 'true';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
 
       await instance.initialize();
@@ -180,8 +180,8 @@ describe('NotificationService', () => {
 
     it('Sends a request to onesignal and logs errors before throwing an exception', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
       await instance.initialize();
 
@@ -217,8 +217,8 @@ describe('NotificationService', () => {
         ...request,
         Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
       };
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
 
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
 
@@ -243,8 +243,8 @@ describe('NotificationService', () => {
         ...request,
         Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
       };
-      mockParameterStore[EnumParameters.Config.Dispatch.Adapter] = 'OneSignal';
-      mockParameterStore[StringParameters.Dispatch.OneSignal.AppId] = 'ONESIGNAL_APP_ID';
+      mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
+      mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[StringSecret.Dispatch.OneSignal.ApiKey] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
 
       await instance.initialize();

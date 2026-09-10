@@ -3,8 +3,8 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
 import { IGroupMessageMetadata } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
   protected queueName: string = 'groupprocessing';
@@ -17,7 +17,7 @@ export class GroupProcessingQueueService extends QueueService<IGroupMessageMetad
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.GroupProcessing.Url);
+    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.GroupProcessing.Url);
 
     await super.initialize();
     this.observability.logger.info('Group Processing Queue Service Initialised.');

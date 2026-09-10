@@ -2,7 +2,7 @@
 import * as awsCredentialsProvider from '@aws-sdk/credential-providers';
 import { ProcessingAdapterUDP, ProcessingAdapterVoid } from '@common/services/adapters';
 import { ProcessingService } from '@common/services/processingService';
-import { EnumParameters, StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockDefaultConfig, mockProcessingAdapterRequest, mockServicesExpectedBehaviour } from '@test/mocks';
 import { Mocked } from 'vitest';
 
@@ -76,7 +76,7 @@ describe('ProcessingService', () => {
   describe('initialize', () => {
     it('should fetch data from configuration service and initialize relevant adapter (void)', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'VOID';
+      mockParameterStore[SSMParameters.Config.Processing.Adapter.Path] = 'VOID';
 
       // Act
       await instance.initialize();
@@ -86,14 +86,14 @@ describe('ProcessingService', () => {
       expect(instance.adapter instanceof ProcessingAdapterVoid).toEqual(true);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        EnumParameters.Config.Processing.Adapter
+        SSMParameters.Config.Processing.Adapter.Path
       ); // Void Adapter should make not further param calls
     });
 
     it('should fetch data from configuration service and initialize relevant adapter (UDP)', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'UDP';
-      const expectedParamCalls = [EnumParameters.Config.Processing.Adapter, StringParameters.UDP.Config.SM];
+      mockParameterStore[SSMParameters.Config.Processing.Adapter.Path] = 'UDP';
+      const expectedParamCalls = [SSMParameters.Config.Processing.Adapter.Path, SSMParameters.Config.UDP.SM.Path];
 
       // Act
       await instance.initialize();
@@ -111,7 +111,7 @@ describe('ProcessingService', () => {
   describe('send', () => {
     it('Sends a request to the void when using Void adapter', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'VOID';
+      mockParameterStore[SSMParameters.Config.Processing.Adapter.Path] = 'VOID';
 
       // Act
       await instance.initialize();
@@ -128,7 +128,7 @@ describe('ProcessingService', () => {
 
     it('Sends a request to the UDP when using UDP Adapter', async () => {
       // Arrange
-      mockParameterStore[EnumParameters.Config.Processing.Adapter] = 'UDP';
+      mockParameterStore[SSMParameters.Config.Processing.Adapter.Path] = 'UDP';
 
       // Act
       await instance.initialize();

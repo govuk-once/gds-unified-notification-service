@@ -3,8 +3,8 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {
   protected queueName: string = 'dispatch';
@@ -17,7 +17,7 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   }
 
   async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Dispatch.Url);
+    this.sqsQueueUrl = await this.config.getStringParameter(SSMParameters.Queue.Dispatch.Url);
     await super.initialize();
 
     this.observability.logger.info('Dispatch Queue Service Initialised.');

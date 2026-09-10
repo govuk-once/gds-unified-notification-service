@@ -1,22 +1,20 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
-import { QueueEvent } from '@common/operations/queueOperation';
+import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
-import { BoolParameters } from '@common/utils';
-import {
-  IGroupMessageMetadata,
-  mockIFailedGroupMessageMetadata,
-  mockIGroupMessageMetadata,
-  mockIProcessedGroupMessage,
-  mockIUnidentifiableGroupMessageMetadata,
-} from '@project/lambdas/interfaces';
+import { IGroupMessageMetadata } from '@project/lambdas/interfaces';
 import { GroupProcessingWorker } from '@project/lambdas/pso/sqs.groupProcessingWorker/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
   mockEventContext,
+  mockIFailedGroupMessageMetadata,
+  mockIGroupMessageMetadata,
   mockIMessageRecord,
+  mockIProcessedGroupMessage,
+  mockIUnidentifiableGroupMessageMetadata,
   mockQueueEvent,
   mockQueueMultiEvents,
   mockServicesExpectedBehaviour,
@@ -89,8 +87,8 @@ describe('GroupProcessingWorker QueueHandler', () => {
     async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.GroupProcessingWorker.Enabled] = processingEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.GroupProcessingWorker.Enabled.Path] = processingEnabled;
 
       // Act
       const result = handler(event, context);

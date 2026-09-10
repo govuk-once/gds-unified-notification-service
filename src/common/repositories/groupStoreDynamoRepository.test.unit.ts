@@ -1,7 +1,7 @@
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IGroupStoreRecord } from '@common/repositories/interfaces';
-import { StringParameters } from '@common/utils';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockAWSClientsExpectedBehaviour,
@@ -68,7 +68,7 @@ describe('GroupStoreDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.GroupStore.Attributes);
+      expect(superInitialize).toHaveBeenCalledWith(SSMParameters.Table.GroupStore.Attributes);
       expect(result).toBe(instance);
     });
   });

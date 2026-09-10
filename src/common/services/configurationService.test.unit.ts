@@ -1,6 +1,7 @@
 import { ServiceMisconfigurationError } from '@common/models';
 import { ConfigurationService } from '@common/services/configurationService';
 import { InMemoryTTLCache } from '@common/utils';
+import { ParameterConfig } from '@shared/ssmParameter';
 import { iocSpies } from '@test/mocks';
 import { Mocked } from 'vitest';
 import z from 'zod';
@@ -22,6 +23,11 @@ describe('ConfigurationService', () => {
   const inMemoryCacheMock = new InMemoryTTLCache(60000) as Mocked<InMemoryTTLCache<string, string>>;
   inMemoryCacheMock.has = vi.fn();
 
+  const testStringParameter: ParameterConfig<'string'> = { Path: 'testPath', Type: 'string' };
+  const testBooleanParameter: ParameterConfig<'boolean'> = { Path: 'testPath', Type: 'boolean' };
+  const testNumericParameter: ParameterConfig<'numeric'> = { Path: 'testPath', Type: 'numeric' };
+  const testEnumParameter: ParameterConfig<'enum'> = { Path: 'testPath', Type: 'enum' };
+
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
@@ -38,7 +44,7 @@ describe('ConfigurationService', () => {
       });
 
       // Act
-      const parameter = await config.getParameter('testKey');
+      const parameter = await config.getStringParameter(testStringParameter);
 
       // Assert
       expect(parameter).toEqual(secretValue);
@@ -50,7 +56,7 @@ describe('ConfigurationService', () => {
       awsClientMocks.ssmClientMock.send = vi.fn().mockRejectedValueOnce(new Error(error.message));
 
       // Act
-      const result = config.getParameter('testNameSpace');
+      const result = config.getStringParameter(testStringParameter);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -69,7 +75,7 @@ describe('ConfigurationService', () => {
       inMemoryCacheMock.has.mockResolvedValueOnce(false);
 
       // Act
-      const result = config.getParameter('testNameSpace');
+      const result = config.getStringParameter(testStringParameter);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
@@ -88,7 +94,7 @@ describe('ConfigurationService', () => {
       });
 
       // Act
-      const parameter = await config.getBooleanParameter('testKey');
+      const parameter = await config.getBooleanParameter(testBooleanParameter);
 
       // Assert
       expect(parameter).toEqual(true);
@@ -102,7 +108,7 @@ describe('ConfigurationService', () => {
       });
 
       // Act
-      const parameter = await config.getBooleanParameter('testKey');
+      const parameter = await config.getBooleanParameter(testBooleanParameter);
 
       // Assert
       expect(parameter).toEqual(false);
@@ -115,7 +121,7 @@ describe('ConfigurationService', () => {
         Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
       });
       // Act
-      const result = config.getBooleanParameter('testKey');
+      const result = config.getBooleanParameter(testBooleanParameter);
 
       // Assert
       await expect(result).rejects.toThrow(Error);
@@ -135,7 +141,7 @@ describe('ConfigurationService', () => {
       });
 
       // Act
-      const parameter = await config.getNumericParameter('testKey');
+      const parameter = await config.getNumericParameter(testNumericParameter);
 
       // Assert
       expect(parameter).toEqual(Number(secretValue));
@@ -151,7 +157,7 @@ describe('ConfigurationService', () => {
       const errorMsg = 'Could not parse parameter testKey to type';
 
       // Act
-      const result = config.getNumericParameter('testKey');
+      const result = config.getNumericParameter(testNumericParameter);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
@@ -172,7 +178,7 @@ describe('ConfigurationService', () => {
       });
 
       // Act
-      const parameter = await config.getEnumParameter('testKey', enumValues);
+      const parameter = await config.getEnumParameter(testEnumParameter, enumValues);
 
       // Assert
       expect(parameter).toEqual(enumValues.enum.blue);
@@ -187,7 +193,7 @@ describe('ConfigurationService', () => {
       const errorMsg = 'Could not parse parameter testKey to type';
 
       // Act
-      const result = config.getEnumParameter('testKey', enumValues);
+      const result = config.getEnumParameter(testEnumParameter, enumValues);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());

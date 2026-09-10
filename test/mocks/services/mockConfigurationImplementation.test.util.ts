@@ -1,48 +1,48 @@
-import { BoolParameters, EnumParameters, NumericParameters, StringParameters } from '@common/utils/parameters';
 import { StringSecret } from '@common/utils/secrets';
+import SSMParameters from '@shared/ssmParameter';
 
 // Default config values for mocking
 // All of the values in SSM are strings
 export const mockDefaultConfig = (): Record<string, string | Error> =>
   Object.entries({
     // Strings
-    [StringParameters.Config.Cache.Host]: 'host',
-    [StringParameters.Config.Cache.Name]: 'name,',
-    [StringParameters.Config.Cache.User]: 'user',
-    [StringParameters.Queue.Analytics.Url]: 'sqsurl/sqsanalytics',
-    [StringParameters.Queue.Dispatch.Url]: 'sqsurl/sqsdispatch',
-    [StringParameters.Queue.GroupProcessing.Url]: 'sqsurl/sqsgroupprocessing',
-    [StringParameters.Queue.Processing.Url]: 'sqsurl/sqsprocessing',
-    [StringParameters.Dispatch.OneSignal.AppId]: 'mockOneSignalAppId',
-    [StringParameters.UDP.Config.SM]: JSON.stringify('arn:of:sm:secret'),
-    [StringParameters.AnalyticsExport.LogGroup.Name]: 'mockLogGroupName',
-    [StringParameters.AnalyticsExport.Bucket.Name]: 'mockBucketName',
+    [SSMParameters.Config.Common.Cache.Host.Path]: 'host',
+    [SSMParameters.Config.Common.Cache.Name.Path]: 'name,',
+    [SSMParameters.Config.Common.Cache.User.Path]: 'user',
+    [SSMParameters.Queue.Analytics.Url.Path]: 'sqsurl/sqsanalytics',
+    [SSMParameters.Queue.Dispatch.Url.Path]: 'sqsurl/sqsdispatch',
+    [SSMParameters.Queue.GroupProcessing.Url.Path]: 'sqsurl/sqsgroupprocessing',
+    [SSMParameters.Queue.Processing.Url.Path]: 'sqsurl/sqsprocessing',
+    [SSMParameters.Config.Dispatch.OneSignal.AppId.Path]: 'mockOneSignalAppId',
+    [SSMParameters.Config.UDP.SM.Path]: JSON.stringify('arn:of:sm:secret'),
+    [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: 'mockLogGroupName',
+    [SSMParameters.AnalyticsExport.Bucket.Name.Path]: 'mockBucketName',
     // Content filtering
-    [StringParameters.Content.Allowed.Protocols]: 'govuk:,https:',
-    [StringParameters.Content.Allowed.UrlHostnames]: '*.gov.uk',
-    [StringParameters.Notification.DeeplinkTemplate]: 'govuk://notifications?id={id}',
+    [SSMParameters.Content.Allowed.Protocols.Path]: 'govuk:,https:',
+    [SSMParameters.Content.Allowed.UrlHostnames.Path]: '*.gov.uk',
+    [SSMParameters.Notification.DeeplinkTemplate.Path]: 'govuk://notifications?id={id}',
     // Bool params
-    [BoolParameters.Config.Common.Enabled]: `true`,
-    [BoolParameters.Config.Dispatch.Enabled]: `true`,
-    [BoolParameters.Config.Processing.Enabled]: `true`,
-    [BoolParameters.Config.GroupProcessingWorker.Enabled]: `true`,
-    [BoolParameters.Config.Validation.Enabled]: `true`,
-    [BoolParameters.Config.FeatureFlags.DeepLinkUrl]: `true`,
-    [BoolParameters.Config.FeatureFlags.ChannelControls]: `true`,
-    [BoolParameters.Config.FeatureFlags.MessageRetention]: `true`,
+    [SSMParameters.Config.Common.Enabled.Path]: `true`,
+    [SSMParameters.Config.Dispatch.Enabled.Path]: `true`,
+    [SSMParameters.Config.Processing.Enabled.Path]: `true`,
+    [SSMParameters.Config.GroupProcessingWorker.Enabled.Path]: `true`,
+    [SSMParameters.Config.Validation.Enabled.Path]: `true`,
+    [SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path]: `true`,
+    [SSMParameters.Config.FeatureFlags.ChannelControls.Path]: `true`,
+    [SSMParameters.Config.FeatureFlags.MessageRetention.Path]: `true`,
     // Enums
-    [EnumParameters.Config.Dispatch.Adapter]: 'OneSignal',
-    [EnumParameters.Config.Processing.Adapter]: 'UDP',
+    [SSMParameters.Config.Dispatch.Adapter.Path]: 'OneSignal',
+    [SSMParameters.Config.Processing.Adapter.Path]: 'UDP',
     // Numbers
-    [NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute]: `100`,
-    [NumericParameters.CircuitBreaker.Threshold]: `5`,
-    [NumericParameters.CircuitBreaker.WindowDuration]: `60`,
-    [NumericParameters.CircuitBreaker.HalfOpenAfter]: `30`,
-    [NumericParameters.CircuitBreaker.RateLimitWhenOpen]: `5`,
-    [NumericParameters.Group.Dispatch.WorkerCount]: `5`,
-    [NumericParameters.Group.Dispatch.WorkerBatchSize]: `100`,
+    [SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute.Path]: `100`,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.Threshold.Path]: `5`,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration.Path]: `60`,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter.Path]: `30`,
+    [SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen.Path]: `5`,
+    [SSMParameters.Group.Dispatch.WorkerCount.Path]: `5`,
+    [SSMParameters.Group.Dispatch.WorkerBatchSize.Path]: `100`,
     // Nested objects
-    [StringParameters.Table.Inbound.Attributes]: JSON.stringify({
+    [SSMParameters.Table.Inbound.Attributes.Path]: JSON.stringify({
       attributes: ['DepartmentID', 'NotificationID'],
       hashKey: 'NotificationID',
       rangeKey: null,
@@ -50,25 +50,25 @@ export const mockDefaultConfig = (): Record<string, string | Error> =>
       expirationAttribute: 'ExpirationDateTime',
       expirationDurationInSeconds: 60 * 60 * 24 * 30,
     }),
-    [StringParameters.Table.MTLSRevocation.Attributes]: JSON.stringify({
+    [SSMParameters.Table.MTLSRevocation.Attributes.Path]: JSON.stringify({
       name: 'mockMtlsRevocationTableName',
       attributes: [],
       hashKey: 'Id',
       rangeKey: '',
     }),
-    [StringParameters.Table.Campaigns.Attributes]: JSON.stringify({
+    [SSMParameters.Table.Campaigns.Attributes.Path]: JSON.stringify({
       name: 'mockCampaignsDynamoRepositoryName',
       attributes: ['CompositeID'],
       hashKey: 'CompositeID',
       rangeKey: null,
     }),
-    [StringParameters.Table.Organisations.Attributes]: JSON.stringify({
+    [SSMParameters.Table.Organisations.Attributes.Path]: JSON.stringify({
       name: 'mockOrganisationsDynamoRepositoryName',
       attributes: [],
       hashKey: 'OrganisationID',
       rangeKey: null,
     }),
-    [StringParameters.Table.GroupStore.Attributes]: JSON.stringify({
+    [SSMParameters.Table.GroupStore.Attributes.Path]: JSON.stringify({
       name: 'mockGroupStoreDynamoRepositoryName',
       attributes: ['CompositeID'],
       hashKey: 'GroupID',

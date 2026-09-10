@@ -6,6 +6,7 @@ import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
+import SSMParameters from '@shared/ssmParameter';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -638,7 +639,7 @@ export class UNSPSOResource extends Construct {
     SSMFromObject(stack, config, {
       // DynamoDB Tables
       // mTLS refs
-      'table/mtls/attributes': props.mtls.revocationTableAttributes,
+      [SSMParameters.Table.MTLSRevocation.Attributes.Path]: props.mtls.revocationTableAttributes,
 
       // SQS Queue refs
       'queue/processing/url': this.queues.processing.queue.queueUrl,

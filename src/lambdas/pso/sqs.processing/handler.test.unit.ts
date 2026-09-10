@@ -3,9 +3,9 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ProcessingAdapterError, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services';
-import { BoolParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas/interfaces';
 import { Processing } from '@project/lambdas/pso/sqs.processing/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
@@ -98,8 +98,8 @@ describe('Processing QueueHandler', () => {
     async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.Processing.Enabled] = processingEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.Processing.Enabled.Path] = processingEnabled;
 
       // Act
       const result = handler(event, context);

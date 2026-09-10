@@ -34,7 +34,8 @@ import {
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
-import { InMemoryTTLCache, StringParameters } from '@common/utils';
+import { InMemoryTTLCache } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 enum Mode {
   SINGLETON,
@@ -320,8 +321,8 @@ export const iocGetContentValidationService = ioc(
     new ContentValidationService(
       iocGetObservabilityService(),
       iocGetConfigurationService(),
-      (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.Protocols)).split(','),
-      (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',')
+      (await iocGetConfigurationService().getStringParameter(SSMParameters.Content.Allowed.Protocols)).split(','),
+      (await iocGetConfigurationService().getStringParameter(SSMParameters.Content.Allowed.UrlHostnames)).split(',')
     )
 );
 

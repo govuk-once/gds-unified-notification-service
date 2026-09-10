@@ -3,9 +3,9 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
-import { BoolParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas/interfaces';
 import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
@@ -112,8 +112,8 @@ describe('Validation QueueHandler', () => {
     async (commonEnabled: string, validationEnabled: string, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validationEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.Validation.Enabled.Path] = validationEnabled;
 
       // Act
       const result = handler(event, context);

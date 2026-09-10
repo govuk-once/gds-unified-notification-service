@@ -22,13 +22,13 @@ import {
   NotificationService,
   ObservabilityService,
 } from '@common/services';
-import { BoolParameters, NumericParameters } from '@common/utils';
 import { IProcessedMessageSchema } from '@project/lambdas/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
@@ -69,7 +69,7 @@ const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
 export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public readonly operationId: string = 'dispatch';
-  protected readonly enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
+  protected readonly enableConfig = SSMParameters.Config.Dispatch.Enabled;
 
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;
@@ -92,7 +92,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
     const featureEnabledDeepLinkUrl = await this.config.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.DeepLinkUrl
+      SSMParameters.Config.FeatureFlags.DeepLinkUrl
     );
     const data = await this.validateRecord(record);
     const message = data.body;
@@ -106,7 +106,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
         await this.cacheService.rateLimit(
           `NOTIFICATION_PROVIDER_RATE_LIMIT`,
           await this.config.getNumericParameter(
-            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
+            SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute
           )
         )
       ).exceeded
@@ -142,7 +142,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
     // Increment rate limiter post request
     await this.cacheService.rateLimit(
       `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-      await this.config.getNumericParameter(NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute),
+      await this.config.getNumericParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute),
       1
     );
   };

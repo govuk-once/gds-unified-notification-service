@@ -1,5 +1,5 @@
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -47,7 +47,7 @@ describe('AnalyticsQueueService', () => {
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.Analytics.Url
+        SSMParameters.Queue.Analytics.Url
       );
       expectTypeOf(result).toEqualTypeOf<AnalyticsQueueService>();
       expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');

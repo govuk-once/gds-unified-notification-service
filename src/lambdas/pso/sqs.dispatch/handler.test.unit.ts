@@ -3,9 +3,9 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
-import { BoolParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas/interfaces';
 import { Dispatch } from '@project/lambdas/pso/sqs.dispatch/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
@@ -99,8 +99,8 @@ describe('Dispatch QueueHandler', () => {
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
     async (commonEnabled: string, dispatchEnabled: string, expectErrorMessage: string) => {
       // Arrange
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.Dispatch.Enabled] = dispatchEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.Dispatch.Enabled.Path] = dispatchEnabled;
 
       // Act
       const result = handler(event, context);
@@ -148,7 +148,7 @@ describe('Dispatch QueueHandler', () => {
 
   it('should trigger notification service for valid messages - with deeplink when feature flag is on', async () => {
     // Arrange
-    mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'true';
+    mockParameterStore[SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path] = 'true';
     const messageWithDeeplink = { ...message, DeeplinkURL: 'govuk://travel' };
     const event = mockQueueEvent(messageWithDeeplink);
     serviceMocks.notificationServiceMock.send.mockResolvedValue({

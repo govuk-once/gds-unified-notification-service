@@ -2,8 +2,8 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {
   protected recordSchema = IOrganisationRecordSchema;
@@ -17,7 +17,7 @@ export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOr
   }
 
   async initialize() {
-    await super.initialize(StringParameters.Table.Organisations.Attributes);
+    await super.initialize(SSMParameters.Table.Organisations.Attributes);
     return this;
   }
 

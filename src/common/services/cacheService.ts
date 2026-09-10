@@ -1,11 +1,11 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
-import { Hash } from '@smithy/hash-node';
-import { SignatureV4 } from '@smithy/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
+import { Hash } from '@smithy/hash-node';
 import { HttpRequest } from '@smithy/protocol-http';
+import { SignatureV4 } from '@smithy/signature-v4';
 import { createClient } from 'redis';
 
 export class CacheService {
@@ -47,9 +47,9 @@ export class CacheService {
   }
 
   async connect() {
-    const cacheName = await this.config.getParameter(StringParameters.Config.Cache.Name);
-    const cacheHost = await this.config.getParameter(StringParameters.Config.Cache.Host);
-    const cacheUser = await this.config.getParameter(StringParameters.Config.Cache.User);
+    const cacheName = await this.config.getStringParameter(SSMParameters.Config.Common.Cache.Name);
+    const cacheHost = await this.config.getStringParameter(SSMParameters.Config.Common.Cache.Host);
+    const cacheUser = await this.config.getStringParameter(SSMParameters.Config.Common.Cache.User);
 
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),

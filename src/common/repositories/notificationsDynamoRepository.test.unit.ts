@@ -2,7 +2,7 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models';
 import { IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockAWSClientsExpectedBehaviour,
@@ -56,7 +56,7 @@ describe('NotificationsDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.Inbound.Attributes);
+      expect(superInitialize).toHaveBeenCalledWith(SSMParameters.Table.Inbound.Attributes);
       expect(result).toBe(instance);
     });
   });

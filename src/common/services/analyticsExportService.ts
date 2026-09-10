@@ -11,8 +11,8 @@ import { InvalidCharacterError, ParsingFailedError } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { StringParameters } from '@common/utils';
 import { IAnalytics } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export interface AnalyticsLog {
   EventID: string;
@@ -37,7 +37,7 @@ export class AnalyticsExportService {
   ) {}
 
   public async initialize() {
-    this.logGroupName = await this.config.getParameter(StringParameters.AnalyticsExport.LogGroup.Name);
+    this.logGroupName = await this.config.getStringParameter(SSMParameters.AnalyticsExport.LogGroup.Name);
     this.observability.tracer.captureAWSv3Client(this.client);
 
     return this;
@@ -110,7 +110,7 @@ export class AnalyticsExportService {
     const previousHourDate = new Date(time - 60 * 60 * 1000);
 
     // Determines the log stream name off the previous hour of the timestamp from event bridge
-    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
+    const exportBucketName = await this.config.getStringParameter(SSMParameters.AnalyticsExport.Bucket.Name);
     const logStreamName = previousHourDate.toISOString().split(':').shift();
 
     // Export analytics from log group to s3 bucket
