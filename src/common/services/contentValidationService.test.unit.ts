@@ -8,11 +8,11 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
 
-describe('ContentValidationService', () => {
+describe('ContentValidationService', async () => {
   let instance: ContentValidationService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   const expectedError = (content: string) => {
     return new ContentValidationError([content]);

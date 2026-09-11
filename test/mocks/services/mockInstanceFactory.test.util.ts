@@ -8,11 +8,13 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { SSMClient } from '@aws-sdk/client-ssm';
 import { STSClient } from '@aws-sdk/client-sts';
 import { CircuitBreakerStateEnum } from '@common/models';
-import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
-import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
-import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
-import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
-import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
+import {
+  CampaignsDynamoRepository,
+  GroupStoreDynamoRepository,
+  MTLSRevocationDynamoRepository,
+  NotificationsDynamoRepository,
+  OrganisationsDynamoRepository,
+} from '@common/repositories';
 import {
   AnalyticsExportService,
   AnalyticsQueueService,
@@ -85,7 +87,7 @@ export const awsClientSpies = () => {
   Factory to initialize the mock service and repository layers.
   Organises the dependency injection of mocked services and repositories and ensuring they all share the same observability context.
 */
-export const ServiceSpies = (
+export const ServiceSpies = async (
   observabilityMock: Mocked<ObservabilityService>,
   clientMocks: ReturnType<typeof awsClientSpies>
 ) => {
@@ -103,65 +105,73 @@ export const ServiceSpies = (
     observabilityMock
   ) as Mocked<SMNamespacedConfigurationService>;
 
+  configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockDefaultConfig()));
+  smNamespacedConfigurationServiceMock.getParameter = vi
+    .fn()
+    .mockImplementation(mockGetParameterImplementation(mockDefaultSecrets()));
+  smConfigurationServiceMock.getParameter = vi
+    .fn()
+    .mockImplementation(mockGetParameterImplementation(mockDefaultExternalSecrets()));
+
   // Queues
-  const processingQueueServiceMock = new ProcessingQueueService(
+  const processingQueueServiceMock = (await ProcessingQueueService.create(
     configurationServiceMock,
-    clientMocks.sqsClientMock,
-    observabilityMock
-  ) as Mocked<ProcessingQueueService>;
-  const groupProcessingQueueServiceMock = new GroupProcessingQueueService(
+    observabilityMock,
+    clientMocks.sqsClientMock
+  )) as Mocked<ProcessingQueueService>;
+  const groupProcessingQueueServiceMock = (await GroupProcessingQueueService.create(
     configurationServiceMock,
-    clientMocks.sqsClientMock,
-    observabilityMock
-  ) as Mocked<GroupProcessingQueueService>;
-  const dispatchQueueServiceMock = new DispatchQueueService(
+    observabilityMock,
+    clientMocks.sqsClientMock
+  )) as Mocked<GroupProcessingQueueService>;
+  const dispatchQueueServiceMock = (await DispatchQueueService.create(
     configurationServiceMock,
-    clientMocks.sqsClientMock,
-    observabilityMock
-  ) as Mocked<DispatchQueueService>;
-  const analyticsQueueServiceMock = new AnalyticsQueueService(
+    observabilityMock,
+    clientMocks.sqsClientMock
+  )) as Mocked<DispatchQueueService>;
+  const analyticsQueueServiceMock = (await AnalyticsQueueService.create(
     configurationServiceMock,
-    clientMocks.sqsClientMock,
-    observabilityMock
-  ) as Mocked<AnalyticsQueueService>;
+    observabilityMock,
+    clientMocks.sqsClientMock
+  )) as Mocked<AnalyticsQueueService>;
 
   // Dynamodb
-  const notificationsDynamoRepositoryMock = new NotificationsDynamoRepository(
+  const notificationsDynamoRepositoryMock = (await NotificationsDynamoRepository.create(
     configurationServiceMock,
-    clientMocks.dynamoDBClientMock,
-    observabilityMock
-  ) as Mocked<NotificationsDynamoRepository>;
-  const mtlsRevocationDynamoRepositoryMock = new MTLSRevocationDynamoRepository(
+    observabilityMock,
+    clientMocks.dynamoDBClientMock
+  )) as Mocked<NotificationsDynamoRepository>;
+  const mtlsRevocationDynamoRepositoryMock = (await MTLSRevocationDynamoRepository.create(
     configurationServiceMock,
-    clientMocks.dynamoDBClientMock,
-    observabilityMock
-  ) as Mocked<MTLSRevocationDynamoRepository>;
-  const campaignsDynamoRepositoryMock = new CampaignsDynamoRepository(
+    observabilityMock,
+    clientMocks.dynamoDBClientMock
+  )) as Mocked<MTLSRevocationDynamoRepository>;
+  const campaignsDynamoRepositoryMock = (await CampaignsDynamoRepository.create(
     configurationServiceMock,
-    clientMocks.dynamoDBClientMock,
-    observabilityMock
-  ) as Mocked<CampaignsDynamoRepository>;
-  const organisationsDynamoRepositoryMock = new OrganisationsDynamoRepository(
+    observabilityMock,
+    clientMocks.dynamoDBClientMock
+  )) as Mocked<CampaignsDynamoRepository>;
+  const organisationsDynamoRepositoryMock = (await OrganisationsDynamoRepository.create(
     configurationServiceMock,
-    clientMocks.dynamoDBClientMock,
-    observabilityMock
-  ) as Mocked<OrganisationsDynamoRepository>;
-  const groupStoreDynamoRepositoryMock = new GroupStoreDynamoRepository(
+    observabilityMock,
+    clientMocks.dynamoDBClientMock
+  )) as Mocked<OrganisationsDynamoRepository>;
+  const groupStoreDynamoRepositoryMock = (await GroupStoreDynamoRepository.create(
     configurationServiceMock,
-    clientMocks.dynamoDBClientMock,
-    observabilityMock
-  ) as Mocked<GroupStoreDynamoRepository>;
+    observabilityMock,
+    clientMocks.dynamoDBClientMock
+  )) as Mocked<GroupStoreDynamoRepository>;
 
   // Services
   const analyticsServiceMock = new AnalyticsService(
     observabilityMock,
     analyticsQueueServiceMock
   ) as Mocked<AnalyticsService>;
-  const notificationServiceMock = new NotificationService(
+  const notificationServiceMock = (await NotificationService.create(
     observabilityMock,
     configurationServiceMock,
     smNamespacedConfigurationServiceMock
-  ) as Mocked<NotificationService>;
+  )) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
   const circuitBreakerServiceMock = new CircuitBreakerService(
     observabilityMock,
@@ -175,17 +185,17 @@ export const ServiceSpies = (
     ['govuk:', 'https:'],
     ['*.gov.uk']
   ) as Mocked<ContentValidationService>;
-  const processingServiceMock = new ProcessingService(
+  const processingServiceMock = (await ProcessingService.create(
     observabilityMock,
     configurationServiceMock,
     smConfigurationServiceMock
-  ) as Mocked<ProcessingService>;
-  const analyticsExportServiceMock = new AnalyticsExportService(
+  )) as Mocked<ProcessingService>;
+  const analyticsExportServiceMock = (await AnalyticsExportService.create(
     observabilityMock,
     configurationServiceMock,
     cacheServiceMock,
     clientMocks.cloudWatchLogsClientMock
-  ) as Mocked<AnalyticsExportService>;
+  )) as Mocked<AnalyticsExportService>;
   const validationServiceMock = new ValidationService(contentValidationServiceMock, {
     channelControls: true,
     deeplinkUrl: true,
@@ -221,15 +231,16 @@ export const ServiceSpies = (
 };
 
 // Test Fixture
-export const iocSpies = () => {
+export const iocSpies = async () => {
   const observabilityMocks = observabilitySpies();
   const awsClientMocks = awsClientSpies();
-  const serviceMocks = ServiceSpies(observabilityMocks, awsClientMocks);
+  const serviceMocks = await ServiceSpies(observabilityMocks, awsClientMocks);
 
   return { observabilityMocks, awsClientMocks, serviceMocks };
 };
 
-export const mockServicesExpectedBehaviour = (serviceMocks: ReturnType<typeof ServiceSpies>) => {
+export const mockServicesExpectedBehaviour = (serviceMocks: Awaited<ReturnType<typeof ServiceSpies>>) => {
+  // Set parameter returns
   const resetMockParameterStore = mockDefaultConfig();
   serviceMocks.configurationServiceMock.getParameter.mockImplementation(
     mockGetParameterImplementation(resetMockParameterStore)
@@ -258,7 +269,6 @@ export const mockServicesExpectedBehaviour = (serviceMocks: ReturnType<typeof Se
   serviceMocks.analyticsServiceMock.publishEvent = vi.fn().mockResolvedValue(undefined);
   serviceMocks.analyticsServiceMock.publishMultipleEvents = vi.fn().mockResolvedValue(undefined);
 
-  serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValue(undefined);
   serviceMocks.cacheServiceMock.store = vi.fn().mockResolvedValue(undefined);
   serviceMocks.cacheServiceMock.increment = vi.fn().mockResolvedValue(1);
   serviceMocks.cacheServiceMock.rateLimit = vi.fn().mockResolvedValue({ exceeded: false, capacityRemaining: 10 });

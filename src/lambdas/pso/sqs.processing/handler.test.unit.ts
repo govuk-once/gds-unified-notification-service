@@ -26,12 +26,12 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('Processing QueueHandler', () => {
+describe('Processing QueueHandler', async () => {
   let instance: Processing;
   let handler: ReturnType<typeof Processing.prototype.handler>;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -79,8 +79,8 @@ describe('Processing QueueHandler', () => {
     instance = new Processing(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
-      dispatchQueue: serviceMocks.dispatchQueueServiceMock.initialize(),
-      processingService: serviceMocks.processingServiceMock.initialize(),
+      dispatchQueue: Promise.resolve(serviceMocks.dispatchQueueServiceMock),
+      processingService: Promise.resolve(serviceMocks.processingServiceMock),
     }));
     handler = instance.handler();
   });

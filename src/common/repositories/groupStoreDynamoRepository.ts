@@ -1,6 +1,11 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IGroupStoreRecord, IGroupStoreRecordSchema } from '@common/repositories/interfaces';
+import {
+  IDynamoAttributes,
+  IDynamoAttributesSchema,
+  IGroupStoreRecord,
+  IGroupStoreRecordSchema,
+} from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
 import { filters } from '@common/utils/array';
@@ -11,16 +16,21 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
   protected recordSchema = IGroupStoreRecordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    client: DynamoDB,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, client, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.GroupStore.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
+    return new GroupStoreDynamoRepository(
+      config,
+      observability,
+      client,
+      await config.getParameterAsType(StringParameters.Table.GroupStore.Attributes, IDynamoAttributesSchema)
+    );
   }
 
   public async getUsersGroups(pushID: string): Promise<IGroups[]> {

@@ -1,4 +1,5 @@
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
+import { StringParameters } from '@common/utils';
 import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -7,12 +8,12 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
 vi.mock('@common/services/configurationService', { spy: true });
 
-describe('DispatchQueueService', () => {
+describe('DispatchQueueService', async () => {
   let dispatchQueueService: DispatchQueueService;
 
   // Observability and Service mocks
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   beforeEach(async () => {
     // Reset all mock
@@ -21,12 +22,11 @@ describe('DispatchQueueService', () => {
     // Mock SSM store and services responses
     mockServicesExpectedBehaviour(serviceMocks);
 
-    dispatchQueueService = new DispatchQueueService(
+    dispatchQueueService = await DispatchQueueService.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.sqsClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.sqsClientMock
     );
-    await dispatchQueueService.initialize();
   });
 
   describe('getQueueName', () => {
@@ -42,11 +42,17 @@ describe('DispatchQueueService', () => {
   describe('initialize', () => {
     it('should retrieve the queue url and log when the dispatch queue service is initialised.', async () => {
       // Act
-      const result = await dispatchQueueService.initialize();
+      const result = await DispatchQueueService.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.sqsClientMock
+      );
 
       // Assert
-      expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();
-      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        StringParameters.Queue.Dispatch.Url
+      );
+      expect(result).toBeInstanceOf(DispatchQueueService);
     });
   });
 });

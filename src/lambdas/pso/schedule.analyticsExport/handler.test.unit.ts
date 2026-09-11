@@ -9,11 +9,12 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('AnalyticsExport Handler', () => {
-  // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
-
+describe('AnalyticsExport Handler', async () => {
   let instance: AnalyticsExport;
+
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, serviceMocks } = await iocSpies();
+
   let handler: ReturnType<typeof AnalyticsExport.prototype.handler>;
 
   // Test fixtures

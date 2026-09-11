@@ -12,11 +12,11 @@ vi.mock('@aws-sdk/client-sqs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
 
-describe('GroupProcessingQueueService', () => {
+describe('GroupProcessingQueueService', async () => {
   let groupProcessingQueueService: GroupProcessingQueueService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -32,12 +32,11 @@ describe('GroupProcessingQueueService', () => {
     const { resetMockParameterStore } = mockServicesExpectedBehaviour(serviceMocks);
     mockParameterStore = resetMockParameterStore;
 
-    groupProcessingQueueService = new GroupProcessingQueueService(
+    groupProcessingQueueService = await GroupProcessingQueueService.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.sqsClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.sqsClientMock
     );
-    await groupProcessingQueueService.initialize();
   });
 
   describe('getQueueName', () => {
@@ -53,13 +52,17 @@ describe('GroupProcessingQueueService', () => {
   describe('initialize', () => {
     it('should retrieve the queue url and log when the processing queue service is initialised.', async () => {
       // Act
-      const result = await groupProcessingQueueService.initialize();
+      const result = await GroupProcessingQueueService.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.sqsClientMock
+      );
 
       // Assert
-      expectTypeOf(result).toEqualTypeOf<GroupProcessingQueueService>();
-
-      // Assert
-      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Group Processing Queue Service Initialised.');
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        StringParameters.Queue.GroupProcessing.Url
+      );
+      expect(result).toBeInstanceOf(GroupProcessingQueueService);
     });
   });
 

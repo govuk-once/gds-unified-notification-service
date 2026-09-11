@@ -65,9 +65,9 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;
 
-  public analyticsService!: AnalyticsService;
-  public notificationsRepository!: NotificationsDynamoRepository;
-  public processingQueue!: ProcessingQueueService;
+  protected analyticsService!: AnalyticsService;
+  protected processingQueue!: ProcessingQueueService;
+  protected notificationsRepository!: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,

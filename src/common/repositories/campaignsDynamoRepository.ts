@@ -1,7 +1,8 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
-import { NotificationStateEnum } from '@common/models';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
+import { ICampaignRecord, ICampaignRecordSchema } from '@common/repositories/interfaces/ICampaignRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { StringParameters } from '@common/utils';
 
@@ -9,16 +10,21 @@ export class CampaignsDynamoRepository extends DynamodbRepository<typeof ICampai
   protected recordSchema = ICampaignRecordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    client: DynamoDB,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, client, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.Campaigns.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
+    return new CampaignsDynamoRepository(
+      config,
+      observability,
+      client,
+      await config.getParameterAsType(StringParameters.Table.Campaigns.Attributes, IDynamoAttributesSchema)
+    );
   }
 
   public static buildCompositeID(organisationID?: string, departmentID?: string, campaignID?: string): string {

@@ -9,11 +9,11 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-describe('CircuitBreakerService', () => {
+describe('CircuitBreakerService', async () => {
   let service: CircuitBreakerService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   let mockParameterStore = mockDefaultConfig();
 

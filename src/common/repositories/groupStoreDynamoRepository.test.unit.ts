@@ -1,5 +1,5 @@
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
-import { IGroupStoreRecord } from '@common/repositories/interfaces';
+import { IDynamoAttributesSchema, IGroupStoreRecord } from '@common/repositories/interfaces';
 import { StringParameters } from '@common/utils';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
 import {
@@ -22,11 +22,11 @@ vi.mock('uuid', () => ({
   v4: () => groupsID,
 }));
 
-describe('GroupStoreDynamoRepository', () => {
+describe('GroupStoreDynamoRepository', async () => {
   let instance: GroupStoreDynamoRepository;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   const mockPushID = '2536bd9b-611b-453c-ba3d-e34783e4c9d1';
@@ -43,33 +43,33 @@ describe('GroupStoreDynamoRepository', () => {
     mockServicesExpectedBehaviour(serviceMocks);
     mockAWSClientsExpectedBehaviour(awsClientMocks);
 
-    instance = new GroupStoreDynamoRepository(
+    instance = await GroupStoreDynamoRepository.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.dynamoDBClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.dynamoDBClientMock
     );
 
     // Creating spys of DynamoRepository
     instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(undefined);
     instance.deleteRecord = vi.fn().mockResolvedValueOnce(undefined);
     instance.createRecordBatch = vi.fn().mockResolvedValueOnce(undefined);
-
-    await instance.initialize();
   });
 
-  describe('initialize', () => {
-    it('should call super.initialize with correct parameters and return this', async () => {
-      // Arrange
-      const superInitialize = vi
-        .spyOn(Object.getPrototypeOf(GroupStoreDynamoRepository.prototype), 'initialize')
-        .mockResolvedValue(undefined);
-
+  describe('create', () => {
+    it('should call create with correct params', async () => {
       // Act
-      const result = await instance.initialize();
+      const result = await GroupStoreDynamoRepository.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.dynamoDBClientMock
+      );
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(StringParameters.Table.GroupStore.Attributes);
-      expect(result).toBe(instance);
+      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
+        StringParameters.Table.GroupStore.Attributes,
+        IDynamoAttributesSchema
+      );
+      expect(result).toBeInstanceOf(GroupStoreDynamoRepository);
     });
   });
 

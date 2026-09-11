@@ -25,22 +25,29 @@ export interface AnalyticsLog {
 }
 
 export class AnalyticsExportService {
-  private logGroupName!: string;
-
   private readonly logStreamCacheKeyPrefix = `analyticsExportService/LogStream`;
 
   constructor(
-    private readonly observability: ObservabilityService,
-    private readonly config: ConfigurationService,
-    private readonly cache: CacheService,
-    private readonly client: CloudWatchLogsClient
+    protected readonly observability: ObservabilityService,
+    protected readonly config: ConfigurationService,
+    protected readonly cache: CacheService,
+    protected readonly client: CloudWatchLogsClient,
+    protected readonly logGroupName: string
   ) {}
 
-  public async initialize() {
-    this.logGroupName = await this.config.getParameter(StringParameters.AnalyticsExport.LogGroup.Name);
-    this.observability.tracer.captureAWSv3Client(this.client);
-
-    return this;
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    cache: CacheService,
+    client: CloudWatchLogsClient
+  ) {
+    return new AnalyticsExportService(
+      observability,
+      config,
+      cache,
+      client,
+      await config.getParameter(StringParameters.AnalyticsExport.LogGroup.Name)
+    );
   }
 
   private async getLogStreamName() {
