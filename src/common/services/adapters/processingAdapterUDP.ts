@@ -9,7 +9,7 @@ import { NoLinkingIdFound } from '@common/models/Errors/NotFoundError';
 import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { ObservabilityService, ProviderDimension } from '@common/services/observabilityService';
-import { StringParameters } from '@common/utils';
+import SSMParameters, { ParameterConfig } from '@shared/ssmParameter';
 
 const UDPConfigSchema = z.object({
   apiAccountId: z.string(),
@@ -31,21 +31,19 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
     smConfig: SMConfigurationService
   ) {
     // Fetch value from SSM - it's serialized JSON to allow it to be nullable
-    const configurationParameters = await config.getParameterAsType(
-      StringParameters.UDP.Config.SM,
-      z.string().or(z.null()),
-      true
-    );
+    const rawConfig = await config.getParameter(SSMParameters.Config.UDP.SM);
+    const configurationParameters = z.string().or(z.null()).parse(JSON.parse(rawConfig));
 
     if (configurationParameters == null) {
       observability.logger.error(
-        `SSM Parameter ${StringParameters.UDP.Config.SM} cannot be null when using ProcessingAdapterUDP`
+        `SSM Parameter ${SSMParameters.Config.UDP.SM.Path} cannot be null when using ProcessingAdapterUDP`
       );
       throw new ServiceMisconfigurationError();
     }
 
     // Fetch config from UDPs AWS Acc
-    const udpConfig = await smConfig.getParameterAsType(configurationParameters, UDPConfigSchema, true);
+    const configSecret: ParameterConfig<'json'> = { Path: configurationParameters, Type: 'json' };
+    const udpConfig = await smConfig.getSecret(configSecret, UDPConfigSchema, true);
     const client = new FetchSigV4Service({
       baseUrl: udpConfig.apiUrl,
       defaultHeaders: {

@@ -7,8 +7,9 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
-import { EnumParameters, segment } from '@common/utils';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
+import { segment } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import z from 'zod';
 
 export class NotificationService {
@@ -21,11 +22,11 @@ export class NotificationService {
   public static async create(
     observability: ObservabilityService,
     config: ConfigurationService,
-    smConfig: SMNamespacedConfigurationService
+    smConfig: SMConfigurationService
   ) {
     // Based on the adapter configured within SSM - switch adapters
-    const adapterConfig = await config.getEnumParameter(
-      EnumParameters.Config.Dispatch.Adapter,
+    const adapterConfig = await config.getParameter(
+      SSMParameters.Config.Dispatch.Adapter,
       z.enum([`VOID`, `OneSignal`])
     );
 

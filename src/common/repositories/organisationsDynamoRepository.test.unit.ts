@@ -1,6 +1,6 @@
 import { IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { OrganisationsDynamoRepository } from '@common/repositories/organisationDynamoRepository';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockIOrganisationRecord,
@@ -54,8 +54,8 @@ describe('OrganisationsDynamoRepository', async () => {
       );
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
-        StringParameters.Table.Organisations.Attributes,
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        SSMParameters.Table.Organisations.Attributes,
         IDynamoAttributesSchema
       );
       expect(result).toBeInstanceOf(OrganisationsDynamoRepository);

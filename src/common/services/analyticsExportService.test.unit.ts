@@ -1,6 +1,6 @@
 import { InvalidCharacterError, NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { AnalyticsExportService } from '@common/services/analyticsExportService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockAnalyticsLog,
@@ -15,6 +15,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-cloudwatch-logs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 vi.mock('@common/services/cacheService', { spy: true });
 
 describe('AnalyticsExportService', async () => {
@@ -69,7 +70,7 @@ describe('AnalyticsExportService', async () => {
       expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: {
-            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logGroupName: mockParameterStore[SSMParameters.AnalyticsExport.LogGroup.Name.Path],
             logStreamName: logStreamName,
             logEvents: [
               {
@@ -112,7 +113,7 @@ describe('AnalyticsExportService', async () => {
       expect(awsClientMocks.cloudWatchLogsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: {
-            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logGroupName: mockParameterStore[SSMParameters.AnalyticsExport.LogGroup.Name.Path],
             logStreamName: logStreamName,
             logEvents: [
               {
@@ -186,11 +187,11 @@ describe('AnalyticsExportService', async () => {
         expect.objectContaining({
           input: {
             taskName: `analytics-export-${logStreamName}`,
-            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logGroupName: mockParameterStore[SSMParameters.AnalyticsExport.LogGroup.Name.Path],
             logStreamNamePrefix: logStreamName,
             from: fromTime.getTime(),
             to: toTime.getTime(),
-            destination: mockParameterStore[StringParameters.AnalyticsExport.Bucket.Name],
+            destination: mockParameterStore[SSMParameters.AnalyticsExport.Bucket.Name.Path],
             destinationPrefix: logStreamName,
           },
         })
@@ -214,11 +215,11 @@ describe('AnalyticsExportService', async () => {
         expect.objectContaining({
           input: {
             taskName: `analytics-export-${logStreamName}`,
-            logGroupName: mockParameterStore[StringParameters.AnalyticsExport.LogGroup.Name],
+            logGroupName: mockParameterStore[SSMParameters.AnalyticsExport.LogGroup.Name.Path],
             logStreamNamePrefix: logStreamName,
             from: fromTime.getTime(),
             to: toTime.getTime(),
-            destination: mockParameterStore[StringParameters.AnalyticsExport.Bucket.Name],
+            destination: mockParameterStore[SSMParameters.AnalyticsExport.Bucket.Name.Path],
             destinationPrefix: logStreamName,
           },
         })

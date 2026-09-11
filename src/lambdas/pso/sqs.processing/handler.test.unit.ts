@@ -3,9 +3,9 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ProcessingAdapterError, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services';
-import { BoolParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas/interfaces';
 import { Processing } from '@project/lambdas/pso/sqs.processing/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
@@ -58,7 +58,7 @@ describe('Processing QueueHandler', async () => {
     mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
-    serviceMocks.smConfigurationServiceMock.getParameterAsType = vi.fn().mockResolvedValueOnce({
+    serviceMocks.smConfigurationServiceMock.getParameter = vi.fn().mockResolvedValueOnce({
       SecretString: JSON.stringify({
         apiAccountId: `abc`,
         apiKey: `cde`,
@@ -91,15 +91,15 @@ describe('Processing QueueHandler', async () => {
   });
 
   it.each([
-    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [`true`, `false`, `Service is disabled due to parameter config/processing/enabled being set to false`],
+    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [true, false, `Service is disabled due to parameter config/processing/enabled being set to false`],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
+    async (commonEnabled: boolean, processingEnabled: boolean, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.Processing.Enabled] = processingEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.Processing.Enabled.Path] = processingEnabled;
 
       // Act
       const result = handler(event, context);

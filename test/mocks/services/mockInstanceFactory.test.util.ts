@@ -30,7 +30,6 @@ import {
   ProcessingQueueService,
   ProcessingService,
   SMConfigurationService,
-  SMNamespacedConfigurationService,
   ValidationService,
 } from '@common/services';
 import {
@@ -100,16 +99,12 @@ export const ServiceSpies = async (
     clientMocks.secretManagerClientMock,
     observabilityMock
   ) as Mocked<SMConfigurationService>;
-  const smNamespacedConfigurationServiceMock = new SMNamespacedConfigurationService(
-    clientMocks.secretManagerClientMock,
-    observabilityMock
-  ) as Mocked<SMNamespacedConfigurationService>;
 
   configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockDefaultConfig()));
-  smNamespacedConfigurationServiceMock.getParameter = vi
+  smConfigurationServiceMock.getNamespacedSecret = vi
     .fn()
     .mockImplementation(mockGetParameterImplementation(mockDefaultSecrets()));
-  smConfigurationServiceMock.getParameter = vi
+  smConfigurationServiceMock.getSecret = vi
     .fn()
     .mockImplementation(mockGetParameterImplementation(mockDefaultExternalSecrets()));
 
@@ -170,7 +165,7 @@ export const ServiceSpies = async (
   const notificationServiceMock = (await NotificationService.create(
     observabilityMock,
     configurationServiceMock,
-    smNamespacedConfigurationServiceMock
+    smConfigurationServiceMock
   )) as Mocked<NotificationService>;
   const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
   const circuitBreakerServiceMock = new CircuitBreakerService(
@@ -217,7 +212,6 @@ export const ServiceSpies = async (
     groupStoreDynamoRepositoryMock,
     // Services
     smConfigurationServiceMock,
-    smNamespacedConfigurationServiceMock,
     configurationServiceMock,
     analyticsServiceMock,
     notificationServiceMock,
@@ -246,13 +240,13 @@ export const mockServicesExpectedBehaviour = (serviceMocks: Awaited<ReturnType<t
     mockGetParameterImplementation(resetMockParameterStore)
   );
   const resetMockSecrets = mockDefaultSecrets();
-  serviceMocks.smNamespacedConfigurationServiceMock.getParameter = vi
-    .fn()
-    .mockImplementation(mockGetParameterImplementation(resetMockSecrets));
+  serviceMocks.smConfigurationServiceMock.getNamespacedSecret.mockImplementation(
+    mockGetParameterImplementation(resetMockSecrets)
+  );
   const resetMockExternalSecrets = mockDefaultExternalSecrets();
-  serviceMocks.smConfigurationServiceMock.getParameter = vi
-    .fn()
-    .mockImplementation(mockGetParameterImplementation(resetMockExternalSecrets));
+  serviceMocks.smConfigurationServiceMock.getSecret.mockImplementation(
+    mockGetParameterImplementation(resetMockExternalSecrets)
+  );
 
   // Service functions
   serviceMocks.analyticsQueueServiceMock.publishMessage = vi.fn().mockResolvedValue(undefined);

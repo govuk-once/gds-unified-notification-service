@@ -18,8 +18,8 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
-import { BoolParameters } from '@common/utils';
 import { IIdentifiableMessage, IIdentifiableMessageSchema, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
@@ -60,7 +60,7 @@ Sample SQS Body (for pushing messages from portal)
  */
 export class Validation extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public operationId: string = 'validation';
-  protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
+  protected enableConfig = SSMParameters.Config.Validation.Enabled;
 
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;

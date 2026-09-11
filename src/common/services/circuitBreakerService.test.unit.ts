@@ -1,6 +1,6 @@
 import { CircuitBreakerStateEnum } from '@common/models';
 import { CircuitBreakerOpenError, CircuitBreakerService } from '@common/services';
-import { NumericParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -280,7 +280,7 @@ describe('CircuitBreakerService', async () => {
 
     it('should not re-open when already OPEN', async () => {
       // Arrange: OPEN, but a new failure comes in
-      mockParameterStore[NumericParameters.CircuitBreaker.Threshold] = '3';
+      mockParameterStore[SSMParameters.Config.Dispatch.CircuitBreaker.Threshold.Path] = '3';
       serviceMocks.cacheServiceMock.increment.mockResolvedValue(4); // above threshold
       serviceMocks.cacheServiceMock.get.mockImplementation((key: string) => {
         if (key.includes(':state')) return Promise.resolve(CircuitBreakerStateEnum.OPEN as CircuitBreakerStateEnum);

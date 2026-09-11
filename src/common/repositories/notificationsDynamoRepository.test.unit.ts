@@ -2,7 +2,7 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models';
 import { IDynamoAttributesSchema, IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockAWSClientsExpectedBehaviour,
@@ -54,8 +54,8 @@ describe('NotificationsDynamoRepository', async () => {
       );
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
-        StringParameters.Table.Inbound.Attributes,
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        SSMParameters.Table.Message.Attributes,
         IDynamoAttributesSchema
       );
       expect(result).toBeInstanceOf(NotificationsDynamoRepository);

@@ -1,7 +1,7 @@
 import { BadRequestError, ChannelsEnum, ContentValidationError } from '@common/models';
 import { IOrganisationConfig } from '@common/repositories';
 import { ValidationService } from '@common/services/validationService';
-import { BoolParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockDefaultConfig, mockIMessageFields, mockServicesExpectedBehaviour } from '@test/mocks';
 import { mockOrganisationConfig } from '@test/mocks/models/IOrganisationRecord.fixtures';
 
@@ -10,6 +10,7 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services/configurationService.ts', { spy: true });
+vi.mock('@common/services/smConfigurationService.ts', { spy: true });
 
 describe('ValidationService', async () => {
   let instance: ValidationService;
@@ -238,7 +239,7 @@ describe('ValidationService', async () => {
 
     it('should throw an error when called with a message containing deeplink and deeplinkUrl feature is disabled', async () => {
       // Arrange
-      mockParameterStore[BoolParameters.Config.FeatureFlags.DeepLinkUrl] = 'false';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path] = false;
       // Re-initialising with new feature flags
       const instance = new ValidationService(
         serviceMocks.contentValidationServiceMock,
@@ -258,7 +259,7 @@ describe('ValidationService', async () => {
 
     it('should throw an error when called with a message containing ExpiresInDays when message retention feature is disabled', async () => {
       // Arrange
-      mockParameterStore[BoolParameters.Config.FeatureFlags.MessageRetention] = 'false';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.MessageRetention.Path] = false;
       // Re-initialising with new feature flags
       const instance = new ValidationService(
         serviceMocks.contentValidationServiceMock,
@@ -278,7 +279,7 @@ describe('ValidationService', async () => {
 
     it('should return 400 when ControlChannels is disabled and Channel is a valid enum value', async () => {
       // Arrange
-      mockParameterStore[BoolParameters.Config.FeatureFlags.ChannelControls] = 'false';
+      mockParameterStore[SSMParameters.Config.FeatureFlags.ChannelControls.Path] = false;
       // Re-initialising with new feature flags
       const instance = new ValidationService(
         serviceMocks.contentValidationServiceMock,

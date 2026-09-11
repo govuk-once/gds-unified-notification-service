@@ -5,7 +5,7 @@ import {
   ConfigurationService,
   ObservabilityService,
   ProviderDimension,
-  SMNamespacedConfigurationService,
+  SMConfigurationService,
 } from '@common/services';
 import { FetchService, isFetchResponseError } from '@common/services/FetchService';
 import {
@@ -13,8 +13,8 @@ import {
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
-import { StringParameters } from '@common/utils';
-import { StringSecret } from '@common/utils/secrets';
+import SecretParameters from '@shared/secretParameters';
+import SSMParameters from '@shared/ssmParameter';
 
 interface OneSignalPushNotificationResponse {
   id: string;
@@ -42,11 +42,11 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
   public static async create(
     observability: ObservabilityService,
     config: ConfigurationService,
-    smConfig: SMNamespacedConfigurationService
+    smConfig: SMConfigurationService
   ) {
-    const key = await smConfig.getParameter(StringSecret.Dispatch.OneSignal.ApiKey);
-    const appId = await config.getParameter(StringParameters.Dispatch.OneSignal.AppId);
-    const deeplinkTemplate = await config.getParameter(StringParameters.Notification.DeeplinkTemplate);
+    const key = await smConfig.getNamespacedSecret(SecretParameters.Dispatch.OneSignal.ApiKey);
+    const appId = await config.getParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
+    const deeplinkTemplate = await config.getParameter(SSMParameters.Notification.DeeplinkTemplate);
 
     const client = new FetchService({
       baseUrl: `https://api.onesignal.com/`,

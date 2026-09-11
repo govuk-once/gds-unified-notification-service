@@ -4,7 +4,7 @@ import { ConfigurationService } from '@common/services/configurationService';
 import { ProcessingAdapter, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services/interfaces';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { SMConfigurationService } from '@common/services/smConfigurationService';
-import { EnumParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import * as z from 'zod';
 
 export class ProcessingService {
@@ -19,10 +19,7 @@ export class ProcessingService {
     smConfig: SMConfigurationService
   ) {
     // Based on the adapter configured within SSM - switch adapters
-    const adapterConfig = await config.getEnumParameter(
-      EnumParameters.Config.Processing.Adapter,
-      z.enum([`VOID`, `UDP`])
-    );
+    const adapterConfig = await config.getParameter(SSMParameters.Config.Processing.Adapter, z.enum([`VOID`, `UDP`]));
 
     // Select adapter based on the configuration
     const adapter =

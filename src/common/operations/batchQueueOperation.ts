@@ -3,7 +3,8 @@ import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
 import { ContentValidationError, UnidentifiableRecordError } from '@common/models/Errors/BadRequestError';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
 import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
-import { BoolParameters, zodErrorFormatter } from '@common/utils';
+import { zodErrorFormatter } from '@common/utils';
+import SSMParameters, { ParameterConfig } from '@shared/ssmParameter';
 import { Context, SQSRecord } from 'aws-lambda';
 import z, { ZodObject, ZodType } from 'zod';
 
@@ -17,7 +18,7 @@ export abstract class BatchQueueOperation<
   InputSchema extends ZodType = ZodObject,
   IdentifiableRecordSchema extends ZodType = ZodObject,
 > extends QueueHandler<z.infer<InputSchema>, PartialItemFailureResponse> {
-  protected enableConfig!: string;
+  protected enableConfig!: ParameterConfig<'boolean'>;
 
   protected requestBodySchema!: InputSchema;
   protected identifiableRecordSchema!: IdentifiableRecordSchema;
@@ -143,7 +144,7 @@ export abstract class BatchQueueOperation<
     context: Context
   ): Promise<PartialItemFailureResponse> {
     if (this.enableConfig) {
-      await this.config.ensureServiceIsEnabled(BoolParameters.Config.Common.Enabled, this.enableConfig);
+      await this.config.ensureServiceIsEnabled(SSMParameters.Config.Common.Enabled, this.enableConfig);
     }
 
     const processor = new BatchProcessor(EventType.SQS);

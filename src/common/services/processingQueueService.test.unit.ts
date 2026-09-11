@@ -1,8 +1,8 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
-import { StringParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockDefaultConfig, mockIMessage, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -11,6 +11,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 
 describe('ProcessingQueueService', async () => {
   let processingQueueService: ProcessingQueueService;
@@ -60,7 +61,7 @@ describe('ProcessingQueueService', async () => {
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.Processing.Url
+        SSMParameters.Queue.Processing.Url
       );
       expect(result).toBeInstanceOf(ProcessingQueueService);
     });
@@ -81,7 +82,7 @@ describe('ProcessingQueueService', async () => {
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
-            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
+            QueueUrl: mockParameterStore[SSMParameters.Queue.Processing.Url.Path],
             DelaySeconds: 0,
             MessageBody: JSON.stringify(message),
           }),
@@ -128,7 +129,7 @@ describe('ProcessingQueueService', async () => {
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
-            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url],
+            QueueUrl: mockParameterStore[SSMParameters.Queue.Processing.Url.Path],
             Entries: [
               {
                 Id: '0',
@@ -185,7 +186,7 @@ describe('ProcessingQueueService', async () => {
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
-            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
+            QueueUrl: mockParameterStore[SSMParameters.Queue.Processing.Url.Path] as string,
             Entries: [
               {
                 Id: '0',
@@ -244,7 +245,7 @@ describe('ProcessingQueueService', async () => {
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
-            QueueUrl: mockParameterStore[StringParameters.Queue.Processing.Url] as string,
+            QueueUrl: mockParameterStore[SSMParameters.Queue.Processing.Url.Path] as string,
             Entries: expect.arrayContaining([
               expect.objectContaining({
                 Id: '0',

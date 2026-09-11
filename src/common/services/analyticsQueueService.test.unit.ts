@@ -1,5 +1,5 @@
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -8,6 +8,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 
 describe('AnalyticsQueueService', async () => {
   let analyticsQueueService: AnalyticsQueueService;
@@ -50,7 +51,7 @@ describe('AnalyticsQueueService', async () => {
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.Analytics.Url
+        SSMParameters.Queue.Analytics.Url
       );
       expect(result).toBeInstanceOf(AnalyticsQueueService);
     });

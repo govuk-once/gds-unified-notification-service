@@ -3,7 +3,7 @@ import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { mTLSRevocationRecordSchema } from '@common/repositories/interfaces/MTLSRevocationTable';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mTLSRevocationRecordSchema> {
   protected recordSchema = mTLSRevocationRecordSchema;
@@ -22,7 +22,7 @@ export class MTLSRevocationDynamoRepository extends DynamodbRepository<typeof mT
       config,
       observability,
       client,
-      await config.getParameterAsType(StringParameters.Table.MTLSRevocation.Attributes, IDynamoAttributesSchema)
+      await config.getParameter(SSMParameters.Table.MTLSRevocation.Attributes, IDynamoAttributesSchema)
     );
   }
 }

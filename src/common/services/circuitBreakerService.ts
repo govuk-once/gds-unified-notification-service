@@ -3,7 +3,7 @@ import { CircuitBreakerStateEnum } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
-import { NumericParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 export class CircuitBreakerOpenError extends Error {
   constructor(platform: string) {
@@ -61,10 +61,10 @@ export class CircuitBreakerService {
    */
   async checkCircuit(): Promise<void> {
     const [threshold, windowDuration, halfOpenAfter, rateLimitWhenOpen] = await Promise.all([
-      this.config.getNumericParameter(NumericParameters.CircuitBreaker.Threshold),
-      this.config.getNumericParameter(NumericParameters.CircuitBreaker.WindowDuration),
-      this.config.getNumericParameter(NumericParameters.CircuitBreaker.HalfOpenAfter),
-      this.config.getNumericParameter(NumericParameters.CircuitBreaker.RateLimitWhenOpen),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.Threshold),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen),
     ]);
 
     const state = await this.getState();
@@ -126,8 +126,8 @@ export class CircuitBreakerService {
     this.observability.metrics.addMetric(MetricsLabels.CIRCUIT_BREAKER_FAILURE, MetricUnit.Count, 1);
 
     const [threshold, windowDuration] = await Promise.all([
-      this.config.getNumericParameter(NumericParameters.CircuitBreaker.Threshold),
-      this.config.getNumericParameter(NumericParameters.CircuitBreaker.WindowDuration),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.Threshold),
+      this.config.getParameter(SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration),
     ]);
 
     const windowKey = this.currentWindowKey(windowDuration);
