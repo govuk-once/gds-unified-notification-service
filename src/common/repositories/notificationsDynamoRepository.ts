@@ -24,7 +24,7 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
   }
 
   async initialize() {
-    await super.initialize(SSMParameters.Table.Inbound.Attributes);
+    await super.initialize(SSMParameters.Table.Message.Attributes);
     return this;
   }
 

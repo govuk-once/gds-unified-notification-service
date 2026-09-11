@@ -42,7 +42,7 @@ export const mockDefaultConfig = (): Record<string, string | boolean | number | 
     [SSMParameters.Group.Dispatch.WorkerCount.Path]: 5,
     [SSMParameters.Group.Dispatch.WorkerBatchSize.Path]: 1,
     // Nested objects
-    [SSMParameters.Table.Inbound.Attributes.Path]: {
+    [SSMParameters.Table.Message.Attributes.Path]: {
       attributes: ['DepartmentID', 'NotificationID'],
       hashKey: 'NotificationID',
       rangeKey: null,

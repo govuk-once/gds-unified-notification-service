@@ -263,7 +263,7 @@ export class UNSCommon extends Construct {
     //// =====================================================
     SSMFromObject(this, config, {
       // DynamoDB Tables
-      [SSMParameters.Table.Inbound.Attributes.Path]: this.dynamodb.messages.attributes,
+      [SSMParameters.Table.Message.Attributes.Path]: this.dynamodb.messages.attributes,
       [SSMParameters.Table.Campaigns.Attributes.Path]: this.dynamodb.campaigns.attributes,
       ...(config.featureFlag.groups && this.dynamodb.groupStore
         ? {

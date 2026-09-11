@@ -56,7 +56,7 @@ describe('NotificationsDynamoRepository', () => {
       const result = await instance.initialize();
 
       // Assert
-      expect(superInitialize).toHaveBeenCalledWith(SSMParameters.Table.Inbound.Attributes);
+      expect(superInitialize).toHaveBeenCalledWith(SSMParameters.Table.Message.Attributes);
       expect(result).toBe(instance);
     });
   });

@@ -119,7 +119,7 @@ const SSMParameters = {
     Processing: { Url: infraParam('queue/processing/url', 'string') },
   },
   Table: {
-    Inbound: { Attributes: infraParam('table/inbound/attributes', 'json') },
+    Message: { Attributes: infraParam('table/message/attributes', 'json') },
     MTLSRevocation: { Attributes: infraParam('table/mtls/attributes', 'json') },
     Campaigns: { Attributes: infraParam('table/campaigns/attributes', 'json') },
     Organisations: { Attributes: infraParam('table/organisations/attributes', 'json') },

@@ -12,7 +12,7 @@ export const configurableParameters = getParametersConfig(SSMParameters).filter(
 
 const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
 
-export const parametersForDeletion = ['config/dispatch/onesignal/apiKey'];
+export const parametersForDeletion = ['config/dispatch/onesignal/apiKey', 'table/inbound/attributes'];
 
 await (async () => {
   const namespace = config.namespace;
