@@ -17,13 +17,13 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('ModifyGroups Handler', () => {
+describe('ModifyGroups Handler', async () => {
   let instance: ModifyGroups;
   let handler: ReturnType<typeof ModifyGroups.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   let context: Context;

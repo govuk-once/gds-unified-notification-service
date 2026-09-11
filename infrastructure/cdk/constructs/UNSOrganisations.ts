@@ -7,6 +7,8 @@ import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBCons
 import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumersMetadata } from 'infrastructure/cdk/consumers/consumersMetadata';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 export class UNSOrganisationsCommon extends Construct {
@@ -29,6 +31,9 @@ export class UNSOrganisationsCommon extends Construct {
       },
       globalSecondaryIndexes: [],
     });
+
+    applyExposureTag(this.organisationsTable, 'Isolated');
+    applyPiiTag(this.organisationsTable, 'false');
 
     //// =====================================================
     // Add organisation per entry in org metadata

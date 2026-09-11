@@ -8,28 +8,26 @@ import SSMParameters from '@shared/ssmParameter';
 import * as z from 'zod';
 
 export class ProcessingService {
-  public adapter!: ProcessingAdapter;
-
   constructor(
-    protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMConfigurationService
+    public readonly adapter: ProcessingAdapter,
+    protected readonly observability: ObservabilityService
   ) {}
 
-  async initialize() {
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMConfigurationService
+  ) {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getParameter(SSMParameters.Config.Processing.Adapter, z.enum([`VOID`, `UDP`]));
+    const adapterConfig = await config.getParameter(SSMParameters.Config.Processing.Adapter, z.enum([`VOID`, `UDP`]));
 
     // Select adapter based on the configuration
-    this.adapter =
-      adapter == 'UDP'
-        ? new ProcessingAdapterUDP(this.observability, this.config, this.smConfig)
-        : new ProcessingAdapterVoid(this.observability, this.config);
+    const adapter =
+      adapterConfig == 'UDP'
+        ? await ProcessingAdapterUDP.create(observability, config, smConfig)
+        : ProcessingAdapterVoid.create(observability, config);
 
-    // Initialize the adapter
-    await this.adapter.initialize();
-
-    return this;
+    return new ProcessingService(adapter, observability);
   }
 
   async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {

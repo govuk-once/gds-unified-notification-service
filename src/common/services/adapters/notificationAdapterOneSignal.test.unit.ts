@@ -9,9 +9,9 @@ vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@common/services', { spy: true });
 
-describe('NotificationAdapterOneSignal', () => {
+describe('NotificationAdapterOneSignal', async () => {
   let instance: NotificationAdapterOneSignal;
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
   const request = mockNotificationAdapterRequest();
   const postMock = vi.fn();
   const responseBody = {
@@ -25,12 +25,11 @@ describe('NotificationAdapterOneSignal', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
     mockServicesExpectedBehaviour(serviceMocks);
-    instance = new NotificationAdapterOneSignal(
+    instance = await NotificationAdapterOneSignal.create(
       observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.smConfigurationServiceMock
     );
-    await instance.initialize();
     instance.client.post = postMock;
     vi.spyOn(observabilityMocks, 'recordProviderHttpMetric');
   });

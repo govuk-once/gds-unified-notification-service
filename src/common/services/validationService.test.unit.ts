@@ -12,11 +12,11 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services/configurationService.ts', { spy: true });
 vi.mock('@common/services/smConfigurationService.ts', { spy: true });
 
-describe('ValidationService', () => {
+describe('ValidationService', async () => {
   let instance: ValidationService;
 
   // Initialize mock services, clients, and repositories
-  const { serviceMocks } = iocSpies();
+  const { serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -247,7 +247,7 @@ describe('ValidationService', () => {
       );
       const messageWithDeeplink = {
         ...message,
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
       };
 
       // Act
@@ -401,7 +401,7 @@ describe('ValidationService', () => {
       };
       const messageWithDeeplink = {
         ...message,
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
       };
 
       // Act

@@ -11,12 +11,12 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('GetNotificationStatus Handler', () => {
+describe('GetNotificationStatus Handler', async () => {
   let instance: GetNotificationStatus;
   let handler: ReturnType<typeof GetNotificationStatus.prototype.handler>;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Test fixtures
   let context: Context;

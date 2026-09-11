@@ -1,6 +1,7 @@
 // Unbound methods are allowed as that's how vi.mocked works
 import { BadGatewayError, ChannelsEnum } from '@common/models';
-import { NotificationAdapterOneSignal, NotificationAdapterVoid } from '@common/services/adapters';
+import { NotificationAdapterOneSignal } from '@common/services/adapters/notificationAdapterOneSignal';
+import { NotificationAdapterVoid } from '@common/services/adapters/notificationAdapterVoid';
 import { NotificationService } from '@common/services/notificationService';
 import SecretParameters from '@shared/secretParameters';
 import SSMParameters from '@shared/ssmParameter';
@@ -19,14 +20,10 @@ vi.mock('@aws-sdk/client-secrets-manager', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
 vi.mock('@common/services/smConfigurationService', { spy: true });
-vi.mock('@common/adapters/notificationAdapterOneSignal', { spy: true });
-vi.mock('@common/adapters/notificationAdapterVoid', { spy: true });
 
-describe('NotificationService', () => {
-  let instance: NotificationService;
-
+describe('NotificationService', async () => {
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -43,21 +40,19 @@ describe('NotificationService', () => {
     const { resetMockParameterStore, resetMockSecrets } = mockServicesExpectedBehaviour(serviceMocks);
     mockParameterStore = resetMockParameterStore;
     mockSecrets = resetMockSecrets;
-
-    instance = new NotificationService(
-      observabilityMocks,
-      serviceMocks.configurationServiceMock,
-      serviceMocks.smConfigurationServiceMock
-    );
   });
 
-  describe('initialize', () => {
+  describe('create', () => {
     it('should fetch data from configuration service, initialize void but not onesignal adapter when (void)', async () => {
       // Arrange
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'VOID';
 
       // Act
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledTimes(1);
@@ -74,7 +69,11 @@ describe('NotificationService', () => {
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
 
       // Act
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Assert
       expect(instance.adapter instanceof NotificationAdapterOneSignal).toEqual(true);
@@ -99,7 +98,11 @@ describe('NotificationService', () => {
     it('Sends a request to the void when adapter is set to Void', async () => {
       // Arrange
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'VOID';
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Act
       await instance.send(request);
@@ -118,7 +121,11 @@ describe('NotificationService', () => {
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
       mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[SecretParameters.Dispatch.OneSignal.ApiKey.Path] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Act
       await instance.send(request);
@@ -137,8 +144,12 @@ describe('NotificationService', () => {
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
       mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[SecretParameters.Dispatch.OneSignal.ApiKey.Path] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
-      await instance.initialize();
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act
@@ -159,8 +170,12 @@ describe('NotificationService', () => {
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
       mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[SecretParameters.Dispatch.OneSignal.ApiKey.Path] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
-      await instance.initialize();
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act
@@ -185,7 +200,11 @@ describe('NotificationService', () => {
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
       mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[SecretParameters.Dispatch.OneSignal.ApiKey.Path] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
 
       // Act
       const result = instance.send(request);
@@ -221,10 +240,14 @@ describe('NotificationService', () => {
       };
       mockParameterStore[SSMParameters.Config.Dispatch.Adapter.Path] = 'OneSignal';
       mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
-
       mockSecrets[SecretParameters.Dispatch.OneSignal.ApiKey.Path] = 'ONESIGNAL_DEV_API_KEY_ERROR_SCENARIO_01';
 
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
+
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act
@@ -249,7 +272,12 @@ describe('NotificationService', () => {
       mockParameterStore[SSMParameters.Config.Dispatch.OneSignal.AppId.Path] = 'ONESIGNAL_APP_ID';
       mockSecrets[SecretParameters.Dispatch.OneSignal.ApiKey.Path] = 'ONESIGNAL_DEV_API_KEY_SUCCESS_SCENARIO_01';
 
-      await instance.initialize();
+      const instance = await NotificationService.create(
+        observabilityMocks,
+        serviceMocks.configurationServiceMock,
+        serviceMocks.smConfigurationServiceMock
+      );
+
       const postSpy = vi.spyOn((instance.adapter as NotificationAdapterOneSignal).client, 'post');
 
       // Act

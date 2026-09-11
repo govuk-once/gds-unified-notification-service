@@ -13,30 +13,30 @@ import SSMParameters from '@shared/ssmParameter';
 import z from 'zod';
 
 export class NotificationService {
-  public adapter!: NotificationAdapter;
-
   constructor(
+    public adapter: NotificationAdapter,
     protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMConfigurationService
+    protected config: ConfigurationService
   ) {}
 
-  async initialize() {
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMConfigurationService
+  ) {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getParameter(
+    const adapterConfig = await config.getParameter(
       SSMParameters.Config.Dispatch.Adapter,
       z.enum([`VOID`, `OneSignal`])
     );
 
-    this.adapter =
-      adapter == 'OneSignal'
-        ? new NotificationAdapterOneSignal(this.observability, this.config, this.smConfig)
-        : new NotificationAdapterVoid(this.observability, this.config, this.smConfig);
+    // Select adapter based on the configuration
+    const adapter =
+      adapterConfig == 'OneSignal'
+        ? await NotificationAdapterOneSignal.create(observability, config, smConfig)
+        : NotificationAdapterVoid.create(observability, config);
 
-    // Initialize the adapter
-    await this.adapter.initialize();
-
-    return this;
+    return new NotificationService(adapter, observability, config);
   }
 
   async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {

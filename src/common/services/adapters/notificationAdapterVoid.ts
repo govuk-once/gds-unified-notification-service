@@ -1,4 +1,3 @@
-import { ChannelsEnum } from '@common/models';
 import { ConfigurationService } from '@common/services/configurationService';
 import {
   NotificationAdapter,
@@ -6,20 +5,15 @@ import {
   NotificationAdapterResult,
 } from '@common/services/interfaces';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { SMConfigurationService } from '@common/services/smConfigurationService';
 
 export class NotificationAdapterVoid implements NotificationAdapter {
-  public supportedChannels: ChannelsEnum = ChannelsEnum.MESSAGE_CENTRE_ONLY;
-
   constructor(
-    protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMConfigurationService
+    protected readonly observability: ObservabilityService,
+    protected readonly config: ConfigurationService
   ) {}
 
-  // Empty shim
-  async initialize(): Promise<void> {
-    await Promise.resolve();
+  public static create(observability: ObservabilityService, config: ConfigurationService) {
+    return new NotificationAdapterVoid(observability, config);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

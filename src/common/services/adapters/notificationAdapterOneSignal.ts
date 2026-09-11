@@ -31,35 +31,32 @@ interface OneSignalPushNotificationResponse {
 }
 
 export class NotificationAdapterOneSignal implements NotificationAdapter {
-  public client!: FetchService;
-  protected key!: string;
-  protected appId!: string;
-  protected deeplinkTemplate!: string;
-
   constructor(
-    protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMConfigurationService
+    public readonly client: FetchService,
+    protected readonly observability: ObservabilityService,
+    protected readonly config: ConfigurationService,
+    protected readonly appId: string,
+    protected readonly deeplinkTemplate: string
   ) {}
 
-  public async initialize(): Promise<void> {
-    // Initialize only if the client has not been previously initialized
-    if (this.client !== undefined) {
-      return;
-    }
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMConfigurationService
+  ) {
+    const key = await smConfig.getNamespacedSecret(SecretParameters.Dispatch.OneSignal.ApiKey);
+    const appId = await config.getParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
+    const deeplinkTemplate = await config.getParameter(SSMParameters.Notification.DeeplinkTemplate);
 
-    // Fetch configs
-    this.key = await this.smConfig.getNamespacedSecret(SecretParameters.Dispatch.OneSignal.ApiKey);
-    this.appId = await this.config.getParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
-    this.deeplinkTemplate = await this.config.getParameter(SSMParameters.Notification.DeeplinkTemplate);
-
-    this.client = new FetchService({
+    const client = new FetchService({
       baseUrl: `https://api.onesignal.com/`,
       defaultHeaders: {
-        Authorization: `Key ${this.key}`,
+        Authorization: `Key ${key}`,
         'Content-Type': 'application/json',
       },
     });
+
+    return new NotificationAdapterOneSignal(client, observability, config, appId, deeplinkTemplate);
   }
 
   public async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {

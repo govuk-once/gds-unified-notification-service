@@ -1,6 +1,6 @@
 export * from './DispatchAdapterRequest.fixture';
 export * from './Events.fixtures';
-export * from './IAnalyticsSchema.fixtures';
+export * from './IAnalytics.fixtures';
 export * from './IFlexNotification.fixtures';
 export * from './IGroupMessage.fixtures';
 export * from './IGroupMessageMetadata.fixtures';
