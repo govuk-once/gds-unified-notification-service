@@ -86,6 +86,7 @@ export const mockIProcessedGroupMessage = (
   });
   return {
     NotificationID: notificationID,
+    GroupNotificationID: groupMessageMetadata.GroupMessage.GroupNotificationID,
     CampaignID: groupMessageMetadata.GroupMessage.CampaignID,
     OrganisationID: groupMessageMetadata.GroupMessage.OrganisationID,
     ExternalUserID: pushID,
@@ -93,5 +94,8 @@ export const mockIProcessedGroupMessage = (
     NotificationBody: groupMessageMetadata.GroupMessage.NotificationBody,
     MessageTitle: groupMessageMetadata.GroupMessage.MessageTitle,
     MessageBody: groupMessageMetadata.GroupMessage.MessageBody,
+    ExpiresInDays: groupMessageMetadata.GroupMessage.ExpiresInDays,
+    Channel: groupMessageMetadata.GroupMessage.Channel,
+    DeeplinkURL: groupMessageMetadata.GroupMessage.DeeplinkURL,
   };
 };

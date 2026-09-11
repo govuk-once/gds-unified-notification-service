@@ -9,6 +9,7 @@ import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConst
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSFlexResource extends Construct {
@@ -165,6 +166,9 @@ export class UNSFlexResource extends Construct {
       },
     };
 
+    // Flex HTTP Lambdas are only accessible via private api gateways / vpce's
+    Object.values(this.lambdas.http).forEach((lambda) => applyExposureTag(lambda, 'Internal'));
+
     //// =====================================================
     // API Gateway
     //// =====================================================
@@ -192,6 +196,8 @@ export class UNSFlexResource extends Construct {
           e2e: {},
         },
       });
+      applyExposureTag(this.publicGateway, 'Perimeter');
+      applyExposureTag(this.publicGateway.waf, 'Perimeter');
     }
 
     this.gateway = new UNSAPIGatewayGateway(this, config, {
@@ -224,6 +230,8 @@ export class UNSFlexResource extends Construct {
         flex: {},
       },
     });
+    applyExposureTag(this.gateway, 'Isolated');
+    applyExposureTag(this.gateway.waf, 'Internal');
 
     for (const gateway of [this.publicGateway, this.gateway].filter(filters.isDefined)) {
       gateway

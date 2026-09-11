@@ -246,7 +246,7 @@ describe('ValidationService', async () => {
       );
       const messageWithDeeplink = {
         ...message,
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
       };
 
       // Act
@@ -400,7 +400,7 @@ describe('ValidationService', async () => {
       };
       const messageWithDeeplink = {
         ...message,
-        DeeplinkURL: 'https://example.com',
+        DeeplinkURL: 'govuk://travel',
       };
 
       // Act
