@@ -1,5 +1,5 @@
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -51,9 +51,7 @@ describe('DispatchQueueService', async () => {
       );
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.Dispatch.Url
-      );
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(SSMParameters.Queue.Dispatch.Url);
       expect(result).toBeInstanceOf(DispatchQueueService);
     });
   });

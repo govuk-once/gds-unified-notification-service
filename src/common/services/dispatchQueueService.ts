@@ -18,11 +18,7 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   }
 
   public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
-    return new DispatchQueueService(
-      observability,
-      client,
-      await config.getParameter(SSMParameters.Queue.Dispatch.Url)
-    );
+    return new DispatchQueueService(observability, client, await config.getParameter(SSMParameters.Queue.Dispatch.Url));
   }
 
   public addPublishingSuccessMetric(count: number) {

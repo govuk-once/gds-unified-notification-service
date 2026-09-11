@@ -61,7 +61,7 @@ describe('ProcessingQueueService', async () => {
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.Processing.Url
+        SSMParameters.Queue.Processing.Url
       );
       expect(result).toBeInstanceOf(ProcessingQueueService);
     });

@@ -48,7 +48,6 @@ describe('ProcessingService', async () => {
       }) as unknown as ReturnType<(typeof awsCredentialsProvider)['fromNodeProviderChain']>
   );
 
-
   // Initialize mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = await iocSpies();
 

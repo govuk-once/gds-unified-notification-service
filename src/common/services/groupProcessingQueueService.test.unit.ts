@@ -61,7 +61,7 @@ describe('GroupProcessingQueueService', async () => {
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.GroupProcessing.Url
+        SSMParameters.Queue.GroupProcessing.Url
       );
       expect(result).toBeInstanceOf(GroupProcessingQueueService);
     });

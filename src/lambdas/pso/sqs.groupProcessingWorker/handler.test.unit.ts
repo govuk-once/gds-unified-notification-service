@@ -123,7 +123,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
 
   it('updates the cache with any unprocessed pushIDs after splitting the array', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(1); // Simulate worker batch size of 1
+    mockParameterStore[SSMParameters.Group.Dispatch.WorkerBatchSize.Path] = 1; // Simulate worker batch size of 1
     serviceMocks.cacheServiceMock.get.mockReset();
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1', 'pushID_2']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
@@ -182,7 +182,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
 
   it('creates a new message to group processing worker if any pushIDs are unprocessed', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getParameter.mockResolvedValueOnce(1); // Simulate worker batch size of 1
+    mockParameterStore[SSMParameters.Group.Dispatch.WorkerBatchSize.Path] = 1; // Simulate worker batch size of 1
     serviceMocks.cacheServiceMock.get.mockReset();
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_0', 'pushID_1']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
