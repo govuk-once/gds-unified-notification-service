@@ -94,7 +94,7 @@
     "@aws-sdk/util-dynamodb": "^3.996.8",
     "@aws-sdk/util-format-url": "^3.972.44",
     "@middy/core": "^7.7.3",
-    "@middy/http-error-handler": "^6.4.5",
+    "@middy/http-error-handler": "^7.9.2",
     "@middy/http-event-normalizer": "^6.4.5",
     "@middy/http-header-normalizer": "^6.4.5",
     "@middy/http-json-body-parser": "^6.4.5",
