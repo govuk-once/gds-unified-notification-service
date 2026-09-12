@@ -1,9 +1,9 @@
 [settings]
-idiomatic_version_file_enable_tools = ['node']
+idiomatic_version_file_enable_tools = ['node', 'pnpm']
 
 [tools]
 checkov = "latest"
-pnpm = "latest"
+claude = "latest"
 
 [shell_alias]
 "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
