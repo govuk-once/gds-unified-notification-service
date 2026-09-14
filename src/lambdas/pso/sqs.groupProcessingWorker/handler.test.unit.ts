@@ -3,20 +3,18 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ChannelsEnum, NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { MetricsLabels } from '@common/services';
-import { BoolParameters } from '@common/utils';
-import {
-  IGroupMessageMetadata,
-  mockIFailedGroupMessageMetadata,
-  mockIGroupMessageMetadata,
-  mockIProcessedGroupMessage,
-  mockIUnidentifiableGroupMessageMetadata,
-} from '@project/lambdas/interfaces';
+import { IGroupMessageMetadata } from '@project/lambdas/interfaces';
 import { GroupProcessingWorker } from '@project/lambdas/pso/sqs.groupProcessingWorker/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
   mockEventContext,
+  mockIFailedGroupMessageMetadata,
+  mockIGroupMessageMetadata,
   mockIMessageRecord,
+  mockIProcessedGroupMessage,
+  mockIUnidentifiableGroupMessageMetadata,
   mockQueueEvent,
   mockQueueMultiEvents,
   mockServicesExpectedBehaviour,
@@ -82,15 +80,15 @@ describe('GroupProcessingWorker QueueHandler', async () => {
   });
 
   it.each([
-    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [`true`, `false`, `Service is disabled due to parameter config/groupProcessingWorker/enabled being set to false`],
+    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [true, false, `Service is disabled due to parameter config/groupProcessingWorker/enabled being set to false`],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: string, processingEnabled: string, expectErrorMessage: string) => {
+    async (commonEnabled: boolean, processingEnabled: boolean, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.GroupProcessingWorker.Enabled] = processingEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.GroupProcessingWorker.Enabled.Path] = processingEnabled;
 
       // Act
       const result = handler(event, context);
@@ -125,7 +123,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
 
   it('updates the cache with any unprocessed pushIDs after splitting the array', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getNumericParameter.mockResolvedValueOnce(1); // Simulate worker batch size of 1
+    mockParameterStore[SSMParameters.Group.Dispatch.WorkerBatchSize.Path] = 1; // Simulate worker batch size of 1
     serviceMocks.cacheServiceMock.get.mockReset();
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1', 'pushID_2']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
@@ -184,7 +182,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
 
   it('creates a new message to group processing worker if any pushIDs are unprocessed', async () => {
     // Arrange
-    serviceMocks.configurationServiceMock.getNumericParameter.mockResolvedValueOnce(1); // Simulate worker batch size of 1
+    mockParameterStore[SSMParameters.Group.Dispatch.WorkerBatchSize.Path] = 1; // Simulate worker batch size of 1
     serviceMocks.cacheServiceMock.get.mockReset();
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_0', 'pushID_1']);
     serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);

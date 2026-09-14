@@ -2,7 +2,7 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { NotificationStateEnum, ParsingFailedError } from '@common/models';
 import { CampaignsDynamoRepository } from '@common/repositories/campaignsDynamoRepository';
 import { ICampaignRecord, IDynamoAttributesSchema } from '@common/repositories/interfaces';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockAWSClientsExpectedBehaviour, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -42,8 +42,8 @@ describe('campaignDynamoRepository', async () => {
       );
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
-        StringParameters.Table.Campaigns.Attributes,
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        SSMParameters.Table.Campaigns.Attributes,
         IDynamoAttributesSchema
       );
       expect(result).toBeInstanceOf(CampaignsDynamoRepository);

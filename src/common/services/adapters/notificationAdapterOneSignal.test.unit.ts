@@ -28,7 +28,7 @@ describe('NotificationAdapterOneSignal', async () => {
     instance = await NotificationAdapterOneSignal.create(
       observabilityMocks,
       serviceMocks.configurationServiceMock,
-      serviceMocks.smNamespacedConfigurationServiceMock
+      serviceMocks.smConfigurationServiceMock
     );
     instance.client.post = postMock;
     vi.spyOn(observabilityMocks, 'recordProviderHttpMetric');

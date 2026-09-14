@@ -7,9 +7,9 @@ import {
   IGroupStoreRecordSchema,
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { filters } from '@common/utils/array';
 import { IGroups, IModifyGroups } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import { v4 as uuid } from 'uuid';
 
 export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroupStoreRecordSchema> {
@@ -29,7 +29,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
       config,
       observability,
       client,
-      await config.getParameterAsType(StringParameters.Table.GroupStore.Attributes, IDynamoAttributesSchema)
+      await config.getParameter(SSMParameters.Table.GroupStore.Attributes, IDynamoAttributesSchema)
     );
   }
 

@@ -10,7 +10,6 @@ import {
   iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
   iocGetValidationService,
-  NumericParameters,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
@@ -20,6 +19,7 @@ import { GroupProcessingQueueService } from '@common/services/groupProcessingQue
 import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
+import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
@@ -97,7 +97,7 @@ export class PostGroupMessage extends APIHandler<
     this.validationService.messageValidation(messages, organisationConfig);
 
     // Get the number of workers to be used to process the group message
-    const numberOfWorkers = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerCount);
+    const numberOfWorkers = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerCount);
 
     const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
     for (const message of messages) {

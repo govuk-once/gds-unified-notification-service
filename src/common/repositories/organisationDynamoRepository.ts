@@ -3,8 +3,8 @@ import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {
   protected recordSchema = IOrganisationRecordSchema;
@@ -23,7 +23,7 @@ export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOr
       config,
       observability,
       client,
-      await config.getParameterAsType(StringParameters.Table.Organisations.Attributes, IDynamoAttributesSchema)
+      await config.getParameter(SSMParameters.Table.Organisations.Attributes, IDynamoAttributesSchema)
     );
   }
 

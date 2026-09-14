@@ -1,8 +1,8 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { StringParameters } from '@common/utils';
 import { mockIGroupMessageMetadata } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -11,6 +11,7 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 
 describe('GroupProcessingQueueService', async () => {
   let groupProcessingQueueService: GroupProcessingQueueService;
@@ -60,7 +61,7 @@ describe('GroupProcessingQueueService', async () => {
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.GroupProcessing.Url
+        SSMParameters.Queue.GroupProcessing.Url
       );
       expect(result).toBeInstanceOf(GroupProcessingQueueService);
     });
@@ -81,7 +82,7 @@ describe('GroupProcessingQueueService', async () => {
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
-            QueueUrl: mockParameterStore[StringParameters.Queue.GroupProcessing.Url],
+            QueueUrl: mockParameterStore[SSMParameters.Queue.GroupProcessing.Url.Path],
             DelaySeconds: 0,
             MessageBody: JSON.stringify(groupMessageMetadata),
           }),

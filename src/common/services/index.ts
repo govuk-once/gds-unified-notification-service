@@ -16,5 +16,4 @@ export * from './processingQueueService';
 export * from './processingService';
 export * from './queueService';
 export * from './smConfigurationService';
-export * from './smNamespacedConfigurationService';
 export * from './validationService';

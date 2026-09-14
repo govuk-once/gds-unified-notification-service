@@ -1,7 +1,7 @@
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IDynamoAttributesSchema, IGroupStoreRecord } from '@common/repositories/interfaces';
-import { StringParameters } from '@common/utils';
 import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockAWSClientsExpectedBehaviour,
@@ -65,8 +65,8 @@ describe('GroupStoreDynamoRepository', async () => {
       );
 
       // Assert
-      expect(serviceMocks.configurationServiceMock.getParameterAsType).toHaveBeenCalledWith(
-        StringParameters.Table.GroupStore.Attributes,
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
+        SSMParameters.Table.GroupStore.Attributes,
         IDynamoAttributesSchema
       );
       expect(result).toBeInstanceOf(GroupStoreDynamoRepository);

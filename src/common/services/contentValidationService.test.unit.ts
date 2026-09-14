@@ -7,6 +7,7 @@ vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 
 describe('ContentValidationService', async () => {
   let instance: ContentValidationService;

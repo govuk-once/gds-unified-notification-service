@@ -30,11 +30,11 @@ import {
   ProcessingQueueService,
   ProcessingService,
   SMConfigurationService,
-  SMNamespacedConfigurationService,
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
-import { InMemoryTTLCache, StringParameters } from '@common/utils';
+import { InMemoryTTLCache } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 enum Mode {
   SINGLETON,
@@ -139,12 +139,6 @@ export const iocGetSMConfigurationService = ioc(
   () => new SMConfigurationService(iocGetSecretManagerClient(), iocGetObservabilityService())
 );
 
-export const iocGetSMNamespacedConfigurationService = ioc(
-  'SMPrefixedConfigurationService',
-  Mode.SINGLETON,
-  () => new SMNamespacedConfigurationService(iocGetSecretManagerClient(), iocGetObservabilityService())
-);
-
 export const iocGetCacheService = ioc(
   'CacheService',
   Mode.SINGLETON,
@@ -241,11 +235,7 @@ export const iocGetGroupStoreDynamoRepository = ioc(
 
 // Services - API Integrations
 export const iocGetNotificationService = ioc('NotificationService', Mode.TIMEBOUND_SINGLETON, async () =>
-  NotificationService.create(
-    iocGetObservabilityService(),
-    iocGetConfigurationService(),
-    iocGetSMNamespacedConfigurationService()
-  )
+  NotificationService.create(iocGetObservabilityService(), iocGetConfigurationService(), iocGetSMConfigurationService())
 );
 
 export const iocGetProcessingService = ioc('ProcessingService', Mode.TIMEBOUND_SINGLETON, () =>
@@ -300,8 +290,8 @@ export const iocGetContentValidationService = ioc(
     new ContentValidationService(
       iocGetObservabilityService(),
       iocGetConfigurationService(),
-      (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.Protocols)).split(','),
-      (await iocGetConfigurationService().getParameter(StringParameters.Content.Allowed.UrlHostnames)).split(',')
+      (await iocGetConfigurationService().getParameter(SSMParameters.Content.Allowed.Protocols)).split(','),
+      (await iocGetConfigurationService().getParameter(SSMParameters.Content.Allowed.UrlHostnames)).split(',')
     )
 );
 

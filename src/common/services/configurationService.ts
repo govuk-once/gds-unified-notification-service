@@ -3,7 +3,8 @@ import { ServiceMisconfigurationError } from '@common/models';
 import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
 import { FeatureFlags } from '@common/services/interfaces/featureFlags';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { BoolParameters, InMemoryTTLCache } from '@common/utils';
+import { InMemoryTTLCache } from '@common/utils';
+import SSMParameters, { ParameterConfig } from '@shared/ssmParameter';
 
 export class ConfigurationService extends BaseConfigurableValueService {
   protected inMemoryCache = new InMemoryTTLCache<string, string>(60000);
@@ -39,7 +40,8 @@ export class ConfigurationService extends BaseConfigurableValueService {
   }
 
   private refreshCachePromise: Promise<void> | null = null;
-  public async getParameter(namespace: string): Promise<string> {
+
+  protected async getParameterRawValue(namespace: string): Promise<string> {
     this.observability.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
@@ -78,23 +80,22 @@ export class ConfigurationService extends BaseConfigurableValueService {
     }
   }
 
-  public async ensureServiceIsEnabled(...keys: string[]) {
-    for (const key of keys) {
-      if ((await this.getBooleanParameter(key)) !== true) {
-        this.observability.logger.error(`Service is disabled due to parameter ${key} being set to false`);
+  public async ensureServiceIsEnabled(
+    commonConfig: ParameterConfig<'boolean'>,
+    stageConfig: ParameterConfig<'boolean'>
+  ) {
+    for (const config of [commonConfig, stageConfig]) {
+      if ((await this.getParameter(config)) !== true) {
+        this.observability.logger.error(`Service is disabled due to parameter ${config.Path} being set to false`);
         throw new ServiceMisconfigurationError();
       }
     }
   }
 
   public async getFeatureFlags(): Promise<FeatureFlags> {
-    const channelControlsFeatureFlag = await this.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.ChannelControls
-    );
-    const deeplinkUrlFeatureFlag = await this.getBooleanParameter(BoolParameters.Config.FeatureFlags.DeepLinkUrl);
-    const messageRetentionFeatureFlag = await this.getBooleanParameter(
-      BoolParameters.Config.FeatureFlags.MessageRetention
-    );
+    const channelControlsFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.ChannelControls);
+    const deeplinkUrlFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
+    const messageRetentionFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.MessageRetention);
 
     return {
       channelControls: channelControlsFeatureFlag,

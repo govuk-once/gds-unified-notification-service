@@ -3,8 +3,8 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {
   protected queueName: string = 'dispatch';
@@ -18,11 +18,7 @@ export class DispatchQueueService extends QueueService<IProcessedMessage> {
   }
 
   public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
-    return new DispatchQueueService(
-      observability,
-      client,
-      await config.getParameter(StringParameters.Queue.Dispatch.Url)
-    );
+    return new DispatchQueueService(observability, client, await config.getParameter(SSMParameters.Queue.Dispatch.Url));
   }
 
   public addPublishingSuccessMetric(count: number) {
