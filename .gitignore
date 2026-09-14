@@ -108,8 +108,10 @@ coverage.md
 # Ensuring no accidental mTLS cert leaks
 *.crt
 *.pem
+*.key
 **/*.crt
 **/*.pem
+**/*.key
 
 
 
