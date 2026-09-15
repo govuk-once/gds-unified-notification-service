@@ -693,12 +693,12 @@ export class UNSPSOResource extends Construct {
       [SSMParameters.Queue.Dispatch.Url.Path]: this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export
-      [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup
-        ? analyticsExportLogGroup.logGroupName
-        : undefined,
-      [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket
-        ? analyticsExportBucket.bucketName
-        : undefined,
+      ...(analyticsExportLogGroup
+        ? { [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName }
+        : {}),
+      ...(analyticsExportBucket
+        ? { [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket.bucketName }
+        : {}),
     });
   }
 }
