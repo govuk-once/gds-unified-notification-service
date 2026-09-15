@@ -66,9 +66,7 @@ const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment res
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
 const prBuildNumber = process.env.pr_build_number;
 const isEphemeral = prBuildNumber !== undefined;
-const namespace = prBuildNumber
-  ? [prBuildNumber, project, env].join(`-`)
-  : [project, env].join(`-`).replace(`-prod`, ``);
+const namespace = prBuildNumber ? [project, prBuildNumber].join(`-`) : [project, env].join(`-`).replace(`-prod`, ``);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
@@ -187,7 +185,7 @@ export const config = {
     },
     namingHelper: (...args: string[]) => {
       return prBuildNumber
-        ? [prBuildNumber, config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', '')
+        ? [config.project, prBuildNumber, ...args].join('-').toLowerCase()
         : [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', '');
     },
     namingHelperSnakeCase: (...args: string[]) => config.utils.namingHelper(...args).replaceAll(`-`, `_`),
