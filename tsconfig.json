@@ -32,6 +32,8 @@
       "@common": ["./src/common"],
       "@project/*": ["./src/*"],
       "@project": ["./src"],
+      "@shared/*": ["./shared/*"],
+      "@shared": ["./shared"],
       "@test/*": ["./test/*"],
       "@test": ["./test"]
     }

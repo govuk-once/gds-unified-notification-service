@@ -1,17 +1,20 @@
 import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { BaseConfigurableValueService } from '@common/services/baseConfigurableValueService';
+import { FeatureFlags } from '@common/services/interfaces/featureFlags';
 import { ObservabilityService } from '@common/services/observabilityService';
 import { InMemoryTTLCache } from '@common/utils';
+import SSMParameters, { ParameterConfig } from '@shared/ssmParameter';
 
 export class ConfigurationService extends BaseConfigurableValueService {
   protected inMemoryCache = new InMemoryTTLCache<string, string>(60000);
   protected prefix = process.env.PREFIX;
-  private readonly client;
 
-  constructor(protected observability: ObservabilityService) {
+  constructor(
+    protected client: SSMClient,
+    protected observability: ObservabilityService
+  ) {
     super(observability);
-    this.client = new SSMClient({ region: 'eu-west-2' });
     this.observability.tracer.captureAWSv3Client(this.client);
   }
   public async refreshCache(nextToken?: string): Promise<void> {
@@ -37,7 +40,8 @@ export class ConfigurationService extends BaseConfigurableValueService {
   }
 
   private refreshCachePromise: Promise<void> | null = null;
-  public async getParameter(namespace: string): Promise<string> {
+
+  protected async getParameterRawValue(namespace: string): Promise<string> {
     this.observability.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
 
     const param = {
@@ -76,12 +80,27 @@ export class ConfigurationService extends BaseConfigurableValueService {
     }
   }
 
-  public async ensureServiceIsEnabled(...keys: string[]) {
-    for (const key of keys) {
-      if ((await this.getBooleanParameter(key)) !== true) {
-        this.observability.logger.error(`Service is disabled due to parameter ${key} being set to false`);
+  public async ensureServiceIsEnabled(
+    commonConfig: ParameterConfig<'boolean'>,
+    stageConfig: ParameterConfig<'boolean'>
+  ) {
+    for (const config of [commonConfig, stageConfig]) {
+      if ((await this.getParameter(config)) !== true) {
+        this.observability.logger.error(`Service is disabled due to parameter ${config.Path} being set to false`);
         throw new ServiceMisconfigurationError();
       }
     }
+  }
+
+  public async getFeatureFlags(): Promise<FeatureFlags> {
+    const channelControlsFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.ChannelControls);
+    const deeplinkUrlFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
+    const messageRetentionFeatureFlag = await this.getParameter(SSMParameters.Config.FeatureFlags.MessageRetention);
+
+    return {
+      channelControls: channelControlsFeatureFlag,
+      deeplinkUrl: deeplinkUrlFeatureFlag,
+      messageRetention: messageRetentionFeatureFlag,
+    };
   }
 }

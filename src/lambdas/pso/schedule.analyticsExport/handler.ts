@@ -11,7 +11,7 @@ import { Context, ScheduledEvent } from 'aws-lambda';
 export class AnalyticsExport extends ScheduleOperation {
   public operationId: string = 'analyticsExport';
 
-  public analyticsExportService: AnalyticsExportService;
+  public analyticsExportService!: AnalyticsExportService;
 
   constructor(
     protected config: ConfigurationService,

@@ -1,58 +1,59 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import {
-  ConfigurationService,
-  MetricsLabels,
-  NotificationAdapterOneSignal,
-  NotificationAdapterVoid,
-  ObservabilityService,
-} from '@common/services';
+import { NotificationAdapterOneSignal, NotificationAdapterVoid } from '@common/services/adapters';
+import { ConfigurationService } from '@common/services/configurationService';
 import {
   NotificationAdapter,
   NotificationAdapterRequest,
   NotificationAdapterResult,
 } from '@common/services/interfaces';
-import { SMNamespacedConfigurationService } from '@common/services/smNamespacedConfigurationService';
-import { EnumParameters, segment } from '@common/utils';
-import * as z from 'zod';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
+import { SMConfigurationService } from '@common/services/smConfigurationService';
+import { segment } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
+import z from 'zod';
 
 export class NotificationService {
-  public adapter: NotificationAdapter;
   constructor(
+    public adapter: NotificationAdapter,
     protected observability: ObservabilityService,
-    protected config: ConfigurationService,
-    protected smConfig: SMNamespacedConfigurationService
+    protected config: ConfigurationService
   ) {}
 
-  async initialize() {
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMConfigurationService
+  ) {
     // Based on the adapter configured within SSM - switch adapters
-    const adapter = await this.config.getEnumParameter(
-      EnumParameters.Config.Dispatch.Adapter,
+    const adapterConfig = await config.getParameter(
+      SSMParameters.Config.Dispatch.Adapter,
       z.enum([`VOID`, `OneSignal`])
     );
 
-    this.adapter =
-      adapter == 'OneSignal'
-        ? new NotificationAdapterOneSignal(this.observability, this.config, this.smConfig)
-        : new NotificationAdapterVoid(this.observability, this.config, this.smConfig);
+    // Select adapter based on the configuration
+    const adapter =
+      adapterConfig == 'OneSignal'
+        ? await NotificationAdapterOneSignal.create(observability, config, smConfig)
+        : NotificationAdapterVoid.create(observability, config);
 
-    // Initialize the adapter
-    await this.adapter.initialize();
-
-    return this;
+    return new NotificationService(adapter, observability, config);
   }
 
   async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {
     const metadata = {
       NotificationID: request.NotificationID,
     };
+
     this.observability.logger.info(`Dispatching notification`, metadata);
     const start = performance.now();
+
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHING_ATTEMPTS, MetricUnit.Count, 1);
     const result = await segment(this.observability.tracer, `Dispatching`, async (segment) => {
       segment.addMetadata(`NotificationID`, request.NotificationID);
       segment.addAnnotation(`Start`, true);
       return await this.adapter.send(request);
     });
+
     const end = performance.now() - start;
     this.observability.metrics.addMetric(MetricsLabels.DISPATCH_DURATION, MetricUnit.Milliseconds, end);
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHED, MetricUnit.Count, 1);

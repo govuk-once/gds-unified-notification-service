@@ -1,16 +1,15 @@
+import { filters } from '@common/utils/array';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
-import { UNSIntegrationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct';
-import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSFlexResource extends Construct {
@@ -18,11 +17,6 @@ export class UNSFlexResource extends Construct {
   public readonly publicGateway?: UNSAPIGatewayGateway;
   public readonly gateway: UNSAPIGatewayGateway;
 
-  public readonly alarms: {
-    apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
-    wafAlarms: UNSWAFAlarmsConstruct;
-    integrationAlarms: UNSIntegrationAlarmsConstruct;
-  };
   public readonly lambdas: {
     http: {
       getNotifications: UNSLambdaConstruct;
@@ -44,12 +38,12 @@ export class UNSFlexResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
-      organisationsRef: UNSOrganisationsCommon;
+      orgs: UNSOrganisationsCommon;
     }
   ) {
     super(scope, 'flex');
 
-    const { refs, organisationsRef } = props;
+    const { refs, orgs } = props;
 
     //// =====================================================
     // Lambdas
@@ -70,7 +64,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnly,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -86,7 +80,7 @@ export class UNSFlexResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
-          organisations: organisationsRef.organisationsTable.permissions.readOnly,
+          organisations: orgs.organisationsTable.permissions.readOnly,
         },
       },
     });
@@ -172,6 +166,9 @@ export class UNSFlexResource extends Construct {
       },
     };
 
+    // Flex HTTP Lambdas are only accessible via private api gateways / vpce's
+    Object.values(this.lambdas.http).forEach((lambda) => applyExposureTag(lambda, 'Internal'));
+
     //// =====================================================
     // API Gateway
     //// =====================================================
@@ -199,6 +196,8 @@ export class UNSFlexResource extends Construct {
           e2e: {},
         },
       });
+      applyExposureTag(this.publicGateway, 'Perimeter');
+      applyExposureTag(this.publicGateway.waf, 'Perimeter');
     }
 
     this.gateway = new UNSAPIGatewayGateway(this, config, {
@@ -231,8 +230,10 @@ export class UNSFlexResource extends Construct {
         flex: {},
       },
     });
+    applyExposureTag(this.gateway, 'Isolated');
+    applyExposureTag(this.gateway.waf, 'Internal');
 
-    for (const gateway of [this.publicGateway, this.gateway].filter((gateway) => gateway !== undefined)) {
+    for (const gateway of [this.publicGateway, this.gateway].filter(filters.isDefined)) {
       gateway
         .GET('getNotifications', '/notifications', this.lambdas.http.getNotifications.integration)
         .GET(
@@ -271,10 +272,10 @@ export class UNSFlexResource extends Construct {
         config.utils.namingProvider()
       ).createDashboard(`flex-service`, {
         lambdas: Object.values(this.lambdas.http)
-          .filter((x) => x !== undefined)
+          .filter(filters.isDefined)
           .map((x) => x.fn),
         name: config.utils.namingHelper(`flex-service`),
-        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter((api) => api !== undefined),
+        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
     };
@@ -316,29 +317,5 @@ export class UNSFlexResource extends Construct {
         })
       );
     }
-
-    //// =====================================================
-    // CloudWatch Alarms
-    //// =====================================================
-
-    this.alarms = {
-      apiGatewayAlarms: new UNSApiGatewayAlarmsConstruct(this, config, {
-        restApi: this.gateway.restApi,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
-        waf: this.gateway.waf,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-        lambdas: Object.entries(this.lambdas.http)
-          .filter(([, fn]) => fn !== undefined)
-          .map(([name, func]) => ({ name, func: func.fn })),
-      }),
-    };
   }
 }

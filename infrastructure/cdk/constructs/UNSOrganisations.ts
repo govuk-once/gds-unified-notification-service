@@ -1,3 +1,4 @@
+import SSMParameters from '@shared/ssmParameter';
 import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
@@ -5,7 +6,9 @@ import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSDynamoDBWriterConstruct } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
-import { orgMetadata } from 'infrastructure/cdk/consumers/consumersMetadata';
+import { getConsumersMetadata } from 'infrastructure/cdk/consumers/consumersMetadata';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 export class UNSOrganisationsCommon extends Construct {
@@ -29,6 +32,9 @@ export class UNSOrganisationsCommon extends Construct {
       globalSecondaryIndexes: [],
     });
 
+    applyExposureTag(this.organisationsTable, 'Isolated');
+    applyPiiTag(this.organisationsTable, 'false');
+
     //// =====================================================
     // Add organisation per entry in org metadata
     //// =====================================================
@@ -38,7 +44,8 @@ export class UNSOrganisationsCommon extends Construct {
     });
     common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
 
-    for (const [OrganisationID, { DisplayName }] of Object.entries(orgMetadata)) {
+    const orgMetadata = getConsumersMetadata(config);
+    for (const [OrganisationID, { DisplayName, OrganisationConfig }] of Object.entries(orgMetadata)) {
       // Create an organisation record
       dynamoDBWriterProvider.createRecord(
         this,
@@ -46,6 +53,7 @@ export class UNSOrganisationsCommon extends Construct {
         {
           OrganisationID: OrganisationID,
           DisplayName: DisplayName,
+          OrganisationConfig: OrganisationConfig,
         },
         OrganisationID
       );
@@ -56,7 +64,7 @@ export class UNSOrganisationsCommon extends Construct {
     //// =====================================================
     SSMFromObject(this, config, {
       // DynamoDB Tables
-      'table/organisations/attributes': this.organisationsTable.attributes,
+      [SSMParameters.Table.Organisations.Attributes.Path]: this.organisationsTable.attributes,
     });
   }
 }

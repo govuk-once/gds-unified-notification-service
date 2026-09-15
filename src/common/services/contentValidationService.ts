@@ -1,7 +1,8 @@
-import { ContentValidationError } from '@common/models/Errors/BadRequestError';
+import { ContentValidationError } from '@common/models';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
 import Token from 'markdown-it/lib/token.mjs';
+import z, { ZodType } from 'zod';
 
 const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   // Standard text containment
@@ -35,7 +36,7 @@ const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
   'link_close',
 ]);
 
-const PROTOCOLS = ['mailto:', 'tel:', 'sms:', 'https:', 'http:', 'file:', 'data:', 'blob:', 'geo:'];
+const PROTOCOLS = new Set(['mailto:', 'tel:', 'sms:', 'https:', 'http:', 'file:', 'data:', 'blob:', 'geo:']);
 
 export class ContentValidationService {
   private readonly parser = new MarkdownIt({
@@ -55,6 +56,25 @@ export class ContentValidationService {
     return new ContentValidationError([content]);
   }
 
+  public validateRecords(data: z.core.output<ZodType>, ctx: z.core.$RefinementCtx<z.core.output<ZodType>>) {
+    try {
+      const body = data as Record<string, unknown>;
+      if (typeof body.MessageBody === 'string') {
+        this.validate(body.MessageBody);
+      }
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['MessageBody'] });
+        return;
+      }
+      ctx.addIssue({
+        code: 'custom',
+        message: e instanceof Error ? e.message : 'Unknown error in content validation',
+        path: ['MessageBody'],
+      });
+    }
+  }
+
   public validate(input: string | undefined): string {
     // Does not validate if undefined or empty string
     if (input === undefined || input.trim() === '') {
@@ -71,10 +91,20 @@ export class ContentValidationService {
     return input;
   }
 
-  private validateUrls(input: string | undefined) {
+  public validateUrls(
+    input: string | undefined,
+    overrides?: {
+      protocols: ContentValidationService['protocols'];
+      hostnames: ContentValidationService['hostnames'];
+    }
+  ) {
     if (input == undefined || input == '') {
       return input;
     }
+
+    // Use overrides if availalble, otherwise fall on defaults
+    const protocols = overrides?.protocols ?? this.protocols;
+    const hostnames = overrides?.hostnames ?? this.hostnames;
 
     // Split string by whitespace
     const segments = input.split(/(\s+)/);
@@ -84,7 +114,7 @@ export class ContentValidationService {
       let url: URL;
       try {
         url = new URL(segment);
-        if (!PROTOCOLS.includes(url.protocol)) {
+        if (!PROTOCOLS.has(url.protocol)) {
           continue;
         }
       } catch {
@@ -92,7 +122,7 @@ export class ContentValidationService {
         continue;
       }
       // Validate protocol is on the list
-      if (!this.protocols.includes(url.protocol)) {
+      if (!protocols.includes(url.protocol)) {
         throw this.createError(
           `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${this.protocols.join(',')}`
         );
@@ -100,7 +130,7 @@ export class ContentValidationService {
 
       // Validate hostnames for https protocols
       if (url.protocol == 'https:') {
-        const validHostname = this.hostnames
+        const validHostname = hostnames
           .map((hostname) => {
             // If hostname starts with *, strip it - then check if URLs hostname ends with it
             if (hostname.startsWith('*')) {

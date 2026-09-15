@@ -1,0 +1,24 @@
+on: pull_request
+
+jobs:
+  validate-pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Skip Dependabot PRs
+        if: github.actor == 'dependabot[bot]'
+        run: echo "Skipping Jira title check for Dependabot"
+
+      - name: Validate PR title follows conventional commits
+        if: github.actor != 'dependabot[bot]'
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "Checking PR title: $TITLE"
+
+          if [[ ! $TITLE =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test){1}(\([A-Z]{2,6}-[0-9]{1,5}\))(!)?\:\ ([[:alnum:]])+([[:space:][:print:]]*) ]]; then
+            echo "::error ::PR title must follow conventional commits format: <type>(<TICKET-123>): <description>"
+            echo "::error ::Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+            echo "::error ::Examples: 'feat(NOT-491): add login flow' or 'fix(NOT-123): resolve null pointer'"
+            exit 1
+          fi

@@ -1,3 +1,4 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
@@ -7,6 +8,8 @@ import {
   iocGetObservabilityService,
   iocGetProcessingService,
 } from '@common/ioc';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
   AnalyticsService,
@@ -16,25 +19,61 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { extractIdentifiers, IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
-import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
-import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { BoolParameters } from '@common/utils';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+  IMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import z from 'zod';
 
 const requestBodySchema = IMessageSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
-export class Processing extends BatchQueueOperation<typeof requestBodySchema> {
-  public operationId: string = 'processing';
-  public requestBodySchema = requestBodySchema;
-  protected enableConfig: string = BoolParameters.Config.Processing.Enabled;
+/**
+ * 
+ * Lambda handling processing of validated messages
+ * - Validates input 
+ * - Performs a user ID look up
+ * - Fires analytics events: PROCESSING, PROCESSED, PROCESSING_FAILED
+ * - Pushes valid messages into dispatch queue
+ * 
+ * Sample event:
+{
+  "Records": [
+    {
+      "messageId": "mockMessageId",
+      "receiptHandle": "mockReceiptHandle",
+      "body": "{\"NotificationID\":\"1234\",\"DepartmentID\":\"DEP01\",\"UserID\":\"UserID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "2",
+        "SentTimestamp": "202601021513",
+        "SenderId": "mockSenderId",
+        "ApproximateFirstReceiveTimestamp": "202601021513"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "{{{md5_of_body}}}",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
+ */
+export class Processing extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
+  public readonly operationId: string = 'processing';
+  protected readonly enableConfig = SSMParameters.Config.Processing.Enabled;
 
-  public analyticsService: AnalyticsService;
-  public notificationsRepository: NotificationsDynamoRepository;
-  public dispatchQueue: DispatchQueueService;
-  public processingService: ProcessingService;
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
+
+  public analyticsService!: AnalyticsService;
+  public notificationsRepository!: NotificationsDynamoRepository;
+  public dispatchQueue!: DispatchQueueService;
+  public processingService!: ProcessingService;
 
   constructor(
     public config: ConfigurationService,

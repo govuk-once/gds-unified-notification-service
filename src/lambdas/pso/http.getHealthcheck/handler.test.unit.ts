@@ -1,6 +1,6 @@
-import { ITypedRequestEvent } from '@common/middlewares';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
+import { IRequestEvent } from '@common/middlewares';
 import { GetHealthcheck } from '@project/lambdas/pso/http.getHealthcheck/handler';
+import { mockEventContext, observabilitySpies } from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -9,27 +9,25 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 describe('GetHealthcheck Handler', () => {
   let instance: GetHealthcheck;
-  let mockContext: Context;
-  let mockEvent: ITypedRequestEvent<undefined>;
 
+  // Initialize mock services, clients, and repositories
   const observabilityMocks = observabilitySpies();
 
+  // Test Fixtures
+  let context: Context;
+  let event: IRequestEvent;
+
   beforeEach(() => {
+    // Test Fixtures
+    context = mockEventContext('getNotificationStatus');
+    event = {} as unknown as IRequestEvent;
+
     instance = new GetHealthcheck(observabilityMocks);
-
-    // Mock AWS Lambda Context
-    mockContext = {
-      functionName: 'getHealthcehck',
-      awsRequestId: '12345',
-    } as unknown as Context;
-
-    // Mock the QueueEvent (Mapping to your InputType)
-    mockEvent = {} as unknown as typeof mockEvent;
   });
 
   it('should log "Received request" when implementation is called', async () => {
     // Arrange
-    const result = await instance.implementation(mockEvent, mockContext);
+    const result = await instance.implementation(event, context);
 
     // Assert
     expect(result).toEqual({

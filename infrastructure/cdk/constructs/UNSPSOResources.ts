@@ -6,15 +6,10 @@ import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
+import SSMParameters from '@shared/ssmParameter';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { UNSApiGatewayAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct';
-import { UNSAuthenticationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct';
-import { UNSIntegrationAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct';
-import { UNSOperationalAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct';
-import { UNSPerformanceAlarmsConstructs } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
-import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambdaConstruct';
@@ -23,11 +18,13 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
+import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
-import { ProviderDimension } from '../../../src/common/services/observabilityService';
 
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
@@ -51,6 +48,7 @@ export class UNSPSOResource extends Construct {
     sqs: {
       validation: UNSLambdaConstruct;
       processing: UNSLambdaConstruct;
+      groupProcessingWorker?: UNSLambdaConstruct;
       dispatch: UNSLambdaConstruct;
       analytics: UNSLambdaConstruct;
     };
@@ -59,15 +57,6 @@ export class UNSPSOResource extends Construct {
     };
   };
   public readonly gateway: UNSAPIGatewayGateway;
-
-  public readonly alarms: {
-    apiGatewayAlarms: UNSApiGatewayAlarmsConstruct;
-    authenticationAlarms: UNSAuthenticationAlarmsConstruct;
-    wafAlarms: UNSWAFAlarmsConstruct;
-    operationalAlarms: UNSOperationalAlarmsConstruct;
-    performanceAlarms: UNSPerformanceAlarmsConstructs;
-    integrationAlarms: UNSIntegrationAlarmsConstruct;
-  };
 
   public readonly dashboards: {
     flow: UNSPSOFlow;
@@ -80,6 +69,7 @@ export class UNSPSOResource extends Construct {
     config: EnvVars,
     props: {
       refs: UNSCommon;
+      orgs: UNSOrganisationsCommon;
       mtls: {
         revocationTableArn: string;
         revocationTableAttributes: object;
@@ -149,6 +139,14 @@ export class UNSPSOResource extends Construct {
       }),
     };
 
+    Object.values(this.queues).forEach((queue) => {
+      applyPiiTag(queue, 'unknown');
+      applyPiiTag(queue.dlq, 'unknown');
+      applyExposureTag(queue, 'Isolated');
+    });
+    applyPiiTag(this.queues.analytics.queue, 'false');
+    applyPiiTag(this.queues.analytics.dlq, 'false');
+
     // //// =====================================================
     // // Log Groups
     // //// =====================================================
@@ -178,8 +176,12 @@ export class UNSPSOResource extends Construct {
           expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
         },
       ],
+      serverAccessLogsBucket: refs.accessLogs.bucket,
+      serverAccessLogsPrefix: namingHelper('analytics-export'),
     });
     applyCheckovSkipsS3Bucket(analyticsExportBucket);
+    applyExposureTag(analyticsExportBucket, 'Isolated');
+    applyPiiTag(analyticsExportBucket, 'false');
 
     analyticsExportBucket.addToResourcePolicy(
       new PolicyStatement({
@@ -319,6 +321,7 @@ export class UNSPSOResource extends Construct {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           revocationTable: UNSDynamoDb.createPermissionMapping(props.mtls.revocationTableArn, true, false, false),
+          organisations: props.orgs.organisationsTable.permissions.readOnly,
         },
         // Sandbox use case: Allow authorizer to use decrypt on mtls tables
         kms: config.isMainEnv ? [] : [config.sandbox.shared.kms],
@@ -386,6 +389,7 @@ export class UNSPSOResource extends Construct {
         environment: {},
         resources: {
           kms: refs.kms,
+          vpc: basePrivateVPC,
         },
         iam: {
           ssmNamespaces: [config.namespace],
@@ -393,6 +397,7 @@ export class UNSPSOResource extends Construct {
           dynamodb: {
             messages: refs.dynamodb.groupStore.permissions.readOnly,
           },
+          elasticache: refs.elasticache.arns,
         },
       });
     }
@@ -440,6 +445,35 @@ export class UNSPSOResource extends Construct {
         queues: [this.queues.processing.queue],
       },
     });
+    applyExposureTag(processing, 'Internal');
+
+    const groupProcessingWorker =
+      config.featureFlag.groups && this.queues.groupProcessing && refs.dynamodb.groupStore
+        ? new UNSLambdaConstruct(this, config, {
+            ...baseSQS(`groupProcessingWorker`),
+            environment: {},
+            resources: {
+              kms: refs.kms,
+              dlq: this.queues.groupProcessing.dlq,
+              vpc: basePrivateVPC,
+            },
+            iam: {
+              ssmNamespaces: [config.namespace],
+              sqsSend: [
+                this.queues.groupProcessing.queue.queueArn,
+                this.queues.dispatch.queue.queueArn,
+                this.queues.analytics.queue.queueArn,
+              ],
+              dynamodb: {
+                messages: refs.dynamodb.messages.permissions.readAndWrite,
+              },
+              elasticache: refs.elasticache.arns,
+            },
+            triggers: {
+              queues: [this.queues.groupProcessing.queue],
+            },
+          })
+        : undefined;
 
     const dispatch = new UNSLambdaConstruct(this, config, {
       ...baseSQS(`dispatch`),
@@ -515,6 +549,7 @@ export class UNSPSOResource extends Construct {
       sqs: {
         validation,
         processing,
+        groupProcessingWorker,
         dispatch,
         analytics,
       },
@@ -522,6 +557,11 @@ export class UNSPSOResource extends Construct {
         analyticsExport,
       },
     };
+
+    // Endpoints need a Perimeter exposed tag as they're reachable from internal (Via APIGW)
+    [...Object.values(this.lambdas.http), ...Object.values(this.lambdas.authorizers)].forEach((lambda) => {
+      applyExposureTag(lambda, 'Perimeter');
+    });
 
     //// =====================================================
     // API Gateway
@@ -567,6 +607,10 @@ export class UNSPSOResource extends Construct {
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, this.lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, this.lambdas.http.postMessage.integration);
 
+    // PSO API Gateway & WAF only accept mTLS filtered internetl traffic
+    applyExposureTag(this.gateway, 'Perimeter');
+    applyExposureTag(this.gateway.waf, 'Perimeter');
+
     if (this.lambdas.http.postGroupMessage) {
       this.gateway = this.gateway.POST(
         `postGroupMessage`,
@@ -584,10 +628,10 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     this.dashboards = {
-      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboard`, config, {
+      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
         pso: this,
       }),
-      flow: new UNSPSOFlow(this, `pso-flow-dashboard`, config, {
+      flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
         pso: this,
       }),
       service: new StandardServiceDashboardFactory(
@@ -602,7 +646,7 @@ export class UNSPSOResource extends Construct {
           ...Object.values(this.lambdas.sqs),
           ...Object.values(this.lambdas.authorizers),
         ]
-          .filter((x) => x !== undefined && x.fn !== undefined)
+          .filter((x) => x?.fn !== undefined)
           .map((x) => x.fn),
         name: config.utils.namingHelper(`pso-service`),
         restApis: [this.gateway.restApi],
@@ -617,85 +661,20 @@ export class UNSPSOResource extends Construct {
     SSMFromObject(stack, config, {
       // DynamoDB Tables
       // mTLS refs
-      'table/mtls/attributes': props.mtls.revocationTableAttributes,
+      [SSMParameters.Table.MTLSRevocation.Attributes.Path]: props.mtls.revocationTableAttributes,
 
       // SQS Queue refs
-      'queue/processing/url': this.queues.processing.queue.queueUrl,
+      [SSMParameters.Queue.Processing.Url.Path]: this.queues.processing.queue.queueUrl,
       ...(config.featureFlag.groups && this.queues.groupProcessing?.queue.queueUrl
         ? {
-            'queue/groupprocessing/url': this.queues.groupProcessing?.queue.queueUrl,
+            [SSMParameters.Queue.GroupProcessing.Url.Path]: this.queues.groupProcessing?.queue.queueUrl,
           }
         : {}),
-      'queue/dispatch/url': this.queues.dispatch.queue.queueUrl,
+      [SSMParameters.Queue.Dispatch.Url.Path]: this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export
-      'analytics/export/loggroup/name': analyticsExportLogGroup.logGroupName,
-      'analytics/export/bucket/name': analyticsExportBucket.bucketName,
+      [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName,
+      [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket.bucketName,
     });
-
-    //// =====================================================
-    // CloudWatch Alarms
-    //// =====================================================
-
-    this.alarms = {
-      apiGatewayAlarms: new UNSApiGatewayAlarmsConstruct(this, config, {
-        restApi: this.gateway.restApi,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      authenticationAlarms: new UNSAuthenticationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      wafAlarms: new UNSWAFAlarmsConstruct(this, config, {
-        waf: this.gateway.waf,
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      operationalAlarms: new UNSOperationalAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-        queues: [
-          { name: 'incoming', queue: this.queues.incoming.queue },
-          { name: 'processing', queue: this.queues.processing.queue },
-          { name: 'dispatch', queue: this.queues.dispatch.queue },
-          { name: 'analytics', queue: this.queues.analytics.queue },
-        ],
-      }),
-      performanceAlarms: new UNSPerformanceAlarmsConstructs(this, config, {
-        lambdas: [
-          {
-            name: 'mtlsCertificateRevocationAuthorizer',
-            lambda: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer,
-          },
-          { name: 'getCampaignStatus', lambda: this.lambdas.http.getCampaignStatus },
-          { name: 'postMessage', lambda: this.lambdas.http.postMessage },
-          { name: 'getHealthcheck', lambda: this.lambdas.http.getHealthcheck },
-          { name: 'getNotificationStatus', lambda: this.lambdas.http.getNotificationStatus },
-          { name: 'validation', lambda: this.lambdas.sqs.validation },
-          { name: 'processing', lambda: this.lambdas.sqs.processing },
-          { name: 'dispatch', lambda: this.lambdas.sqs.dispatch },
-          { name: 'analyticsExport', lambda: this.lambdas.schedule.analyticsExport },
-        ],
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-      }),
-      integrationAlarms: new UNSIntegrationAlarmsConstruct(this, config, {
-        alertTopic: refs.alertTopic,
-        group: this.serviceName,
-        providers: [
-          { name: 'OneSignal', provider: ProviderDimension.ONESIGNAL, direction: 'downstream' },
-          { name: 'UDP', provider: ProviderDimension.UDP, direction: 'upstream' },
-        ],
-        lambdas: [
-          ...Object.entries(this.lambdas.http)
-            .filter(([, fn]) => fn !== undefined)
-            .map(([name, func]) => ({ name, func: func.fn })),
-          ...Object.entries(this.lambdas.sqs).map(([name, func]) => ({ name, func: func.fn })),
-          ...Object.entries(this.lambdas.authorizers).map(([name, func]) => ({ name, func: func.fn })),
-          ...Object.entries(this.lambdas.schedule).map(([name, func]) => ({ name, func: func.fn })),
-        ],
-      }),
-    };
   }
 }

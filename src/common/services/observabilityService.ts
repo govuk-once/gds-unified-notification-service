@@ -1,8 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { BaseError } from '@common/models/Errors/BaseError';
-import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
+import { BaseError, NotificationStateEnum } from '@common/models';
 
 // Coverts all analytics events into a metric
 export const analyticsMetricPrefix = `ANALYTICS_EVENT`;
@@ -27,6 +26,7 @@ export const MetricsLabels = {
   BATCH_ITEM_FAILURES_ANALYTICS: 'BATCH_ITEM_FAILURES_ANALYTICS',
   BATCH_ITEM_FAILURES_DISPATCH: 'BATCH_ITEM_FAILURES_DISPATCH',
   BATCH_ITEM_FAILURES_PROCESSING: 'BATCH_ITEM_FAILURES_PROCESSING',
+  BATCH_ITEM_FAILURES_GROUP_PROCESSING: 'BATCH_ITEM_FAILURES_GROUP_PROCESSING',
   BATCH_ITEM_FAILURES_VALIDATION: 'BATCH_ITEM_FAILURES_VALIDATION',
 
   CIRCUIT_BREAKER_CURRENT_RATE: 'CIRCUIT_BREAKER_CURRENT_RATE',
@@ -46,6 +46,10 @@ export const MetricsLabels = {
 
   DYNAMODB_CONSUMED_READ_CAPACITY_UNITS: 'DYNAMODB_CONSUMED_READ_CAPACITY_UNITS',
   DYNAMODB_CONSUMED_WRITE_CAPACITY_UNITS: 'DYNAMODB_CONSUMED_WRITE_CAPACITY_UNITS',
+
+  GROUP_PROCESSING_WORKER_STARTED: 'GROUP_PROCESSING_WORKER_STARTED',
+  GROUP_PROCESSING_WORKER_COMPLETED: 'GROUP_PROCESSING_WORKER_COMPLETED',
+  GROUP_PROCESSING_WORKER_FAILED: 'GROUP_PROCESSING_WORKER_FAILED',
 
   MTLS_AUTH_REQUESTS_COUNT: 'MTLS_AUTH_REQUESTS_COUNT',
   MTLS_AUTH_REQUESTS_DENIED_COUNT: 'MTLS_AUTH_REQUESTS_DENIED_COUNT',
@@ -101,6 +105,7 @@ export const MetricsLabelsUnits = {
   [MetricsLabels.BATCH_ITEM_FAILURES_ANALYTICS]: MetricUnit.Count,
   [MetricsLabels.BATCH_ITEM_FAILURES_DISPATCH]: MetricUnit.Count,
   [MetricsLabels.BATCH_ITEM_FAILURES_PROCESSING]: MetricUnit.Count,
+  [MetricsLabels.BATCH_ITEM_FAILURES_GROUP_PROCESSING]: MetricUnit.Count,
   [MetricsLabels.BATCH_ITEM_FAILURES_VALIDATION]: MetricUnit.Count,
 
   [MetricsLabels.CIRCUIT_BREAKER_CURRENT_RATE]: MetricUnit.Count,
@@ -120,6 +125,10 @@ export const MetricsLabelsUnits = {
 
   [MetricsLabels.DYNAMODB_CONSUMED_READ_CAPACITY_UNITS]: MetricUnit.Count,
   [MetricsLabels.DYNAMODB_CONSUMED_WRITE_CAPACITY_UNITS]: MetricUnit.Count,
+
+  [MetricsLabels.GROUP_PROCESSING_WORKER_STARTED]: MetricUnit.Count,
+  [MetricsLabels.GROUP_PROCESSING_WORKER_COMPLETED]: MetricUnit.Count,
+  [MetricsLabels.GROUP_PROCESSING_WORKER_FAILED]: MetricUnit.Count,
 
   [MetricsLabels.MTLS_AUTH_REQUESTS_COUNT]: MetricUnit.Count,
   [MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_COUNT]: MetricUnit.Count,

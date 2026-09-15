@@ -8,12 +8,6 @@ export class ProcessingAdapterVoid implements ProcessingAdapter {
     protected config: ConfigurationService
   ) {}
 
-  // Empty shim
-  async initialize(): Promise<void> {
-    await Promise.resolve();
-    return;
-  }
-
   // eslint-disable-next-line @typescript-eslint/require-await
   async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {
     this.observability.logger.info(`Processing using Void adapter - mapping userID to externalUserID`, {

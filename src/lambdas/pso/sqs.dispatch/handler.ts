@@ -22,25 +22,33 @@ import {
   NotificationService,
   ObservabilityService,
 } from '@common/services';
-import { BoolParameters, NumericParameters } from '@common/utils';
-import { extractIdentifiers, IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
+import { IProcessedMessageSchema } from '@project/lambdas/interfaces';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+} from '@project/lambdas/interfaces/IMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 const requestBodySchema = IProcessedMessageSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
-export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
-  public operationId: string = 'dispatch';
-  protected enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
-  public requestBodySchema = requestBodySchema;
+export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
+  public readonly operationId: string = 'dispatch';
+  protected readonly enableConfig = SSMParameters.Config.Dispatch.Enabled;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public analyticsService: AnalyticsService;
-  public notificationsService: NotificationService;
-  public cacheService: CacheService;
-  public circuitBreakerService: CircuitBreakerService;
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
+
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public analyticsService!: AnalyticsService;
+  public notificationsService!: NotificationService;
+  public cacheService!: CacheService;
+  public circuitBreakerService!: CircuitBreakerService;
 
   constructor(
     public config: ConfigurationService,
@@ -53,6 +61,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
+    const featureEnabledDeepLinkUrl = await this.config.getParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
     const data = await this.validateRecord(record);
     const message = data.body;
 
@@ -64,9 +73,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
       (
         await this.cacheService.rateLimit(
           `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-          await this.config.getNumericParameter(
-            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
-          )
+          await this.config.getParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute)
         )
       ).exceeded
     ) {
@@ -81,6 +88,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
           NotificationID: message.NotificationID,
           NotificationTitle: message.NotificationTitle,
           NotificationBody: message.NotificationBody,
+          DeeplinkURL: featureEnabledDeepLinkUrl ? message.DeeplinkURL : undefined,
         })
     );
     this.observability.logger.info(`Notification dispatched`, {
@@ -100,7 +108,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema> {
     // Increment rate limiter post request
     await this.cacheService.rateLimit(
       `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-      await this.config.getNumericParameter(NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute),
+      await this.config.getParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute),
       1
     );
   };

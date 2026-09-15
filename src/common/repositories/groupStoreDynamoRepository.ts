@@ -1,21 +1,36 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IGroupStoreRecord } from '@common/repositories/interfaces';
+import {
+  IDynamoAttributes,
+  IDynamoAttributesSchema,
+  IGroupStoreRecord,
+  IGroupStoreRecordSchema,
+} from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import { filters } from '@common/utils/array';
 import { IGroups, IModifyGroups } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 import { v4 as uuid } from 'uuid';
 
-export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRecord> {
+export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroupStoreRecordSchema> {
+  protected recordSchema = IGroupStoreRecordSchema;
+
   constructor(
-    protected config: ConfigurationService,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.GroupStore.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
+    return new GroupStoreDynamoRepository(
+      config,
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Table.GroupStore.Attributes, IDynamoAttributesSchema)
+    );
   }
 
   public async getUsersGroups(pushID: string): Promise<IGroups[]> {
@@ -39,16 +54,22 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
     return records ? records.map((record) => record.PushID) : [];
   }
 
-  public async joinGroups(pushID: string, groupsToJoin: IModifyGroups[]) {
+  public async joinGroups(
+    pushID: string,
+    groupsToJoin: IModifyGroups[],
+    usersGroups: IGroups[] = []
+  ): Promise<IGroups[]> {
     if (groupsToJoin.length === 0) {
-      return;
+      this.observability.logger.debug('No groups to join provided - returning usersGroups', {
+        pushID,
+      });
+      return usersGroups;
     }
 
-    const usersGroups = await this.getUsersGroups(pushID);
     const record: IGroupStoreRecord[] = groupsToJoin
       .map((g) => {
         const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
-        const existingRecord = usersGroups.find((u) => u.CompositeID === compositeID);
+        const existingRecord = usersGroups.some((u) => u.CompositeID === compositeID);
 
         if (existingRecord) {
           this.observability.logger.warn('Request tried to join a group user is already part of', {
@@ -68,17 +89,40 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
           Subgroup: g.Subgroup,
         };
       })
-      .filter((g) => g !== undefined);
+      .filter(filters.isDefined);
 
     await this.createRecordBatch(record);
+
+    return [
+      ...usersGroups,
+      ...record.map((r) => ({
+        GroupID: r.GroupID,
+        CompositeID: r.CompositeID,
+        Namespace: r.Namespace,
+        Group: r.Group,
+        Subgroup: r.Subgroup,
+      })),
+    ];
   }
 
-  public async leaveGroups(pushID: string, groupsToLeave: IModifyGroups[]) {
+  public async leaveGroups(
+    pushID: string,
+    groupsToLeave: IModifyGroups[],
+    usersGroups: IGroups[] = []
+  ): Promise<IGroups[]> {
+    if (usersGroups.length === 0) {
+      this.observability.logger.debug('No user groups found for pushID - returning empty array', {
+        pushID,
+      });
+      return [];
+    }
     if (groupsToLeave.length === 0) {
-      return;
+      this.observability.logger.debug('No groups to leave provided - returning usersGroups', {
+        pushID,
+      });
+      return usersGroups;
     }
 
-    const usersGroups = await this.getUsersGroups(pushID);
     const leaveKeys = new Set(groupsToLeave.map((g) => this.buildCompositeId(g.Namespace, g.Group, g.Subgroup)));
     const groupIDsToDelete = usersGroups.filter((u) => leaveKeys.has(u.CompositeID)).map((u) => u.GroupID);
 
@@ -87,6 +131,8 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<IGroupStoreRe
         await this.deleteRecord(id, pushID);
       })
     );
+
+    return usersGroups.filter((u) => !leaveKeys.has(u.CompositeID));
   }
 
   private buildCompositeId(namespace: string, group: string, subgroup?: string) {

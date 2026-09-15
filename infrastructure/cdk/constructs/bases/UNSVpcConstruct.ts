@@ -24,10 +24,12 @@ import {
   TrafficDirection,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2';
+import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { applyCheckovSkips } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
@@ -36,6 +38,7 @@ export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
   readonly zones: string[];
   readonly interfaceEndpoints?: InterfaceEndpoints;
   readonly gatewayEndpoints?: GatewayEndpoints;
+  readonly accessLogsBucket: IBucket;
 }
 
 export class UNSVpcConstruct<
@@ -95,6 +98,12 @@ export class UNSVpcConstruct<
       enableDnsSupport: true,
       createInternetGateway: true,
     });
+    this.vpc.privateSubnets.forEach((privateSubnet) => {
+      applyExposureTag(privateSubnet, 'Internal');
+    });
+    this.vpc.isolatedSubnets.forEach((isolatedSubnet) => {
+      applyExposureTag(isolatedSubnet, 'Isolated');
+    });
 
     // Define Security Groups
     const privateEgress = new SecurityGroup(this, constructNamingHelper('sg', 'private'), {
@@ -127,6 +136,7 @@ export class UNSVpcConstruct<
         },
         open: true,
       });
+      applyExposureTag(endpoint, 'Isolated');
       interfaceEndpointsMap[key] = endpoint;
     }
     this.interfaceEndpoints = interfaceEndpointsMap as { [K in keyof InterfaceEndpoints]: InterfaceVpcEndpoint };
@@ -213,6 +223,10 @@ export class UNSVpcConstruct<
             expiration: config.expiration,
           },
         ],
+        serverAccessLogs: {
+          bucket: props.accessLogsBucket,
+          prefix: namingHelper(...props.name, 'flow-log'),
+        },
       });
 
       new FlowLog(this, namingHelper('flow-log', 's3'), {

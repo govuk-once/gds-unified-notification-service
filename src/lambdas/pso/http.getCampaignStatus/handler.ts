@@ -6,35 +6,47 @@ import {
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { CampaignsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
+import { campaignStatusSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.object({
-  CampaignID: z.string(),
-  DepartmentID: z.string(),
-  ProcessingSummary: z.object({
-    RECEIVED: z.number(),
-    PROCESSED: z.number(),
-    DISPATCHED: z.number(),
-  }),
-  UsageSummary: z.object({
-    READ: z.number(),
-    MARKED_AS_UNREAD: z.number(),
-    HIDDEN: z.number(),
-  }),
-});
+const responseBodySchema = campaignStatusSchema;
+const authorizerSchema = psoAuthorizerSchema;
 
-export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+/**
+ * Sample event received by Lambda from API Gateway
+ {
+  "pathParameters": {
+    "campaignID": "CAM_ID"
+  },
+  "queryStringParameters": {
+    "departmentID": "DEP01"
+  },
+  "requestContext": {
+    "authorizer": {
+      "Organization": "ORG01"
+    },
+    "requestId": "requestID-test"
+  }
+ **/
+
+export class GetCampaignStatus extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
   public operationId: string = 'getCampaignStatus';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
 
-  public campaignsDynamoRepository: CampaignsDynamoRepository;
+  public campaignsDynamoRepository!: CampaignsDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
@@ -45,15 +57,15 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     const campaignID = event.pathParameters?.campaignID;
 
-    const organisationID = event.requestContext.authorizer?.Organization as string;
+    const organisationID = event.requestContext.authorizer.Organization;
     if (!organisationID) {
-      throw new BadRequestError(['Missing DepartmentID']);
+      throw new BadRequestError(['OrganisationID is missing from request authorizer']);
     }
 
     const departmentID = event.queryStringParameters?.departmentID;
@@ -66,7 +78,7 @@ export class GetCampaignStatus extends APIHandler<typeof requestBodySchema, type
     }
 
     const compositeSegments = campaign.CompositeID.split('/');
-    const campaignId = compositeSegments.at(compositeSegments.length - 1)!;
+    const campaignId = compositeSegments.at(-1)!;
 
     return {
       body: {

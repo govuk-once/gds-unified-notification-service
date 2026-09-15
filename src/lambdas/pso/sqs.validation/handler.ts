@@ -18,20 +18,56 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
-import { BoolParameters } from '@common/utils';
-import { IIdentifiableMessage, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage, IIdentifiableMessageSchema, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
+import z from 'zod';
 
 const requestBodySchema = IMessageSchema;
+const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
-export class Validation extends BatchQueueOperation<typeof requestBodySchema> {
+/**
+ * Lambda handling incoming messages from a dedicated SQS Queue
+ * - Validates input
+ *   - Stores valid messages into notifications dynamodb
+ * - Fires analytics events
+ * - Pushes valid messages into processing queue
+ * 
+ * Sample event:
+{
+  "Records": [
+    {
+      "messageId": "mockMessageId",
+      "receiptHandle": "mockReceiptHandle",
+      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be1b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"CampaignID\":\"CAM_ID\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "2",
+        "SentTimestamp": "202601021513",
+        "SenderId": "mockSenderId",
+        "ApproximateFirstReceiveTimestamp": "202601021513"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "{{{md5_of_body}}}",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
+
+Sample SQS Body (for pushing messages from portal)
+{"NotificationID":"337f6248-ed5b-4b73-be1b-4e9a2f8636e0","DepartmentID":"DEP01","UserID":"test_id_01","CampaignID":"CAM_ID","MessageTitle":"MOCK_LONG_TITLE","MessageBody":"MOCK_LONG_MESSAGE","NotificationTitle":"Hey","NotificationBody":"You have a new message in the message center."}
+ */
+export class Validation extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public operationId: string = 'validation';
-  protected enableConfig: string = BoolParameters.Config.Validation.Enabled;
-  public requestBodySchema = requestBodySchema;
+  protected enableConfig = SSMParameters.Config.Validation.Enabled;
 
-  public analyticsService: AnalyticsService;
-  public notificationsRepository: NotificationsDynamoRepository;
-  public processingQueue: ProcessingQueueService;
+  public readonly requestBodySchema = requestBodySchema;
+  public readonly identifiableRecordSchema = identifiableRecordSchema;
+
+  protected analyticsService!: AnalyticsService;
+  protected processingQueue!: ProcessingQueueService;
+  protected notificationsRepository!: NotificationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,

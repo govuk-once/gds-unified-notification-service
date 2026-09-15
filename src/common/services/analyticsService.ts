@@ -1,7 +1,9 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import type { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { AnalyticsQueueService, MetricsLabels, ObservabilityService, prefixEvent } from '@common/services';
-import { IIdentifiableMessage } from '@project/lambdas/interfaces/IMessage';
+import { NotificationStateEnum } from '@common/models';
+import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
+import { MetricsLabels, ObservabilityService, prefixEvent } from '@common/services/observabilityService';
+import { IIdentifiableMessage } from '@project/lambdas';
+
 import { v4 as uuid } from 'uuid';
 
 export type AnalyticsEventFromIMessage = Pick<

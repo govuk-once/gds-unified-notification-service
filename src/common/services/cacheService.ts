@@ -1,15 +1,15 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
-import { Hash } from '@smithy/hash-node';
-import { SignatureV4 } from '@smithy/signature-v4';
 import { formatUrl } from '@aws-sdk/util-format-url';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
+import { Hash } from '@smithy/hash-node';
 import { HttpRequest } from '@smithy/protocol-http';
+import { SignatureV4 } from '@smithy/signature-v4';
 import { createClient } from 'redis';
 
 export class CacheService {
-  public cache: ReturnType<typeof createClient>;
+  public cache!: ReturnType<typeof createClient>;
   constructor(
     protected config: ConfigurationService,
     public observability: ObservabilityService
@@ -47,9 +47,9 @@ export class CacheService {
   }
 
   async connect() {
-    const cacheName = await this.config.getParameter(StringParameters.Config.Cache.Name);
-    const cacheHost = await this.config.getParameter(StringParameters.Config.Cache.Host);
-    const cacheUser = await this.config.getParameter(StringParameters.Config.Cache.User);
+    const cacheName = await this.config.getParameter(SSMParameters.Config.Common.Cache.Name);
+    const cacheHost = await this.config.getParameter(SSMParameters.Config.Common.Cache.Host);
+    const cacheUser = await this.config.getParameter(SSMParameters.Config.Common.Cache.User);
 
     this.cache = createClient({
       password: await this.generateSigV4(cacheName, cacheUser),
@@ -96,12 +96,6 @@ export class CacheService {
     return undefined;
   }
 
-  // Demo FN
-  async counter() {
-    const value = (await this.get<number>('counter', { factory: () => 0 })) as number;
-    return await this.store(`counter`, value + 1);
-  }
-
   async increment(key: string, ttlSeconds: number): Promise<number> {
     const count = await this.cache.incrBy(key, 1);
     await this.cache.expire(key, ttlSeconds);
@@ -124,7 +118,7 @@ export class CacheService {
     }
     const state = {
       exceeded: counter >= maxPerMinute,
-      capacityRemaining: Math.max(0, counter - maxPerMinute),
+      capacityRemaining: Math.max(0, maxPerMinute - counter),
     };
     const percentage = counter / maxPerMinute;
 
