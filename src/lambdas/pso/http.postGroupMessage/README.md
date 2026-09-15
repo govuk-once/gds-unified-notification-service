@@ -1,6 +1,6 @@
 ## PostGroupMessage
 
-Feature-flagged (`config.featureFlag.groups`) group-notification endpoint. Validates content and resolves how many users currently belong to the target group/subgroup.
+Feature-flagged (`config.featureFlag.groups` — infrastructure-level deployment gate) group-notification endpoint. Validates content, resolves group membership, chunks push IDs across workers, caches the chunks, and queues the work for downstream group processing.
 
 - **Type:** HTTP (API Gateway)
 - **Operation ID:** `postGroupMessage`
@@ -10,7 +10,14 @@ Feature-flagged (`config.featureFlag.groups`) group-notification endpoint. Valid
 
 ```json
 {
-  "requestContext": { "authorizer": { "Organization": "ORG01" }, "requestId": "req-1" },
+  "requestContext": {
+    "authorizer": {
+      "Organization": "ORG01",
+      "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}"
+    },
+    "requestId": "req-1",
+    "requestTimeEpoch": 1428582896000
+  },
   "body": [
     {
       "Namespace": "travel",
@@ -29,9 +36,11 @@ Feature-flagged (`config.featureFlag.groups`) group-notification endpoint. Valid
 
 ### Infrastructure
 
-- **DynamoDB** - `GroupStoreDynamoRepository` (the GroupStore table); the current implementation only reads (`getUsersInGroup`).
-- **IAM** grants this lambda `sqsSend` on the `groupprocessing` queue (see [`UNSPSOResources.ts`](../../../../infrastructure/cdk/constructs/UNSPSOResources.ts)), but **the current `implementation()` does not publish to any queue or write to DynamoDB** - it only resolves group membership counts and returns them. No group notification is actually queued, recorded, or dispatched yet.
-- Content is validated in-process by `ContentValidationService`, same as `postMessage`.
+- **DynamoDB** - `GroupStoreDynamoRepository` (the GroupStore table), read-only (`getUsersInGroup`).
+- **ElastiCache (Redis)** - `CacheService` stores chunked push-ID lists for each worker under `Worker/GroupProcessingWorker/{GroupNotificationID}/{workerID}`.
+- **SQS** - publishes batch metadata to the `groupprocessing` queue via `GroupProcessingQueueService.publishMessageBatch`.
+- **SSM** - reads `SSMParameters.Group.Dispatch.WorkerCount` to determine how many worker chunks to create.
+- Content is validated in-process by `ValidationService.messageValidation`, same as `postMessage`.
 
 ### Logic
 
@@ -39,8 +48,12 @@ Feature-flagged (`config.featureFlag.groups`) group-notification endpoint. Valid
 flowchart TD
     A["POST /v1/send-to-group"] --> B{Organization resolved?}
     B -- No --> C[400 Bad Request]
-    B -- Yes --> D[Assign GroupNotificationID uuid if missing + stamp OrganisationID]
-    D --> E[ContentValidationService.validate MessageBody per item]
-    E --> F[GroupStoreDynamoRepository.getUsersInGroup per item]
-    F --> G[202 + GroupNotificationID / UsersInGroup counts]
+    B -- Yes --> D[Stamp OrganisationID from authorizer context]
+    D --> E["ValidationService.messageValidation per item"]
+    E --> F[Read worker count from SSM]
+    F --> G["GroupStoreDynamoRepository.getUsersInGroup per item"]
+    G --> H[Split push IDs into worker-sized chunks]
+    H --> I["CacheService.store each chunk under Worker/GroupProcessingWorker key"]
+    I --> J["GroupProcessingQueueService.publishMessageBatch"]
+    J --> K[202 + GroupNotificationID / UsersInGroup counts]
 ```

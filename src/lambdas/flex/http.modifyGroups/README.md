@@ -30,8 +30,8 @@ Feature-flagged (`config.featureFlag.groups`). Joins and/or leaves groups on beh
 flowchart TD
     A["POST /v1/groups?pushID (body: actions)"] --> B{pushID provided?}
     B -- No --> C[400 Bad Request]
-    B -- Yes --> D["leaveGroups: items where Action == LEAVE"]
-    D --> E["joinGroups: items where Action == JOIN"]
-    E --> F["getUsersGroups(pushID)"]
+    B -- Yes --> D["getUsersGroups(pushID) — fetch current membership"]
+    D --> E["leaveGroups: items where Action == LEAVE"]
+    E --> F["joinGroups: items where Action == JOIN"]
     F --> G[200 + resulting Namespace/Group/Subgroup array]
 ```

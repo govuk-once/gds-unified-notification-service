@@ -4,7 +4,7 @@ Second pipeline stage. Resolves the message's `UserID` to a provider-specific `E
 
 - **Type:** SQS (batch, partial failure reporting)
 - **Operation ID:** `processing`
-- **Feature flag:** `BoolParameters.Config.Processing.Enabled`
+- **Feature flag:** `SSMParameters.Config.Processing.Enabled`
 
 ### Sample event
 

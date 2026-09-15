@@ -15,7 +15,10 @@ Public ingestion endpoint for single-user notifications. Validates content, reco
   "requestContext": {
     "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
     "requestTimeEpoch": 1428582896000,
-    "authorizer": { "Organization": "ORG01" }
+    "authorizer": {
+      "Organization": "ORG01",
+      "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}"
+    }
   }
 }
 ```
@@ -24,7 +27,7 @@ Public ingestion endpoint for single-user notifications. Validates content, reco
 
 - **DynamoDB** - `NotificationsDynamoRepository` (the Messages table), read+write; writes a batch record per accepted message (`createRecordBatch`).
 - **SQS** - publishes to the `processing` queue (batch) and, via `AnalyticsService`, to the `analytics` queue (`VALIDATED_API_CALL` event per message).
-- Content is validated in-process by `ContentValidationService` (SSM-configured protocol/hostname allow-lists) - a failure here rejects the whole request with `400` before anything is written.
+- Content is validated in-process by `ValidationService.messageValidation` (SSM-configured protocol/hostname allow-lists, plus DeeplinkURL/Channel/ExpiresInDays validation) - a failure here rejects the whole request with `400` before anything is written.
 - This is one of two ingestion paths into the pipeline: `postMessage` writes directly to the Messages table and publishes straight to `processing`, in parallel to the queue-driven path that starts at [`sqs.validation`](../sqs.validation/README.md).
 
 ### Logic
@@ -33,7 +36,7 @@ Public ingestion endpoint for single-user notifications. Validates content, reco
 sequenceDiagram
     participant Client
     participant PostMessage
-    participant ContentValidationService
+    participant ValidationService
     participant AnalyticsQueue as SQS: analytics
     participant ProcessingQueue as SQS: processing
     participant DynamoDB as DynamoDB: Messages
@@ -44,8 +47,8 @@ sequenceDiagram
         PostMessage-->>Client: 400 Bad Request
     end
     loop each message
-        PostMessage->>ContentValidationService: validate(MessageBody)
-        ContentValidationService-->>PostMessage: throws on invalid markdown/URL
+        PostMessage->>ValidationService: validate(MessageBody)
+        ValidationService-->>PostMessage: throws on invalid markdown/URL
     end
     PostMessage->>AnalyticsQueue: publish VALIDATED_API_CALL events (batch)
     PostMessage->>ProcessingQueue: publish messages (batch)

@@ -28,7 +28,7 @@ Returns a single notification by ID, scoped to the requesting user, in the Flex 
 flowchart TD
     A["GET /notifications/:notificationID?externalUserID|pushID"] --> B{notificationID + externalUserID/pushID provided?}
     B -- No --> C[400 Bad Request]
-    B -- Yes --> D[NotificationsDynamoRepository.getRecord]
+    B -- Yes --> D[NotificationsDynamoRepository.getProcessedMessageByID]
     D --> E{Found?}
     E -- No --> F[404 Not Found]
     E -- Yes --> G{Expired?}

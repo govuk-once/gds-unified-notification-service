@@ -13,7 +13,7 @@ Terminal stage that fans events from every other stage into the notification's s
   "Records": [
     {
       "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
-      "body": "{\"DepartmentID\":\"TEST01\",\"NotificationID\":\"not1\",\"EventID\":\"EVENT01\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"CampaignID\":\"CAMP01\",\"EventReason\":\"testing\"}",
+      "body": "{\"OrganisationID\":\"ORG01\",\"DepartmentID\":\"TEST01\",\"NotificationID\":\"337f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"EventID\":\"EVENT01\",\"Event\":\"VALIDATED\",\"EventDateTime\":\"2026-01-22T00:00:01Z\",\"APIGWExtendedID\":\"testExample\",\"CampaignID\":\"CAMP01\",\"EventReason\":\"testing\"}",
       "attributes": { "ApproximateReceiveCount": "1" },
       "eventSource": "aws:sqs"
     }

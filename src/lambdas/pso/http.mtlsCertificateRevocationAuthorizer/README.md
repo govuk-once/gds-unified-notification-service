@@ -26,7 +26,7 @@ API Gateway **REQUEST** Lambda authorizer for the PSO API. Runs ahead of every P
 
 ### Infrastructure
 
-- **DynamoDB** - `MTLSRevocationDynamoRepository` (the MTLS Revocation table), read-only, keyed by a SHA-256 hash of the certificate PEM.
+- **DynamoDB** - `MTLSRevocationDynamoRepository` (the MTLS Revocation table), read-only, keyed by a SHA-256 hash of the certificate PEM; `OrganisationsDynamoRepository` (the Organisations table), read-only, to resolve `OrganisationConfig` for the matched certificate's organisation.
 - **KMS** - decrypt permission on the shared sandbox KMS key (non-production environments only).
 - No SQS, no outbound HTTP calls.
 - The authorizer's result (`Allow`/`Deny` IAM policy) is cached by API Gateway for `0` seconds (`resultsCacheTtl`), so this runs on every request - see [`UNSPSOResources.ts`](../../../../infrastructure/cdk/constructs/UNSPSOResources.ts).
@@ -45,8 +45,11 @@ flowchart TD
     G -- Yes --> D3[Deny + ...DENIED_REVOKED_CERTIFICATE_COUNT]
     G -- No --> H{Organization set on record?}
     H -- No --> D4[Deny + ...DENIED_NO_ORGANIZATION_COUNT]
-    H -- Yes --> I[Allow + attach Organization to authorizer context]
-    I --> J[...ALLOWED_COUNT metric]
+    H -- Yes --> I[...ALLOWED_COUNT metric]
+    I --> K[OrganisationsDynamoRepository.getRecord]
+    K --> L{Organisation record found?}
+    L -- No --> M[500 ServiceMisconfigurationError]
+    L -- Yes --> N["Allow + attach Organization & OrganisationConfig to authorizer context"]
 ```
 
-Downstream handlers read the resolved `Organization` from `event.requestContext.authorizer.Organization` - see `PostMessage` and `PostGroupMessage`.
+Downstream handlers read the resolved `Organization` and `OrganisationConfig` from `event.requestContext.authorizer` - see `PostMessage` and `PostGroupMessage`.

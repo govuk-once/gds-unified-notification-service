@@ -4,7 +4,7 @@ First stage of the queue-driven ingestion path. Consumes raw messages from the `
 
 - **Type:** SQS (batch, partial failure reporting)
 - **Operation ID:** `validation`
-- **Feature flag:** `BoolParameters.Config.Validation.Enabled`
+- **Feature flag:** `SSMParameters.Config.Validation.Enabled`
 
 ### Sample event
 

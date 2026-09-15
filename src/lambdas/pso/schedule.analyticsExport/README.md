@@ -21,7 +21,7 @@ Hourly scheduled job that exports the previous hour's analytics CloudWatch log s
 ### Infrastructure
 
 - **CloudWatch Logs** - `AnalyticsExportService.logStreamToS3Bucket` creates a `CreateExportTaskCommand` against the analytics export log group (written to by `sqs.analytics`).
-- **S3** - destination bucket (`analyticsExportBucket`), lifecycle-expired after 7 days in production, or 1 day elsewhere.
+- **S3** - destination bucket (`analyticsExportBucket`), lifecycle-expired after 7 days in main environments (dev/stg/prod), or 1 day in sandbox/ephemeral environments.
 - No DynamoDB or SQS involvement.
 
 ### Logic
