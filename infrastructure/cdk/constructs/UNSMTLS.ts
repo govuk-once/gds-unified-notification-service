@@ -2,7 +2,7 @@ import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
 import { CustomResource } from 'aws-cdk-lib';
-import * as s3 from 'aws-cdk-lib/aws-s3';
+import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCertificateAuthorityConstruct } from 'infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct';
 import { UNSClientCertificateConstruct } from 'infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct';
@@ -34,13 +34,13 @@ export class UNSMTLSCommon extends Construct {
     //// =====================================================
     // S3 Buckets
     //// =====================================================
-    const truststoreBucket = new s3.Bucket(this, constructNamingHelper(`truststore`, ` bucket`), {
+    const truststoreBucket = new Bucket(this, constructNamingHelper(`truststore`, ` bucket`), {
       bucketName: namingHelper(`mtls-certificates`),
       // Encryption at rest (Uses Amazon S3-managed keys / SSE-S3)
-      encryption: s3.BucketEncryption.S3_MANAGED,
+      encryption: BucketEncryption.S3_MANAGED,
 
       // Make it strictly private by blocking all public access
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
 
       // Security best practice: Enforce TLS/HTTPS for data in transit
       enforceSSL: true,

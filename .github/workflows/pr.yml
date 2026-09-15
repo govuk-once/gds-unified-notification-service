@@ -134,3 +134,13 @@ jobs:
           id: qualitygatecomment
           message: 'SonarQube Quality Gate Status: ${{steps.sonarqube-quality-gate-check.outputs.quality-gate-status}} [LINK](https://sonarcloud.io/summary/new_code?id=govuk-once_gds-unified-notification-service&pullRequest=${{github.event.number}})'
           recreate: true
+
+      - name: 🏗️ CDK Deploy Ephemeral Build
+        run: |
+          PR_NUMBER=${{github.run_number}} pnpm run cdk:deploy ${{github.run_number}}-uns-dev-stack
+        env:
+          region: ${{ vars.AWS_REGION }}
+          env: dev
+          code_version: ${{ inputs.VERSION }}
+          use_mtls: 'false'
+          is_main_environment_in_account: 'false'

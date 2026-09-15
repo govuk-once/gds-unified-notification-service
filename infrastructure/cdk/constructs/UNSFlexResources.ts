@@ -29,7 +29,7 @@ export class UNSFlexResource extends Construct {
     };
   };
 
-  public readonly dashboards: {
+  public readonly dashboards?: {
     service: Dashboard;
   };
 
@@ -263,22 +263,24 @@ export class UNSFlexResource extends Construct {
     // Xray Dashboards
     //// =====================================================
 
-    this.dashboards = {
-      service: new StandardServiceDashboardFactory(
-        this,
-        `flex`,
-        undefined,
-        undefined,
-        config.utils.namingProvider()
-      ).createDashboard(`flex-service`, {
-        lambdas: Object.values(this.lambdas.http)
-          .filter(filters.isDefined)
-          .map((x) => x.fn),
-        name: config.utils.namingHelper(`flex-service`),
-        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
-        tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
-      }),
-    };
+    this.dashboards = !config.isEphemeral
+      ? {
+          service: new StandardServiceDashboardFactory(
+            this,
+            `flex`,
+            undefined,
+            undefined,
+            config.utils.namingProvider()
+          ).createDashboard(`flex-service`, {
+            lambdas: Object.values(this.lambdas.http)
+              .filter(filters.isDefined)
+              .map((x) => x.fn),
+            name: config.utils.namingHelper(`flex-service`),
+            restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
+            tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
+          }),
+        }
+      : undefined;
 
     //// =====================================================
     // Consumer configuration
@@ -292,11 +294,13 @@ export class UNSFlexResource extends Construct {
         cloudwatch: true,
       },
     });
-    const flexConsumerSecret = new Secret(this, config.utils.namingHelper('flex', 'consumer-secret'), {
-      secretName: `${config.prefix}/flex/consumer`,
-      description: 'Consumer secret for the UNS Service gateway within Flex',
-      encryptionKey: flexConsumerKMS.key,
-    });
+    const flexConsumerSecret = config.isEphemeral
+      ? new Secret(this, config.utils.namingHelper('flex', 'consumer-secret'), {
+          secretName: `${config.prefix}/flex/consumer`,
+          description: 'Consumer secret for the UNS Service gateway within Flex',
+          encryptionKey: flexConsumerKMS.key,
+        })
+      : undefined;
     if (config.ssm.flex.account !== null) {
       flexConsumerKMS.key.addToResourcePolicy(
         new PolicyStatement({
@@ -307,15 +311,17 @@ export class UNSFlexResource extends Construct {
           resources: ['*'],
         })
       );
-      flexConsumerSecret.addToResourcePolicy(
-        new PolicyStatement({
-          sid: 'AllowExternalAccountToReadSecret',
-          effect: Effect.ALLOW,
-          principals: [new AccountPrincipal(config.ssm.flex.account)],
-          actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
-          resources: ['*'],
-        })
-      );
+      if (flexConsumerSecret) {
+        flexConsumerSecret.addToResourcePolicy(
+          new PolicyStatement({
+            sid: 'AllowExternalAccountToReadSecret',
+            effect: Effect.ALLOW,
+            principals: [new AccountPrincipal(config.ssm.flex.account)],
+            actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+            resources: ['*'],
+          })
+        );
+      }
     }
   }
 }

@@ -18,7 +18,8 @@ export class UNSStack extends Stack {
     protected scope: Construct,
     protected id: string,
     protected props: StackProps,
-    protected config: EnvVars
+    protected config: EnvVars,
+    protected buildNumber?: string
   ) {
     super(scope, id, props);
 
@@ -52,7 +53,7 @@ export class UNSStack extends Stack {
 
   resourceNames(): UNSResourceContract {
     return {
-      alertTopicArn: this.common.alertTopic.topicArn,
+      alertTopicArn: this.common.alertTopic?.topicArn,
       pso: {
         restApiName: this.pso.gateway.restApi.restApiName,
         wafName: this.pso.gateway.waf.name!,

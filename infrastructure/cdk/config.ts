@@ -2,11 +2,11 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { CfnDeletionPolicy, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { ObjectLockRetention } from 'aws-cdk-lib/aws-s3';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { camelCase } from './utils/camelCase';
-import { ObjectLockRetention } from 'aws-cdk-lib/aws-s3';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
@@ -70,6 +70,9 @@ const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
+const prBuildNumber = process.env.PR_NUMBER;
+const isEphemeral = prBuildNumber !== undefined;
+
 // Setup importable config object
 export const config = {
   // Metadata
@@ -108,6 +111,7 @@ export const config = {
   debugMode,
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
+  isEphemeral,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc
@@ -176,9 +180,14 @@ export const config = {
 
   // Helper functions
   utils: {
-    constructNamingHelper: (...args: string[]) => camelCase(...args),
-    namingHelper: (...args: string[]) =>
-      [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', ''),
+    constructNamingHelper: (...args: string[]) => {
+      return prBuildNumber ? camelCase(prBuildNumber, ...args) : camelCase(...args);
+    },
+    namingHelper: (...args: string[]) => {
+      return prBuildNumber
+        ? [prBuildNumber, config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', '')
+        : [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', '');
+    },
     namingHelperSnakeCase: (...args: string[]) => config.utils.namingHelper(...args).replaceAll(`-`, `_`),
 
     // Rolling week to week dates - used for short term mtls certs
