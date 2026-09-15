@@ -64,14 +64,16 @@ const env = process.env.env ?? 'dev';
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
-const namespace = [project, env].join(`-`).replace(`-prod`, ``);
+const prBuildNumber = process.env.pr_build_number;
+const isEphemeral = prBuildNumber !== undefined;
+const namespace = prBuildNumber
+  ? [prBuildNumber, project, env].join(`-`)
+  : [project, env].join(`-`).replace(`-prod`, ``);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
-const prBuildNumber = process.env.PR_NUMBER;
-const isEphemeral = prBuildNumber !== undefined;
 
 // Setup importable config object
 export const config = {
