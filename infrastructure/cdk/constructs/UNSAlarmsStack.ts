@@ -28,6 +28,10 @@ export class UNSAlarmsStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps, config: EnvVars, resources: UNSResourceContract) {
     super(scope, id, props);
 
+    if (!resources.alertTopicArn) {
+      throw new Error('Can not construct alarm stack if alert topic is undefined');
+    }
+
     const alertTopic = Topic.fromTopicArn(this, 'alertTopic', resources.alertTopicArn);
 
     // PSO Alarms
