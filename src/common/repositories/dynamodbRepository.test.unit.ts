@@ -21,8 +21,8 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/util-dynamodb', { spy: true });
 
 vi.mock('@common/services', { spy: true });
-describe('DynamodbRepository', () => {
-  let instance: NotificationsDynamoRepository;
+describe('DynamodbRepository', async () => {
+  let notificationsInstance: NotificationsDynamoRepository;
   let groupStoreInstance: GroupStoreDynamoRepository;
 
   const updateResponse = {
@@ -34,7 +34,7 @@ describe('DynamodbRepository', () => {
   const messageRecord = mockIMessageRecord(mockIProcessedMessage());
 
   // Initialise mock services
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -43,19 +43,17 @@ describe('DynamodbRepository', () => {
     mockServicesExpectedBehaviour(serviceMocks);
     mockAWSClientsExpectedBehaviour(awsClientMocks);
 
-    instance = new NotificationsDynamoRepository(
+    notificationsInstance = await NotificationsDynamoRepository.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.dynamoDBClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.dynamoDBClientMock
     );
-    await instance.initialize();
 
-    groupStoreInstance = new GroupStoreDynamoRepository(
+    groupStoreInstance = await GroupStoreDynamoRepository.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.dynamoDBClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.dynamoDBClientMock
     );
-    await groupStoreInstance.initialize();
   });
 
   describe('appendToList', () => {
@@ -66,7 +64,7 @@ describe('DynamodbRepository', () => {
       awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockResolvedValueOnce(updateResponse);
 
       // Act
-      await instance.appendToList(messageRecord.NotificationID, listKey, item);
+      await notificationsInstance.appendToList(messageRecord.NotificationID, listKey, item);
 
       // Assert
       expect(awsClientMocks.dynamoDBClientMock.updateItem).toHaveBeenCalledExactlyOnceWith({
@@ -84,7 +82,7 @@ describe('DynamodbRepository', () => {
       awsClientMocks.dynamoDBClientMock.updateItem = vi.fn().mockRejectedValueOnce(error);
 
       //Act
-      const result = instance.appendToList(messageRecord.NotificationID, listKey, item);
+      const result = notificationsInstance.appendToList(messageRecord.NotificationID, listKey, item);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -113,7 +111,7 @@ describe('DynamodbRepository', () => {
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
-      await instance.deleteRecord(notificaionID);
+      await notificationsInstance.deleteRecord(notificaionID);
 
       // Assert
       expect(awsClientMocks.dynamoDBClientMock.deleteItem).toHaveBeenCalledExactlyOnceWith({
@@ -128,7 +126,7 @@ describe('DynamodbRepository', () => {
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
-      const result = instance.deleteRecord(notificaionID, 'unexpected-sort-key');
+      const result = notificationsInstance.deleteRecord(notificaionID, 'unexpected-sort-key');
 
       // Assert
       await expect(result).rejects.toThrow(
@@ -172,7 +170,7 @@ describe('DynamodbRepository', () => {
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
-      const result = instance.deleteRecord(notificaionID);
+      const result = notificationsInstance.deleteRecord(notificaionID);
 
       // Assert
       await expect(result).rejects.toThrow(error);
@@ -195,7 +193,7 @@ describe('DynamodbRepository', () => {
         .mockResolvedValueOnce({ Items: [marshall(messageRecord, { removeUndefinedValues: true })] });
 
       // Act
-      const result = await instance.getRecordsQuery(filter);
+      const result = await notificationsInstance.getRecordsQuery(filter);
 
       // Assert
       expect(awsClientMocks.dynamoDBClientMock.query).toHaveBeenCalledExactlyOnceWith({
@@ -213,7 +211,7 @@ describe('DynamodbRepository', () => {
       awsClientMocks.dynamoDBClientMock.query = vi.fn().mockResolvedValueOnce({ Items: [] });
 
       // Act
-      const result = await instance.getRecordsQuery(filter);
+      const result = await notificationsInstance.getRecordsQuery(filter);
 
       // Assert
       expect(result).toEqual([]);
@@ -226,7 +224,7 @@ describe('DynamodbRepository', () => {
     awsClientMocks.dynamoDBClientMock.query = vi.fn().mockRejectedValueOnce(error);
 
     // Act
-    const result = instance.getRecordsQuery({ field: 'NotificationID', value: '123' });
+    const result = notificationsInstance.getRecordsQuery({ field: 'NotificationID', value: '123' });
 
     // Assert
     await expect(result).rejects.toThrow(error);

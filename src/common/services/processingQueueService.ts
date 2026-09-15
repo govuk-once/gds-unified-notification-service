@@ -3,26 +3,26 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class ProcessingQueueService extends QueueService<IMessage> {
   protected queueName: string = 'processing';
+
   constructor(
-    protected config: ConfigurationService,
-    client: SQSClient,
-    protected observability: ObservabilityService
+    protected observability: ObservabilityService,
+    protected client: SQSClient,
+    protected sqsQueueUrl: string
   ) {
-    super(client, observability);
+    super(observability, client, sqsQueueUrl);
   }
 
-  async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Processing.Url);
-
-    await super.initialize();
-    this.observability.logger.info('Processing Queue Service Initialised.');
-
-    return this;
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
+    return new ProcessingQueueService(
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Queue.Processing.Url)
+    );
   }
 
   public addPublishingSuccessMetric(count: number) {

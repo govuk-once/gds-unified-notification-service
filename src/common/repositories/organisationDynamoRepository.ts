@@ -1,24 +1,30 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
+import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { IProcessedMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {
   protected recordSchema = IOrganisationRecordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    client: DynamoDB,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, client, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.Organisations.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
+    return new OrganisationsDynamoRepository(
+      config,
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Table.Organisations.Attributes, IDynamoAttributesSchema)
+    );
   }
 
   public async getOrganisations(notifications: IProcessedMessage[]): Promise<IOrganisationRecord[]> {

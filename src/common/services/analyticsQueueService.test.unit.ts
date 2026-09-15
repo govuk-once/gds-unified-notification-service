@@ -1,5 +1,5 @@
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -8,12 +8,13 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@aws-sdk/client-sqs', { spy: true });
 
 vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
 
-describe('AnalyticsQueueService', () => {
+describe('AnalyticsQueueService', async () => {
   let analyticsQueueService: AnalyticsQueueService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, awsClientMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   beforeEach(async () => {
     // Reset all mock
@@ -22,12 +23,11 @@ describe('AnalyticsQueueService', () => {
     // Mock SSM store and services responses
     mockServicesExpectedBehaviour(serviceMocks);
 
-    analyticsQueueService = new AnalyticsQueueService(
+    analyticsQueueService = await AnalyticsQueueService.create(
       serviceMocks.configurationServiceMock,
-      awsClientMocks.sqsClientMock,
-      observabilityMocks
+      observabilityMocks,
+      awsClientMocks.sqsClientMock
     );
-    await analyticsQueueService.initialize();
   });
 
   describe('getQueueName', () => {
@@ -40,17 +40,20 @@ describe('AnalyticsQueueService', () => {
     });
   });
 
-  describe('initialize', () => {
+  describe('create', () => {
     it('should retrieve the queue url and log when the analytics queue service is initialised.', async () => {
       // Act
-      const result = await analyticsQueueService.initialize();
+      const result = await AnalyticsQueueService.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.sqsClientMock
+      );
 
       // Assert
       expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(
-        StringParameters.Queue.Analytics.Url
+        SSMParameters.Queue.Analytics.Url
       );
-      expectTypeOf(result).toEqualTypeOf<AnalyticsQueueService>();
-      expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Analytics Queue Service Initialised.');
+      expect(result).toBeInstanceOf(AnalyticsQueueService);
     });
   });
 });

@@ -3,26 +3,26 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
 import { IGroupMessageMetadata } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
   protected queueName: string = 'groupprocessing';
+
   constructor(
-    protected config: ConfigurationService,
+    protected observability: ObservabilityService,
     protected client: SQSClient,
-    protected observability: ObservabilityService
+    protected sqsQueueUrl: string
   ) {
-    super(client, observability);
+    super(observability, client, sqsQueueUrl);
   }
 
-  async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.GroupProcessing.Url);
-
-    await super.initialize();
-    this.observability.logger.info('Group Processing Queue Service Initialised.');
-
-    return this;
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
+    return new GroupProcessingQueueService(
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Queue.GroupProcessing.Url)
+    );
   }
 
   public addPublishingSuccessMetric(count: number) {

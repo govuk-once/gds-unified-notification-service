@@ -2,6 +2,5 @@ import { ProcessingAdapterRequest } from '@common/services/interfaces/processing
 import { ProcessingAdapterResult } from '@common/services/interfaces/processingAdapterResponse';
 
 export interface ProcessingAdapter {
-  initialize(): Promise<void>;
   send(payload: ProcessingAdapterRequest): Promise<ProcessingAdapterResult>;
 }

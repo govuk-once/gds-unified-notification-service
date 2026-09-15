@@ -10,6 +10,7 @@
     "development:sandbox:release": "pnpm run build && pnpm run cdk:deploy",
     "development:sandbox:plan": "pnpm run build && pnpm run cdk:diff",
     "development:sandbox:setup": "tsx scripts/developer-sandbox-setup.ts",
+    "download:certificates": "tsx scripts/download-certificates.ts",
     "cdk": "cd infrastructure/cdk && cdk",
     "cdk:diff": "pnpm run cdk diff",
     "cdk:synth": "rm -rf infrastructure/cdk/cdk.out && pnpm run cdk synth",

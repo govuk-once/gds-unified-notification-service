@@ -1,10 +1,11 @@
 import { NotificationStateEnum } from '@common/models';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
-import { mockIAnalytics, mockIFlexNotification } from '@project/lambdas/interfaces';
+import { mockIFlexNotification } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
   mockFlexAPIEvent,
+  mockIAnalytics,
   mockIOrganisationRecord,
   mockIProcessedMessage,
   mockIProcessedMessageRecord,
@@ -19,13 +20,13 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('getNotifications Handler', () => {
+describe('getNotifications Handler', async () => {
   let instance: GetNotifications;
   let handler: ReturnType<typeof GetNotifications.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   let context: Context;

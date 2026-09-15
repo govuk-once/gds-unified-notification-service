@@ -1,11 +1,13 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { NotificationStateEnum } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
-import { IAnalytics, mockFailedIAnalytics, mockIAnalytics } from '@project/lambdas/interfaces';
+import { IAnalytics } from '@project/lambdas/interfaces';
 import { Analytics } from '@project/lambdas/pso/sqs.analytics/handler';
 import {
   iocSpies,
   mockEventContext,
+  mockFailedIAnalytics,
+  mockIAnalytics,
   mockQueueEvent,
   mockQueueMultiEvents,
   mockServicesExpectedBehaviour,
@@ -19,9 +21,9 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('Analytics QueueHandler', () => {
+describe('Analytics QueueHandler', async () => {
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   let instance: Analytics;
   let handler: ReturnType<typeof Analytics.prototype.handler>;

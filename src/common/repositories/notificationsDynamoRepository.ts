@@ -1,14 +1,16 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import {
+  IDynamoAttributes,
+  IDynamoAttributesSchema,
   IMessageRecord,
   IMessageRecordSchema,
   IProcessedMessageRecord,
   IProcessedMessageRecordSchema,
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils';
 import { IAnalytics } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 const recordSchema = IMessageRecordSchema;
 
@@ -16,16 +18,21 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
   protected recordSchema = recordSchema;
 
   constructor(
-    protected config: ConfigurationService,
-    client: DynamoDB,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, client, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.Inbound.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
+    return new NotificationsDynamoRepository(
+      config,
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Table.Message.Attributes, IDynamoAttributesSchema)
+    );
   }
 
   public async addEvent(event: IAnalytics) {

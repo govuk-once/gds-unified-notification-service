@@ -26,13 +26,13 @@ vi.mock('uuid', () => ({
   v4: vi.fn(),
 }));
 
-describe('PostGroupMessage Handler', () => {
+describe('PostGroupMessage Handler', async () => {
   let instance: PostGroupMessage;
   let handler: ReturnType<typeof PostGroupMessage.prototype.handler>;
   type EventType = Parameters<typeof handler>[0];
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Test Fixtures
   let context: Context;

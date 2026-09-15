@@ -3,24 +3,25 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { StringParameters } from '@common/utils';
+import SSMParameters from '@shared/ssmParameter';
 
 export class AnalyticsQueueService extends QueueService<unknown> {
   protected queueName: string = 'analytics';
+
   constructor(
-    protected config: ConfigurationService,
-    client: SQSClient,
-    protected observability: ObservabilityService
+    protected readonly observability: ObservabilityService,
+    protected readonly client: SQSClient,
+    protected readonly queueUrl: string
   ) {
-    super(client, observability);
+    super(observability, client, queueUrl);
   }
 
-  async initialize() {
-    this.sqsQueueUrl = await this.config.getParameter(StringParameters.Queue.Analytics.Url);
-    await super.initialize();
-
-    this.observability.logger.info('Analytics Queue Service Initialised.');
-    return this;
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
+    return new AnalyticsQueueService(
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Queue.Analytics.Url)
+    );
   }
 
   public addPublishingSuccessMetric(count: number) {

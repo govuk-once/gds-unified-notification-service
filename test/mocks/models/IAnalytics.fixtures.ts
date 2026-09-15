@@ -1,5 +1,5 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { AnalyticsEventFromIMessage } from '@common/services';
+import { AnalyticsEventFromIMessage, AnalyticsLog } from '@common/services';
 import { IAnalytics } from '@project/lambdas';
 
 export const mockIAnalytics = (event: NotificationStateEnum): IAnalytics => ({
@@ -55,3 +55,13 @@ export const mockAnalyticsWithCampaignEvents = (): AnalyticsEventFromIMessage[] 
     OrganisationID: 'ORD01',
   },
 ];
+
+export const mockAnalyticsLog = (event: NotificationStateEnum): AnalyticsLog => ({
+  EventID: '123',
+  DepartmentID: 'DEP1',
+  OrganisationID: 'ORG01',
+  NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80f',
+  CampaignID: 'CAM_ID',
+  EventStatus: event,
+  EventTimestamp: '2026-01-22T00:00:01Z',
+});

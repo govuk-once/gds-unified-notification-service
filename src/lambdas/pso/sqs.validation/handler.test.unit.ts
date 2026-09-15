@@ -3,9 +3,9 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
-import { BoolParameters } from '@common/utils';
 import { IMessage } from '@project/lambdas/interfaces';
 import { Validation } from '@project/lambdas/pso/sqs.validation/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockDefaultConfig,
@@ -26,12 +26,12 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 vi.mock('@common/services', { spy: true });
 vi.mock('@common/repositories', { spy: true });
 
-describe('Validation QueueHandler', () => {
+describe('Validation QueueHandler', async () => {
   let instance: Validation;
   let handler: ReturnType<typeof Validation.prototype.handler>;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   // Mocking implementation of the configuration service
   let mockParameterStore = mockDefaultConfig();
@@ -60,7 +60,7 @@ describe('Validation QueueHandler', () => {
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
       contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
       notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
-      processingQueue: serviceMocks.processingQueueServiceMock.initialize(),
+      processingQueue: Promise.resolve(serviceMocks.processingQueueServiceMock),
     }));
     handler = instance.handler();
   });
@@ -105,15 +105,15 @@ describe('Validation QueueHandler', () => {
   });
 
   it.each([
-    [`false`, `true`, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [`true`, `false`, `Service is disabled due to parameter config/validation/enabled being set to false`],
+    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
+    [true, false, `Service is disabled due to parameter config/validation/enabled being set to false`],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: string, validationEnabled: string, expectErrorMessage: string) => {
+    async (commonEnabled: boolean, validationEnabled: boolean, expectErrorMessage: string) => {
       // Arrange
       const event = mockQueueEvent(message);
-      mockParameterStore[BoolParameters.Config.Common.Enabled] = commonEnabled;
-      mockParameterStore[BoolParameters.Config.Validation.Enabled] = validationEnabled;
+      mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
+      mockParameterStore[SSMParameters.Config.Validation.Enabled.Path] = validationEnabled;
 
       // Act
       const result = handler(event, context);

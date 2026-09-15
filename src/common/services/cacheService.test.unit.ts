@@ -7,13 +7,15 @@ import redis from 'redis';
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-vi.mock('@common/services/configurationService', { spy: true });
 
-describe('CacheService', () => {
+vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
+
+describe('CacheService', async () => {
   let instance: CacheService;
 
   // Initialize mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   const createClientSpy = vi.spyOn(redis, 'createClient');
   const redisConnection = vi.fn();

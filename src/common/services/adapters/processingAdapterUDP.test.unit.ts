@@ -11,12 +11,12 @@ vi.mock('@aws-lambda-powertools/tracer', { spy: true });
 
 vi.mock('@common/services', { spy: true });
 
-describe('ProcessingAdapterUDP', () => {
+describe('ProcessingAdapterUDP', async () => {
   let instance: ProcessingAdapterUDP;
   const getMock = vi.fn();
 
   // Initalise mock services, clients, and repositories
-  const { observabilityMocks, serviceMocks } = iocSpies();
+  const { observabilityMocks, serviceMocks } = await iocSpies();
 
   const request = mockProcessingAdapterRequest();
 
@@ -25,12 +25,11 @@ describe('ProcessingAdapterUDP', () => {
 
     mockServicesExpectedBehaviour(serviceMocks);
 
-    instance = new ProcessingAdapterUDP(
+    instance = await ProcessingAdapterUDP.create(
       observabilityMocks,
       serviceMocks.configurationServiceMock,
       serviceMocks.smConfigurationServiceMock
     );
-    await instance.initialize();
     instance.client.get = getMock;
     vi.spyOn(observabilityMocks, 'recordHttpErrorResponse');
   });

@@ -11,8 +11,8 @@ import { InvalidCharacterError, ParsingFailedError } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { StringParameters } from '@common/utils';
 import { IAnalytics } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
 export interface AnalyticsLog {
   EventID: string;
@@ -25,22 +25,29 @@ export interface AnalyticsLog {
 }
 
 export class AnalyticsExportService {
-  private logGroupName!: string;
-
   private readonly logStreamCacheKeyPrefix = `analyticsExportService/LogStream`;
 
   constructor(
-    private readonly observability: ObservabilityService,
-    private readonly config: ConfigurationService,
-    private readonly cache: CacheService,
-    private readonly client: CloudWatchLogsClient
+    protected readonly observability: ObservabilityService,
+    protected readonly config: ConfigurationService,
+    protected readonly cache: CacheService,
+    protected readonly client: CloudWatchLogsClient,
+    protected readonly logGroupName: string
   ) {}
 
-  public async initialize() {
-    this.logGroupName = await this.config.getParameter(StringParameters.AnalyticsExport.LogGroup.Name);
-    this.observability.tracer.captureAWSv3Client(this.client);
-
-    return this;
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    cache: CacheService,
+    client: CloudWatchLogsClient
+  ) {
+    return new AnalyticsExportService(
+      observability,
+      config,
+      cache,
+      client,
+      await config.getParameter(SSMParameters.AnalyticsExport.LogGroup.Name)
+    );
   }
 
   private async getLogStreamName() {
@@ -110,7 +117,7 @@ export class AnalyticsExportService {
     const previousHourDate = new Date(time - 60 * 60 * 1000);
 
     // Determines the log stream name off the previous hour of the timestamp from event bridge
-    const exportBucketName = await this.config.getParameter(StringParameters.AnalyticsExport.Bucket.Name);
+    const exportBucketName = await this.config.getParameter(SSMParameters.AnalyticsExport.Bucket.Name);
     const logStreamName = previousHourDate.toISOString().split(':').shift();
 
     // Export analytics from log group to s3 bucket

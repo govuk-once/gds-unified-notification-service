@@ -202,8 +202,9 @@ use_mtls=true`,
       [
         ``,
         `Setup completed, now you can run: `,
-        ` - pnpm run cdk:diff       - to preview CDK changes before applying`,
-        ` - pnpm run cdk:deploy     - to apply CDK changes & release your environment`,
+        ` - pnpm run cdk:diff                    - to preview CDK changes before applying`,
+        ` - pnpm run cdk:deploy                  - to apply CDK changes & release your environment`,
+        ` - pnpm run download:certificates       - to download mTLS certificates & API keys`,
       ].join('\n')
     );
   } catch (e) {

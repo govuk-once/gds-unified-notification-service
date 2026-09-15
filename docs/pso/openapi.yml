@@ -238,7 +238,16 @@ components:
         DeeplinkURL:
           type: string
           format: url
-          description: (Optional) Explicit deeplink url to define for push notification - (Subject to feature flag being enabled) 
+          description: (Optional) Explicit deeplink url to define for push notification - (Subject to feature flag being enabled)
+        Channel:
+          type: string
+          enum:
+            - PUSH_NOTIFICATION_AND_MESSAGE_CENTRE
+            - MESSAGE_CENTRE_ONLY
+          description: (Optional) Define which channel the notification is dispatched to
+        ExpiresInDays:
+          type: number
+          description: (Optional) Sets the number of day for a notification to be set to hidden, overriding the default amount
     MessageRequest:
       allOf:
         - $ref: '#/components/schemas/MessageRequestProperties'
