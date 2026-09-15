@@ -3,6 +3,9 @@ import { devConsumers } from 'infrastructure/cdk/consumers/devConsumers';
 import { productionConsumers } from 'infrastructure/cdk/consumers/productionConsumers';
 import { stagingConsumers } from 'infrastructure/cdk/consumers/stagingConsumers';
 
+/**
+ * Explicitly creates a certificate based on properties
+ */
 export const certificate = (props: {
   commonName: string;
   organization: string;
@@ -14,6 +17,61 @@ export const certificate = (props: {
   id: [props.organization, props.organizationalUnit, props.commonName].join('-'),
   ...props,
 });
+
+/**
+ * Automatically creates a certificate based on the period
+ * Appends YYYY-MM-DD.YYYY-MM-DD based on start and end
+ */
+export const rollingCertificate = (props: {
+  commonName: string;
+  organization: string;
+  organizationalUnit: string;
+  startDate: Date;
+  frequencyInMonths?: number;
+  migrationPeriodInWeeks?: number;
+}) => {
+  const frequencyMonths = props.frequencyInMonths ?? 3;
+  const migrationWeeks = props.migrationPeriodInWeeks ?? 1;
+
+  const addMonths = (date: Date, months: number) => {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + months);
+    return result;
+  };
+
+  const addWeeks = (date: Date, weeks: number) => {
+    const result = new Date(date);
+    result.setDate(result.getDate() + weeks * 7);
+    return result;
+  };
+
+  const toDate = (date: Date) => date.toISOString().split('T').shift()!;
+
+  const now = new Date();
+  const certificates: ReturnType<typeof certificate>[] = [];
+  let periodStart = new Date(props.startDate);
+
+  while (periodStart <= now) {
+    const periodEnd = addMonths(periodStart, frequencyMonths);
+
+    if (now < periodEnd) {
+      certificates.push(
+        certificate({
+          commonName: `${props.commonName}.${toDate(periodStart)}.${toDate(periodEnd)}`,
+          organization: props.organization,
+          organizationalUnit: props.organizationalUnit,
+          startDate: periodStart,
+          expirationDate: periodEnd,
+          revoked: false,
+        })
+      );
+    }
+
+    periodStart = addWeeks(periodEnd, -migrationWeeks);
+  }
+
+  return certificates;
+};
 
 export type GroupedConsumerCertificates = ReturnType<typeof certificate>[];
 
