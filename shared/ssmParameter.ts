@@ -1,4 +1,4 @@
-import { config } from '@infrastructure/cdk/config';
+
 export type SSMParameterType = 'boolean' | 'string' | 'numeric' | 'enum' | 'json';
 
 export interface ParameterConfig<T extends SSMParameterType = SSMParameterType> {
@@ -57,18 +57,9 @@ const SSMParameters = {
       },
     },
     FeatureFlags: {
-      ChannelControls: staticParam(
-        'config/featureFlag/channelControls',
-        'boolean',
-        String(config.featureFlag.channelControls)
-      ),
-      DeepLinkUrl: staticParam('config/featureFlag/deeplinkUrl', 'boolean', String(config.featureFlag.deeplinkUrl)),
-
-      MessageRetention: staticParam(
-        'config/featureFlag/messageRetention',
-        'boolean',
-        String(config.featureFlag.messageRetention)
-      ),
+      ChannelControls: staticParam('config/featureFlag/channelControls', 'boolean', 'false'),
+      DeepLinkUrl: staticParam('config/featureFlag/deeplinkUrl', 'boolean', 'false'),
+      MessageRetention: staticParam('config/featureFlag/messageRetention', 'boolean', 'false'),
     },
     UDP: {
       SM: staticParam('udp/config/sm', 'string', 'null'),
