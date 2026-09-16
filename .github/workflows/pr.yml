@@ -139,13 +139,11 @@ jobs:
 
       - name: 🏗️ CDK Deploy Ephemeral Build
         run: |
-          pnpm run cdk deploy uns-${{github.run_number}}-stack --require-approval never --import-existing-resources true && pnpm run cdk:postdeploy:ssm
+          pnpm run cdk deploy uns-${{github.run_number}}-stack --require-approval never && pnpm run cdk:postdeploy:ssm
         # run: |
         #   pnpm run cdk:predeploy:ssm && pnpm run cdk deploy uns-${{github.run_number}}-stack --require-approval never --import-existing-resources true && pnpm run cdk:postdeploy:ssm
         env:
           pr_build_number: ${{ github.run_number }}
           region: ${{ vars.AWS_REGION }}
-          env: dev
+          env: pr
           code_version: ${{ inputs.VERSION }}
-          use_mtls: 'true'
-          is_main_environment_in_account: 'false'

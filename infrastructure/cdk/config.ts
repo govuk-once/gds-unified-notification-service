@@ -60,13 +60,12 @@ if (process.env.env == undefined) {
 
 // Infer values from env variables
 const project = 'uns';
-const env = process.env.env ?? 'dev';
+const prBuildNumber = process.env.pr_build_number;
+const isEphemeral = prBuildNumber !== undefined;
+const env = isEphemeral ? prBuildNumber : (process.env.env ?? 'dev');
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
-const prBuildNumber = process.env.pr_build_number;
-const isEphemeral = prBuildNumber !== undefined;
-//const namespace = prBuildNumber ? [project, prBuildNumber].join(`-`) : [project, env].join(`-`).replace(`-prod`, ``);
 const namespace = [project, env].join(`-`).replace(`-prod`, ``);
 const isMainEnv = unremoveableEnvironments.includes(env);
 const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
@@ -181,14 +180,9 @@ export const config = {
 
   // Helper functions
   utils: {
-    constructNamingHelper: (...args: string[]) => {
-      return prBuildNumber ? camelCase(prBuildNumber, ...args) : camelCase(...args);
-    },
-    namingHelper: (...args: string[]) => {
-      return prBuildNumber
-        ? [config.project, prBuildNumber, ...args].join('-').toLowerCase()
-        : [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', '');
-    },
+    constructNamingHelper: (...args: string[]) => camelCase(...args),
+    namingHelper: (...args: string[]) =>
+      [config.project, config.env, ...args].join('-').toLowerCase().replace('-prod', ''),
     namingHelperSnakeCase: (...args: string[]) => config.utils.namingHelper(...args).replaceAll(`-`, `_`),
 
     // Rolling week to week dates - used for short term mtls certs
