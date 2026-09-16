@@ -20,15 +20,26 @@ export class FetchErrorResponse<T = unknown> extends Error {
   public status?: number;
   public body?: T;
   public errorMessage: string;
+  public headers?: Record<string, string>;
+  public url?: string;
   public errorType = 'FetchErrorResponse';
 
-  constructor(props?: { path: string; method: string; status?: number; body?: T }) {
+  constructor(props?: {
+    path: string;
+    method: string;
+    status?: number;
+    body?: T;
+    headers?: Record<string, string>;
+    url?: string;
+  }) {
     const msg = `API [${props?.method ?? 'UNKNOWN'}] ${props?.path ?? 'UNKNOWN'} Failed with ${props?.status ?? 'UNKNOWN'}`;
     super(msg);
     this.errorMessage = `API [${props?.method ?? 'UNKNOWN'}] ${props?.path ?? 'UNKNOWN'} Failed with ${props?.status ?? 'UNKNOWN'}`;
     this.method = props?.method;
     this.status = props?.status;
     this.body = props?.body;
+    this.headers = props?.headers;
+    this.url = props?.url;
   }
 }
 
@@ -57,6 +68,7 @@ export class FetchService {
   ) {}
 
   async fetch(input: FetchInputParameter, init?: FetchOptionsParameter): Promise<Response> {
+    console.log('e2e-diag request: ', init?.method, JSON.stringify(input), JSON.stringify(init?.headers));
     return await fetch(input, init);
   }
 
@@ -79,6 +91,7 @@ export class FetchService {
 
     let response: Response;
     try {
+      console.log('Body before sigV4: ', JSON.stringify(body));
       response = await this.fetch(url, {
         ...this.props.fetchOptions,
         method,
@@ -103,6 +116,8 @@ export class FetchService {
         method: method,
         path: path,
         body: raw,
+        headers: Object.fromEntries(response.headers),
+        url,
       });
     }
 

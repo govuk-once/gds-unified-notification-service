@@ -45,6 +45,8 @@ export const testingStack = new UNSTestingStack(
   {
     vpc: stack.common.vpc.vpc,
     securityGroups: [stack.common.vpc.securityGroups.privateEgress],
+    kms: stack.common.kms,
+    flexPrivateUrl: stack.flex.gateway.restApi.url,
   }
 );
 alarmsStack.addDependency(stack);

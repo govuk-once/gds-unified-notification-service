@@ -1,5 +1,6 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { ISecurityGroup, IVpc } from 'aws-cdk-lib/aws-ec2';
+import { IKey } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSE2EConstruct } from 'infrastructure/cdk/constructs/bases/UNSE2EConstruct';
@@ -7,6 +8,8 @@ import { UNSE2EConstruct } from 'infrastructure/cdk/constructs/bases/UNSE2EConst
 export interface UNSTestingContract {
   readonly vpc: IVpc;
   readonly securityGroups: ISecurityGroup[];
+  readonly kms: IKey;
+  readonly flexPrivateUrl: string;
 }
 
 export class UNSTestingStack extends Stack {
