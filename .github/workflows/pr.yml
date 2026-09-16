@@ -13,6 +13,8 @@ permissions:
 jobs:
   pr:
     runs-on: ubuntu-latest
+    environment:
+      name: dev
     timeout-minutes: 60
     steps:
       # Setup
