@@ -15,8 +15,6 @@ export default defineConfig({
       '@common': path.resolve(__dirname, './src/common'),
       '@project/*': path.resolve(__dirname, './src/*'),
       '@project': path.resolve(__dirname, './src'),
-      '@infrastructure/*': path.resolve(__dirname, './infrastructure/*'),
-      '@infrastructure': path.resolve(__dirname, './infrastructure'),
       '@shared/*': path.resolve(__dirname, './shared/*'),
       '@shared': path.resolve(__dirname, './shared'),
       '@test/*': path.resolve(__dirname, 'test/*'),
