@@ -1,4 +1,3 @@
-
 export type SSMParameterType = 'boolean' | 'string' | 'numeric' | 'enum' | 'json';
 
 export interface ParameterConfig<T extends SSMParameterType = SSMParameterType> {
