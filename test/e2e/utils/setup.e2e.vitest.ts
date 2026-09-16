@@ -17,7 +17,7 @@ vi.hoisted(() => {
 
 const domainName = (name: string) => {
   const rootDomain = config.ssm.hostedZoneName;
-  const subdomain = name ? (config.isMainEnv ? name : config.utils.namingHelper(name)) : null;
+  const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;
   return `${subdomain}.${rootDomain}`;
 };
 const psoUrl = domainName(`pso`);

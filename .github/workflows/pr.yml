@@ -143,5 +143,12 @@ jobs:
         env:
           pr_number: ${{ github.event.number }}
           region: ${{ vars.AWS_REGION }}
-          env: pr
+          env: ${{ github.event.number }}
           code_version: pr-${{ github.event.number }}
+
+      - name: 🧪 End to end testing suite
+        if: ${{ inputs.ENVIRONMENT != 'production' }}
+        run: |
+          VITEST_TREE_REPORT=true pnpm test:e2e
+        env:
+          env: ${{ github.event.number }}
