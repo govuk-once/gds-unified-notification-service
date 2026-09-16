@@ -1,0 +1,10 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 24
+    commands:
+      - echo 'Running'
+      - ls
+      - ./node_modules/.bin/vitest run --project e2e

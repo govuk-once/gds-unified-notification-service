@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
@@ -8,6 +7,8 @@ import { INotificationStatus } from '@project/lambdas/interfaces/INotificationSt
 import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
+import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -15,13 +16,23 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
 
-const domainName = (name: string) => {
+const domainName = (name: string, usePrivateDomain: boolean = false) => {
+  if (name === 'flex' && usePrivateDomain) {
+    if (!process.env.UNS_FLEX_BASE_URL) {
+      throw new Error('UNS_FLEX_BASE_URL needs to be configured in the env varaibles');
+    }
+    return process.env.UNS_FLEX_BASE_URL?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  }
   const rootDomain = config.ssm.hostedZoneName;
   const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;
   return `${subdomain}.${rootDomain}`;
 };
+
+const usePrivateGateway = config.isE2ERunner;
 const psoUrl = domainName(`pso`);
-const flexUrl = domainName(`flex`);
+const flexUrl = domainName(`flex`, usePrivateGateway);
+const flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
+
 let flexApiKey = '';
 let psoApiKey = '';
 
@@ -35,11 +46,13 @@ const prepareBeforeAll = async () => {
       );
     }
 
-    // Ensure AWS env vars are available
+    // Ensure AWS env vars are available (ignore for codebuild)
+    const runningCodeBuild = process.env.CODEBUILD_BUILD_ID !== undefined;
     if (
-      process.env.AWS_ACCESS_KEY_ID == undefined ||
-      process.env.AWS_SECRET_ACCESS_KEY == undefined ||
-      process.env.AWS_REGION == undefined
+      !runningCodeBuild &&
+      (process.env.AWS_ACCESS_KEY_ID == undefined ||
+        process.env.AWS_SECRET_ACCESS_KEY == undefined ||
+        process.env.AWS_REGION == undefined)
     ) {
       throw new Error(
         `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
@@ -108,8 +121,9 @@ const prepareBeforeAll = async () => {
       }
 
       // Our e2e tests are hitting flex api
-      if (value && value.value && key.name?.includes('flex') && key.name?.includes('e2e')) {
+      if (value && value.value && key.name?.includes('flex') && key.name?.includes(flexKeyMarker)) {
         flexApiKey = value.value!;
+        console.log('Key:', flexApiKey);
       }
     }
 
@@ -136,6 +150,7 @@ const prepareBeforeAll = async () => {
     console.error('Error setting up HTTPS Agent for end to end tests:', error);
     throw error;
   }
+  console.log('hosts', psoUrl, flexUrl);
 };
 
 beforeAll(async () => await prepareBeforeAll());
@@ -173,17 +188,17 @@ export const testFixtures = () => {
       defaultHeaders: {},
       defaultTimeout: 60000,
     }),
-    flexAPI: new FetchService({
+    flexAPI: new FetchSigV4Service({
       baseUrl: `https://${flexUrl}`,
+      credentials: { region: config.region },
       defaultHeaders: {
         'x-api-key': flexApiKey,
       },
-      defaultTimeout: 60000,
     }),
-    flexAPIWithoutAPIKey: new FetchService({
+    flexAPIWithoutAPIKey: new FetchSigV4Service({
       baseUrl: `https://${flexUrl}`,
+      credentials: { region: config.region },
       defaultHeaders: {},
-      defaultTimeout: 60000,
     }),
     flexAPIUsingInsecureProtocol: new FetchService({
       baseUrl: `http://${flexUrl}`,
