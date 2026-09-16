@@ -5,9 +5,9 @@
 
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand, GetRestApisCommand } from '@aws-sdk/client-api-gateway';
 import { DescribeSecretCommand, SecretsManagerClient, UpdateSecretCommand } from '@aws-sdk/client-secrets-manager';
+import { SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { config } from './config';
-import { DeleteParametersCommand, GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
 
 await (async () => {
   //// =====================================================
@@ -72,33 +72,4 @@ await (async () => {
       }),
     })
   );
-
-  //// =====================================================
-  // Ephemeral SSM Cleanup
-  //// =====================================================
-  if (config.isEphemeral) {
-    console.log(`Deleting ephemeral parameters.`);
-    const paramsToDelete = await ssmClient.send(
-      new GetParametersByPathCommand({
-        Path: `/${config.namespace}/`,
-        Recursive: true,
-        WithDecryption: true,
-      })
-    );
-
-    if (paramsToDelete.Parameters && paramsToDelete.Parameters.length > 0) {
-      console.log(`Deleting deprecated parameters from namespace.`);
-      const params = paramsToDelete.Parameters.map((p) => p.Name).filter((p) => p !== undefined);
-
-      if (params.length === 0) {
-        throw new Error('No parameters were found associated with the ephemeral state');
-      }
-
-      await ssmClient.send(
-        new DeleteParametersCommand({
-          Names: params,
-        })
-      );
-    }
-  }
 })();
