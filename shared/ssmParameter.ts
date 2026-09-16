@@ -64,6 +64,7 @@ const SSMParameters = {
         String(config.featureFlag.channelControls)
       ),
       DeepLinkUrl: staticParam('config/featureFlag/deeplinkUrl', 'boolean', String(config.featureFlag.deeplinkUrl)),
+
       MessageRetention: staticParam(
         'config/featureFlag/messageRetention',
         'boolean',
