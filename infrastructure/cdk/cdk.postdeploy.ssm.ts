@@ -5,7 +5,6 @@
 
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand, GetRestApisCommand } from '@aws-sdk/client-api-gateway';
 import { DescribeSecretCommand, SecretsManagerClient, UpdateSecretCommand } from '@aws-sdk/client-secrets-manager';
-import { SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { config } from './config';
 
@@ -18,7 +17,6 @@ await (async () => {
   const smClient = new SecretsManagerClient({ region: config.region });
   const apiGwClient = new APIGatewayClient({ region: config.region });
   const stsClient = new STSClient({ region: config.region });
-  const ssmClient = new SSMClient({ region: config.region });
 
   // Confirm secret we want to populate exists
   const secret = await smClient.send(
