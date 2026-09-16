@@ -139,7 +139,7 @@ jobs:
 
       - name: 🏗️ CDK Deploy Ephemeral Build
         run: |
-          pnpm run cdk deploy uns-${{github.run_number}}-stack --require-approval never --import-existing-resources true && pnpm run cdk:postdeploy:ssm
+          pnpm run cdk deploy uns-${{github.run_number}}-stack --require-approval never && pnpm run cdk:postdeploy:ssm
         # run: |
         #   pnpm run cdk:predeploy:ssm && pnpm run cdk deploy uns-${{github.run_number}}-stack --require-approval never --import-existing-resources true && pnpm run cdk:postdeploy:ssm
         env:
