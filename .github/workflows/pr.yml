@@ -13,8 +13,6 @@ permissions:
 jobs:
   pr:
     runs-on: ubuntu-latest
-    environment:
-      name: dev
     timeout-minutes: 60
     steps:
       # Setup
@@ -152,10 +150,9 @@ jobs:
         env:
           env: ${{ github.event.number }}
 
-      - name: 💣 CDK Ephemeral Build Removal
-        # run: pnpm run cdk destroy uns-${{github.event.number}}-stack --force true && pnpm run cdk:ephemeral:cleanup:ssm
-        run: pnpm run cdk destroy uns-${{github.event.number}}-stack && pnpm run cdk:ephemeral:cleanup:ssm
-        env:
-          pr_number: ${{ github.event.number }}
-          region: ${{ vars.AWS_REGION }}
-          env: ${{ github.event.number }}
+      # - name: 💣 CDK Ephemeral Build Removal
+      #   run: pnpm run cdk destroy uns-${{github.event.number}}-stack && pnpm run cdk:ephemeral:cleanup:ssm
+      #   env:
+      #     pr_number: ${{ github.event.number }}
+      #     region: ${{ vars.AWS_REGION }}
+      #     env: ${{ github.event.number }}

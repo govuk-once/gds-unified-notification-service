@@ -1,0 +1,23 @@
+name: PR Clean Up pipeline
+
+on:
+  # Trigger the workflow on pull request merge or closure
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: 💣 CDK Ephemeral Build Removal
+        run: pnpm run cdk destroy uns-${{github.event.number}}-stack --force true && pnpm run cdk:ephemeral:cleanup:ssm
+        env:
+          pr_number: ${{ github.event.number }}
+          region: ${{ vars.AWS_REGION }}
+          env: ${{ github.event.number }}
