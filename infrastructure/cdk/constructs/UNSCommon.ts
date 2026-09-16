@@ -52,6 +52,9 @@ export class UNSCommon extends Construct {
   public readonly slackAlert?: UNSSlackAlert;
   public readonly alertTopic: Topic;
 
+  public readonly slackReleaseAlert?: UNSSlackAlert;
+  public readonly releaseTopic: Topic;
+
   public readonly codeSigning: CodeSigningConfig;
   public readonly codeSigningProfile: SigningProfile;
 
@@ -123,6 +126,25 @@ export class UNSCommon extends Construct {
         name: [`alerts`],
         kms: this.kms,
         topics: [this.alertTopic],
+      });
+    }
+
+    //// =====================================================
+    // Release notifications - always create topic, conditionally create slack alert linked to the topic if workspace & channel ids are present
+    //// =====================================================
+
+    this.releaseTopic = new Topic(this, constructNamingHelper('release', 'topic'), {
+      topicName: namingHelper('sns', 'topic', 'releases'),
+      masterKey: this.kms,
+    });
+
+    if (config.ssm.alerts.workspaceId !== null && config.ssm.alerts.releaseChannelId !== null) {
+      this.slackReleaseAlert = new UNSSlackAlert(this, config, {
+        workspaceId: config.ssm.alerts.workspaceId,
+        channelId: config.ssm.alerts.releaseChannelId,
+        name: [`releases`],
+        kms: this.kms,
+        topics: [this.releaseTopic],
       });
     }
 
