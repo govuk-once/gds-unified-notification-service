@@ -60,9 +60,9 @@ if (process.env.env == undefined) {
 
 // Infer values from env variables
 const project = 'uns';
-const prBuildNumber = process.env.pr_build_number;
-const isEphemeral = prBuildNumber !== undefined;
-const env = isEphemeral ? prBuildNumber : (process.env.env ?? 'dev');
+const prNumber = process.env.pr_number;
+const isEphemeral = prNumber !== undefined;
+const env = isEphemeral ? prNumber : (process.env.env ?? 'dev');
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
