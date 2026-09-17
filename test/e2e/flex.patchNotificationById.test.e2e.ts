@@ -25,12 +25,10 @@ describe('PATCH {{flex}}/notifications/{{notificationID}} - Update notification 
         if (api.isPrivateGateway()) {
           expect(error).toMatchObject({
             message: 'fetch failed',
-            cause: {
-              ConnectionTimeoutError: expect.objectContaining({
-                code: 'UND_ERR_CONNECT_TIMEOUT',
-                name: 'ConnectTimeoutError',
-              }),
-            },
+            cause: expect.objectContaining({
+              code: 'UND_ERR_CONNECT_TIMEOUT',
+              name: 'ConnectTimeoutError',
+            }),
           });
         } else {
           expect(error).toMatchObject({
