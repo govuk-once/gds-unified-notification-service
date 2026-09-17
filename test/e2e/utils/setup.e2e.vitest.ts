@@ -60,6 +60,8 @@ const prepareBeforeAll = async () => {
         ],
       })
     );
+    // New certificate format has two dates separated by dots cn.{startDate}.{endDate}
+    secrets.SecretList = secrets.SecretList?.filter((x) => x.Name?.split(`.`).length == 3);
 
     if (secrets.SecretList?.length !== 2) {
       throw new Error(`Fetching certs from SM returned too many results, expected 2`);

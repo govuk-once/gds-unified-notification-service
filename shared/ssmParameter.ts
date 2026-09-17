@@ -75,6 +75,7 @@ const SSMParameters = {
     Slack: {
       WorkspaceId: staticParam('alerts/slack/workspaceId', 'string', 'null'),
       ChannelId: staticParam('alerts/slack/channelId', 'string', 'null'),
+      ReleaseChannelId: staticParam('alerts/slack/releaseChannelId', 'string', 'null'),
     },
   },
   Content: {

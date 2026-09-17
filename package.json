@@ -22,6 +22,7 @@
     "lint": "eslint . --cache --cache-location .eslintcache --concurrency=auto --stats && prettier . --check --cache --cache-location",
     "pre-commit": "tsx scripts/pre-commit.ts",
     "prepare": "husky",
+    "release:announcement": "tsx scripts/release-announcement.ts",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage --project unit",
     "test:coverage:detailed": "VITEST_DETAILED_COVERAGE=true vitest run --coverage --project unit",
@@ -37,6 +38,7 @@
   "devDependencies": {
     "@aws-sdk/client-api-gateway": "^3.1110.0",
     "@aws-sdk/client-s3": "^3.1110.0",
+    "@aws-sdk/client-sns": "^3.1110.0",
     "@aws-sdk/client-sqs": "^3.1100.0",
     "@aws-sdk/client-sts": "^3.1110.0",
     "@commitlint/cli": "^21.0.2",
