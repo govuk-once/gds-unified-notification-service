@@ -46,6 +46,8 @@ const prepareBeforeAll = async () => {
       );
     }
 
+    process.env.PREFIX = `uns-${config.env}`;
+
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
     const smClient = new SecretsManagerClient({ region: 'eu-west-2' });
 

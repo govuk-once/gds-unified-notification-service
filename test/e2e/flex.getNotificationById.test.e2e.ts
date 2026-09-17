@@ -113,7 +113,7 @@ describe('GET {{flex}}/notifications/{{notificationID}}', () => {
   });
 
   describe(`Happy paths`, () => {
-    test('status 200 when when - accessing notification as the owner', async ({
+    test('status 200 when - accessing notification as the owner', async ({
       flexAPI: api,
       validPushID,
       mockNotificationID,
