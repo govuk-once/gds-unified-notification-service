@@ -1,7 +1,7 @@
 import { Stack } from 'aws-cdk-lib';
 import { BuildSpec, ComputeType, LinuxBuildImage, Project, Source } from 'aws-cdk-lib/aws-codebuild';
 import { ISecurityGroup, IVpc, SubnetType } from 'aws-cdk-lib/aws-ec2';
-import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey, Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
@@ -15,6 +15,7 @@ export interface UNSCodeBuildConstructProps {
 }
 export class UNSE2EConstruct extends Construct {
   public readonly project: Project;
+  public readonly role: Role;
   public readonly sourceBucket: UNSS3Bucket;
   constructor(scope: Construct, config: EnvVars, props: UNSCodeBuildConstructProps) {
     const { constructNamingHelper, namingHelper } = config.utils;
@@ -25,10 +26,18 @@ export class UNSE2EConstruct extends Construct {
       name: [...props.name, 'builds'],
     });
 
+    // Creates a role
+    this.role = new Role(this, constructNamingHelper(...props.name, 'role'), {
+      roleName: namingHelper('iamr', ...props.name),
+      assumedBy: new ServicePrincipal('codebuild.amazonaws.com'),
+      description: `Runs the e2e suite from inside the VPC - ${config.env}`,
+    });
+
     // Creates a project
     this.project = new Project(this, constructNamingHelper(...props.name, 'project'), {
       projectName: namingHelper(...props.name, 'project'),
       description: 'Runs the e2e test suite against the private flex-private API Gateway from inside the VPC',
+      role: this.role,
       environment: {
         buildImage: LinuxBuildImage.STANDARD_7_0,
         computeType: ComputeType.MEDIUM,
@@ -48,18 +57,47 @@ export class UNSE2EConstruct extends Construct {
         UNS_FLEX_BASE_URL: { value: props.flexPrivateUrl },
       },
     });
-    this.sourceBucket.bucket.grantRead(this.project);
+    this.sourceBucket.bucket.grantRead(this.role);
+
+    // Access to artifact registry
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          'codeartifact:GetAuthorizationToken',
+          'sts:GetServiceBearerToken',
+          'codeartifact:GetRepositoryEndpoint',
+          'codeartifact:Describe*',
+          'codeartifact:Get*',
+          'codeartifact:List*',
+          'codeartifact:ReadFromRepository',
+        ],
+        resources: ['*'],
+      })
+    );
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['sts:GetServiceBearerToken'],
+        conditions: {
+          StringEquals: {
+            'sts:AWSServiceName': 'codeartifact.amazonaws.com',
+          },
+        },
+        resources: ['*'],
+      })
+    );
 
     const stack = Stack.of(this);
     const tlsPrefix = config.isMainEnv ? `uns-${config.env}/tlts/UNS` : `uns-dev`;
-    this.project.addToRolePolicy(
+    this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['secretsmanager:ListSecrets'],
         resources: ['*'],
       })
     );
-    this.project.addToRolePolicy(
+    this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
@@ -74,9 +112,9 @@ export class UNSE2EConstruct extends Construct {
     const certificateKey = config.isMainEnv
       ? props.kms
       : Key.fromKeyArn(this, constructNamingHelper(...props.name, 'shared', 'kms'), config.sandbox.shared.kms);
-    certificateKey.grantDecrypt(this.project);
+    certificateKey.grantDecrypt(this.role);
 
-    this.project.addToRolePolicy(
+    this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['apigateway:GET'],
@@ -84,7 +122,7 @@ export class UNSE2EConstruct extends Construct {
       })
     );
 
-    this.project.addToRolePolicy(
+    this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['ssm:GetParameter'],
@@ -92,7 +130,7 @@ export class UNSE2EConstruct extends Construct {
       })
     );
 
-    this.project.addToRolePolicy(
+    this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['execute-api:Invoke'],
