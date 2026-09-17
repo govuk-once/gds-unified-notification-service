@@ -56,9 +56,9 @@ const SSMParameters = {
       },
     },
     FeatureFlags: {
-      ChannelControls: staticParam('config/featureFlag/channelControls', 'boolean', 'true'),
-      DeepLinkUrl: staticParam('config/featureFlag/deeplinkUrl', 'boolean', 'true'),
-      MessageRetention: staticParam('config/featureFlag/messageRetention', 'boolean', 'true'),
+      ChannelControls: staticParam('config/featureFlag/channelControls', 'boolean', 'false'),
+      DeepLinkUrl: staticParam('config/featureFlag/deeplinkUrl', 'boolean', 'false'),
+      MessageRetention: staticParam('config/featureFlag/messageRetention', 'boolean', 'false'),
     },
     UDP: {
       SM: staticParam('udp/config/sm', 'string', 'null'),
