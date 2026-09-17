@@ -162,68 +162,64 @@ export class UNSPSOResource extends Construct {
     // // S3 Buckets
     // //// =====================================================
 
-    const analyticsExportBucket = !config.isEphemeral
-      ? new Bucket(this, constructNamingHelper(`analytics-export`, ` bucket`), {
-          bucketName: namingHelper(`analytics-export`),
-          encryption: BucketEncryption.S3_MANAGED,
-          blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-          enforceSSL: true,
-          versioned: true,
-          removalPolicy: config.removalPolicy,
-          autoDeleteObjects: !config.isMainEnv,
-          lifecycleRules: [
-            {
-              enabled: true,
-              expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
-            },
-          ],
-          serverAccessLogsBucket: refs.accessLogs.bucket,
-          serverAccessLogsPrefix: namingHelper('analytics-export'),
-        })
-      : undefined;
+    const analyticsExportBucket = new Bucket(this, constructNamingHelper(`analytics-export`, ` bucket`), {
+      bucketName: namingHelper(`analytics-export`),
+      encryption: BucketEncryption.S3_MANAGED,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: true,
+      removalPolicy: config.removalPolicy,
+      autoDeleteObjects: !config.isMainEnv,
+      lifecycleRules: [
+        {
+          enabled: true,
+          expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+        },
+      ],
+      serverAccessLogsBucket: refs.accessLogs.bucket,
+      serverAccessLogsPrefix: namingHelper('analytics-export'),
+    });
 
-    if (analyticsExportBucket) {
-      applyCheckovSkipsS3Bucket(analyticsExportBucket);
-      applyExposureTag(analyticsExportBucket, 'Isolated');
-      applyPiiTag(analyticsExportBucket, 'false');
+    applyCheckovSkipsS3Bucket(analyticsExportBucket);
+    applyExposureTag(analyticsExportBucket, 'Isolated');
+    applyPiiTag(analyticsExportBucket, 'false');
 
-      analyticsExportBucket.addToResourcePolicy(
-        new PolicyStatement({
-          sid: 'AllowCloudWatchLogsGetAcl',
-          effect: Effect.ALLOW,
-          principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
-          actions: ['s3:GetBucketAcl'],
-          resources: [analyticsExportBucket.bucketArn],
-          conditions: {
-            StringEquals: {
-              'aws:SourceAccount': [stack.account],
-            },
-            ArnLike: {
-              'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:log-group:*`],
-            },
+    analyticsExportBucket.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AllowCloudWatchLogsGetAcl',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+        actions: ['s3:GetBucketAcl'],
+        resources: [analyticsExportBucket.bucketArn],
+        conditions: {
+          StringEquals: {
+            'aws:SourceAccount': [stack.account],
           },
-        })
-      );
-
-      analyticsExportBucket.addToResourcePolicy(
-        new PolicyStatement({
-          sid: 'AllowCloudWatchLogsPutObject',
-          effect: Effect.ALLOW,
-          principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
-          actions: ['s3:PutObject'],
-          resources: [analyticsExportBucket.arnForObjects('*')],
-          conditions: {
-            StringEquals: {
-              's3:x-amz-acl': 'bucket-owner-full-control',
-              'aws:SourceAccount': [stack.account],
-            },
-            ArnLike: {
-              'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:log-group:*`],
-            },
+          ArnLike: {
+            'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:log-group:*`],
           },
-        })
-      );
-    }
+        },
+      })
+    );
+
+    analyticsExportBucket.addToResourcePolicy(
+      new PolicyStatement({
+        sid: 'AllowCloudWatchLogsPutObject',
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal('logs.eu-west-2.amazonaws.com')],
+        actions: ['s3:PutObject'],
+        resources: [analyticsExportBucket.arnForObjects('*')],
+        conditions: {
+          StringEquals: {
+            's3:x-amz-acl': 'bucket-owner-full-control',
+            'aws:SourceAccount': [stack.account],
+          },
+          ArnLike: {
+            'aws:SourceArn': [`arn:aws:logs:eu-west-2:${stack.account}:log-group:*`],
+          },
+        },
+      })
+    );
 
     // //// =====================================================
     // // Users
