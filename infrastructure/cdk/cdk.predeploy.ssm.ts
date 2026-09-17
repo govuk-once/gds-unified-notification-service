@@ -8,7 +8,25 @@ import SSMParameters, { getParametersConfig } from '@shared/ssmParameter';
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
 
-export const configurableParameters = getParametersConfig(SSMParameters).filter((p) => p.Default);
+export const configurableParameters = getParametersConfig(SSMParameters)
+  .filter((p) => p.Default)
+  .map((p) => {
+    // Map feature flags to the config values
+    if (p.Path.includes('featureFlag')) {
+      const featureFlag = Object.entries(config.featureFlag).find((f) => f[0] === p.Path.split('/')[2]);
+
+      if (!featureFlag) {
+        throw new Error('Feature flag parameter in shared ssmParameters does not have a value in config');
+      }
+
+      return {
+        Path: p.Path,
+        Default: featureFlag[1],
+        Type: p.Type,
+      };
+    }
+    return p;
+  });
 
 const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
 
