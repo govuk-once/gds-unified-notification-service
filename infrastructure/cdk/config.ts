@@ -1,12 +1,13 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import SSMParameters from '@shared/ssmParameter';
 import { CfnDeletionPolicy, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { ObjectLockRetention } from 'aws-cdk-lib/aws-s3';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { camelCase } from './utils/camelCase';
-import { ObjectLockRetention } from 'aws-cdk-lib/aws-s3';
 
 // If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
 if (existsSync('./.env')) {
@@ -115,20 +116,33 @@ export const config = {
     certificateArnRegional: (await fromSSM('/infra/acm/certificatearnregional', null))!,
 
     flex: {
-      account: await fromSSMJSON<string | null>(`/${namespace}/flex/account`, null),
-      vpce: await fromSSMJSON<string[]>(`/${namespace}/flex/vpce`, []),
+      account: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Flex.Account.Path}`, null),
+      vpce: await fromSSMJSON<string[]>(`/${namespace}/${SSMParameters.Flex.Vpce.Path}`, []),
     },
     udp: {
-      sm: await fromSSMJSON<string | null>(`/${namespace}/udp/config/sm`, null),
-      kms: await fromSSMJSON<string | null>(`/${namespace}/udp/config/kms`, null),
-      role: await fromSSMJSON<string | null>(`/${namespace}/udp/config/role`, null),
+      sm: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Config.UDP.SM.Path}`, null),
+      kms: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Config.UDP.KMS.Path}`, null),
+      role: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Config.UDP.Role.Path}`, null),
     },
     alerts: {
-      channelId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/channelId`, null))!,
-      workspaceId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/workspaceId`, null))!,
+      channelId: (await fromSSMJSON<string | null>(
+        `/${namespace}/${SSMParameters.Alerts.Slack.ChannelId.Path}`,
+        null
+      ))!,
+      releaseChannelId: (await fromSSMJSON<string | null>(
+        `/${namespace}/${SSMParameters.Alerts.Slack.ReleaseChannelId.Path}`,
+        null
+      ))!,
+      workspaceId: (await fromSSMJSON<string | null>(
+        `/${namespace}/${SSMParameters.Alerts.Slack.WorkspaceId.Path}`,
+        null
+      ))!,
     },
 
-    certificateConsumers: await fromSSMJSON<Record<string, string>>(`/${namespace}/certificate/consumers`, {}),
+    certificateConsumers: await fromSSMJSON<Record<string, string>>(
+      `/${namespace}/${SSMParameters.Certificate.Consumers.Path}`,
+      {}
+    ),
   },
 
   // Feature flag for travel alerts and deeplinkUrls
