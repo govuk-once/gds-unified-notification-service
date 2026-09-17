@@ -695,10 +695,10 @@ export class UNSPSOResource extends Construct {
       // BigQuery Analytics export
       ...(analyticsExportLogGroup
         ? { [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName }
-        : {}),
+        : { [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: 'ephemeral' }),
       ...(analyticsExportBucket
         ? { [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket.bucketName }
-        : {}),
+        : { [SSMParameters.AnalyticsExport.Bucket.Name.Path]: 'ephemeral' }),
     });
   }
 }
