@@ -1,0 +1,37 @@
+name: Ephemeral Testing
+
+permissions:
+  contents: read
+  id-token: write
+
+on: workflow_call
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    timeout-minutes: 60
+    steps:
+      - name: 🏗️ CDK Deploy Ephemeral Build
+        run: |
+          pnpm run cdk:predeploy:ssm && pnpm run cdk deploy uns-${{github.event.number}}-stack --require-approval never
+        env:
+          pr_number: ${{ github.event.number }}
+          region: ${{ vars.AWS_REGION }}
+          env: ${{ github.event.number }}
+          code_version: pr-${{ github.event.number }}
+
+      - name: 🧪 End to end testing suite
+        run: |
+          VITEST_TREE_REPORT=true pnpm test:e2e
+        env:
+          env: ${{ github.event.number }}
+
+      # - name: 💣 CDK Ephemeral Build Removal
+      #   run: pnpm run cdk destroy uns-${{github.event.number}}-stack && pnpm run cdk:ephemeral:cleanup:ssm
+      #   env:
+      #     pr_number: ${{ github.event.number }}
+      #     region: ${{ vars.AWS_REGION }}
+      #     env: ${{ github.event.number }}
