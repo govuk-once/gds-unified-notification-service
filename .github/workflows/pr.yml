@@ -85,13 +85,11 @@ jobs:
           recreate: true
 
   codeQualityReview:
-    name: Code Quality Review
     uses: ./.github/workflows/_quality.review.yml
     needs: [pr]
     secrets: inherit
 
   ephemeralTesting:
-    name: Ephemeral Testing
     uses: ./.github/workflows/_ephemeral.testing.yml
     needs: [pr]
     secrets: inherit

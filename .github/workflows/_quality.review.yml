@@ -10,9 +10,42 @@ on: workflow_call
 
 jobs:
   codeQualityReview:
+    name: Code Quality Review
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      # Setup
+      - name: ⚙️ Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: ⚙️ Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: ⚙️ Configure Codeartifact
+        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
+
+      - name: ⚙️ Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          cache: pnpm
+
+      - name: ⚙️ Install Dependencies
+        run: pnpm ci
+
+      # Build & release
+      - name: 🔨 Build bundles
+        run: pnpm run build
+
       # CDK Validation - Explicitly overwriting AWS env vars so CDK:SYNTH ignores assumed role
       - name: 🏗️ CDK Synth (mock env)
         run: |
