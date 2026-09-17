@@ -9,8 +9,7 @@ permissions:
 on: workflow_call
 
 jobs:
-  release:
-    name: Release
+  codeQualityReview:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
