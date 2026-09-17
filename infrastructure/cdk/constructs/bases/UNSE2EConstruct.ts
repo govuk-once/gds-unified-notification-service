@@ -1,4 +1,4 @@
-import { Stack } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { BuildSpec, ComputeType, LinuxBuildImage, Project, Source } from 'aws-cdk-lib/aws-codebuild';
 import { ISecurityGroup, IVpc, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
@@ -24,6 +24,12 @@ export class UNSE2EConstruct extends Construct {
     // Creates a bukcet to store the zip build
     this.sourceBucket = new UNSS3Bucket(this, config, {
       name: [...props.name, 'builds'],
+      lifecycleRules: [
+        {
+          enabled: true,
+          expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+        },
+      ],
     });
 
     // Creates a role
@@ -89,6 +95,7 @@ export class UNSE2EConstruct extends Construct {
     );
 
     const stack = Stack.of(this);
+    // Access to kms
     const tlsPrefix = config.isMainEnv ? `uns-${config.env}/tlts/UNS` : `uns-dev`;
     this.role.addToPolicy(
       new PolicyStatement({
@@ -97,6 +104,7 @@ export class UNSE2EConstruct extends Construct {
         resources: ['*'],
       })
     );
+    // Access to secrets manager
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -108,12 +116,13 @@ export class UNSE2EConstruct extends Construct {
     if (!config.isMainEnv && !config.sandbox.shared.kms) {
       throw new Error('no /shared/mtls/kmsArn in ssm');
     }
-
+    // Access to kms
     const certificateKey = config.isMainEnv
       ? props.kms
       : Key.fromKeyArn(this, constructNamingHelper(...props.name, 'shared', 'kms'), config.sandbox.shared.kms);
     certificateKey.grantDecrypt(this.role);
 
+    // Access to api key
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -121,7 +130,7 @@ export class UNSE2EConstruct extends Construct {
         resources: [`arn:aws:apigateway:${config.region}::/apikeys`, `arn:aws:apigateway:${config.region}::/apikeys/*`],
       })
     );
-
+    //  Access to SSM
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -130,6 +139,7 @@ export class UNSE2EConstruct extends Construct {
       })
     );
 
+    // Access to invoke API Gateway
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
