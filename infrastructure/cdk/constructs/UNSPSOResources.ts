@@ -151,14 +151,12 @@ export class UNSPSOResource extends Construct {
     // // Log Groups
     // //// =====================================================
 
-    const analyticsExportLogGroup = !config.isEphemeral
-      ? new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
-          logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
-          retention: config.retention,
-          encryptionKey: refs.kms,
-          removalPolicy: config.removalPolicy,
-        })
-      : undefined;
+    const analyticsExportLogGroup = new LogGroup(this, constructNamingHelper('lg', `analytics-export`), {
+      logGroupName: `/aws/export/${namingHelper('analytics-export')}`,
+      retention: config.retention,
+      encryptionKey: refs.kms,
+      removalPolicy: config.removalPolicy,
+    });
 
     // //// =====================================================
     // // S3 Buckets
@@ -693,12 +691,8 @@ export class UNSPSOResource extends Construct {
       [SSMParameters.Queue.Dispatch.Url.Path]: this.queues.dispatch.queue.queueUrl,
 
       // BigQuery Analytics export
-      ...(analyticsExportLogGroup
-        ? { [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName }
-        : { [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: 'ephemeral' }),
-      ...(analyticsExportBucket
-        ? { [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket.bucketName }
-        : { [SSMParameters.AnalyticsExport.Bucket.Name.Path]: 'ephemeral' }),
+      [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName,
+      [SSMParameters.AnalyticsExport.Bucket.Name.Path]: analyticsExportBucket.bucketName,
     });
   }
 }
