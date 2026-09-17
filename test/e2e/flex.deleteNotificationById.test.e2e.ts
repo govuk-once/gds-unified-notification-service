@@ -6,7 +6,7 @@ const url = (notificationID: string, pushID?: string) =>
 
 describe('DELETE {{flex}}/notifications/{{notificationID}} - Delete notification', () => {
   describe(`Unahppy paths`, () => {
-    test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
+    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
       mockNotificationID,
     }) => {
@@ -14,18 +14,30 @@ describe('DELETE {{flex}}/notifications/{{notificationID}} - Delete notification
       const path = url(mockNotificationID.valid);
 
       // Act & Assert
-      await expect(
-        api.delete({
-          path,
-        })
-      ).rejects.toThrow(
-        expect.objectContaining({
-          message: 'fetch failed',
-          cause: expect.objectContaining({
-            code: 'ECONNREFUSED',
-          }),
-        })
-      );
+      try {
+        await api.delete({ path });
+        expect(true).toBeFalsy();
+      } catch (error) {
+        // Handle private and public
+        if (api.isPrivateGateway()) {
+          expect(error).toMatchObject({
+            message: 'fetch failed',
+            cause: {
+              ConnectionTimeoutError: expect.objectContaining({
+                code: 'UND_ERR_CONNECT_TIMEOUT',
+                name: 'ConnectTimeoutError',
+              }),
+            },
+          });
+        } else {
+          expect(error).toMatchObject({
+            message: 'fetch failed',
+            cause: expect.objectContaining({
+              code: 'ECONNREFUSED',
+            }),
+          });
+        }
+      }
     });
 
     test('status 403 when - using invalid api key', async ({ flexAPIWithoutAPIKey: api, mockNotificationID }) => {

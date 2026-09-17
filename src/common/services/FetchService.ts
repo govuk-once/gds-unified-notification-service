@@ -140,6 +140,9 @@ export class FetchService {
       ok: response.ok,
     };
   }
+  isPrivateGateway(): boolean {
+    return this.props.baseUrl?.includes('.execute-api.') ?? false;
+  }
 
   get<T = unknown>(options: Omit<FetchRequest, 'method' | 'body'>): Promise<FetchResponse<T>> {
     return this.request<T>({ ...options, method: 'GET' });
