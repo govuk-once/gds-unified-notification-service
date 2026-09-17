@@ -294,7 +294,7 @@ export class UNSFlexResource extends Construct {
         cloudwatch: true,
       },
     });
-    const flexConsumerSecret = config.isEphemeral
+    const flexConsumerSecret = !config.isEphemeral
       ? new Secret(this, config.utils.namingHelper('flex', 'consumer-secret'), {
           secretName: `${config.prefix}/flex/consumer`,
           description: 'Consumer secret for the UNS Service gateway within Flex',

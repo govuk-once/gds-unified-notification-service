@@ -9,10 +9,10 @@ import { unwrap } from 'scripts/helpers';
 import { config } from './config';
 
 // Sets the default value based on the config
-const featureFlagDefaults: Record<string, boolean> = {
-  [SSMParameters.Config.FeatureFlags.ChannelControls.Path]: config.featureFlag.channelControls,
-  [SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path]: config.featureFlag.deeplinkUrl,
-  [SSMParameters.Config.FeatureFlags.MessageRetention.Path]: config.featureFlag.messageRetention,
+const featureFlagDefaults: Record<string, string> = {
+  [SSMParameters.Config.FeatureFlags.ChannelControls.Path]: String(config.featureFlag.channelControls),
+  [SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path]: String(config.featureFlag.deeplinkUrl),
+  [SSMParameters.Config.FeatureFlags.MessageRetention.Path]: String(config.featureFlag.messageRetention),
 };
 
 export const configurableParameters = getParametersConfig(SSMParameters)
