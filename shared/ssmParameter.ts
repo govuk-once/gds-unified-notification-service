@@ -28,7 +28,7 @@ const SSMParameters = {
         NotificationsProviderRateLimitPerMinute: staticParam(
           'config/common/cache/notificationsProviderRateLimitPerMinute',
           'numeric',
-          '30'
+          '100'
         ),
       },
     },
@@ -49,10 +49,10 @@ const SSMParameters = {
         AppId: staticParam('config/dispatch/onesignal/appId', 'string', 'placeholder'),
       },
       CircuitBreaker: {
-        Threshold: staticParam('config/dispatch/circuitBreaker/threshold', 'numeric', '30'),
+        Threshold: staticParam('config/dispatch/circuitBreaker/threshold', 'numeric', '100'),
         WindowDuration: staticParam('config/dispatch/circuitBreaker/windowDuration', 'numeric', '60'),
         HalfOpenAfter: staticParam('config/dispatch/circuitBreaker/halfOpenAfter', 'numeric', '30'),
-        RateLimitWhenOpen: staticParam('config/dispatch/circuitBreaker/rateLimitWhenOpen', 'numeric', '30'),
+        RateLimitWhenOpen: staticParam('config/dispatch/circuitBreaker/rateLimitWhenOpen', 'numeric', '100'),
       },
     },
     FeatureFlags: {
