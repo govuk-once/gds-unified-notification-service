@@ -21,8 +21,8 @@ import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { v4 } from 'uuid';
 
 export class UNSMTLSCommon extends Construct {
-  public readonly truststorePath: string;
-  public readonly truststoreUpload: CustomResource;
+  public readonly truststorePath!: string;
+  public readonly truststoreUpload!: CustomResource;
 
   public readonly revocationTable?: UNSDynamoDb;
   public readonly certificateAuthority?: UNSCertificateAuthorityConstruct;
@@ -46,7 +46,7 @@ export class UNSMTLSCommon extends Construct {
       enforceSSL: true,
 
       // Enable versioning
-      versioned: true,
+      versioned: !config.isEphemeral,
 
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
@@ -170,18 +170,20 @@ export class UNSMTLSCommon extends Construct {
 
     // ApiGateway tends to 'reserve' truststore file forever, and cannot share it with other api gateways
     // In order to support future mTLS cert sharing between dev & sandbox environment
-    const uuid = v4();
-    this.truststoreUpload = new UNSs3ObjectConstruct(this, config, {
-      bucket: truststoreBucket,
-      kms: common.kms,
-      codeSigningConfig: common.codeSigning,
-    }).use(this, {
-      bucket: truststoreBucket.bucketName,
-      key: `truststore.${uuid}.pem`,
-      source: this.certificateAuthority
-        ? this.certificateAuthority.certificate.attrCertificate
-        : config.sandbox.shared.ca!,
-    });
-    this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
+    if (!config.isEphemeral) {
+      const uuid = v4();
+      this.truststoreUpload = new UNSs3ObjectConstruct(this, config, {
+        bucket: truststoreBucket,
+        kms: common.kms,
+        codeSigningConfig: common.codeSigning,
+      }).use(this, {
+        bucket: truststoreBucket.bucketName,
+        key: `truststore.${uuid}.pem`,
+        source: this.certificateAuthority
+          ? this.certificateAuthority.certificate.attrCertificate
+          : config.sandbox.shared.ca!,
+      });
+      this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
+    }
   }
 }
