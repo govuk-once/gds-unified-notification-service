@@ -43,7 +43,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Upload source code for the e2e runner
+      - name: 📤 Upload source code for the e2e runner
         id: upload
         env:
           REF: ${{ github.ref_name }}
@@ -55,7 +55,7 @@ jobs:
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
           echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
 
-      - name: Run e2e suite in Codebuild
+      - name: 🧪 Run e2e suite in Codebuild
         id: start
         env:
           SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
@@ -66,7 +66,7 @@ jobs:
             --query 'build.id' --output text)
           echo "build_id=${BUILD_ID}" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for build to complete
+      - name: ⌛ Wait for build to complete
         id: wait
         env:
           BUILD_ID: ${{ steps.start.outputs.build_id }}
@@ -81,14 +81,21 @@ jobs:
           echo "Build finished with status: ${STATUS}"
           echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
 
-      - name: Reporting results
+      - name: 📋 Reporting results
         env:
           STATUS: ${{ steps.wait.outputs.status }}
+          BUILD_ID: ${{ steps.start.outputs.build_id }}
         run: |
-          if [ "$STATUS" = "SUCCEEDED" ]; then
-            echo "E2E passed"
-            exit 0
-          fi
+          echo "::group::📝 View AWS CodeBuild Logs"
+          aws logs tail /aws/codebuild/$PROJECT_NAME --log-stream-names "${BUILD_ID#*:}"
+          echo "::endgroup::"
 
-          echo "::error::Build failed with status ${STATUS}"
-          exit 1
+          echo "" 
+
+          if [ "$STATUS" = "SUCCEEDED" ]; then
+            echo "✅ E2E passed successfully!"
+            exit 0
+          else
+            echo "::error::❌ Build failed with status: ${STATUS}"
+            exit 1
+          fi
