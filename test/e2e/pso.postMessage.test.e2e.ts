@@ -535,9 +535,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('notification status PROCESSED only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
-      psoAPI,
-    }) => {
+    test('notification status DISPATCH only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({ psoAPI }) => {
       // Arrange
       // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
       const messagesWithChannel = [
@@ -565,17 +563,6 @@ describe('Post /send', () => {
             // NotificationStateEnum.PROCESSED,
             // NotificationStateEnum.DISPATCHING
           ].map((Status) =>
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-            expect.objectContaining({
-              Status,
-              NotificationID: notificationID,
-            })
-          )
-        )
-      );
-      expect(status).toEqual(
-        expect.not.arrayContaining(
-          [NotificationStateEnum.DISPATCHED].map((Status) =>
             // eslint-disable-next-line @typescript-eslint/no-unsafe-return
             expect.objectContaining({
               Status,

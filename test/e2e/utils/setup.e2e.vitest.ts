@@ -271,8 +271,7 @@ export const checkCampaignStatus = async (
         CampaignID: campaignID,
         ProcessingSummary: expect.objectContaining({
           PROCESSED: expect.any(Number),
-          // TODO: Need a way to void test notification while adapter is not VOID.
-          // DISPATCHED: expect.any(Number),
+          DISPATCHED: expect.any(Number),
         }),
       })
     );
