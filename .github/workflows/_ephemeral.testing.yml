@@ -11,7 +11,7 @@ jobs:
     name: Ephemeral Testing
     runs-on: ubuntu-latest
     environment:
-      name: ephemeral
+      name: dev
     timeout-minutes: 60
     steps:
       # Setup
