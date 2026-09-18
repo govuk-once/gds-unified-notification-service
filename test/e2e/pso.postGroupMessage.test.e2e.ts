@@ -374,7 +374,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
     });
 
-    test('notification status PROCESSED only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
+    test('notification status DISPATCH only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
       psoAPI: api,
     }) => {
       // Arrange
@@ -384,7 +384,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
         {
           ...mockGroupMessage,
           CampaignID: campaignID,
-          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+          Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
         },
       ];
 
@@ -398,7 +398,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       });
       expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
-      expect(campaignStatus.DISPATCHED).toEqual(0);
+      expect(campaignStatus.DISPATCHED).toBeGreaterThan(0);
     });
   });
 });
