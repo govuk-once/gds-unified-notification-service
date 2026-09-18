@@ -374,9 +374,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
     });
 
-    test('notification status DISPATCH only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
-      psoAPI: api,
-    }) => {
+    test('notification status DISPATCH when - the message has Channel MESSAGE_CENTRE_ONLY', async ({ psoAPI: api }) => {
       // Arrange
       // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
       const campaignID = `GROUP_MESSAGE_E2E_TEST_${new Date().toISOString()}`;
