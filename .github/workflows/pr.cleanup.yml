@@ -44,6 +44,10 @@ jobs:
       - name: ⚙️ Install Dependencies
         run: pnpm ci
 
+      # Build & destroy
+      - name: 🔨 Build bundles
+        run: pnpm run build
+
       - name: 💣 CDK Ephemeral Build Removal
         run: pnpm run cdk destroy uns-${{github.event.number}}-stack --force true && pnpm run cdk:ephemeral:cleanup:ssm
         env:
