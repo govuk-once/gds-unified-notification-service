@@ -32,22 +32,24 @@ export const alarmsStack = new UNSAlarmsStack(
   stack.resourceNames()
 );
 
-export const testingStack = new UNSTestingStack(
-  app,
-  config.utils.namingHelper('e2e-testing-stack'),
-  {
-    env: {
-      account: process.env.CDK_DEFAULT_ACCOUNT,
-      region: process.env.CDK_DEFAULT_REGION,
-    },
-  },
-  config,
-  {
-    vpc: stack.common.vpc.vpc,
-    securityGroups: [stack.common.vpc.securityGroups.privateEgress],
-    kms: stack.common.kms,
-    flexPrivateUrl: stack.flex.gateway.restApi.url,
-  }
-);
+export const testingStack = config.deployE2ERunner
+  ? new UNSTestingStack(
+      app,
+      config.utils.namingHelper('e2e-testing-stack'),
+      {
+        env: {
+          account: process.env.CDK_DEFAULT_ACCOUNT,
+          region: process.env.CDK_DEFAULT_REGION,
+        },
+      },
+      config,
+      {
+        vpc: stack.common.vpc.vpc,
+        securityGroups: [stack.common.vpc.securityGroups.privateEgress],
+        kms: stack.common.kms,
+        flexPrivateUrl: stack.flex.gateway.restApi.url,
+      }
+    )
+  : undefined;
 alarmsStack.addDependency(stack);
-testingStack.addDependency(stack);
+testingStack?.addDependency(stack);
