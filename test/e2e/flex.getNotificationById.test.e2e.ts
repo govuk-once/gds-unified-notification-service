@@ -11,6 +11,7 @@ const createNotificationIfNotFound = async (notificationID: string, pushID: stri
   const message = await notificationsRepository.getRecord(notificationID);
 
   if (message === null) {
+    console.log('No message record found, creating a new message in message table');
     const messageRecord = mockIMessageRecord_E2E(notificationID, pushID);
     await notificationsRepository.createRecord(messageRecord);
   }

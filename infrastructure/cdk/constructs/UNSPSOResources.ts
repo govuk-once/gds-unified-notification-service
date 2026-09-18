@@ -58,7 +58,7 @@ export class UNSPSOResource extends Construct {
   };
   public readonly gateway: UNSAPIGatewayGateway;
 
-  public readonly dashboards?: {
+  public readonly dashboards: {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
     service: Dashboard;
@@ -639,34 +639,33 @@ export class UNSPSOResource extends Construct {
     // Xray Dashboards
     //// =====================================================
 
-    this.dashboards = !config.isEphemeral
-      ? {
-          utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
-            pso: this,
-          }),
-          flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
-            pso: this,
-          }),
-          service: new StandardServiceDashboardFactory(
-            this,
-            `pso`,
-            undefined,
-            undefined,
-            config.utils.namingProvider()
-          ).createDashboard(`pso-service`, {
-            lambdas: [
-              ...Object.values(this.lambdas.http).filter((fn) => fn !== undefined),
-              ...Object.values(this.lambdas.sqs),
-              ...Object.values(this.lambdas.authorizers),
-            ]
-              .filter((x) => x?.fn !== undefined)
-              .map((x) => x.fn),
-            name: config.utils.namingHelper(`pso-service`),
-            restApis: [this.gateway.restApi],
-            tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
-          }),
-        }
-      : undefined;
+    this.dashboards = {
+      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
+        pso: this,
+      }),
+      flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
+        pso: this,
+      }),
+      service: new StandardServiceDashboardFactory(
+        this,
+        `pso`,
+        undefined,
+        undefined,
+        config.utils.namingProvider()
+      ).createDashboard(`pso-service`, {
+        lambdas: [
+          ...Object.values(this.lambdas.http).filter((fn) => fn !== undefined),
+          ...Object.values(this.lambdas.sqs),
+          ...Object.values(this.lambdas.authorizers),
+        ]
+          .filter((x) => x?.fn !== undefined)
+          .map((x) => x.fn),
+        name: config.utils.namingHelper(`pso-service`),
+        restApis: [this.gateway.restApi],
+        tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
+      }),
+    };
+
     //// =====================================================
     // SSM Values
     //// =====================================================

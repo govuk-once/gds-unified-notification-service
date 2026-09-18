@@ -48,7 +48,7 @@ jobs:
 
       - name: 🏗️ CDK Deploy Ephemeral Build
         run: |
-          pnpm run cdk:predeploy:ssm && pnpm run cdk deploy uns-${{github.event.number}}-stack --require-approval never
+          pnpm run cdk:predeploy:ssm && pnpm run cdk deploy --require-approval never --all
         env:
           pr_number: ${{ github.event.number }}
           region: ${{ vars.AWS_REGION }}

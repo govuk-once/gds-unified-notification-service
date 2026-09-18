@@ -29,7 +29,7 @@ export class UNSFlexResource extends Construct {
     };
   };
 
-  public readonly dashboards?: {
+  public readonly dashboards: {
     service: Dashboard;
   };
 
@@ -263,24 +263,22 @@ export class UNSFlexResource extends Construct {
     // Xray Dashboards
     //// =====================================================
 
-    this.dashboards = !config.isEphemeral
-      ? {
-          service: new StandardServiceDashboardFactory(
-            this,
-            `flex`,
-            undefined,
-            undefined,
-            config.utils.namingProvider()
-          ).createDashboard(`flex-service`, {
-            lambdas: Object.values(this.lambdas.http)
-              .filter(filters.isDefined)
-              .map((x) => x.fn),
-            name: config.utils.namingHelper(`flex-service`),
-            restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
-            tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
-          }),
-        }
-      : undefined;
+    this.dashboards = {
+      service: new StandardServiceDashboardFactory(
+        this,
+        `flex`,
+        undefined,
+        undefined,
+        config.utils.namingProvider()
+      ).createDashboard(`flex-service`, {
+        lambdas: Object.values(this.lambdas.http)
+          .filter(filters.isDefined)
+          .map((x) => x.fn),
+        name: config.utils.namingHelper(`flex-service`),
+        restApis: [this.gateway.restApi, this.publicGateway?.restApi].filter(filters.isDefined),
+        tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
+      }),
+    };
 
     //// =====================================================
     // Consumer configuration

@@ -50,7 +50,7 @@ export class UNSCommon extends Construct {
   public readonly kms: kms.Key;
 
   public readonly slackAlert?: UNSSlackAlert;
-  public readonly alertTopic?: Topic;
+  public readonly alertTopic: Topic;
 
   public readonly slackReleaseAlert?: UNSSlackAlert;
   public readonly releaseTopic: Topic;
@@ -114,12 +114,10 @@ export class UNSCommon extends Construct {
     // Alerts - always create alert topic, conditionally create slack alert linked to the topic if workspace & channel ids are present
     //// =====================================================
 
-    this.alertTopic = !config.isEphemeral
-      ? new Topic(this, constructNamingHelper('alerts', 'topic'), {
-          topicName: namingHelper('sns', 'topic', 'alerts'),
-          masterKey: this.kms,
-        })
-      : undefined;
+    this.alertTopic = new Topic(this, constructNamingHelper('alerts', 'topic'), {
+      topicName: namingHelper('sns', 'topic', 'alerts'),
+      masterKey: this.kms,
+    });
 
     if (this.alertTopic && config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
       this.slackAlert = new UNSSlackAlert(this, config, {

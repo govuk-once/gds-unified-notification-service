@@ -1,5 +1,5 @@
 export interface UNSResourceContract {
-  alertTopicArn?: string;
+  alertTopicArn: string;
   pso: {
     restApiName: string;
     wafName: string;
