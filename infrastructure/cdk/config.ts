@@ -44,8 +44,7 @@ export const fromSSM = async (key: string, fallback?: string | null) => {
         )
       ).Parameter?.Value
     );
-  } catch (error) {
-    console.log(error);
+  } catch {
     return useFallback(undefined);
   }
 };
