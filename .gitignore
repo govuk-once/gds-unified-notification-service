@@ -104,7 +104,6 @@ coverage.md
 # End to End Testing
 **/test/e2e/config/**
 
-
 # Ensuring no accidental mTLS cert leaks
 *.crt
 *.pem
@@ -113,7 +112,8 @@ coverage.md
 **/*.pem
 **/*.key
 
-
+# Local claude code settings
+.claude/settings.local.json
 
 .eslintcache
 html

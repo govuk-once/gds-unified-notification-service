@@ -48,6 +48,18 @@ export const mockIProcessedMessage = (OrganisationID?: string): IProcessedMessag
   };
 };
 
+export const mockIProcessedMessage_SetNotificationID = (
+  notificationID: string,
+  organisationID?: string
+): IProcessedMessage => {
+  const message = mockIMessage(organisationID);
+  return {
+    ...message,
+    NotificationID: notificationID,
+    ExternalUserID: 'test_user',
+  };
+};
+
 export const mockFailedIProcessedMessage = (): IProcessedMessage => {
   const failedMessageBody = mockFailedIMessage();
   return {

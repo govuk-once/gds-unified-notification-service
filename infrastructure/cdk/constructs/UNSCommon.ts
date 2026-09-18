@@ -119,7 +119,7 @@ export class UNSCommon extends Construct {
       masterKey: this.kms,
     });
 
-    if (config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
+    if (this.alertTopic && config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
       this.slackAlert = new UNSSlackAlert(this, config, {
         workspaceId: config.ssm.alerts.workspaceId,
         channelId: config.ssm.alerts.channelId,

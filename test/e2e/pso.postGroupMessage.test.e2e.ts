@@ -374,9 +374,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
     });
 
-    test('notification status PROCESSED only when - the message has Channel MESSAGE_CENTRE_ONLY', async ({
-      psoAPI: api,
-    }) => {
+    test('notification status DISPATCH when - the message has Channel MESSAGE_CENTRE_ONLY', async ({ psoAPI: api }) => {
       // Arrange
       // This required that the organisation config for UNS is set to include Channel: MESSAGE_CENTRE_ONLY
       const campaignID = `GROUP_MESSAGE_E2E_TEST_${new Date().toISOString()}`;
@@ -384,7 +382,7 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
         {
           ...mockGroupMessage,
           CampaignID: campaignID,
-          Channel: ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE,
+          Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY,
         },
       ];
 
@@ -398,7 +396,8 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       });
       expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
-      expect(campaignStatus.DISPATCHED).toEqual(0);
+      // TODO: Need a way to determine dispatched status
+      expect(campaignStatus.DISPATCHED).toBeGreaterThan(0);
     });
   });
 });

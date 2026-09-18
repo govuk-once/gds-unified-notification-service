@@ -18,7 +18,8 @@ export class UNSStack extends Stack {
     protected scope: Construct,
     protected id: string,
     protected props: StackProps,
-    protected config: EnvVars
+    protected config: EnvVars,
+    protected buildNumber?: string
   ) {
     super(scope, id, props);
 

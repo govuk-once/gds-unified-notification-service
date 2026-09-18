@@ -17,7 +17,7 @@ vi.hoisted(() => {
 
 const domainName = (name: string) => {
   const rootDomain = config.ssm.hostedZoneName;
-  const subdomain = name ? (config.isMainEnv ? name : config.utils.namingHelper(name)) : null;
+  const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;
   return `${subdomain}.${rootDomain}`;
 };
 const psoUrl = domainName(`pso`);
@@ -45,6 +45,8 @@ const prepareBeforeAll = async () => {
         `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
       );
     }
+
+    process.env.PREFIX = `uns-${config.env}`;
 
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
     const smClient = new SecretsManagerClient({ region: 'eu-west-2' });
@@ -269,8 +271,7 @@ export const checkCampaignStatus = async (
         CampaignID: campaignID,
         ProcessingSummary: expect.objectContaining({
           PROCESSED: expect.any(Number),
-          // TODO: Need a way to void test notification while adapter is not VOID.
-          // DISPATCHED: expect.any(Number),
+          DISPATCHED: expect.any(Number),
         }),
       })
     );

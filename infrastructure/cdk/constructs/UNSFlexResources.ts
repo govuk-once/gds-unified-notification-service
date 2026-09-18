@@ -292,11 +292,13 @@ export class UNSFlexResource extends Construct {
         cloudwatch: true,
       },
     });
-    const flexConsumerSecret = new Secret(this, config.utils.namingHelper('flex', 'consumer-secret'), {
-      secretName: `${config.prefix}/flex/consumer`,
-      description: 'Consumer secret for the UNS Service gateway within Flex',
-      encryptionKey: flexConsumerKMS.key,
-    });
+    const flexConsumerSecret = !config.isEphemeral
+      ? new Secret(this, config.utils.namingHelper('flex', 'consumer-secret'), {
+          secretName: `${config.prefix}/flex/consumer`,
+          description: 'Consumer secret for the UNS Service gateway within Flex',
+          encryptionKey: flexConsumerKMS.key,
+        })
+      : undefined;
     if (config.ssm.flex.account !== null) {
       flexConsumerKMS.key.addToResourcePolicy(
         new PolicyStatement({
@@ -307,15 +309,17 @@ export class UNSFlexResource extends Construct {
           resources: ['*'],
         })
       );
-      flexConsumerSecret.addToResourcePolicy(
-        new PolicyStatement({
-          sid: 'AllowExternalAccountToReadSecret',
-          effect: Effect.ALLOW,
-          principals: [new AccountPrincipal(config.ssm.flex.account)],
-          actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
-          resources: ['*'],
-        })
-      );
+      if (flexConsumerSecret) {
+        flexConsumerSecret.addToResourcePolicy(
+          new PolicyStatement({
+            sid: 'AllowExternalAccountToReadSecret',
+            effect: Effect.ALLOW,
+            principals: [new AccountPrincipal(config.ssm.flex.account)],
+            actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+            resources: ['*'],
+          })
+        );
+      }
     }
   }
 }

@@ -61,7 +61,9 @@ if (process.env.env == undefined) {
 
 // Infer values from env variables
 const project = 'uns';
-const env = process.env.env ?? 'dev';
+const prNumber = process.env.pr_number;
+const isEphemeral = prNumber !== undefined;
+const env = isEphemeral ? prNumber : (process.env.env ?? 'dev');
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
@@ -71,6 +73,7 @@ const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
+
 // Setup importable config object
 export const config = {
   // Metadata
@@ -109,6 +112,7 @@ export const config = {
   debugMode,
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
+  isEphemeral,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc

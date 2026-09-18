@@ -8,7 +8,16 @@ import SSMParameters, { getParametersConfig } from '@shared/ssmParameter';
 import { unwrap } from 'scripts/helpers';
 import { config } from './config';
 
-export const configurableParameters = getParametersConfig(SSMParameters).filter((p) => p.Default);
+// Sets the default value based on the config
+const featureFlagDefaults: Record<string, string> = {
+  [SSMParameters.Config.FeatureFlags.ChannelControls.Path]: String(config.featureFlag.channelControls),
+  [SSMParameters.Config.FeatureFlags.DeepLinkUrl.Path]: String(config.featureFlag.deeplinkUrl),
+  [SSMParameters.Config.FeatureFlags.MessageRetention.Path]: String(config.featureFlag.messageRetention),
+};
+
+export const configurableParameters = getParametersConfig(SSMParameters)
+  .filter((p) => p.Default)
+  .map((p) => (p.Path in featureFlagDefaults ? { ...p, Default: featureFlagDefaults[p.Path] } : p));
 
 const SSM_PARAMETERS_TO_UPDATE = JSON.parse(process.env.SSM_PARAMETERS_TO_UPDATE ?? '{}') as Record<string, string>;
 

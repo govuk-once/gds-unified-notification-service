@@ -56,3 +56,23 @@ export const mockIProcessedMessageRecord = (
   DispatchedDateTime: metadata?.DispatchedDateTime ? '2026-01-01T12:00:03.000Z' : undefined,
   ExpirationDateTime: '2100-01-31T12:00:00.000Z',
 });
+
+export const mockIMessageRecord_E2E = (notificationID: string, pushID: string): IMessageRecord => ({
+  NotificationID: notificationID,
+  MessageBody: 'Open Notification Centre to read your notifications',
+  MessageTitle: 'You have a new Message',
+  NotificationBody: 'Here is the Notification body.',
+  NotificationTitle: 'You have a new Notification',
+  DepartmentID: 'TEST01',
+  UserID: 'UserID',
+  ExternalUserID: pushID,
+  CampaignID: 'CAM_ID',
+  OrganisationID: 'UNS',
+  APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+  ReceivedDateTime: '2026-01-01T12:00:00.000Z',
+  ValidatedDateTime: '2026-01-01T12:00:01.000Z',
+  ProcessedDateTime: '2026-01-01T12:00:02.000Z',
+  DispatchedDateTime: '2026-01-01T12:00:03.000Z',
+  ExpirationDateTime: '2100-01-31T12:00:00.000Z',
+  Events: [],
+});

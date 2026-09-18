@@ -179,6 +179,7 @@ export class UNSPSOResource extends Construct {
       serverAccessLogsBucket: refs.accessLogs.bucket,
       serverAccessLogsPrefix: namingHelper('analytics-export'),
     });
+
     applyCheckovSkipsS3Bucket(analyticsExportBucket);
     applyExposureTag(analyticsExportBucket, 'Isolated');
     applyPiiTag(analyticsExportBucket, 'false');
@@ -224,35 +225,42 @@ export class UNSPSOResource extends Construct {
     // // Users
     // //// =====================================================
 
-    const bqExportUser = new User(this, namingHelper('bigquery-export', 'user'), {
-      userName: namingHelper('bigquery-export', 'user'),
-    });
-    const bqExportAccessKey = new CfnAccessKey(this, namingHelper('bigquery-export', 'access-key'), {
-      userName: bqExportUser.userName,
-    });
+    const bqExportUser = !config.isEphemeral
+      ? new User(this, namingHelper('bigquery-export', 'user'), {
+          userName: namingHelper('bigquery-export', 'user'),
+        })
+      : undefined;
+    const bqExportAccessKey =
+      !config.isEphemeral && bqExportUser
+        ? new CfnAccessKey(this, namingHelper('bigquery-export', 'access-key'), {
+            userName: bqExportUser.userName,
+          })
+        : undefined;
 
-    bqExportUser.addToPolicy(
-      new PolicyStatement({
-        sid: 'AllowBigQueryS3ListBucket',
-        effect: Effect.ALLOW,
-        actions: ['s3:ListBucket'],
-        resources: [analyticsExportBucket.bucketArn],
-      })
-    );
-    bqExportUser.addToPolicy(
-      new PolicyStatement({
-        sid: 'AllowBigQueryS3GetObject',
-        effect: Effect.ALLOW,
-        actions: ['s3:GetObject'],
-        resources: [analyticsExportBucket.arnForObjects('*')],
-      })
-    );
-    applyCheckovSkipsRecursive(bqExportUser, [
-      [
-        'CKV_AWS_40',
-        '"Ensure IAM policies are attached only to groups or roles (Reducing access management complexity may in-turn reduce opportunity for a principal to inadvertently receive or retain excessive privileges.)" - explicitly scoped to a single bucket in this case for least required privilege',
-      ],
-    ]);
+    if (bqExportUser && analyticsExportBucket) {
+      bqExportUser.addToPolicy(
+        new PolicyStatement({
+          sid: 'AllowBigQueryS3ListBucket',
+          effect: Effect.ALLOW,
+          actions: ['s3:ListBucket'],
+          resources: [analyticsExportBucket.bucketArn],
+        })
+      );
+      bqExportUser.addToPolicy(
+        new PolicyStatement({
+          sid: 'AllowBigQueryS3GetObject',
+          effect: Effect.ALLOW,
+          actions: ['s3:GetObject'],
+          resources: [analyticsExportBucket.arnForObjects('*')],
+        })
+      );
+      applyCheckovSkipsRecursive(bqExportUser, [
+        [
+          'CKV_AWS_40',
+          '"Ensure IAM policies are attached only to groups or roles (Reducing access management complexity may in-turn reduce opportunity for a principal to inadvertently receive or retain excessive privileges.)" - explicitly scoped to a single bucket in this case for least required privilege',
+        ],
+      ]);
+    }
 
     //// =====================================================
     // Secret Manager
@@ -263,41 +271,45 @@ export class UNSPSOResource extends Construct {
       codeSigningConfig: refs.codeSigning,
     });
 
-    const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
-      secretName: `${config.prefix}/bigquery/export/key/id`,
-      description: 'Access key for big query export user to gain access to s3 bucket',
-      encryptionKey: refs.kms,
-    });
-    bqExportAccessKeyId.grantWrite(smWriterProvider.fn);
-    smWriterProvider.use(
-      this,
-      {
-        secretArn: bqExportAccessKeyId.secretArn,
-        secretValue: bqExportAccessKey.ref,
-      },
-      { name: ['BigQueryKeyId'] }
-    );
+    if (!config.isEphemeral && bqExportAccessKey) {
+      const bqExportAccessKeyId = new Secret(this, namingHelper('bigquery-export', 'key-id'), {
+        secretName: `${config.prefix}/bigquery/export/key/id`,
+        description: 'Access key for big query export user to gain access to s3 bucket',
+        encryptionKey: refs.kms,
+      });
+      bqExportAccessKeyId.grantWrite(smWriterProvider.fn);
+      smWriterProvider.use(
+        this,
+        {
+          secretArn: bqExportAccessKeyId.secretArn,
+          secretValue: bqExportAccessKey.ref,
+        },
+        { name: ['BigQueryKeyId'] }
+      );
 
-    const bqExportAccessKeySecret = new Secret(this, namingHelper('bigquery-export', 'key-secret'), {
-      secretName: `${config.prefix}/bigquery/export/key/secret`,
-      description: 'Access secret for big query export user to gain access to s3 bucket',
-      encryptionKey: refs.kms,
-    });
-    bqExportAccessKeySecret.grantWrite(smWriterProvider.fn);
-    smWriterProvider.use(
-      this,
-      {
-        secretArn: bqExportAccessKeySecret.secretArn,
-        secretValue: bqExportAccessKey.attrSecretAccessKey,
-      },
-      { name: ['BigQueryKeySecret'] }
-    );
+      const bqExportAccessKeySecret = new Secret(this, namingHelper('bigquery-export', 'key-secret'), {
+        secretName: `${config.prefix}/bigquery/export/key/secret`,
+        description: 'Access secret for big query export user to gain access to s3 bucket',
+        encryptionKey: refs.kms,
+      });
+      bqExportAccessKeySecret.grantWrite(smWriterProvider.fn);
+      smWriterProvider.use(
+        this,
+        {
+          secretArn: bqExportAccessKeySecret.secretArn,
+          secretValue: bqExportAccessKey.attrSecretAccessKey,
+        },
+        { name: ['BigQueryKeySecret'] }
+      );
+    }
 
-    const dispatchApiKeySecret = new Secret(this, namingHelper('dispatch', 'api', 'key'), {
-      secretName: `${config.prefix}/config/dispatch/onesignal/apiKey`,
-      description: 'Api Key for the dispatch provider - OneSignal',
-      encryptionKey: refs.kms,
-    });
+    const dispatchApiKeySecret = !config.isEphemeral
+      ? new Secret(this, namingHelper('dispatch', 'api', 'key'), {
+          secretName: `${config.prefix}/config/dispatch/onesignal/apiKey`,
+          description: 'Api Key for the dispatch provider - OneSignal',
+          encryptionKey: refs.kms,
+        })
+      : undefined;
 
     //// =====================================================
     // Lambdas
@@ -484,7 +496,7 @@ export class UNSPSOResource extends Construct {
         dlq: this.queues.dispatch.dlq,
       },
       iam: {
-        sm: [dispatchApiKeySecret.secretArn],
+        sm: dispatchApiKeySecret ? [dispatchApiKeySecret.secretArn] : [],
         ssmNamespaces: [config.namespace],
         sqsSend: [this.queues.analytics.queue.queueArn],
         dynamodb: {
@@ -512,7 +524,7 @@ export class UNSPSOResource extends Construct {
           campaigns: refs.dynamodb.campaigns.permissions.readAndWrite,
         },
         elasticache: refs.elasticache.arns,
-        cloudwatch: [analyticsExportLogGroup.logGroupArn],
+        cloudwatch: analyticsExportLogGroup ? [analyticsExportLogGroup.logGroupArn] : [],
       },
       triggers: {
         queues: [this.queues.analytics.queue],
@@ -528,9 +540,9 @@ export class UNSPSOResource extends Construct {
       },
       iam: {
         ssmNamespaces: [config.namespace],
-        cloudwatch: [analyticsExportLogGroup.logGroupArn],
-        cloudwatchExport: [analyticsExportLogGroup.logGroupArn],
-        s3: [analyticsExportBucket.bucketArn],
+        cloudwatch: analyticsExportLogGroup ? [analyticsExportLogGroup.logGroupArn] : [],
+        cloudwatchExport: analyticsExportLogGroup ? [analyticsExportLogGroup.logGroupArn] : [],
+        s3: analyticsExportBucket ? [analyticsExportBucket.bucketArn] : [],
       },
       triggers: {
         schedule: [Schedule.cron({ minute: '30', hour: '*' })],
@@ -653,6 +665,7 @@ export class UNSPSOResource extends Construct {
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
     };
+
     //// =====================================================
     // SSM Values
     //// =====================================================

@@ -28,7 +28,7 @@ const SSMParameters = {
         NotificationsProviderRateLimitPerMinute: staticParam(
           'config/common/cache/notificationsProviderRateLimitPerMinute',
           'numeric',
-          '5'
+          '100'
         ),
       },
     },
@@ -49,16 +49,16 @@ const SSMParameters = {
         AppId: staticParam('config/dispatch/onesignal/appId', 'string', 'placeholder'),
       },
       CircuitBreaker: {
-        Threshold: staticParam('config/dispatch/circuitBreaker/threshold', 'numeric', '5'),
+        Threshold: staticParam('config/dispatch/circuitBreaker/threshold', 'numeric', '100'),
         WindowDuration: staticParam('config/dispatch/circuitBreaker/windowDuration', 'numeric', '60'),
         HalfOpenAfter: staticParam('config/dispatch/circuitBreaker/halfOpenAfter', 'numeric', '30'),
-        RateLimitWhenOpen: staticParam('config/dispatch/circuitBreaker/rateLimitWhenOpen', 'numeric', '5'),
+        RateLimitWhenOpen: staticParam('config/dispatch/circuitBreaker/rateLimitWhenOpen', 'numeric', '100'),
       },
     },
     FeatureFlags: {
-      ChannelControls: infraParam('config/featureFlag/channelControls', 'boolean'),
-      DeepLinkUrl: infraParam('config/featureFlag/deeplinkUrl', 'boolean'),
-      MessageRetention: infraParam('config/featureFlag/messageRetention', 'boolean'),
+      ChannelControls: staticParam('config/featureFlag/channelControls', 'boolean', 'false'),
+      DeepLinkUrl: staticParam('config/featureFlag/deeplinkUrl', 'boolean', 'false'),
+      MessageRetention: staticParam('config/featureFlag/messageRetention', 'boolean', 'false'),
     },
     UDP: {
       SM: staticParam('udp/config/sm', 'string', 'null'),
