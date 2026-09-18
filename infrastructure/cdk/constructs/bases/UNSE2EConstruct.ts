@@ -6,6 +6,8 @@ import { IKey, Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 export interface UNSCodeBuildConstructProps {
   name: string[];
   vpc: IVpc;
@@ -31,6 +33,8 @@ export class UNSE2EConstruct extends Construct {
         },
       ],
     });
+    applyExposureTag(this.sourceBucket, 'Isolated');
+    applyPiiTag(this.sourceBucket, 'false');
 
     // Creates a role
     this.role = new Role(this, constructNamingHelper(...props.name, 'role'), {
