@@ -61,6 +61,7 @@ export class UNSE2EConstruct extends Construct {
       environmentVariables: {
         UNS_E2E_RUNNER: { value: 'true' },
         UNS_FLEX_BASE_URL: { value: props.flexPrivateUrl },
+        env: { value: config.env },
       },
     });
     this.sourceBucket.bucket.grantRead(this.role);

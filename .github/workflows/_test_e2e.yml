@@ -44,18 +44,51 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Upload source code for the e2e runner
+        id: upload
         env:
           REF: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           zip -rqy source.zip . 
-          SOURCE_KEY="e2e/${REF}/source-${SHA:0:7}-${RUN_NUMBER}"
+          SOURCE_KEY="e2e/${REF}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
-          echo "SOURCE_KEY=${SOURCE_KEY}" >> $GITHUB_ENV
+          echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Run e2e suite in Codebuild
+        id: start
+        env:
+          SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
         run: |
-          aws codebuild start-build \
+          BUILD_ID=$(aws codebuild start-build \
             --project-name "$PROJECT_NAME" \
-            --source-location-override "${SOURCE_BUCKET}/${SOURCE_KEY}"
+            --source-location-override "${SOURCE_BUCKET}/${SOURCE_KEY}" \
+            --query 'build.id' --output text)
+          echo "build_id=${BUILD_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for build to complete
+        id: wait
+        env: 
+          BUILD_ID: ${{ steps.start.outputs.build_id }}
+        run: |
+          STATUS="IN_PROGRESS"
+          while [ "$STATUS" = "IN_PROGRESS" ]; do
+            sleep 20
+            STATUS=$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
+              --query 'builds[0].buildStatus' --output text)
+          done
+
+          echo "Build finished with status: ${STATUS}"
+          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+
+      - name: Reporting results
+        env:
+          STATUS: ${{ steps.wait.outputs.status }}
+        run: |
+          if [ "$STATUS" = "SUCCEEDED" ]; then
+            echo "E2E passed"
+            exit 0
+          fi
+
+          echo "::error::Build failed with status ${STATUS}"
+          exit 1
