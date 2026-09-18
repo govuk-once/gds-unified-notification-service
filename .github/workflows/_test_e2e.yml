@@ -68,7 +68,7 @@ jobs:
 
       - name: Wait for build to complete
         id: wait
-        env: 
+        env:
           BUILD_ID: ${{ steps.start.outputs.build_id }}
         run: |
           STATUS="IN_PROGRESS"

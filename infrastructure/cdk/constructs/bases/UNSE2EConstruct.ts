@@ -97,7 +97,7 @@ export class UNSE2EConstruct extends Construct {
 
     const stack = Stack.of(this);
     // Access to kms
-    const tlsPrefix = config.isMainEnv ? `uns-${config.env}/tlts/UNS` : `uns-dev`;
+    const tlsPrefix = config.isMainEnv ? `uns-${config.env}/tls/UNS` : `uns-dev`;
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
