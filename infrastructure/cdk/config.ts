@@ -26,6 +26,7 @@ export const environmentLabels: Record<string, string> = {
   stg: 'staging',
   prod: 'production',
 };
+export const e2eRunnerEnvironments = ['dev', 'stg'];
 export const fromSSM = async (key: string, fallback?: string | null) => {
   const useFallback = (value: string | undefined) => {
     if (value === undefined && fallback === undefined) {
@@ -73,7 +74,8 @@ const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
-
+const isE2ERunner = process.env.UNS_E2E_RUNNER === 'true';
+const deployE2ERunner = e2eRunnerEnvironments.includes(env);
 // Setup importable config object
 export const config = {
   // Metadata
@@ -113,6 +115,8 @@ export const config = {
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
   isEphemeral,
+  isE2ERunner,
+  deployE2ERunner,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc

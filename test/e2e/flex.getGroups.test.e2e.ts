@@ -14,25 +14,35 @@ const testCase = (Namespace: string, Group: string, Subgroup?: string, Action?: 
 
 describe('GET {{flex}}/groups?pushID={{pushID}} - Get groups', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
+    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
     }) => {
       // Arrange
       const path = url(pushID);
 
       // Act & Assert
-      await expect(
-        api.get({
-          path,
-        })
-      ).rejects.toThrow(
-        expect.objectContaining({
-          message: 'fetch failed',
-          cause: expect.objectContaining({
-            code: 'ECONNREFUSED',
-          }),
-        })
-      );
+      try {
+        await api.get({ path });
+        expect(true).toBeFalsy();
+      } catch (error) {
+        // Handle private and public
+        if (api.isPrivateGateway()) {
+          expect(error).toMatchObject({
+            message: 'fetch failed',
+            cause: expect.objectContaining({
+              code: 'UND_ERR_CONNECT_TIMEOUT',
+              name: 'ConnectTimeoutError',
+            }),
+          });
+        } else {
+          expect(error).toMatchObject({
+            message: 'fetch failed',
+            cause: expect.objectContaining({
+              code: 'ECONNREFUSED',
+            }),
+          });
+        }
+      }
     });
 
     test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api }) => {

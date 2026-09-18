@@ -7,7 +7,7 @@ const body = { Status: `READ` };
 
 describe('PATCH {{flex}}/notifications/{{notificationID}} - Update notification status', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
+    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
       mockNotificationID,
     }) => {
@@ -15,19 +15,30 @@ describe('PATCH {{flex}}/notifications/{{notificationID}} - Update notification 
       const path = url(mockNotificationID.valid);
 
       // Act & Assert
-      await expect(
-        api.patch({
+      try {
+        await api.patch({
           path,
           body,
-        })
-      ).rejects.toThrow(
-        expect.objectContaining({
-          message: 'fetch failed',
-          cause: expect.objectContaining({
-            code: 'ECONNREFUSED',
-          }),
-        })
-      );
+        });
+      } catch (error) {
+        // Handle private and public
+        if (api.isPrivateGateway()) {
+          expect(error).toMatchObject({
+            message: 'fetch failed',
+            cause: expect.objectContaining({
+              code: 'UND_ERR_CONNECT_TIMEOUT',
+              name: 'ConnectTimeoutError',
+            }),
+          });
+        } else {
+          expect(error).toMatchObject({
+            message: 'fetch failed',
+            cause: expect.objectContaining({
+              code: 'ECONNREFUSED',
+            }),
+          });
+        }
+      }
     });
 
     test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api, mockNotificationID }) => {
