@@ -12,6 +12,8 @@ jobs:
   codeQualityReview:
     name: Code Quality Review
     runs-on: ubuntu-latest
+    environment:
+      name: dev
     timeout-minutes: 60
     steps:
       # Setup
