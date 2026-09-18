@@ -170,20 +170,18 @@ export class UNSMTLSCommon extends Construct {
 
     // ApiGateway tends to 'reserve' truststore file forever, and cannot share it with other api gateways
     // In order to support future mTLS cert sharing between dev & sandbox environment
-    if (!config.isEphemeral) {
-      const uuid = v4();
-      this.truststoreUpload = new UNSs3ObjectConstruct(this, config, {
-        bucket: truststoreBucket,
-        kms: common.kms,
-        codeSigningConfig: common.codeSigning,
-      }).use(this, {
-        bucket: truststoreBucket.bucketName,
-        key: `truststore.${uuid}.pem`,
-        source: this.certificateAuthority
-          ? this.certificateAuthority.certificate.attrCertificate
-          : config.sandbox.shared.ca!,
-      });
-      this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
-    }
+    const uuid = v4();
+    this.truststoreUpload = new UNSs3ObjectConstruct(this, config, {
+      bucket: truststoreBucket,
+      kms: common.kms,
+      codeSigningConfig: common.codeSigning,
+    }).use(this, {
+      bucket: truststoreBucket.bucketName,
+      key: `truststore.${uuid}.pem`,
+      source: this.certificateAuthority
+        ? this.certificateAuthority.certificate.attrCertificate
+        : config.sandbox.shared.ca!,
+    });
+    this.truststorePath = truststoreBucket.s3UrlForObject(`truststore.${uuid}.pem`);
   }
 }
