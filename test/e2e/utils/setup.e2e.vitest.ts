@@ -7,7 +7,6 @@ import { INotificationStatus } from '@project/lambdas/interfaces/INotificationSt
 import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
-import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
@@ -123,7 +122,6 @@ const prepareBeforeAll = async () => {
       // Our e2e tests are hitting flex api
       if (value && value.value && key.name?.includes('flex') && key.name?.includes(flexKeyMarker)) {
         flexApiKey = value.value!;
-        console.log('Key:', flexApiKey);
       }
     }
 
@@ -150,7 +148,6 @@ const prepareBeforeAll = async () => {
     console.error('Error setting up HTTPS Agent for end to end tests:', error);
     throw error;
   }
-  console.log('hosts', psoUrl, flexUrl);
 };
 
 beforeAll(async () => await prepareBeforeAll());
