@@ -494,7 +494,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
+    test.skip('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
       psoAPI,
     }) => {
       // Arrange

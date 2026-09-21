@@ -69,6 +69,14 @@ export class UNSE2EConstruct extends Construct {
       },
     });
     this.sourceBucket.bucket.grantRead(this.role);
+    // Temp role
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        resources: ['arn:aws:s3:::uns-dev-e2e-runner-builds/*'],
+        actions: ['s3:GetBucket*', 's3:GetObject*', 's3:List*'],
+      })
+    );
 
     // Access to artifact registry
     this.role.addToPolicy(
