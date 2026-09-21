@@ -40,6 +40,9 @@ const interfaceEndpoints = {
 
   // Networking
   NetworkFirewall: InterfaceVpcEndpointAwsService.NETWORK_FIREWALL,
+
+  // Codebuild
+  Codebuild: InterfaceVpcEndpointAwsService.CODEBUILD,
 };
 const gatewayEndpoints = {
   DynamoDB: GatewayVpcEndpointAwsService.DYNAMODB,
