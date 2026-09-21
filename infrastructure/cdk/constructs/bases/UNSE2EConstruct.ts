@@ -117,6 +117,13 @@ export class UNSE2EConstruct extends Construct {
         resources: [`arn:aws:secretsmanager:${stack.region}:${stack.account}:secret:${tlsPrefix}*`],
       })
     );
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['ssm:GetParametersByPath', 'ssm:GetParameter'],
+        resources: [`arn:aws:ssm:${config.region}:${stack.account}:parameter/${config.namespace}/*`],
+      })
+    );
 
     if (!config.isMainEnv && !config.sandbox.shared.kms) {
       throw new Error('no /shared/mtls/kmsArn in ssm');
