@@ -212,7 +212,7 @@ export class UNSFlexResource extends Construct {
           ? {
               allowOnlyFromKnownSources: {
                 awsAccountID: config.ssm.flex.account,
-                vpceIDs: [...config.ssm.flex.vpce, refs.vpc.interfaceEndpoints.Apigateway.vpcEndpointId],
+                vpceIDs: [...config.ssm.flex.vpce, 'vpce-0f7de3952cb0bd6d2'],
                 vpceEndpoints: [refs.vpc.interfaceEndpoints.Apigateway],
               },
             }
