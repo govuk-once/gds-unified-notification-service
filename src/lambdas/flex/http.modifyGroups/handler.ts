@@ -17,31 +17,6 @@ import z from 'zod';
 const requestBodySchema = z.array(IModifyGroupsSchema);
 const responseBodySchema = z.any();
 
-/* Lambda Request Example
-{
-  "headers": {
-    "x-api-key": "mockApiKey"
-  },
-  "requestContext": {
-    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000
-  },
-  "queryStringParameters": {
-    "pushID": "ecc3d3dd-9aa3-4e2c-b4b5-e6e4cf8a439c"
-  } 
-  "body": [{
-    "Namespace": "travel",
-    "Group": "france",
-    "Subgroup": "IMMEDIATE",
-    "Action": "JOIN"
-  },{
-    "Namespace": "travel",
-    "Group": "spain",
-    "Action": "LEAVE"
-  }]
-}
-*/
-
 export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'modifyGroups';
   public requestBodySchema = requestBodySchema;
