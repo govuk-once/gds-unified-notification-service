@@ -2,55 +2,74 @@ import {
   APIHandler,
   CacheService,
   ConfigurationService,
-  ContentValidationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
   iocGetCacheService,
   iocGetConfigurationService,
-  iocGetContentValidationService,
   iocGetGroupProcessingQueueService,
   iocGetGroupStoreDynamoRepository,
   iocGetObservabilityService,
-  NumericParameters,
+  iocGetValidationService,
   ObservabilityService,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
-import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
+import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
+import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
 const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
+const authorizerSchema = psoAuthorizerSchema;
 
 /**
+{
+  "body": "{\n  \"Namespace\": \"travel\", \n  \"Group\": \"france\",\n  \"Subgroup\": \"immediate\",\n  \"GroupNotificationID\": \"TO_GROUP_ID\",\n  \"CampaignID\": \"CAM_ID\",\n  \"NotificationTitle\": \"You have a new Notification\",\n  \"NotificationBody\": \"Here is the Notification body.\",\n  \"MessageTitle\": \"You have a new Message\",\n  \"MessageBody\": \"Open Notification Centre to read your notifications\",\n  \"DeeplinkURL\": \"myappid://path/to/page\"\n}",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "requestContext": {
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTimeEpoch": 1428582896000,
+    "authorizer": { "Organization": "ORG01", "OrganisationConfig": "{\"MessageRetention\":{\"Allowed\":false},\"Channels\":[]}" }
+  }
+}
+*/
+/**
 * Sample post body:
-    {
-      "Namespace": "travel",
-      "Group": "france",
-      "Subgroup": "immediate",
-      "GroupNotificationID": "TO_GROUP_ID"
-      "CampaignID:" "CAM_ID",
-      "NotificationTitle": "You have a new Notification",
-      "NotificationBody": "Here is the Notification body."
-      "MessageTitle": "You have a new Message",
-      "MessageBody": "Open Notification Centre to read your notifications",
-      "DeeplinkURL": "myappid://path/to/page"
-    }
+{
+  "Namespace": "travel", 
+  "Group": "france",
+  "Subgroup": "immediate",
+  "GroupNotificationID": "TO_GROUP_ID",
+  "CampaignID": "CAM_ID",
+  "NotificationTitle": "You have a new Notification",
+  "NotificationBody": "Here is the Notification body.",
+  "MessageTitle": "You have a new Message",
+  "MessageBody": "Open Notification Centre to read your notifications",
+  "DeeplinkURL": "myappid://path/to/page"
+}
  */
 
-export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
+export class PostGroupMessage extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
 
-  public readonly contentValidationService!: ContentValidationService;
   public readonly cacheService!: CacheService;
   public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly groupStoreDynamoRepository!: GroupStoreDynamoRepository;
+  public readonly validationService!: ValidationService;
 
   constructor(
     protected config: ConfigurationService,
@@ -62,28 +81,23 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
   }
 
   public async implementation(
-    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
-
-    const organisationID = event.requestContext.authorizer?.Organization as string | undefined;
-    if (!organisationID) {
-      throw new BadRequestError(['Organisation could be not be resolved from the client certificate.']);
-    }
+    const organisationID = event.requestContext.authorizer.Organization;
+    const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
     const messages: IGroupMessage[] = event.body.map((body) => ({
       ...body,
       OrganisationID: organisationID,
     }));
 
-    // Pre-validate all messages & reject request when one of them contains unsupported url
-    for (const message of messages) {
-      this.contentValidationService.validate(message.MessageBody);
-    }
+    // Validates all messages & reject request when contents or configurations are unsupported
+    this.validationService.messageValidation(messages, organisationConfig);
 
     // Get the number of workers to be used to process the group message
-    const numberOfWorkers = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerCount);
+    const numberOfWorkers = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerCount);
 
     const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
     for (const message of messages) {
@@ -149,8 +163,8 @@ export class PostGroupMessage extends APIHandler<typeof requestBodySchema, typeo
 }
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  contentValidationService: iocGetContentValidationService(),
   cacheService: iocGetCacheService().connect(),
   groupProcessingQueue: iocGetGroupProcessingQueueService(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
+  validationService: iocGetValidationService(),
 })).handler();

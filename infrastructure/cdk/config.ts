@@ -1,7 +1,9 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import SSMParameters from '@shared/ssmParameter';
 import { CfnDeletionPolicy, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { InterfaceVpcEndpointAttributes } from 'aws-cdk-lib/aws-ec2';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { ObjectLockRetention } from 'aws-cdk-lib/aws-s3';
 import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -59,7 +61,9 @@ if (process.env.env == undefined) {
 
 // Infer values from env variables
 const project = 'uns';
-const env = process.env.env ?? 'dev';
+const prNumber = process.env.pr_number;
+const isEphemeral = prNumber !== undefined;
+const env = isEphemeral ? prNumber : (process.env.env ?? 'dev');
 const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
@@ -69,6 +73,7 @@ const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
+
 // Setup importable config object
 export const config = {
   // Metadata
@@ -79,14 +84,19 @@ export const config = {
   version,
   namespace,
   defaultTags: () => ({
-    // Applying https://gdsgovukagents.atlassian.net/wiki/spaces/GOP/pages/81461354/AWS+Resource+Tagging+Standard
+    // https://gdsgovukagents.atlassian.net/wiki/spaces/GOP/pages/81461354/AWS+Resource+Tagging+Standard
+    // https://gdsgovukagents.atlassian.net/wiki/spaces/GOS/pages/184385681/Network-Level+Exposure+Classification+Standard
+    Product: 'uns',
+    BillingProject: 'uns',
     Service: config.project,
+    Component: 'unified-notification-service',
     Environment: environmentLabels[config.env] ?? 'sandbox',
     Owner: 'govuk-once-uns-dl@digital.cabinet-office.gov.uk',
     Source: 'https://github.com/govuk-once/gds-unified-notification-service',
     CostCentre: 'ONCE-001',
     ManagedBy: 'CDK',
     Version: config.version,
+    retain: 'true',
   }),
 
   // Delete / retain policy - main environment resources should avoid deletion
@@ -94,6 +104,7 @@ export const config = {
   deletionPolicy: isMainEnv ? CfnDeletionPolicy.RETAIN : CfnDeletionPolicy.DELETE,
   retention: isMainEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
   expiration: isNonDevEnv ? Duration.days(365) : Duration.days(30),
+  objectLockDefaultRetention: isMainEnv ? ObjectLockRetention.compliance(Duration.days(30)) : undefined,
 
   // Flags
   isMainEnv,
@@ -101,6 +112,7 @@ export const config = {
   debugMode,
   debuggableFlexApiGateway,
   exportResourcesForDevSandboxUse,
+  isEphemeral,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc
@@ -109,26 +121,41 @@ export const config = {
     certificateArnCloudfront: (await fromSSM('/infra/acm/certificatearncloudfront', null))!,
 
     flex: {
-      account: await fromSSMJSON<string | null>(`/${namespace}/flex/account`, null),
-      vpce: await fromSSMJSON<string[]>(`/${namespace}/flex/vpce`, []),
+      account: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Flex.Account.Path}`, null),
+      vpce: await fromSSMJSON<string[]>(`/${namespace}/${SSMParameters.Flex.Vpce.Path}`, []),
     },
     udp: {
-      sm: await fromSSMJSON<string | null>(`/${namespace}/udp/config/sm`, null),
-      kms: await fromSSMJSON<string | null>(`/${namespace}/udp/config/kms`, null),
-      role: await fromSSMJSON<string | null>(`/${namespace}/udp/config/role`, null),
+      sm: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Config.UDP.SM.Path}`, null),
+      kms: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Config.UDP.KMS.Path}`, null),
+      role: await fromSSMJSON<string | null>(`/${namespace}/${SSMParameters.Config.UDP.Role.Path}`, null),
     },
     alerts: {
-      channelId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/channelId`, null))!,
-      workspaceId: (await fromSSMJSON<string | null>(`/${namespace}/alerts/slack/workspaceId`, null))!,
+      channelId: (await fromSSMJSON<string | null>(
+        `/${namespace}/${SSMParameters.Alerts.Slack.ChannelId.Path}`,
+        null
+      ))!,
+      releaseChannelId: (await fromSSMJSON<string | null>(
+        `/${namespace}/${SSMParameters.Alerts.Slack.ReleaseChannelId.Path}`,
+        null
+      ))!,
+      workspaceId: (await fromSSMJSON<string | null>(
+        `/${namespace}/${SSMParameters.Alerts.Slack.WorkspaceId.Path}`,
+        null
+      ))!,
     },
 
-    certificateConsumers: await fromSSMJSON<Record<string, string>>(`/${namespace}/certificate/consumers`, {}),
+    certificateConsumers: await fromSSMJSON<Record<string, string>>(
+      `/${namespace}/${SSMParameters.Certificate.Consumers.Path}`,
+      {}
+    ),
   },
 
   // Feature flag for travel alerts and deeplinkUrls
   featureFlag: {
     groups: env !== 'prod',
-    deepLinkUrl: env !== 'prod',
+    deeplinkUrl: env !== 'prod',
+    messageRetention: env !== 'prod',
+    channelControls: env !== 'prod',
   },
 
   // VPC

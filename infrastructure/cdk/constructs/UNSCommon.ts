@@ -1,3 +1,4 @@
+import SSMParameters from '@shared/ssmParameter';
 import { Duration, Stack } from 'aws-cdk-lib';
 import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
 import { GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
@@ -13,8 +14,11 @@ import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBCons
 import { UNSElasticacheConstruct } from 'infrastructure/cdk/constructs/bases/UNSElasticacheConstruct';
 import { UNSKMSConstruct } from 'infrastructure/cdk/constructs/bases/UNSKMSConstruct';
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
+import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { UNSSlackAlert } from 'infrastructure/cdk/constructs/bases/UNSSlackIntegration';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 
 const interfaceEndpoints = {
@@ -48,8 +52,13 @@ export class UNSCommon extends Construct {
   public readonly slackAlert?: UNSSlackAlert;
   public readonly alertTopic: Topic;
 
+  public readonly slackReleaseAlert?: UNSSlackAlert;
+  public readonly releaseTopic: Topic;
+
   public readonly codeSigning: CodeSigningConfig;
   public readonly codeSigningProfile: SigningProfile;
+
+  public readonly accessLogs: UNSS3Bucket;
 
   public readonly vpc: UNSVpcConstruct<typeof interfaceEndpoints, typeof gatewayEndpoints>;
 
@@ -110,13 +119,32 @@ export class UNSCommon extends Construct {
       masterKey: this.kms,
     });
 
-    if (config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
+    if (this.alertTopic && config.ssm.alerts.workspaceId !== null && config.ssm.alerts.channelId !== null) {
       this.slackAlert = new UNSSlackAlert(this, config, {
         workspaceId: config.ssm.alerts.workspaceId,
         channelId: config.ssm.alerts.channelId,
         name: [`alerts`],
         kms: this.kms,
         topics: [this.alertTopic],
+      });
+    }
+
+    //// =====================================================
+    // Release notifications - always create topic, conditionally create slack alert linked to the topic if workspace & channel ids are present
+    //// =====================================================
+
+    this.releaseTopic = new Topic(this, constructNamingHelper('release', 'topic'), {
+      topicName: namingHelper('sns', 'topic', 'releases'),
+      masterKey: this.kms,
+    });
+
+    if (config.ssm.alerts.workspaceId !== null && config.ssm.alerts.releaseChannelId !== null) {
+      this.slackReleaseAlert = new UNSSlackAlert(this, config, {
+        workspaceId: config.ssm.alerts.workspaceId,
+        channelId: config.ssm.alerts.releaseChannelId,
+        name: [`releases`],
+        kms: this.kms,
+        topics: [this.releaseTopic],
       });
     }
 
@@ -131,7 +159,13 @@ export class UNSCommon extends Construct {
       signingProfiles: [this.codeSigningProfile],
       untrustedArtifactOnDeployment: UntrustedArtifactOnDeployment.WARN,
     });
-
+    //// =====================================================
+    // S3 Access Logs Bucket
+    //// =====================================================
+    // Retention is set to 30 days for main envs, and no retention for other envs
+    this.accessLogs = new UNSS3Bucket(this, config, {
+      name: ['s3-accesslog'],
+    });
     //// =====================================================
     // VPC Configuration & Endpoints
     //// =====================================================
@@ -141,6 +175,7 @@ export class UNSCommon extends Construct {
       zones: config.vpc.zones,
       interfaceEndpoints: interfaceEndpoints,
       gatewayEndpoints: gatewayEndpoints,
+      accessLogsBucket: this.accessLogs.bucket,
     });
 
     //// =====================================================
@@ -174,6 +209,9 @@ export class UNSCommon extends Construct {
       ],
     });
 
+    applyExposureTag(messagesTable, 'Isolated');
+    applyPiiTag(messagesTable, 'unknown');
+
     const campaignsTable = new UNSDynamoDb(this, config, {
       name: ['campaigns'],
       partitionKey: 'CompositeID',
@@ -185,6 +223,9 @@ export class UNSCommon extends Construct {
       },
       globalSecondaryIndexes: [],
     });
+
+    applyExposureTag(campaignsTable, 'Isolated');
+    applyPiiTag(campaignsTable, 'false');
 
     const groupStoreTable = config.featureFlag.groups
       ? new UNSDynamoDb(this, config, {
@@ -215,6 +256,11 @@ export class UNSCommon extends Construct {
         })
       : undefined;
 
+    if (groupStoreTable) {
+      applyExposureTag(groupStoreTable, 'Isolated');
+      applyPiiTag(groupStoreTable, 'false');
+    }
+
     this.dynamodb = {
       messages: messagesTable,
       campaigns: campaignsTable,
@@ -229,6 +275,8 @@ export class UNSCommon extends Construct {
       vpc: this.vpc,
       kms: this.kms,
     });
+    applyExposureTag(this.elasticache, 'Isolated');
+    applyPiiTag(this.elasticache, 'false');
 
     //// =====================================================
     // SQS Queues
@@ -246,28 +294,30 @@ export class UNSCommon extends Construct {
         },
       }),
     };
+    applyExposureTag(this.queues.analytics, 'Isolated');
+    applyPiiTag(this.queues.analytics, 'false');
 
     //// =====================================================
     // SSM
     //// =====================================================
     SSMFromObject(this, config, {
       // DynamoDB Tables
-      'table/inbound/attributes': this.dynamodb.messages.attributes,
-      'table/campaigns/attributes': this.dynamodb.campaigns.attributes,
+      [SSMParameters.Table.Message.Attributes.Path]: this.dynamodb.messages.attributes,
+      [SSMParameters.Table.Campaigns.Attributes.Path]: this.dynamodb.campaigns.attributes,
       ...(config.featureFlag.groups && this.dynamodb.groupStore
         ? {
-            'table/groupstore/attributes': this.dynamodb.groupStore?.attributes,
+            [SSMParameters.Table.GroupStore.Attributes.Path]: this.dynamodb.groupStore?.attributes,
           }
         : {}),
       //
 
       // Queues
-      'queue/analytics/url': this.queues.analytics.queue.queueUrl,
+      [SSMParameters.Queue.Analytics.Url.Path]: this.queues.analytics.queue.queueUrl,
 
       // Elasticache
-      'config/common/cache/name': this.elasticache.cache.serverlessCacheName,
-      'config/common/cache/host': this.elasticache.cache.attrEndpointAddress,
-      'config/common/cache/user': this.elasticache.user.userName,
+      [SSMParameters.Config.Common.Cache.Name.Path]: this.elasticache.cache.serverlessCacheName,
+      [SSMParameters.Config.Common.Cache.Host.Path]: this.elasticache.cache.attrEndpointAddress,
+      [SSMParameters.Config.Common.Cache.User.Path]: this.elasticache.user.userName,
     });
   }
 }

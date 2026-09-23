@@ -22,31 +22,13 @@ import z from 'zod';
 
 const requestBodySchema = z.any();
 
-/* Lambda Request Example
-{
-  "headers": {
-    "x-api-key": "mockApiKey"
-  },
-  "requestContext": {
-    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000
-  },
-  "pathParameters": {
-    "notificationID": "12342"
-  },
-  "queryStringParameters": {
-    "externalUserID": "USER_ID"
-  } 
-}
-*/
-
 export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof IFlexNotificationSchema> {
   public operationId: string = 'getNotificationById';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = IFlexNotificationSchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public organisationsDynamoRepository: OrganisationsDynamoRepository;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -85,7 +67,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new BadRequestError(['pushID has not been provided']);
     }
 
-    const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
+    const notification = await this.notificationsDynamoRepository.getProcessedMessageByID(notificationID);
 
     // Handle not found or hidden notifications
     if (!notification) {

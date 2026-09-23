@@ -12,5 +12,4 @@ export const IAnalyticsSchema = z.object({
   Event: z.enum(NotificationStateEnum).optional().default(NotificationStateEnum.UNKNOWN),
   EventReason: z.string().optional(),
 });
-
 export type IAnalytics = z.infer<typeof IAnalyticsSchema>;

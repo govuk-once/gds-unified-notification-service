@@ -1,41 +1,34 @@
-import { ConfigurationService } from '@common/services/configurationService';
 import { DispatchQueueService } from '@common/services/dispatchQueueService';
-import {
-  mockDefaultConfig,
-  mockGetParameterImplementation,
-} from '@common/utils/mockConfigurationImplementation.test.util';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { toHaveReceivedCommandWith } from 'aws-sdk-client-mock-vitest';
-
-expect.extend({
-  toHaveReceivedCommandWith,
-});
+import SSMParameters from '@shared/ssmParameter';
+import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
-vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@aws-sdk/client-sqs', { spy: true });
 
-describe('DispatchQueueService', () => {
+vi.mock('@common/services/configurationService', { spy: true });
+vi.mock('@common/services/smConfigurationService', { spy: true });
+
+describe('DispatchQueueService', async () => {
   let dispatchQueueService: DispatchQueueService;
 
   // Observability and Service mocks
-  const observabilityMock = observabilitySpies();
-  const configurationServiceMock = vi.mocked(new ConfigurationService(observabilityMock));
-
-  // Mocking implementation of the configuration service
-  let mockParameterStore = mockDefaultConfig();
+  // Initialize mock services, clients, and repositories
+  const { observabilityMocks, awsClientMocks, serviceMocks } = await iocSpies();
 
   beforeEach(async () => {
     // Reset all mock
     vi.clearAllMocks();
 
-    // Mock SSM Values
-    mockParameterStore = mockDefaultConfig();
-    configurationServiceMock.getParameter.mockImplementation(mockGetParameterImplementation(mockParameterStore));
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
-    dispatchQueueService = new DispatchQueueService(configurationServiceMock, observabilityMock);
-    await dispatchQueueService.initialize();
+    dispatchQueueService = await DispatchQueueService.create(
+      serviceMocks.configurationServiceMock,
+      observabilityMocks,
+      awsClientMocks.sqsClientMock
+    );
   });
 
   describe('getQueueName', () => {
@@ -51,11 +44,15 @@ describe('DispatchQueueService', () => {
   describe('initialize', () => {
     it('should retrieve the queue url and log when the dispatch queue service is initialised.', async () => {
       // Act
-      const result = await dispatchQueueService.initialize();
+      const result = await DispatchQueueService.create(
+        serviceMocks.configurationServiceMock,
+        observabilityMocks,
+        awsClientMocks.sqsClientMock
+      );
 
       // Assert
-      expectTypeOf(result).toEqualTypeOf<DispatchQueueService>();
-      expect(observabilityMock.logger.info).toHaveBeenCalledWith('Dispatch Queue Service Initialised.');
+      expect(serviceMocks.configurationServiceMock.getParameter).toHaveBeenCalledWith(SSMParameters.Queue.Dispatch.Url);
+      expect(result).toBeInstanceOf(DispatchQueueService);
     });
   });
 });

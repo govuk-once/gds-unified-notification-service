@@ -22,11 +22,14 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
-import { BoolParameters, NumericParameters } from '@common/utils';
-import { IGroupMessageMetadataSchema, IIdentifiableGroupMessageSchema } from '@project/lambdas/interfaces';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
+import {
+  IGroupMessageMetadataSchema,
+  IIdentifiableGroupMessageSchema,
+  IProcessedMessage,
+} from '@project/lambdas/interfaces';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
-import { v4 as uuid } from 'uuid';
 import z from 'zod';
 
 const requestBodySchema = IGroupMessageMetadataSchema;
@@ -66,9 +69,12 @@ const identifiableRecordSchema = z.object({
   ]
 }
  */
-export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBodySchema> {
+export class GroupProcessingWorker extends BatchQueueOperation<
+  typeof requestBodySchema,
+  typeof identifiableRecordSchema
+> {
   public operationId: string = 'groupProcessingWorker';
-  protected enableConfig: string = BoolParameters.Config.GroupProcessingWorker.Enabled;
+  protected enableConfig = SSMParameters.Config.GroupProcessingWorker.Enabled;
 
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;
@@ -94,7 +100,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
 
     const groupMessage = data.body.GroupMessage;
     const cacheKey = data.body.CacheKey;
-    const workerBatchSize = await this.config.getNumericParameter(NumericParameters.Group.Dispatch.WorkerBatchSize);
+    const workerBatchSize = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
     this.observability.logger.debug(`Retrieving list of pushIDs to process from cache.`);
@@ -123,8 +129,10 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
     // Build group messages to users -
     const processedMessages: IProcessedMessage[] = [];
     for (const pushID of pushIDs) {
+      const notificationID = generateNotificationIDForGroupMessage(pushID, groupMessage);
       processedMessages.push({
-        NotificationID: uuid(),
+        NotificationID: notificationID,
+        GroupNotificationID: groupMessage.GroupNotificationID,
         OrganisationID: groupMessage.OrganisationID,
         ExternalUserID: pushID,
         CampaignID: groupMessage.CampaignID,
@@ -132,18 +140,23 @@ export class GroupProcessingWorker extends BatchQueueOperation<typeof requestBod
         NotificationBody: groupMessage.NotificationBody,
         MessageTitle: groupMessage.MessageTitle,
         MessageBody: groupMessage.MessageBody,
+        ExpiresInDays: groupMessage.ExpiresInDays,
+        Channel: groupMessage.Channel,
+        DeeplinkURL: groupMessage.DeeplinkURL,
+        // UserID is explicitly omitted here
       });
     }
 
     // Add record of group notifications to message table
     this.observability.logger.debug(`Adding record of notification to message table`);
     await this.notificationsRepository.createRecordBatch(
-      processedMessages.map((body) => ({
+      processedMessages.map(({ ExpiresInDays, ...body }) => ({
         ...body,
         APIGWExtendedID: data.body.APIGWExtendedID,
         ReceivedDateTime: data.body.ReceivedDateTime,
         ValidatedDateTime: data.body.ValidatedDateTime,
         ProcessedDateTime: new Date().toISOString(),
+        RequestedDaysToExpire: ExpiresInDays,
         Events: [],
       }))
     );

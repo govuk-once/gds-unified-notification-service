@@ -37,9 +37,9 @@ export const handler = async (event: CloudFormationCustomResourceEvent<UNSDynamo
       });
       break;
     case 'Update':
-    case 'Delete':
+    case 'Delete': {
       const entries = Object.entries(data).filter(
-        ([key, value]) => [event.ResourceProperties.idAttribute].includes(key) == false && value != undefined
+        ([key, value]) => ![event.ResourceProperties.idAttribute].includes(key) && value != undefined
       );
 
       const names = Object.fromEntries(entries.map(([k]) => [`#${k}`, k]));
@@ -56,6 +56,7 @@ export const handler = async (event: CloudFormationCustomResourceEvent<UNSDynamo
         ExpressionAttributeValues: values,
         UpdateExpression: 'set ' + entries.map(([key]) => `#${key} = :${key}`).join(', '),
       });
+    }
   }
 
   // Return the generated PEM structural block back up to the CDK pipeline stack evaluation

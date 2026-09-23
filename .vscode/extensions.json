@@ -6,7 +6,8 @@
     "dbaeumer.vscode-eslint",
     "vitest.explorer",
     "esbenp.prettier-vscode",
-    "github.vscode-github-actions"
+    "github.vscode-github-actions",
+    "anthropic.claude-code"
   ],
   // List of extensions recommended by VS Code that should not be recommended for users of this workspace.
   "unwantedRecommendations": []

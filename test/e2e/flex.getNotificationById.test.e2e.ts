@@ -1,8 +1,21 @@
+import { iocGetNotificationDynamoRepository } from '@common/ioc';
 import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { mockIMessageRecord_E2E } from '@test/mocks';
 import { expect } from 'vitest';
 
 const url = (notificationID: string, pushID?: string) =>
   `/notifications/${notificationID}${pushID ? `?pushID=${pushID}` : ''}`;
+
+const createNotificationIfNotFound = async (notificationID: string, pushID: string) => {
+  const notificationsRepository = await iocGetNotificationDynamoRepository();
+  const message = await notificationsRepository.getRecord(notificationID);
+
+  if (message === null) {
+    console.log('No message record found, creating a new message in message table');
+    const messageRecord = mockIMessageRecord_E2E(notificationID, pushID);
+    await notificationsRepository.createRecord(messageRecord);
+  }
+};
 
 describe('GET {{flex}}/notifications/{{notificationID}}', () => {
   describe(`Unahppy paths`, () => {
@@ -101,12 +114,13 @@ describe('GET {{flex}}/notifications/{{notificationID}}', () => {
   });
 
   describe(`Happy paths`, () => {
-    test('status 200 when when - accessing notification as the owner', async ({
+    test('status 200 when - accessing notification as the owner', async ({
       flexAPI: api,
       validPushID,
       mockNotificationID,
     }) => {
       // Arrange
+      await createNotificationIfNotFound(mockNotificationID.valid, validPushID);
       const path = url(mockNotificationID.valid, validPushID);
 
       // Act

@@ -1,23 +1,33 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
-import { IMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
-import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
+import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
+import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { StringParameters } from '@common/utils/parameters';
+import { IProcessedMessage } from '@project/lambdas';
+import SSMParameters from '@shared/ssmParameter';
 
-export class OrganisationsDynamoRepository extends DynamodbRepository<IOrganisationRecord> {
+export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {
+  protected recordSchema = IOrganisationRecordSchema;
+
   constructor(
-    protected config: ConfigurationService,
-    protected observability: ObservabilityService
+    protected readonly config: ConfigurationService,
+    protected readonly observability: ObservabilityService,
+    protected readonly client: DynamoDB,
+    protected readonly tableAttributes: IDynamoAttributes
   ) {
-    super(config, observability);
+    super(config, observability, client, tableAttributes);
   }
 
-  async initialize() {
-    await super.initialize(StringParameters.Table.Organisations.Attributes);
-    return this;
+  static async create(config: ConfigurationService, observability: ObservabilityService, client: DynamoDB) {
+    return new OrganisationsDynamoRepository(
+      config,
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Table.Organisations.Attributes, IDynamoAttributesSchema)
+    );
   }
 
-  public async getOrganisations(notifications: IMessageRecord[]): Promise<IOrganisationRecord[]> {
+  public async getOrganisations(notifications: IProcessedMessage[]): Promise<IOrganisationRecord[]> {
     const uniqueOrganisationsIDs = Array.from(new Set(notifications.map((x) => x.OrganisationID)));
     const promises = uniqueOrganisationsIDs.map(async (organisationID) => {
       const organisationRecord = await this.getRecord(organisationID);

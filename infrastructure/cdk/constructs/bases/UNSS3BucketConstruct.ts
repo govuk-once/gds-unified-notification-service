@@ -1,4 +1,11 @@
-import { BlockPublicAccess, Bucket, BucketEncryption, LifecycleRule } from 'aws-cdk-lib/aws-s3';
+import {
+  BlockPublicAccess,
+  Bucket,
+  BucketEncryption,
+  IBucket,
+  LifecycleRule,
+  ObjectLockRetention,
+} from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
@@ -6,6 +13,11 @@ import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckov
 export interface BucketProps {
   name: string[];
   lifecycleRules?: LifecycleRule[];
+  objectLockDefaultRetention?: ObjectLockRetention;
+  serverAccessLogs?: {
+    bucket: IBucket;
+    prefix?: string;
+  };
 }
 
 export class UNSS3Bucket extends Construct {
@@ -35,6 +47,13 @@ export class UNSS3Bucket extends Construct {
       autoDeleteObjects: !config.isMainEnv,
 
       lifecycleRules: props.lifecycleRules,
+
+      // Object locking can only be set at creation time & sets objectLockEnabled to true
+      objectLockDefaultRetention: props.objectLockDefaultRetention,
+
+      // Destination & prefix of server access logs
+      serverAccessLogsBucket: props.serverAccessLogs?.bucket,
+      serverAccessLogsPrefix: props.serverAccessLogs?.prefix,
     });
     applyCheckovSkipsS3Bucket(this.bucket);
   }

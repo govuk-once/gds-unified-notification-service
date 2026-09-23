@@ -19,14 +19,14 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { BoolParameters } from '@common/utils';
+import { IProcessedMessage } from '@project/lambdas/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
   IMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IProcessedMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
@@ -65,7 +65,7 @@ const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape,
  */
 export class Processing extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public readonly operationId: string = 'processing';
-  protected readonly enableConfig: string = BoolParameters.Config.Processing.Enabled;
+  protected readonly enableConfig = SSMParameters.Config.Processing.Enabled;
 
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;

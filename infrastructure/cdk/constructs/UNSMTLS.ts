@@ -2,7 +2,7 @@ import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
 import { CustomResource } from 'aws-cdk-lib';
-import * as s3 from 'aws-cdk-lib/aws-s3';
+import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCertificateAuthorityConstruct } from 'infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct';
 import { UNSClientCertificateConstruct } from 'infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct';
@@ -15,12 +15,14 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
+import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
 import { v4 } from 'uuid';
 
 export class UNSMTLSCommon extends Construct {
-  public readonly truststorePath: string;
-  public readonly truststoreUpload: CustomResource;
+  public readonly truststorePath!: string;
+  public readonly truststoreUpload!: CustomResource;
 
   public readonly revocationTable?: UNSDynamoDb;
   public readonly certificateAuthority?: UNSCertificateAuthorityConstruct;
@@ -32,25 +34,31 @@ export class UNSMTLSCommon extends Construct {
     //// =====================================================
     // S3 Buckets
     //// =====================================================
-    const truststoreBucket = new s3.Bucket(this, constructNamingHelper(`truststore`, ` bucket`), {
+    const truststoreBucket = new Bucket(this, constructNamingHelper(`truststore`, ` bucket`), {
       bucketName: namingHelper(`mtls-certificates`),
       // Encryption at rest (Uses Amazon S3-managed keys / SSE-S3)
-      encryption: s3.BucketEncryption.S3_MANAGED,
+      encryption: BucketEncryption.S3_MANAGED,
 
       // Make it strictly private by blocking all public access
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
 
       // Security best practice: Enforce TLS/HTTPS for data in transit
       enforceSSL: true,
 
       // Enable versioning
-      versioned: true,
+      versioned: !config.isEphemeral,
 
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
       autoDeleteObjects: !config.isMainEnv,
+
+      serverAccessLogsBucket: common.accessLogs.bucket,
+      serverAccessLogsPrefix: namingHelper('mtls-certificates'),
     });
     applyCheckovSkipsS3Bucket(truststoreBucket);
+    applyExposureTag(truststoreBucket, 'Isolated');
+    applyPiiTag(truststoreBucket, 'false');
+
     // Note: only main environments create & manage certificates - sandbox environments
     if (config.isMainEnv) {
       //// =====================================================
@@ -67,6 +75,9 @@ export class UNSMTLSCommon extends Construct {
           kms: common.kms,
         },
       });
+
+      applyExposureTag(this.revocationTable, 'Isolated');
+      applyPiiTag(this.revocationTable, 'false');
 
       //// =====================================================
       // Certificate authority

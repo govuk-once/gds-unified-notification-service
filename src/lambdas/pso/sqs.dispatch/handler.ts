@@ -22,54 +22,24 @@ import {
   NotificationService,
   ObservabilityService,
 } from '@common/services';
-import { BoolParameters, NumericParameters } from '@common/utils';
+import { IProcessedMessageSchema } from '@project/lambdas/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
 } from '@project/lambdas/interfaces/IMessage';
-import { IProcessedMessageSchema } from '@project/lambdas/interfaces/IProcessedMessage';
+import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = IProcessedMessageSchema;
 const identifiableRecordSchema = z.object({ ...IIdentifiableMessageSchema.shape, NotificationID: z.uuid() });
 
-/**
- * 
- * Lambda handling processing of validated messages
- * - Validates input 
- * - Performs a user ID look up
- * - Fires analytics events: PROCESSING, PROCESSED, PROCESSING_FAILED
- * - Pushes valid messages into dispatch queue
- * 
- * Sample event:
-{
-  "Records": [
-    {
-      "messageId": "mockMessageId",
-      "receiptHandle": "mockReceiptHandle",
-      "body": "{\"NotificationID\":\"337f6248-ed5b-4b73-be0b-4e9a2f8636e0\",\"DepartmentID\":\"DEP01\",\"UserID\":\"test_id_01\",\"ExternalUserID\":\"test_id_01\",\"MessageTitle\":\"MOCK_LONG_TITLE\",\"MessageBody\":\"MOCK_LONG_MESSAGE\",\"NotificationTitle\":\"Hey\",\"NotificationBody\":\"You have a new message in the message center.\"}",
-      "attributes": {
-        "ApproximateReceiveCount": "2",
-        "SentTimestamp": "202601021513",
-        "SenderId": "mockSenderId",
-        "ApproximateFirstReceiveTimestamp": "202601021513"
-      },
-      "messageAttributes": {},
-      "md5OfBody": "{{{md5_of_body}}}",
-      "eventSource": "aws:sqs",
-      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:MyQueue",
-      "awsRegion": "us-east-1"
-    }
-  ]
-}
- */
 const DISPATCH_PLATFORM_KEY = 'notification_dispatch';
 
 export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, typeof identifiableRecordSchema> {
   public readonly operationId: string = 'dispatch';
-  protected readonly enableConfig: string = BoolParameters.Config.Dispatch.Enabled;
+  protected readonly enableConfig = SSMParameters.Config.Dispatch.Enabled;
 
   public readonly requestBodySchema = requestBodySchema;
   public readonly identifiableRecordSchema = identifiableRecordSchema;
@@ -91,6 +61,10 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
 
   public recordHandler = async (record: SQSRecord) => {
     // Validate Incoming messages
+    const featureEnabledDeepLinkUrl = await this.config.getParameter(SSMParameters.Config.FeatureFlags.DeepLinkUrl);
+    const featureEnabledChannelControls = await this.config.getParameter(
+      SSMParameters.Config.FeatureFlags.ChannelControls
+    );
     const data = await this.validateRecord(record);
     const message = data.body;
 
@@ -102,9 +76,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
       (
         await this.cacheService.rateLimit(
           `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-          await this.config.getNumericParameter(
-            NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute
-          )
+          await this.config.getParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute)
         )
       ).exceeded
     ) {
@@ -119,6 +91,8 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
           NotificationID: message.NotificationID,
           NotificationTitle: message.NotificationTitle,
           NotificationBody: message.NotificationBody,
+          DeeplinkURL: featureEnabledDeepLinkUrl ? message.DeeplinkURL : undefined,
+          Channel: featureEnabledChannelControls ? message.Channel : undefined,
         })
     );
     this.observability.logger.info(`Notification dispatched`, {
@@ -138,7 +112,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
     // Increment rate limiter post request
     await this.cacheService.rateLimit(
       `NOTIFICATION_PROVIDER_RATE_LIMIT`,
-      await this.config.getNumericParameter(NumericParameters.Config.Dispatch.NotificationsProviderRateLimitPerMinute),
+      await this.config.getParameter(SSMParameters.Config.Common.Cache.NotificationsProviderRateLimitPerMinute),
       1
     );
   };

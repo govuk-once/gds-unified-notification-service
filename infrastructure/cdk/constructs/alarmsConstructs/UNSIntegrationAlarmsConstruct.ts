@@ -1,6 +1,5 @@
 import { MetricsLabels, ProviderKey } from '@common/services/observabilityService';
 import { Alarm, ComparisonOperator, Metric, Stats } from 'aws-cdk-lib/aws-cloudwatch';
-import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { AlarmPeriod, alarmPriority, metricDimensions, UNSAlarmsConstruct, UNSAlarmsProps } from './UNSAlarmConstructs';
@@ -23,7 +22,7 @@ interface ProviderTarget {
 
 interface LambdaTarget {
   name: string;
-  func: IFunction;
+  functionName: string;
 }
 
 interface UNSIntegrationAlarmsProps extends UNSAlarmsProps {
@@ -80,13 +79,25 @@ export class UNSIntegrationAlarmsConstruct extends UNSAlarmsConstruct {
     });
 
     // Per Lambda error rate
-    for (const { name, func } of lambdas) {
+    for (const { name, functionName } of lambdas) {
       this.addRateAlarm({
         id: constructNamingHelper('lambdaErrorRateAlarm', group, name),
         name: namingHelper(alarmPriority.HIGH, group, 'LambdaErrorRateElevated', name),
         description: `Lambda ${name} error rate exceeded ${IntegrationAlarmThreshold.LAMBDA_ERROR_RATE_PERCENT}% over a 5 minute window`,
-        failed: func.metricErrors({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }),
-        total: func.metricInvocations({ statistic: Stats.SUM, period: AlarmPeriod.FIVE_MINUTES }),
+        failed: new Metric({
+          namespace: 'AWS/Lambda',
+          metricName: 'Errors',
+          dimensionsMap: { FunctionName: functionName },
+          statistic: Stats.SUM,
+          period: AlarmPeriod.FIVE_MINUTES,
+        }),
+        total: new Metric({
+          namespace: 'AWS/Lambda',
+          metricName: 'Invocations',
+          dimensionsMap: { FunctionName: functionName },
+          statistic: Stats.SUM,
+          period: AlarmPeriod.FIVE_MINUTES,
+        }),
         threshold: IntegrationAlarmThreshold.LAMBDA_ERROR_RATE_PERCENT,
         label: `${name} error rate (%)`,
       });

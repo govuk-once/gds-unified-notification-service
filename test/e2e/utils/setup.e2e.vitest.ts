@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { FetchService } from '@common/services/FetchService';
+import { FetchErrorResponse, FetchService } from '@common/services/FetchService';
+import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
+import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
-
-import { Agent } from 'undici';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -16,7 +17,7 @@ vi.hoisted(() => {
 
 const domainName = (name: string) => {
   const rootDomain = config.ssm.hostedZoneName;
-  const subdomain = name ? (config.isMainEnv ? name : config.utils.namingHelper(name)) : null;
+  const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;
   return `${subdomain}.${rootDomain}`;
 };
 const psoUrl = domainName(`pso`);
@@ -45,6 +46,8 @@ const prepareBeforeAll = async () => {
       );
     }
 
+    process.env.PREFIX = `uns-${config.env}`;
+
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
     const smClient = new SecretsManagerClient({ region: 'eu-west-2' });
 
@@ -59,6 +62,8 @@ const prepareBeforeAll = async () => {
         ],
       })
     );
+    // New certificate format has two dates separated by dots cn.{startDate}.{endDate}
+    secrets.SecretList = secrets.SecretList?.filter((x) => x.Name?.split(`.`).length == 3);
 
     if (secrets.SecretList?.length !== 2) {
       throw new Error(`Fetching certs from SM returned too many results, expected 2`);
@@ -224,7 +229,7 @@ export const test = baseTest
     'validPushID',
     ({}) =>
       ({
-        dev: `dNVRHHR-Ik3vzs_QBsIv2WB7nCr-sROc6jIXxOqPRQQ`,
+        dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
       })[config.env] ?? 'cde456'
   );
 
@@ -236,7 +241,7 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
         [
           NotificationStateEnum.VALIDATED_API_CALL,
           NotificationStateEnum.PROCESSING,
-          // Need a way to void test notification while adapter is not VOID.
+          // TODO: Need a way to void test notification while adapter is not VOID.
           // NotificationStateEnum.PROCESSED,
           // NotificationStateEnum.DISPATCHING,
           // NotificationStateEnum.DISPATCHED,
@@ -253,4 +258,31 @@ export const checkStatus = async (psoAPI: FetchService, notificationID: string) 
   const status = result.body as INotificationStatus[];
   expect(status).toBeDefined();
   return status;
+};
+
+export const checkCampaignStatus = async (
+  psoAPI: FetchService,
+  campaignID: string
+): Promise<{ PROCESSED: number; DISPATCHED: number }> => {
+  try {
+    const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
+    expect(result.body).toEqual(
+      expect.objectContaining({
+        CampaignID: campaignID,
+        ProcessingSummary: expect.objectContaining({
+          PROCESSED: expect.any(Number),
+          DISPATCHED: expect.any(Number),
+        }),
+      })
+    );
+    const campaignStatus = result.body as CampaignStatus;
+    expect(campaignStatus).toBeDefined();
+    return campaignStatus.ProcessingSummary;
+  } catch (error) {
+    if (error instanceof FetchErrorResponse && error.status === 404) {
+      expect(error.status).not.toEqual(404);
+      return { PROCESSED: 0, DISPATCHED: 0 };
+    }
+    throw error;
+  }
 };

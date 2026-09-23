@@ -12,6 +12,7 @@ import { NotificationDispatchedStateEnum } from '@common/models/NotificationStat
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import { filters } from '@common/utils/array';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -22,28 +23,13 @@ import z from 'zod';
 const requestBodySchema = z.any();
 const responseBodySchema = z.array(IFlexNotificationSchema);
 
-/* Lambda Request Example
-{
-  "headers": {
-    "x-api-key": "mockApiKey"
-  },
-  "requestContext": {
-    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-    "requestTimeEpoch": 1428582896000
-  },
-  "queryStringParameters": {
-    "externalUserID": "USER_ID"
-  }  
-}
-*/
-
 export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotifications';
   public requestBodySchema = requestBodySchema;
   public responseBodySchema = responseBodySchema;
 
-  public notificationsDynamoRepository: NotificationsDynamoRepository;
-  public organisationsDynamoRepository: OrganisationsDynamoRepository;
+  public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected config: ConfigurationService,
@@ -76,13 +62,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     }
 
     // Get notifications of user from dynamoDB
-    const notifications = await this.notificationsDynamoRepository.getRecordsQuery(
-      {
-        field: 'ExternalUserID',
-        value: externalUserID,
-      },
-      'ExternalUserIDIndex'
-    );
+    const notifications = await this.notificationsDynamoRepository.getProcessedMessages(externalUserID);
 
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations(notifications);
@@ -91,13 +71,13 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
-        if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+        if (new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
           return false;
         }
         return true;
       })
       .map((n) => IMessageRecordToIFlexNotification(n, organisations, this.observability))
-      .filter((n) => n !== undefined)
+      .filter(filters.isDefined)
       .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
       .sort((a, b) => {
         // Sort by dispatch time, most recent first

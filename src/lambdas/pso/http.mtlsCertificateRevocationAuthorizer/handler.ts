@@ -5,27 +5,25 @@ import {
   IMiddleware,
   iocGetMTLSRevocationDynamoRepository,
   iocGetObservabilityService,
+  iocGetOrganisationsDynamoRepository,
+  OrganisationsDynamoRepository,
   type ITypedRequestEvent,
   type ITypedRequestResponse,
 } from '@common';
+import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
 import { MTLSRevocationDynamoRepository } from '@common/repositories/mtlsRevocationDynamoRepository';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import type { APIGatewayAuthorizerResult, Context } from 'aws-lambda';
 import { createHash } from 'node:crypto';
 import z from 'zod';
 
-/**
- * Purpose of this authorizer lambda is to confirm that certificate supplied within the request context
- * (already validated by API Gateway to be signed by the CA and not expired) has not been revoked.
- *
- * Data regarding revocation is stored in the dynamodb
- */
 export class MtlsCertificateRevocationAuthorizer extends APIHandler {
   public operationId: string = 'mtlsApiGatewayAuthorizer';
   public requestBodySchema = z.any();
   public responseBodySchema = z.any();
 
   public mtlsRevocationDynamoRepository!: MTLSRevocationDynamoRepository;
+  public organisationsDynamoRepository!: OrganisationsDynamoRepository;
 
   constructor(
     protected observability: ObservabilityService,
@@ -128,10 +126,19 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     // Allow only if the certificate record states that certificate has not been revoked
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_ALLOWED_COUNT, MetricUnit.Count, 1);
+
+    const organisationRecord = await this.organisationsDynamoRepository.getRecord(certificateRecord?.Organization);
+    if (!organisationRecord) {
+      throw new ServiceMisconfigurationError(['There is no organisation record for this organisation']);
+    }
+
     return this.createPolicyResponse(
       _event.methodArn,
       'Allow',
-      { Organization: certificateRecord.Organization },
+      {
+        Organization: certificateRecord.Organization,
+        OrganisationConfig: JSON.stringify(organisationRecord.OrganisationConfig),
+      },
       _event.headers['x-api-key']
     );
   }
@@ -139,4 +146,5 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
 export const handler = new MtlsCertificateRevocationAuthorizer(iocGetObservabilityService(), () => ({
   mtlsRevocationDynamoRepository: iocGetMTLSRevocationDynamoRepository(),
+  organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
 })).handler();

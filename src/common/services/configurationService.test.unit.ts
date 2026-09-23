@@ -1,9 +1,8 @@
-import { GetParametersByPathCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import { ServiceMisconfigurationError } from '@common/models';
 import { ConfigurationService } from '@common/services/configurationService';
 import { InMemoryTTLCache } from '@common/utils';
-import { observabilitySpies } from '@common/utils/mockInstanceFactory.test.util';
-import { mockClient } from 'aws-sdk-client-mock';
+import { ParameterConfig } from '@shared/ssmParameter';
+import { awsClientSpies, observabilitySpies } from '@test/mocks';
 import { Mocked } from 'vitest';
 import z from 'zod';
 
@@ -12,34 +11,41 @@ process.env.PREFIX = 'test';
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
 vi.mock('@aws-lambda-powertools/metrics', { spy: true });
 vi.mock('@aws-lambda-powertools/tracer', { spy: true });
+vi.mock('@aws-sdk/client-ssm', { spy: true });
 vi.mock('@common/utils/inMemoryTTLCache', { spy: true });
 
 describe('ConfigurationService', () => {
   let config: ConfigurationService;
 
-  const ssmMock = mockClient(SSMClient);
-  const observabilityMock = observabilitySpies();
+  // Initialize mock services, clients, and repositories
+  const observabilityMocks = observabilitySpies();
+  const awsClientMocks = awsClientSpies();
+
   const inMemoryCacheMock = new InMemoryTTLCache(60000) as Mocked<InMemoryTTLCache<string, string>>;
   inMemoryCacheMock.has = vi.fn();
+
+  const testStringParameter: ParameterConfig<'string'> = { Path: 'testPath', Type: 'string' };
+  const testBooleanParameter: ParameterConfig<'boolean'> = { Path: 'testPath', Type: 'boolean' };
+  const testNumericParameter: ParameterConfig<'numeric'> = { Path: 'testPath', Type: 'numeric' };
+  const testEnumParameter: ParameterConfig<'enum'> = { Path: 'testPath', Type: 'enum' };
 
   beforeEach(() => {
     // Reset all mock
     vi.clearAllMocks();
-    ssmMock.reset();
 
-    config = new ConfigurationService(observabilityMock);
+    config = new ConfigurationService(awsClientMocks.ssmClientMock, observabilityMocks);
   });
 
   describe('getParameter', () => {
     it('should secret from parameter store with namespace and value', async () => {
       // Arrange
       const secretValue = 'secret';
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
 
       // Act
-      const parameter = await config.getParameter('testKey');
+      const parameter = await config.getParameter(testStringParameter);
 
       // Assert
       expect(parameter).toEqual(secretValue);
@@ -48,15 +54,15 @@ describe('ConfigurationService', () => {
     it('should throw an error and log when the call fails', async () => {
       // Arrange
       const error = new Error('AWS Error');
-      ssmMock.on(GetParametersByPathCommand).rejectsOnce(new Error(error.message));
+      awsClientMocks.ssmClientMock.send = vi.fn().mockRejectedValueOnce(new Error(error.message));
 
       // Act
-      const result = config.getParameter('testNameSpace');
+      const result = config.getParameter(testStringParameter);
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith('Failed fetching value', {
-        paramName: '/test/testNameSpace',
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failed fetching value', {
+        paramName: '/test/testPath',
         error: error.message,
       });
     });
@@ -64,32 +70,30 @@ describe('ConfigurationService', () => {
     it('should throw an error if namespace is not in cache', async () => {
       // Arrange
       inMemoryCacheMock.has.mockResolvedValueOnce(false);
-      ssmMock.on(GetParametersByPathCommand).resolvesOnce({
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValueOnce({
         Parameters: [],
       });
       inMemoryCacheMock.has.mockResolvedValueOnce(false);
 
       // Act
-      const result = config.getParameter('testNameSpace');
+      const result = config.getParameter(testStringParameter);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(
-        'Retrieve parameter /test/testNameSpace has no value'
-      );
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Retrieve parameter /test/testPath has no value');
     });
   });
 
-  describe('getBooleanParameter', () => {
+  describe('getParameter (boolean)', () => {
     it('should return a secret from parameter store in boolean form - true', async () => {
       // Arrange
       const secretValue = 'true';
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
 
       // Act
-      const parameter = await config.getBooleanParameter('testKey');
+      const parameter = await config.getParameter(testBooleanParameter);
 
       // Assert
       expect(parameter).toEqual(true);
@@ -98,12 +102,12 @@ describe('ConfigurationService', () => {
     it('should return a secret from parameter store in boolean form - false', async () => {
       // Arrange
       const secretValue = 'false';
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
 
       // Act
-      const parameter = await config.getBooleanParameter('testKey');
+      const parameter = await config.getParameter(testBooleanParameter);
 
       // Assert
       expect(parameter).toEqual(false);
@@ -112,31 +116,31 @@ describe('ConfigurationService', () => {
     it('should throw an error and log when the parameter cannot be parsed to a boolean', async () => {
       // Arrange
       const secretValue = 'abc';
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
       // Act
-      const result = config.getBooleanParameter('testKey');
+      const result = config.getParameter(testBooleanParameter);
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(`Could not parse parameter testKey to type`, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Could not parse parameter testPath to type`, {
         error: '✖ Invalid input',
         method: 'getParameterAsType',
       });
     });
   });
 
-  describe('getNumericParameter', () => {
+  describe('getParameter (numeric)', () => {
     it('should return a secret from parameter store in numeric form', async () => {
       // Arrange
       const secretValue = '10';
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
 
       // Act
-      const parameter = await config.getNumericParameter('testKey');
+      const parameter = await config.getParameter(testNumericParameter);
 
       // Assert
       expect(parameter).toEqual(Number(secretValue));
@@ -145,35 +149,35 @@ describe('ConfigurationService', () => {
     it('should throw an error and log when the parameter cannot be parsed to a number', async () => {
       // Arrange
       const secretValue = 'ten';
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: secretValue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
 
-      const errorMsg = 'Could not parse parameter testKey to type';
+      const errorMsg = 'Could not parse parameter testPath to type';
 
       // Act
-      const result = config.getNumericParameter('testKey');
+      const result = config.getParameter(testNumericParameter);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(errorMsg, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(errorMsg, {
         error: '✖ Invalid number',
         method: `getParameterAsType`,
       });
     });
   });
 
-  describe('getEnumParameter', () => {
+  describe('getParameter (enum)', () => {
     const enumValues = z.enum([`blue`, `green`]);
 
     it('should return a secret from parameter store in enum form', async () => {
       // Arrange
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: enumValues.enum.blue, Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: enumValues.enum.blue, Name: '/test/testPath' }],
       });
 
       // Act
-      const parameter = await config.getEnumParameter('testKey', enumValues);
+      const parameter = await config.getParameter(testEnumParameter, enumValues);
 
       // Assert
       expect(parameter).toEqual(enumValues.enum.blue);
@@ -181,18 +185,18 @@ describe('ConfigurationService', () => {
 
     it('should throw an error and log when the parameter cannot be parsed to a enum', async () => {
       // Arrange
-      ssmMock.on(GetParametersByPathCommand).resolves({
-        Parameters: [{ Value: 'yellow', Name: '/test/testKey' }],
+      awsClientMocks.ssmClientMock.send = vi.fn().mockResolvedValue({
+        Parameters: [{ Value: 'yellow', Name: '/test/testPath' }],
       });
 
-      const errorMsg = 'Could not parse parameter testKey to type';
+      const errorMsg = 'Could not parse parameter testPath to type';
 
       // Act
-      const result = config.getEnumParameter('testKey', enumValues);
+      const result = config.getParameter(testEnumParameter, enumValues);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMock.logger.error).toHaveBeenCalledWith(errorMsg, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(errorMsg, {
         error: '✖ Invalid option: expected one of "blue"|"green"',
         method: 'getParameterAsType',
       });
