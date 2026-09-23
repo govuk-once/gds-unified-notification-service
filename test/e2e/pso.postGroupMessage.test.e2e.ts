@@ -364,11 +364,12 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       const result = await api.post({ path, body: messagesWithChannel });
 
       // Assert
+      console.log(result);
+      expect(result.status).toEqual(202);
       const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
         timeout: 30000,
         interval: 2000,
       });
-      expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
       // TODO: Need a way to void test notification while adapter is not VOID.
       // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
@@ -390,11 +391,12 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       const result = await api.post({ path, body: messagesWithChannel });
 
       // Assert
+      console.log(result);
+      expect(result.status).toEqual(202);
       const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
         timeout: 30000,
         interval: 2000,
       });
-      expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
       // TODO: Need a way to determine dispatched status
       // expect(campaignStatus.DISPATCHED).toBeGreaterThan(0);
