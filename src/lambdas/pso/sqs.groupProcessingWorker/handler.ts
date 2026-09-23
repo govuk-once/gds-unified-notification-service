@@ -113,6 +113,9 @@ export class GroupProcessingWorker extends BatchQueueOperation<
         `CacheKey: ${cacheKey}`,
       ]);
     }
+    this.observability.logger.debug('The amount of pushIDs returned from cache', {
+      pushIDsLength: unprocessedPushIDs.length,
+    });
 
     this.observability.logger.debug(`Splicing list of pushIDs to a max size of worker batch size.`);
     const pushIDs = unprocessedPushIDs.splice(0, workerBatchSize);
