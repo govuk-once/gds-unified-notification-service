@@ -48,7 +48,7 @@ export class UNSE2EConstruct extends Construct {
     // Creates a project
     this.project = new Project(this, constructNamingHelper(...props.name, 'project'), {
       projectName: namingHelper(...props.name, 'project'),
-      description: 'Runs the e2e test suite against the private flex-private API Gateway from inside the VPC',
+      description: 'Runs the e2e test suite from within VPC',
       role: this.role,
       environment: {
         buildImage: LinuxBuildImage.STANDARD_7_0,
@@ -71,14 +71,7 @@ export class UNSE2EConstruct extends Construct {
       },
     });
     this.sourceBucket.bucket.grantRead(this.role);
-    // Temp role
-    this.role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        resources: ['arn:aws:s3:::uns-dev-e2e-runner-builds/*'],
-        actions: ['s3:GetBucket*', 's3:GetObject*', 's3:List*'],
-      })
-    );
+
     // Access to DynamoDB (testing injects notifications)
     props.messagesTable.grantReadWriteData(this.role);
 
