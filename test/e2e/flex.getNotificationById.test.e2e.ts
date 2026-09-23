@@ -32,22 +32,14 @@ describe('GET {{flex}}/notifications/{{notificationID}}', () => {
         expect(true).toBeFalsy();
       } catch (error) {
         // Handle private and public
-        if (api.isPrivateGateway()) {
-          expect(error).toMatchObject({
-            message: 'fetch failed',
-            cause: expect.objectContaining({
-              code: 'UND_ERR_CONNECT_TIMEOUT',
-              name: 'ConnectTimeoutError',
-            }),
-          });
-        } else {
-          expect(error).toMatchObject({
-            message: 'fetch failed',
-            cause: expect.objectContaining({
-              code: 'ECONNREFUSED',
-            }),
-          });
-        }
+        expect(error).toMatchObject({
+          message: 'fetch failed',
+          cause: expect.objectContaining(
+            api.isPrivateGateway()
+              ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
+              : { code: 'ECONNREFUSED' }
+          ),
+        });
       }
     });
 
