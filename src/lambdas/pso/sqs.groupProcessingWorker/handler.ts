@@ -104,6 +104,8 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 
     // Retrieve pushIDs from cache
     this.observability.logger.debug(`Retrieving list of pushIDs to process from cache.`);
+    const start = performance.now();
+
     const unprocessedPushIDs = await this.cacheService.get<string[]>(cacheKey);
     if (!unprocessedPushIDs) {
       throw new InternalServerError([
@@ -111,6 +113,9 @@ export class GroupProcessingWorker extends BatchQueueOperation<
         `CacheKey: ${cacheKey}`,
       ]);
     }
+    this.observability.logger.debug('The amount of pushIDs returned from cache', {
+      pushIDsLength: unprocessedPushIDs.length,
+    });
 
     this.observability.logger.debug(`Splicing list of pushIDs to a max size of worker batch size.`);
     const pushIDs = unprocessedPushIDs.splice(0, workerBatchSize);
@@ -120,6 +125,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 
     // Updating cache with unprocessed pushIDs and verifying it has been updated
     await this.cacheService.store(cacheKey, unprocessedPushIDs);
+
     const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
     this.observability.logger.debug(`CacheKey and the amount unprocessed pushIDs to send to group processing queue`, {
       cacheKey,
@@ -168,6 +174,12 @@ export class GroupProcessingWorker extends BatchQueueOperation<
     // Push processed messages to Dispatch queue
     this.observability.logger.info('Successful processed batch of pushIDs, sending to dispatch queue');
     await this.dispatchQueue.publishMessageBatch(processedMessages);
+
+    this.observability.metrics.addMetric(
+      MetricsLabels.GROUP_PROCESSING_DURATION_PER_MESSAGE,
+      MetricUnit.Milliseconds,
+      (performance.now() - start) / Math.max(pushIDs.length, 1)
+    );
 
     // Requeue if any pushIDs are unprocessed
     if (unprocessedPushIDs.length > 0) {

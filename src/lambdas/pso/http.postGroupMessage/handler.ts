@@ -107,9 +107,10 @@ export class PostGroupMessage extends APIHandler<
         message.Subgroup
       );
       const chunksOfPushIDs = splitArrayIntoChunks(pushIds, numberOfWorkers);
+      this.observability.logger.debug('Chunk of PushIDS', { chunksOfPushIDs });
 
       const batch: IGroupMessageMetadata[] = [];
-      for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID += 1) {
+      for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID++) {
         const chunk = chunksOfPushIDs[workerID];
         // If the chunk is empty, break the loop to avoid creating an empty cache entry and batch message
         if (chunk.length === 0) {
