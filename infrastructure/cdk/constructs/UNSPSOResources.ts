@@ -63,7 +63,7 @@ export class UNSPSOResource extends Construct {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
     service: Dashboard;
-    groupFlow: UNSPSOGroupFlow;
+    groupFlow?: UNSPSOGroupFlow;
   };
 
   constructor(
@@ -666,7 +666,9 @@ export class UNSPSOResource extends Construct {
         restApis: [this.gateway.restApi],
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
-      groupFlow: new UNSPSOGroupFlow(this, 'pso-group-flow-dashboards', config),
+      groupFlow: config.featureFlag.groups
+        ? new UNSPSOGroupFlow(this, 'pso-group-flow-dashboards', config, { pso: this })
+        : undefined,
     };
 
     //// =====================================================

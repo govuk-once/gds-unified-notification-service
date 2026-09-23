@@ -24,7 +24,7 @@ export class UNSPSOUtilization extends Construct {
       const queuedSuccessfully = new cw.Metric({
         namespace: customNamespace,
         metricName: 'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
-        dimensionsMap: { environment: config.prefix, service: 'NOTIFICATIONS_POSTMESSAGE' },
+        dimensionsMap: { environment: config.prefix, service: 'NOTIFICATIONS_PSO' },
         label: 'Queued Successfully',
         statistic: 'Sum',
         period,

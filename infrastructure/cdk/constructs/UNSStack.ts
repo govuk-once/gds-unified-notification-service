@@ -60,8 +60,15 @@ export class UNSStack extends Stack {
         queueNames: {
           incoming: this.pso.queues.incoming.queue.queueName,
           processing: this.pso.queues.processing.queue.queueName,
+          groupProcessing: this.pso.queues.groupProcessing?.queue.queueName,
           dispatch: this.pso.queues.dispatch.queue.queueName,
           analytics: this.pso.queues.analytics.queue.queueName,
+        },
+        dlqNames: {
+          incomingDlq: this.pso.queues.incoming.dlq?.queueName,
+          processingDlq: this.pso.queues.processing.dlq?.queueName,
+          groupProcessingDlq: this.pso.queues.groupProcessing?.dlq?.queueName,
+          dispatchDlq: this.pso.queues.dispatch.dlq?.queueName,
         },
         lambdaFunctionNames: {
           mtlsCertificateRevocationAuthorizer:
