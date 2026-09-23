@@ -75,8 +75,8 @@ const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
 const isE2ERunner = process.env.UNS_E2E_RUNNER === 'true';
-// const deployE2ERunner = e2eRunnerEnvironments.includes(env);
-const deployE2ERunner = true;
+const deployE2ERunner = e2eRunnerEnvironments.includes(env);
+
 // Setup importable config object
 export const config = {
   // Metadata
