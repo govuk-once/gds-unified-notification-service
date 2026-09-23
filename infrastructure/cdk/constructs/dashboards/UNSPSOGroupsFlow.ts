@@ -9,12 +9,11 @@ export class UNSPSOGroupFlow extends Construct {
   private createMetric(metricName: string, label: string, config: EnvVars) {
     const period = Duration.seconds(1);
     const statistic = 'Sum';
-    const namespace = `NOTIFICATIONS_${config.prefix}`.replace('-', '_').toUpperCase();
 
     return new Metric({
-      namespace,
+      namespace: config.metrics.customNamespace,
       metricName,
-      dimensionsMap: { environment: config.prefix, service: 'NOTIFICATIONS_PSO' },
+      dimensionsMap: { environment: config.prefix, service: config.metrics.psoService },
       label,
       statistic,
       period,
