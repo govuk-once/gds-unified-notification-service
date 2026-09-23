@@ -21,14 +21,26 @@ export class FetchErrorResponse<T = unknown> extends Error {
   public body?: T;
   public errorMessage: string;
   public errorType = 'FetchErrorResponse';
+  public url?: string;
+  public headers?: Record<string, string>;
 
-  constructor(props?: { path: string; method: string; status?: number; body?: T }) {
+  constructor(props?: {
+    path: string;
+    method: string;
+    status?: number;
+    body?: T;
+    url?: string;
+    headers?: Record<string, string>;
+  }) {
     const msg = `API [${props?.method ?? 'UNKNOWN'}] ${props?.path ?? 'UNKNOWN'} Failed with ${props?.status ?? 'UNKNOWN'}`;
     super(msg);
     this.errorMessage = `API [${props?.method ?? 'UNKNOWN'}] ${props?.path ?? 'UNKNOWN'} Failed with ${props?.status ?? 'UNKNOWN'}`;
+    this.path = props?.path;
     this.method = props?.method;
     this.status = props?.status;
     this.body = props?.body;
+    this.url = props?.url;
+    this.headers = props?.headers;
   }
 }
 
@@ -103,6 +115,8 @@ export class FetchService {
         method: method,
         path: path,
         body: raw,
+        url: url,
+        headers: Object.fromEntries(response.headers.entries()),
       });
     }
 

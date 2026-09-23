@@ -320,19 +320,6 @@ export class UNSAPIGatewayGateway extends Construct {
           },
         })
       );
-      // this.restApi.addToResourcePolicy(
-      //   new PolicyStatement({
-      //     effect: Effect.ALLOW,
-      //     principals: [new AnyPrincipal()],
-      //     actions: ['execute-api:Invoke'],
-      //     resources: ['execute-api:/*'],
-      //     conditions: {
-      //       StringEquals: {
-      //         'aws:SourceVpce': props.iam.allowOnlyFromKnownSources.vpceIDs,
-      //       },
-      //     },
-      //   })
-      // );
 
       // Create external execution invoker IAM role
       const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`), {

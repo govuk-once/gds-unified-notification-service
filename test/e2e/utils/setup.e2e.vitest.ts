@@ -292,8 +292,7 @@ export const checkCampaignStatus = async (
     return campaignStatus.ProcessingSummary;
   } catch (error) {
     if (error instanceof FetchErrorResponse && error.status === 404) {
-      expect(error.status).not.toEqual(404);
-      return { PROCESSED: 0, DISPATCHED: 0 };
+      throw new Error(`Campaign ${campaignID} not found yet (404) - retrying`);
     }
     throw error;
   }

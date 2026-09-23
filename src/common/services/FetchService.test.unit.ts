@@ -1,5 +1,4 @@
 import { FetchErrorResponse, FetchService, FetchTimeoutError } from '@common/services/FetchService';
-import { error } from 'node:console';
 import type { MockInstance } from 'vitest';
 
 const createProps = (baseUrl: string = 'wwww.testing.co.uk') => ({
@@ -111,6 +110,8 @@ describe('FetchService', () => {
         status: 400,
         path: '/health',
         body: JSON.stringify({ error: 'failed' }),
+        url: 'wwww.testing.co.uk/health',
+        headers: { 'content-type': 'text/plain;charset=UTF-8' },
       })
     );
   });

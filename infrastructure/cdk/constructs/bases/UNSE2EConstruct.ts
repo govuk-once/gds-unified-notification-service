@@ -1,5 +1,6 @@
 import { Duration, Stack } from 'aws-cdk-lib';
 import { BuildSpec, ComputeType, LinuxBuildImage, Project, Source } from 'aws-cdk-lib/aws-codebuild';
+import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ISecurityGroup, IVpc, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey, Key } from 'aws-cdk-lib/aws-kms';
@@ -14,6 +15,7 @@ export interface UNSCodeBuildConstructProps {
   securityGroups: ISecurityGroup[];
   kms: IKey;
   flexPrivateUrl: string;
+  messagesTable: Table;
 }
 export class UNSE2EConstruct extends Construct {
   public readonly project: Project;
@@ -77,6 +79,8 @@ export class UNSE2EConstruct extends Construct {
         actions: ['s3:GetBucket*', 's3:GetObject*', 's3:List*'],
       })
     );
+    // Access to DynamoDB (testing injects notifications)
+    props.messagesTable.grantReadWriteData(this.role);
 
     // Access to artifact registry
     this.role.addToPolicy(

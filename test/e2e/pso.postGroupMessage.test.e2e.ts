@@ -20,7 +20,7 @@ beforeAll(async () => {
     {
       Namespace: 'test',
       Group: 'end2end',
-      Subgroup: 'immediate',
+      Subgroup: 'testing',
       Action: 'JOIN',
     },
   ];

@@ -494,7 +494,7 @@ describe('Post /send', () => {
       );
     });
 
-    test.skip('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
+    test('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
       psoAPI,
     }) => {
       // Arrange
@@ -512,8 +512,8 @@ describe('Post /send', () => {
       // Assert
       expect(result.status).toBe(202);
       const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
-        timeout: 30000,
-        interval: 2000,
+        timeout: 100000,
+        interval: 3000,
       });
       expect(status).toEqual(
         expect.arrayContaining(

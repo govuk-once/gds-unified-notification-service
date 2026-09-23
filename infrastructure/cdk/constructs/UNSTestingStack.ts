@@ -1,4 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
+import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ISecurityGroup, IVpc } from 'aws-cdk-lib/aws-ec2';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
@@ -10,6 +11,7 @@ export interface UNSTestingContract {
   readonly securityGroups: ISecurityGroup[];
   readonly kms: IKey;
   readonly flexPrivateUrl: string;
+  readonly messagesTable: Table;
 }
 
 export class UNSTestingStack extends Stack {
