@@ -13,6 +13,9 @@ import {
 
 export const OperationalAlarmThreshold = {
   QUEUE_DEPTH: 1000,
+  DLQ_DEPTH_MEDIUM: 10,
+  DLQ_DEPTH_HIGH: 1000,
+  DLQ_OLDEST_MESSAGE: 3 * 3600 * 24, // 3 Days in seconds
   FAILURE_RATE_PERCENTAGE: 5,
   PROCESSING_DURATION_P95_MS: 3000,
   DISPATCH_DURATION_P95_MS: 5000,
@@ -26,6 +29,7 @@ interface QueueTarget {
 
 interface UNSOperationalAlarmsProps extends UNSAlarmsProps {
   queues: QueueTarget[];
+  dlqs: QueueTarget[];
 }
 
 export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
@@ -36,7 +40,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
     props.names = [...(props.names ?? []), 'operational'];
     super(scope, config, props);
 
-    const { group, queues } = props;
+    const { group, queues, dlqs } = props;
 
     // SQS Depth Alarm
     for (const { name, queueName } of queues) {
@@ -131,6 +135,22 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
       datapointsToAlarm: 1,
     });
 
+    // Group Processing duration alarm
+    this.addAlarm({
+      id: constructNamingHelper('groupProcessingDurationAlarm', group),
+      name: namingHelper(alarmPriority.HIGH, group, 'GroupProcessingDurationP95PerMessageHigh'),
+      description: `Group Processing p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms per message over a 5-minute window.`,
+      metric: this.customMetric(
+        MetricsLabels.GROUP_PROCESSING_DURATION_PER_MESSAGE,
+        P95_STATISTIC,
+        AlarmPeriod.FIVE_MINUTES
+      ),
+      threshold: OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+    });
+
     // Dispatching duration alarm
     this.addAlarm({
       id: constructNamingHelper('dispatchDurationAlarm', group),
@@ -162,6 +182,12 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         title: 'DispatchBatchItemFailures',
         label: 'Dispatch',
       },
+      {
+        id: 'groupProcessingBatchFailuresAlarm',
+        metric: MetricsLabels.BATCH_ITEM_FAILURES_GROUP_PROCESSING,
+        title: 'GroupProcessingBatchItemFailures',
+        label: 'GroupProcessing',
+      },
     ];
 
     // Batch item failure alarm
@@ -184,6 +210,12 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         metric: MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
         title: 'ProcessingQueuePublishFailed',
         label: 'processing',
+      },
+      {
+        id: 'groupProcessingPublishFailuresAlarm',
+        metric: MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_FAILED,
+        title: 'GroupProcessingQueuePublishFailed',
+        label: 'groupprocessing',
       },
       {
         id: 'dispatchPublishFailuresAlarm',
@@ -209,6 +241,61 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         threshold: numericThreshold.ZERO_THRESHOLD,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 1,
+        datapointsToAlarm: 1,
+      });
+    }
+
+    for (const { name, queueName } of dlqs) {
+      // DLQ Number of Messages Alarm
+      this.addAlarm({
+        id: constructNamingHelper('dlqMessageCountAlarmMedium', group, name),
+        name: namingHelper(alarmPriority.MEDIUM, group, 'dlqMessageCountMedium', name),
+        description: `DLQ queue '${name}' exceeded ${OperationalAlarmThreshold.DLQ_DEPTH_MEDIUM} visible messages for 15 consecutive minutes.`,
+        metric: new Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'ApproximateNumberOfMessagesVisible',
+          dimensionsMap: { QueueName: queueName },
+          statistic: Stats.MAXIMUM,
+          period: AlarmPeriod.ONE_MINUTE,
+        }),
+        threshold: OperationalAlarmThreshold.DLQ_DEPTH_MEDIUM,
+        comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+        evaluationPeriods: 15,
+        datapointsToAlarm: 1,
+      });
+
+      this.addAlarm({
+        id: constructNamingHelper('MessageCountAlarmHigh', group, name),
+        name: namingHelper(alarmPriority.HIGH, group, 'MessageCountHigh', name),
+        description: `DLQ queue '${name}' exceeded ${OperationalAlarmThreshold.DLQ_DEPTH_HIGH} visible messages for 15 consecutive minutes.`,
+        metric: new Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'ApproximateNumberOfMessagesVisible',
+          dimensionsMap: { QueueName: queueName },
+          statistic: Stats.MAXIMUM,
+          period: AlarmPeriod.ONE_MINUTE,
+        }),
+        threshold: OperationalAlarmThreshold.DLQ_DEPTH_HIGH,
+        comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+        evaluationPeriods: 15,
+        datapointsToAlarm: 1,
+      });
+
+      // DLQ Oldest Message in Queue Alarm
+      this.addAlarm({
+        id: constructNamingHelper('OldestMessageAlarmHigh', group, name),
+        name: namingHelper(alarmPriority.HIGH, group, 'OldestMessageHigh', name),
+        description: `Oldest message in DLQ queue '${name}' exceeded an age of ${OperationalAlarmThreshold.DLQ_OLDEST_MESSAGE}.`,
+        metric: new Metric({
+          namespace: 'AWS/SQS',
+          metricName: 'ApproximateAgeOfOldestMessage',
+          dimensionsMap: { QueueName: queueName },
+          statistic: Stats.MAXIMUM,
+          period: AlarmPeriod.ONE_MINUTE,
+        }),
+        threshold: OperationalAlarmThreshold.DLQ_OLDEST_MESSAGE,
+        comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+        evaluationPeriods: 15,
         datapointsToAlarm: 1,
       });
     }
