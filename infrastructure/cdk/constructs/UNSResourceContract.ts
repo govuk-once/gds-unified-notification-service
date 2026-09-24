@@ -6,8 +6,15 @@ export interface UNSResourceContract {
     queueNames: {
       incoming: string;
       processing: string;
+      groupProcessing?: string;
       dispatch: string;
       analytics: string;
+    };
+    dlqNames: {
+      incomingDlq?: string;
+      processingDlq?: string;
+      groupProcessingDlq?: string;
+      dispatchDlq?: string;
     };
     lambdaFunctionNames: Record<string, string | undefined>;
   };

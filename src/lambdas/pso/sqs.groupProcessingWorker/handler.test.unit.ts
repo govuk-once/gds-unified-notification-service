@@ -196,6 +196,21 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessage).toHaveBeenCalledWith(message);
   });
 
+  it('should add a metric for the performance run time.', async () => {
+    // Arrange
+    const event = mockQueueEvent(message);
+
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.GROUP_PROCESSING_DURATION_PER_MESSAGE,
+      MetricUnit.Milliseconds,
+      expect.any(Number)
+    );
+  });
+
   it('does not create a new message to group processing worker if all pushIDs are processed', async () => {
     // Arrange
     const event = mockQueueEvent(message);

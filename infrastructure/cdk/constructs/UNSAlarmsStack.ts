@@ -55,6 +55,9 @@ export class UNSAlarmsStack extends Stack {
       alertTopic,
       group: psoServiceName,
       queues: Object.entries(resources.pso.queueNames).map(([name, queueName]) => ({ name, queueName })),
+      dlqs: Object.entries(resources.pso.dlqNames)
+        .filter((d) => d[1] !== undefined)
+        .map(([name, queueName]) => ({ name, queueName })),
     });
 
     const psoLambdas = resources.pso.lambdaFunctionNames;
