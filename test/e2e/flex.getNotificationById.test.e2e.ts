@@ -18,7 +18,7 @@ const createNotificationIfNotFound = async (notificationID: string, pushID: stri
 };
 
 describe('GET {{flex}}/notifications/{{notificationID}}', () => {
-  describe(`Unahppy paths`, () => {
+  describe(`Unhappy paths`, () => {
     test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
       mockNotificationID,

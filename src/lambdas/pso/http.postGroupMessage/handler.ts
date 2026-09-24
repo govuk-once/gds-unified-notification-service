@@ -120,7 +120,7 @@ export class PostGroupMessage extends APIHandler<
         const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
         this.observability.logger.debug('Storing list of pushIDs to process in cache for group processing worker.', {
           cacheKey,
-          pushIDsLength: chunk.length,
+          pushIDs: chunk,
         });
         await this.cacheService.store(cacheKey, chunk);
 
@@ -138,7 +138,7 @@ export class PostGroupMessage extends APIHandler<
         const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
         this.observability.logger.debug(`Verifying CacheKey and length of pushIDs for the batch in the cache.`, {
           cacheKey,
-          batchLength: elasticacheValue?.length,
+          pushIDs: elasticacheValue,
         });
       }
 
