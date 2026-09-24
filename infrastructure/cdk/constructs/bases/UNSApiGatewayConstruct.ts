@@ -518,7 +518,7 @@ export class UNSAPIGatewayGateway extends Construct {
           smoothStreaming: false,
 
           originRequestPolicy: new OriginRequestPolicy(this, 'mtlsHeaderPolicy', {
-            originRequestPolicyName: constructNamingHelper('mtls-cert-headers'),
+            originRequestPolicyName: namingHelper('mtls-cert-headers'),
             headerBehavior: OriginRequestHeaderBehavior.all(
               'CloudFront-Viewer-Cert-Subject',
               'CloudFront-Viewer-Cert-Pem',
@@ -539,7 +539,7 @@ export class UNSAPIGatewayGateway extends Construct {
 
       // Configure trust store & Viewer mTLS config in CloudFront
       const trustStore = new CfnTrustStore(this, 'ClientTrustStore', {
-        name: 'api-client-trust-store',
+        name: namingHelper('api-client-trust-store'),
         caCertificatesBundleSource: {
           caCertificatesBundleS3Location: {
             bucket: props.mtls.truststore.replace(`s3://`, ``).split(`/`).shift()!,
