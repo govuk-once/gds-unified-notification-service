@@ -125,7 +125,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
     // Updating cache with unprocessed pushIDs and verifying it has been updated
     await this.cacheService.store(cacheKey, unprocessedPushIDs);
     const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
-    this.observability.logger.debug(`CacheKey and the amount unprocessed pushIDs to send to group processing queue`, {
+    this.observability.logger.debug(`The amount of unprocessed pushIDs to send to group processing queue`, {
       cacheKey,
       batchLength: elasticacheValue?.length,
     });
