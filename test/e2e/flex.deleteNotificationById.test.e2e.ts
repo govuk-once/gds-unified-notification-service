@@ -5,7 +5,7 @@ const url = (notificationID: string, pushID?: string) =>
   `/notifications/${notificationID}${pushID ? `?pushID=${pushID}` : ''}`;
 
 describe('DELETE {{flex}}/notifications/{{notificationID}} - Delete notification', () => {
-  describe(`Unahppy paths`, () => {
+  describe(`Unhappy paths`, () => {
     test('ECONNREFUSED when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
       mockNotificationID,

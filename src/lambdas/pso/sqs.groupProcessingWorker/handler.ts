@@ -113,25 +113,29 @@ export class GroupProcessingWorker extends BatchQueueOperation<
         `CacheKey: ${cacheKey}`,
       ]);
     }
-    this.observability.logger.debug('The amount of pushIDs returned from cache', {
-      pushIDs: unprocessedPushIDs.length,
+    this.observability.logger.debug('PushIDs returned from cache', {
+      pushIDs: unprocessedPushIDs,
       cacheKey,
     });
 
-    this.observability.logger.debug(`Splicing list of pushIDs to a max size of worker batch size.`);
+    this.observability.logger.debug(`Splicing list of pushIDs to a max size of worker batch size`);
     const pushIDs = unprocessedPushIDs.splice(0, workerBatchSize);
-    this.observability.logger.debug('The amount of pushIDs to be processed in this batch', {
-      pushIDsLength: pushIDs.length,
+    this.observability.logger.debug('pushIDs to be processed in this batch', {
+      pushIDsToBeProcessed: pushIDs,
+      cacheKey,
     });
 
     // Updating cache with unprocessed pushIDs and verifying it has been updated
     await this.cacheService.store(cacheKey, unprocessedPushIDs);
 
     const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
-    this.observability.logger.debug(`The amount of unprocessed pushIDs to send to group processing queue`, {
-      cacheKey,
-      batchLength: elasticacheValue?.length,
-    });
+    this.observability.logger.debug(
+      `Unprocessed pushIDs to be sent to group processing queue to be processed by the next worker`,
+      {
+        pushIDsToNextWorker: elasticacheValue,
+        cacheKey,
+      }
+    );
 
     // Build group messages to users -
     const processedMessages: IProcessedMessage[] = [];

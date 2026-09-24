@@ -136,7 +136,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
       'pushID_2',
     ]);
     expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
-      `CacheKey and the amount unprocessed pushIDs to send to group processing queue`,
+      `The amount of unprocessed pushIDs to send to group processing queue`,
       {
         cacheKey: 'Worker/GroupProcessingWorker/GRP_01/0',
         batchLength: 1,
