@@ -206,12 +206,9 @@ export const mockUnauthorizedPsoAPIEvent = <T>(body: T) => ({
 });
 
 export const mockEventWithCertificate = () => ({
-  requestContext: {
-    identity: {
-      clientCert: {
-        clientCertPem: `MOCK_CERTIFICATE_CONTENT`,
-      },
-    },
+  headers: {
+    'CloudFront-Viewer-Cert-PEM': `MOCK_CERTIFICATE_CONTENT`,
+    'x-api-key': 'mockApiKey',
   },
 });
 

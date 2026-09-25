@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ephemeral
+    concurrency:
+      group: pr-${{ github.event.number }}
+      cancel-in-progress: false
     timeout-minutes: 60
     steps:
       # Setup

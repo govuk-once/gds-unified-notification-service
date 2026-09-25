@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSFlexResource } from 'infrastructure/cdk/constructs/UNSFlexResources';
+import { UNSGlobalStack } from 'infrastructure/cdk/constructs/UNSGlobalStack';
 import { UNSMTLSCommon } from 'infrastructure/cdk/constructs/UNSMTLS';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
@@ -19,6 +20,7 @@ export class UNSStack extends Stack {
     protected id: string,
     protected props: StackProps,
     protected config: EnvVars,
+    protected globalStack: UNSGlobalStack,
     protected buildNumber?: string
   ) {
     super(scope, id, props);
@@ -43,6 +45,9 @@ export class UNSStack extends Stack {
               revocationTableArn: config.sandbox.shared.revocationTable!,
               revocationTableAttributes: config.sandbox.shared.revocationAttributes,
             }),
+      },
+      waf: {
+        cloudfrontWebAclArn: globalStack.cloudfrontWebAclArn,
       },
     });
     this.flex = new UNSFlexResource(this, config, { refs: common, orgs: organisations });
@@ -103,12 +108,12 @@ export class UNSStack extends Stack {
 
   public applyTags(scope: Construct, config: EnvVars) {
     // Certain resource types do not consistently respond when updated regularly with new tags
-    // (i.e. code version)
     const problematicResourceTypes = [
       `AWS::ElastiCache::User`,
       `AWS::ElastiCache::UserGroup`,
       `AWS::ElastiCache::ServerlessCache`,
     ];
+
     // Apply all tags to all rescources - except the problematic ones
     for (const [key, value] of Object.entries({
       ...config.defaultTags(),
