@@ -79,7 +79,7 @@ describe('NotificationsDynamoRepository', async () => {
       vi.useFakeTimers();
       const date = new Date();
       vi.setSystemTime(date);
-      const expirationDate = new Date(date.getTime() + 30 * 60 * 60 * 24 * 1000).toISOString();
+      const expirationDate = date.getTime() + 30 * 60 * 60 * 24 * 1000;
 
       // Act
       await instance.createRecord(messageRecord);
@@ -147,7 +147,7 @@ describe('NotificationsDynamoRepository', async () => {
       });
 
       const record: IMessageRecord = { ...recordBody, RequestedDaysToExpire: 25 };
-      const expirationDateTime = new Date(date.getTime() + 25 * 24 * 60 * 60 * 1000).toISOString();
+      const expirationDateTime = date.getTime() + 25 * 24 * 60 * 60 * 1000;
 
       // Act
       await instance.createRecord(record);
@@ -187,7 +187,7 @@ describe('NotificationsDynamoRepository', async () => {
                 PutRequest: {
                   Item: {
                     ...marshall(record[0], { removeUndefinedValues: true }),
-                    ExpirationDateTime: { S: expect.any(String) },
+                    ExpirationDateTime: { N: expect.any(String) },
                   },
                 },
               },

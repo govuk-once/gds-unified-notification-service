@@ -29,7 +29,7 @@ export const IMessageRecordSchema = z.object({
   ValidatedDateTime: z.string().optional(),
   ProcessedDateTime: z.string().optional(),
   DispatchedDateTime: z.string().optional(),
-  ExpirationDateTime: z.string().optional(),
+  ExpirationDateTime: z.number().optional(),
 
   // Configurations
   RequestedDaysToExpire: z.int().positive().optional(),
@@ -44,6 +44,6 @@ export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
   ReceivedDateTime: z.string(),
   ValidatedDateTime: z.string(),
   ProcessedDateTime: z.string(),
-  ExpirationDateTime: z.string(),
+  ExpirationDateTime: z.number(),
 });
 export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;
