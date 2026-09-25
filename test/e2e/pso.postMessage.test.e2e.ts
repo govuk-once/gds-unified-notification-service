@@ -512,8 +512,8 @@ describe('Post /send', () => {
       // Assert
       expect(result.status).toBe(202);
       const status = await vi.waitFor(() => checkStatus(psoAPI, notificationID), {
-        timeout: 100000,
-        interval: 3000,
+        timeout: 30000,
+        interval: 2000,
       });
       expect(status).toEqual(
         expect.arrayContaining(

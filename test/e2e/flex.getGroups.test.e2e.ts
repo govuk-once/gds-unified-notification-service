@@ -20,21 +20,18 @@ describe('GET {{flex}}/groups?pushID={{pushID}} - Get groups', () => {
       // Arrange
       const path = url(pushID);
 
-      // Act & Assert
-      try {
-        await api.get({ path });
-        expect(true).toBeFalsy();
-      } catch (error) {
-        // Handle private and public
-        expect(error).toMatchObject({
-          message: 'fetch failed',
-          cause: expect.objectContaining(
-            api.isPrivateGateway()
-              ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
-              : { code: 'ECONNREFUSED' }
-          ),
-        });
-      }
+      // Act
+      const result = api.get({ path });
+
+      // Assert
+      await expect(result).rejects.toMatchObject({
+        message: 'fetch failed',
+        cause: expect.objectContaining(
+          api.isPrivateGateway() // Handle private & public api gateway
+            ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
+            : { code: 'ECONNREFUSED' }
+        ),
+      });
     });
 
     test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api }) => {
