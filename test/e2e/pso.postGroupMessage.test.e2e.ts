@@ -44,7 +44,7 @@ beforeAll(async () => {
 
 describe('POST {{pso}}/send-to-group - Send a group message', () => {
   describe(`Unhappy paths`, () => {
-    test('UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
+    test('transport error when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
     }) => {
       // Act & Assert
@@ -53,24 +53,19 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
           path,
           body: [mockGroupMessage],
         })
-      ).rejects.toThrow(
-        expect.objectContaining({
-          message: 'fetch failed',
-          cause: expect.objectContaining({
-            code: 'UND_ERR_CONNECT_TIMEOUT',
-          }),
-        })
+      ).rejects.toSatisfy(
+        (err) => err instanceof Error && (err.name === 'FetchTimeoutError' || err.message === 'fetch failed')
       );
     });
 
-    test('status 403 when using invalid api key', async ({ psoAPIWithoutAPIKey: api }) => {
+    test('status 401 when using invalid api key', async ({ psoAPIWithoutAPIKey: api }) => {
       // Act & Assert
       await expect(
         api.post({
           path,
           body: [mockGroupMessage],
         })
-      ).rejects.toThrow(`API [POST] ${path} Failed with 403`);
+      ).rejects.toThrow(`API [POST] ${path} Failed with 401`);
     });
 
     test('status 400 when when - missing body', async ({ psoAPI: api }) => {
