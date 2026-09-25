@@ -5,18 +5,6 @@ import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
 const path = `/v1/send-to-group`;
-
-const mockGroupMessage: Omit<IGroupMessage, 'OrganisationID'> = {
-  Namespace: 'test',
-  Group: 'end2end',
-  Subgroup: 'immediate',
-  GroupNotificationID: 'GROUP_ID' + uuid(),
-  NotificationTitle: 'End 2 End Test - POST Group Message',
-  NotificationBody: 'This is an end 2 end test!',
-  MessageTitle: 'End 2 End Test Message Title',
-  MessageBody: 'End 2 End Test Message Body',
-};
-
 const pushIDs = [
   `a53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
   `b53f62d9-a121-4a16-bd98-da89cd0cdfa0`,
@@ -43,6 +31,21 @@ beforeAll(async () => {
 });
 
 describe('POST {{pso}}/send-to-group - Send a group message', () => {
+  let mockGroupMessage: Omit<IGroupMessage, 'OrganisationID'>;
+
+  beforeEach(() => {
+    mockGroupMessage = {
+      Namespace: 'test',
+      Group: 'end2end',
+      Subgroup: 'immediate',
+      GroupNotificationID: 'GROUP_ID' + uuid(),
+      NotificationTitle: 'End 2 End Test - POST Group Message',
+      NotificationBody: 'This is an end 2 end test!',
+      MessageTitle: 'End 2 End Test Message Title',
+      MessageBody: 'End 2 End Test Message Body',
+    };
+  });
+
   describe(`Unhappy paths`, () => {
     test('transport error when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
@@ -359,11 +362,11 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       const result = await api.post({ path, body: messagesWithChannel });
 
       // Assert
+      expect(result.status).toEqual(202);
       const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
         timeout: 30000,
         interval: 2000,
       });
-      expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
       // TODO: Need a way to void test notification while adapter is not VOID.
       // expect(campaignStatus.DISPATCHED ).toBeGreaterThan(0);
@@ -385,11 +388,11 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
       const result = await api.post({ path, body: messagesWithChannel });
 
       // Assert
+      expect(result.status).toEqual(202);
       const campaignStatus = await vi.waitFor(() => checkCampaignStatus(api, campaignID), {
         timeout: 30000,
         interval: 2000,
       });
-      expect(result.status).toEqual(202);
       expect(campaignStatus.PROCESSED).toBeGreaterThan(0);
       // TODO: Need a way to determine dispatched status
       // expect(campaignStatus.DISPATCHED).toBeGreaterThan(0);

@@ -197,6 +197,12 @@ export const config = {
     },
   },
 
+  // Metrics
+  metrics: {
+    customNamespace: `NOTIFICATIONS_${prefix}`.replace('-', '_').toUpperCase(),
+    psoService: 'NOTIFICATIONS_PSO',
+  },
+
   // Helper functions
   utils: {
     constructNamingHelper: (...args: string[]) => camelCase(...args),

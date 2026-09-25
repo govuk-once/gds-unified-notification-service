@@ -1,3 +1,4 @@
+import { MetricsLabels } from '@common/services';
 import { Duration } from 'aws-cdk-lib';
 import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
@@ -7,8 +8,6 @@ import { UNSPSOResource } from 'infrastructure/cdk/constructs/UNSPSOResources';
 export class UNSPSOUtilization extends Construct {
   constructor(scope: Construct, id: string, config: EnvVars, refs: { pso: UNSPSOResource }) {
     super(scope, id);
-
-    const customNamespace = `NOTIFICATIONS_${config.prefix}`.replace('-', '_').toUpperCase();
     const apiName = refs.pso.gateway.restApi.restApiName;
 
     const createIncomingMetrics = (period: Duration) => {
@@ -22,9 +21,9 @@ export class UNSPSOUtilization extends Construct {
       });
 
       const queuedSuccessfully = new cw.Metric({
-        namespace: customNamespace,
-        metricName: 'QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY',
-        dimensionsMap: { environment: config.prefix, service: 'NOTIFICATIONS_POSTMESSAGE' },
+        namespace: config.metrics.customNamespace,
+        metricName: MetricsLabels.QUEUE_PROCESSING_PUBLISHED_SUCCESSFULLY,
+        dimensionsMap: { environment: config.prefix, service: config.metrics.psoService },
         label: 'Queued Successfully',
         statistic: 'Sum',
         period,

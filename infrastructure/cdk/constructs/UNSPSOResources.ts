@@ -15,6 +15,7 @@ import { UNSLambdaConstruct } from 'infrastructure/cdk/constructs/bases/UNSLambd
 import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
 import { UNSPSOFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOFlow';
+import { UNSPSOGroupFlow } from 'infrastructure/cdk/constructs/dashboards/UNSPSOGroupsFlow';
 import { UNSPSOUtilization } from 'infrastructure/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
@@ -61,6 +62,7 @@ export class UNSPSOResource extends Construct {
     flow: UNSPSOFlow;
     utilization: UNSPSOUtilization;
     service: Dashboard;
+    groupFlow?: UNSPSOGroupFlow;
   };
 
   constructor(
@@ -678,6 +680,9 @@ export class UNSPSOResource extends Construct {
         restApis: [this.gateway.restApi],
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
+      groupFlow: config.featureFlag.groups
+        ? new UNSPSOGroupFlow(this, 'pso-group-flow-dashboards', config, { pso: this })
+        : undefined,
     };
 
     //// =====================================================
