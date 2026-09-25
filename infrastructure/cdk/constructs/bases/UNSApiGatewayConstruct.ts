@@ -355,7 +355,7 @@ export class UNSAPIGatewayGateway extends Construct {
           actions: ['execute-api:Invoke'],
           resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
           conditions: {
-            StringNotEquals: {
+            'ForAllValues:StringNotEquals': {
               'aws:SourceVpce': props.iam.allowOnlyFromKnownSources.vpceIDs,
             },
           },

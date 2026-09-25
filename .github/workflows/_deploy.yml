@@ -17,6 +17,14 @@ on:
         required: true
 
 jobs:
+  e2e:
+    if: ${{ inputs.ENVIRONMENT != 'production' }}
+    needs: release
+    name: E2E in Codebuild (using Private Api Gateway),
+    uses: ./.github/workflows/_test_e2e.yml
+    with:
+      ENVIRONMENT: ${{ inputs.ENVIRONMENT }}
+    secrets: inherit
   release:
     name: Release
     runs-on: ubuntu-latest
