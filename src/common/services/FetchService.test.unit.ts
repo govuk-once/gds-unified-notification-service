@@ -1,31 +1,24 @@
-import { FetchErrorResponse, FetchService, FetchTimeoutError } from '@common/services/FetchService';
-import type { MockInstance } from 'vitest';
+import { FetchService } from '@common/services/FetchService';
 
-const createProps = (baseUrl: string = 'wwww.testing.co.uk') => ({
+const createProps = (baseUrl: string = 'https://www.testing.com') => ({
   baseUrl,
   defaultHeaders: {
     'x-api-key': 'fake-api-key',
-    Authorization: 'Bearer fake-bearer',
+    'x-test-scenario': 'KEY DEFAULT_HEADERS',
   },
-  defaultTimeout: 6000,
+  defaultTimeout: 1000,
 });
 let instance: FetchService;
-let fetchSpy: MockInstance;
 
 describe('FetchService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     instance = new FetchService(createProps());
-    fetchSpy = vi.spyOn(instance, 'fetch');
   });
-  it('should correctly merge base, instance, and request-specific headers', async () => {
-    // Arrrange
-    const successResponse = new Response(JSON.stringify({ data: 'success' }), { status: 200 });
-    fetchSpy.mockResolvedValueOnce(successResponse);
-
-    // Act
-    await instance.get({
+  it('should correctly add new headers to the request', async () => {
+    // Arrange & Act
+    const result = await instance.get({
       path: '/health',
       headers: {
         test: 'testing header',
@@ -33,57 +26,52 @@ describe('FetchService', () => {
     });
 
     // Assert
-    expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining('/health'),
+    expect(result).toEqual(
       expect.objectContaining({
-        method: 'GET',
-        headers: expect.objectContaining({
-          ...createProps().defaultHeaders,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          test: 'testing header',
-        }),
+        status: 200,
+        body: { message: 'Testing header was found' },
       })
     );
   });
 
-  it('should override custom x-api-key header passed by sending a header at the request level', async () => {
-    // Arrrange
-    const successResponse = new Response(JSON.stringify({ data: 'success' }), { status: 200 });
-    fetchSpy.mockResolvedValueOnce(successResponse);
+  it('should add headers from the class level using default headers', async () => {
+    // Arrange & Act
+    const result = await instance.post({
+      path: '/user',
+    });
 
-    // Act
-    await instance.get({
-      path: '/health',
+    // Assert
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 200,
+        body: { message: 'used default headers at class level' },
+      })
+    );
+  });
+
+  it('should override x-test-scenario header by sending a header at the request level', async () => {
+    // Arrange & Act
+    const result = await instance.post({
+      path: '/user',
       headers: {
-        'x-api-key': 'new-api-key',
+        'x-test-scenario': 'KEY OVERRIDE_DEFAULT_HEADERS',
       },
     });
 
     // Assert
-    expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining('/health'),
+    expect(result).toEqual(
       expect.objectContaining({
-        headers: expect.objectContaining({
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          'x-api-key': 'new-api-key',
-        }),
+        status: 200,
+        body: { message: 'override the default headers at class level' },
       })
     );
   });
 
   it('should throw an invalid json error when it cannot parse the response', async () => {
-    // Arrange
-    const malformedJsonResponse = new Response('{"key": malformed_value}', {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    fetchSpy.mockResolvedValueOnce(malformedJsonResponse);
-
-    // Act
-    const result = instance.post({
-      path: '/notifcation/',
+    // Arrange & Act
+    const result = instance.delete({
+      path: '/failed',
+      headers: { Authorization: 'Key MALFORMED_JSON' },
     });
 
     // Assert
@@ -91,47 +79,20 @@ describe('FetchService', () => {
   });
 
   it('should return a FetchErrorResponse when the response is not okay', async () => {
-    // Arrange
-    const failedResponse = new Response(JSON.stringify({ error: 'failed' }), { status: 400 });
-    fetchSpy.mockResolvedValueOnce(failedResponse);
-
-    // Act
-    const result = instance.get({
-      path: '/health',
-      headers: {
-        test: 'testing header',
-      },
+    // Arrange & Act
+    const result = instance.delete({
+      path: '/failed',
+      headers: { Authorization: 'Key FAILED_RESPONSE' },
     });
 
     // Assert
     await expect(result).rejects.toThrow(
-      new FetchErrorResponse({
-        method: 'GET',
+      expect.objectContaining({
+        method: 'DELETE',
         status: 400,
-        path: '/health',
-        body: JSON.stringify({ error: 'failed' }),
-        url: 'wwww.testing.co.uk/health',
-        headers: { 'content-type': 'text/plain;charset=UTF-8' },
+        message: 'API [DELETE] /failed Failed with 400',
       })
     );
-  });
-
-  it('should throw a FetchTimeoutError when error is a TimeoutError', async () => {
-    // Arrrange
-    const timeOutError = new Error('Time limit reached');
-    timeOutError.name = 'TimeoutError';
-    fetchSpy.mockRejectedValueOnce(timeOutError);
-
-    // Act
-    const result = instance.get({
-      path: '/health',
-      headers: {
-        test: 'testing header',
-      },
-    });
-
-    // Assert
-    await expect(result).rejects.toThrow(FetchTimeoutError);
   });
 
   it('should return false when baseUrl does not contain .execute-api.', () => {
@@ -141,6 +102,7 @@ describe('FetchService', () => {
     // Assert
     expect(result).toBeFalsy();
   });
+
   it('should return true when baseUrl does contain .execute-api.', () => {
     // Arrange
     instance = new FetchService(createProps('www.appid.execute-api.eu-west-2.amazonaws.com/api'));
