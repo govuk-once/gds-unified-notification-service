@@ -40,7 +40,8 @@
     [
       "@semantic-release/exec",
       {
-        "verifyReleaseCmd": "echo \"semVer=${nextRelease.version}\" >> $GITHUB_OUTPUT"
+        "verifyReleaseCmd": "echo \"semVer=${nextRelease.version}\" >> $GITHUB_OUTPUT",
+        "prepareCmd": "pnpm run changelog"
       }
     ],
     [
@@ -53,7 +54,13 @@
       "@semantic-release/github",
       {
         "successComment": false,
-        "failComment": false
+        "failComment": false,
+        "assets": [
+          {
+            "path": "CHANGELOG.md",
+            "label": "Full Changelog"
+          }
+        ]
       }
     ]
   ]
