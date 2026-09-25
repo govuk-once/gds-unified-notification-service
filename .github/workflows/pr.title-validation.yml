@@ -4,7 +4,9 @@ jobs:
   validate-pr-title:
     name: Validate PR Title
     runs-on: ubuntu-latest
-
+    concurrency:
+      group: pr-${{ github.event.number }}
+      cancel-in-progress: true
     steps:
       - name: Skip Dependabot PRs
         if: github.actor == 'dependabot[bot]'

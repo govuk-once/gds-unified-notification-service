@@ -23,6 +23,9 @@ jobs:
     environment:
       name: ${{ inputs.ENVIRONMENT }}
     timeout-minutes: 60
+    concurrency:
+      group: ${{ inputs.ENVIRONMENT }}
+      cancel-in-progress: false
     steps:
       # Setup
       - name: ⚙️ Checkout Code
