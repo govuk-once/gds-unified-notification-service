@@ -21,6 +21,7 @@ import {
   Distribution,
   OriginRequestHeaderBehavior,
   OriginRequestPolicy,
+  OriginRequestQueryStringBehavior,
   PriceClass,
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
@@ -524,6 +525,7 @@ export class UNSAPIGatewayGateway extends Construct {
               'CloudFront-Viewer-Cert-Pem',
               'CloudFront-Viewer-Cert-Validity'
             ),
+            queryStringBehavior: OriginRequestQueryStringBehavior.all(),
           }),
         },
         certificate: config.ssm.certificateArnCloudfront

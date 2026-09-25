@@ -74,11 +74,19 @@ describe('[GET] {{PSO}}/status/campaign/{campaignID}', () => {
         interval: 2000,
       });
 
-      // Act
-      const result = await psoAPI.get({ path: `/status/campaign/${campaignID}?departmentID=${departmentID}` });
+      // Act — poll until the campaign record is written (written after processing, not just validation)
+      const result = await vi.waitFor(
+        async () => {
+          const response = await psoAPI.get({
+            path: `/status/campaign/${campaignID}?departmentID=${departmentID}`,
+          });
+          expect(response.status).toBe(200);
+          return response;
+        },
+        { timeout: 30000, interval: 2000 }
+      );
 
       // Assert
-      expect(result.status).toBe(200);
       expect(result.body).toEqual({
         CampaignID: campaignID,
         DepartmentID: departmentID,
