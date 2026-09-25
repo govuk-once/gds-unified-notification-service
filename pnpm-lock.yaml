@@ -31,19 +31,19 @@ importers:
         version: 2.34.0
       '@aws-lambda-powertools/logger':
         specifier: ^2.34.0
-        version: 2.34.0(@aws-lambda-powertools/jmespath@2.34.0)(@middy/core@7.7.3)
+        version: 2.34.0(@aws-lambda-powertools/jmespath@2.34.0)(@middy/core@7.9.2)
       '@aws-lambda-powertools/metrics':
         specifier: ^2.34.0
-        version: 2.34.0(@middy/core@7.7.3)
+        version: 2.34.0(@middy/core@7.9.2)
       '@aws-lambda-powertools/parameters':
         specifier: ^2.34.0
-        version: 2.34.0(@aws-sdk/client-dynamodb@3.1083.0)(@aws-sdk/client-secrets-manager@3.1110.0)(@aws-sdk/client-ssm@3.1110.0)(@aws-sdk/util-dynamodb@3.996.8(@aws-sdk/client-dynamodb@3.1083.0))(@middy/core@7.7.3)
+        version: 2.34.0(@aws-sdk/client-dynamodb@3.1083.0)(@aws-sdk/client-secrets-manager@3.1110.0)(@aws-sdk/client-ssm@3.1110.0)(@aws-sdk/util-dynamodb@3.996.8(@aws-sdk/client-dynamodb@3.1083.0))(@middy/core@7.9.2)
       '@aws-lambda-powertools/parser':
         specifier: ^2.34.0
-        version: 2.34.0(@middy/core@7.7.3)(zod@4.4.3)
+        version: 2.34.0(@middy/core@7.9.2)(zod@4.4.3)
       '@aws-lambda-powertools/tracer':
         specifier: ^2.34.0
-        version: 2.34.0(@middy/core@7.7.3)
+        version: 2.34.0(@middy/core@7.9.2)
       '@aws-sdk/client-cloudwatch-logs':
         specifier: ^3.1110.0
         version: 3.1110.0
@@ -66,26 +66,20 @@ importers:
         specifier: ^3.972.44
         version: 3.972.44
       '@middy/core':
-        specifier: ^7.7.3
-        version: 7.7.3
+        specifier: ^7.9.2
+        version: 7.9.2
       '@middy/http-error-handler':
-        specifier: ^6.4.5
-        version: 6.4.5
+        specifier: ^7.9.2
+        version: 7.9.2
       '@middy/http-event-normalizer':
-        specifier: ^6.4.5
-        version: 6.4.5
+        specifier: ^7.9.2
+        version: 7.9.2
       '@middy/http-header-normalizer':
-        specifier: ^6.4.5
-        version: 6.4.5
+        specifier: ^7.9.2
+        version: 7.9.2
       '@middy/http-json-body-parser':
-        specifier: ^6.4.5
-        version: 6.4.5
-      '@middy/http-urlencode-body-parser':
-        specifier: ^6.4.5
-        version: 6.4.5
-      '@middy/secrets-manager':
-        specifier: ^6.4.5
-        version: 6.4.5
+        specifier: ^7.9.2
+        version: 7.9.2
       '@smithy/hash-node':
         specifier: ^4.5.0
         version: 4.5.0
@@ -1038,8 +1032,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@middy/core@7.7.3':
-    resolution: {integrity: sha512-p/BgM230u87cVq1W4nMmADKZlR6GW4pOWK3rlTBJkLSfApZhqvLz5A+FI7mWJ7uN8Yr+5tSwM5LTwBXKi297hA==}
+  '@middy/core@7.9.2':
+    resolution: {integrity: sha512-3VJ8m6KjGyMMHjgbmAxHai8f97VOU71XTyjFI+lnLqC0Dng+5zxXfuagFXUQTHRL2xj16p+mKmWtbTnxkwF5zw==}
     engines: {node: '>=22'}
     peerDependencies:
       '@aws/durable-execution-sdk-js': ^2.0.0
@@ -1047,36 +1041,24 @@ packages:
       '@aws/durable-execution-sdk-js':
         optional: true
 
-  '@middy/http-error-handler@6.4.5':
-    resolution: {integrity: sha512-0El5exXIl5QW47kQQTx1lVk0dZC961hGK6TVd+jtQAv9tpN6ibZQaRI7CaL8b+bmAgsdsxZQmEqoLOBhhW5gQQ==}
-    engines: {node: '>=20'}
+  '@middy/http-error-handler@7.9.2':
+    resolution: {integrity: sha512-f3BFDG34COt6bqt0CTW0T2ZEORjCObNhpbJWU3sTRZ8DQwGynz/kBep6xO2yswLu3+8nbqqKSEdxUKCjsj874g==}
+    engines: {node: '>=22'}
 
-  '@middy/http-event-normalizer@6.4.5':
-    resolution: {integrity: sha512-k4vcW84haS5M876vsFV8XCTS5TgP1/pMPA4OmV3lQaptuVnR5E/xTCVVaWwiB2tXQL12qPQNg3ikV7hUCS+kAQ==}
-    engines: {node: '>=20'}
+  '@middy/http-event-normalizer@7.9.2':
+    resolution: {integrity: sha512-71zQTZ0pwtt++kDOQ11ZZpTOaHC4X0g9iVprXO5xS0pH7EqhwwMtbjuO0nEivLez96Yp9YwjZznafvZGhZEnQw==}
+    engines: {node: '>=22'}
 
-  '@middy/http-header-normalizer@6.4.5':
-    resolution: {integrity: sha512-O/EnjIx9sPCU96ZwVVYXIz7RTa8XvUoWckK7Iq3/H75wZ7oYAbQJMqqvmEzR/VjvsSmK81HN+kyMqFtZmEjdog==}
-    engines: {node: '>=20'}
+  '@middy/http-header-normalizer@7.9.2':
+    resolution: {integrity: sha512-er/x7UGiDPO4tYiyZx2Hi4Qh99SQbj5/aa1m15OKhOZFiaOlrnfbyzMiPNAeSIgBZ2clJVrxL74RTL4BSAjqLA==}
+    engines: {node: '>=22'}
 
-  '@middy/http-json-body-parser@6.4.5':
-    resolution: {integrity: sha512-laK78DjphVJTDNPYFy2v7B6Tj0Pby96+HBxJ3AE9De1WcfKkeFbII+K0WR2KJND8+61fzHPWnPCGoRWB7AD3RQ==}
-    engines: {node: '>=20'}
+  '@middy/http-json-body-parser@7.9.2':
+    resolution: {integrity: sha512-pS+irP7AUNOs3EXaFleknlzINAfLeseHn9U19rQ7qy0gVR0xtYqgzqBWlqEELVkUSlbokCu9dOyS1vxXiIn0BQ==}
+    engines: {node: '>=22'}
 
-  '@middy/http-urlencode-body-parser@6.4.5':
-    resolution: {integrity: sha512-AB2tQ6c0dyrnSm/vkNlfj7Svk9rI4cAyWB/dL+Vuxcof7ELVpTt7+R7VuOxZmVsBRqtQ1ym7niILq+Mpwc89UA==}
-    engines: {node: '>=20'}
-
-  '@middy/secrets-manager@6.4.5':
-    resolution: {integrity: sha512-bKy3R4Gyaug8Y8+jw4hYaYBpL+2BU18Qozm7EPTe/YswLhr/NCq22eayJbiqnKdLCNI+AHVyUW8GuoXJrGv6gw==}
-    engines: {node: '>=20'}
-
-  '@middy/util@6.4.5':
-    resolution: {integrity: sha512-170ml5Q8QIHjric+ynwmDoa1sbcaMkUJumpUNxubqzStN7rEebVHnzXLQBwvSAhp7Fhcja7q2JLo0yjHpyPO4Q==}
-    engines: {node: '>=20'}
-
-  '@middy/util@7.7.3':
-    resolution: {integrity: sha512-EINBXiWfzkk9yT1f9X3UA5/nhBhCbu5YyjM6UQ0Yx/rXHQ75ORennA/2LZKJatC34t6R9j6KsGDIlqh3E4f3cQ==}
+  '@middy/util@7.9.2':
+    resolution: {integrity: sha512-H2NDN08V2LKk04mnEOH0PMuSTckKpbYXamL2BsGP/QigQx0uXKaVISVK9/DLLEp3VxJofBTTBXK1QT0lypm8gg==}
     engines: {node: '>=22'}
 
   '@mswjs/interceptors@0.41.9':
@@ -3799,22 +3781,22 @@ snapshots:
     dependencies:
       '@aws-lambda-powertools/commons': 2.34.0
 
-  '@aws-lambda-powertools/logger@2.34.0(@aws-lambda-powertools/jmespath@2.34.0)(@middy/core@7.7.3)':
+  '@aws-lambda-powertools/logger@2.34.0(@aws-lambda-powertools/jmespath@2.34.0)(@middy/core@7.9.2)':
     dependencies:
       '@aws-lambda-powertools/commons': 2.34.0
       '@aws/lambda-invoke-store': 0.3.0
     optionalDependencies:
       '@aws-lambda-powertools/jmespath': 2.34.0
-      '@middy/core': 7.7.3
+      '@middy/core': 7.9.2
 
-  '@aws-lambda-powertools/metrics@2.34.0(@middy/core@7.7.3)':
+  '@aws-lambda-powertools/metrics@2.34.0(@middy/core@7.9.2)':
     dependencies:
       '@aws-lambda-powertools/commons': 2.34.0
       '@aws/lambda-invoke-store': 0.3.0
     optionalDependencies:
-      '@middy/core': 7.7.3
+      '@middy/core': 7.9.2
 
-  '@aws-lambda-powertools/parameters@2.34.0(@aws-sdk/client-dynamodb@3.1083.0)(@aws-sdk/client-secrets-manager@3.1110.0)(@aws-sdk/client-ssm@3.1110.0)(@aws-sdk/util-dynamodb@3.996.8(@aws-sdk/client-dynamodb@3.1083.0))(@middy/core@7.7.3)':
+  '@aws-lambda-powertools/parameters@2.34.0(@aws-sdk/client-dynamodb@3.1083.0)(@aws-sdk/client-secrets-manager@3.1110.0)(@aws-sdk/client-ssm@3.1110.0)(@aws-sdk/util-dynamodb@3.996.8(@aws-sdk/client-dynamodb@3.1083.0))(@middy/core@7.9.2)':
     dependencies:
       '@aws-lambda-powertools/commons': 2.34.0
     optionalDependencies:
@@ -3822,23 +3804,23 @@ snapshots:
       '@aws-sdk/client-secrets-manager': 3.1110.0
       '@aws-sdk/client-ssm': 3.1110.0
       '@aws-sdk/util-dynamodb': 3.996.8(@aws-sdk/client-dynamodb@3.1083.0)
-      '@middy/core': 7.7.3
+      '@middy/core': 7.9.2
 
-  '@aws-lambda-powertools/parser@2.34.0(@middy/core@7.7.3)(zod@4.4.3)':
+  '@aws-lambda-powertools/parser@2.34.0(@middy/core@7.9.2)(zod@4.4.3)':
     dependencies:
       '@aws-lambda-powertools/commons': 2.34.0
       '@standard-schema/spec': 1.1.0
     optionalDependencies:
-      '@middy/core': 7.7.3
+      '@middy/core': 7.9.2
       zod: 4.4.3
 
-  '@aws-lambda-powertools/tracer@2.34.0(@middy/core@7.7.3)':
+  '@aws-lambda-powertools/tracer@2.34.0(@middy/core@7.9.2)':
     dependencies:
       '@aws-lambda-powertools/commons': 2.34.0
       '@aws/lambda-invoke-store': 0.3.0
       aws-xray-sdk-core: 3.12.0
     optionalDependencies:
-      '@middy/core': 7.7.3
+      '@middy/core': 7.9.2
 
   '@aws-sdk/checksums@3.1000.27':
     dependencies:
@@ -4701,31 +4683,27 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@middy/core@7.7.3':
+  '@middy/core@7.9.2':
     dependencies:
-      '@middy/util': 7.7.3
+      '@middy/util': 7.9.2
 
-  '@middy/http-error-handler@6.4.5':
+  '@middy/http-error-handler@7.9.2':
     dependencies:
-      '@middy/util': 6.4.5
+      '@middy/util': 7.9.2
 
-  '@middy/http-event-normalizer@6.4.5': {}
-
-  '@middy/http-header-normalizer@6.4.5': {}
-
-  '@middy/http-json-body-parser@6.4.5':
+  '@middy/http-event-normalizer@7.9.2':
     dependencies:
-      '@middy/util': 6.4.5
+      '@middy/util': 7.9.2
 
-  '@middy/http-urlencode-body-parser@6.4.5': {}
-
-  '@middy/secrets-manager@6.4.5':
+  '@middy/http-header-normalizer@7.9.2':
     dependencies:
-      '@middy/util': 6.4.5
+      '@middy/util': 7.9.2
 
-  '@middy/util@6.4.5': {}
+  '@middy/http-json-body-parser@7.9.2':
+    dependencies:
+      '@middy/util': 7.9.2
 
-  '@middy/util@7.7.3': {}
+  '@middy/util@7.9.2': {}
 
   '@mswjs/interceptors@0.41.9':
     dependencies:
