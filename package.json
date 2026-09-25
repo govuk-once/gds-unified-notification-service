@@ -22,6 +22,7 @@
     "lint": "eslint . --cache --cache-location .eslintcache --concurrency=auto --stats && prettier . --check --cache --cache-location",
     "pre-commit": "tsx scripts/pre-commit.ts",
     "prepare": "husky",
+    "changelog": "tsx scripts/generate-changelog.ts",
     "release:announcement": "tsx scripts/release-announcement.ts",
     "semantic:release": "semantic-release",
     "test:coverage": "vitest run --coverage --project unit",
