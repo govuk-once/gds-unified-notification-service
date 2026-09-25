@@ -29,7 +29,9 @@ export const IMessageRecordSchema = z.object({
   ValidatedDateTime: z.string().optional(),
   ProcessedDateTime: z.string().optional(),
   DispatchedDateTime: z.string().optional(),
-  ExpirationDateTime: z.string().optional(),
+  // Fallback for pre migration
+  // TODO: migrate data to new schema
+  ExpirationDateTime: z.number().optional().catch(undefined),
 
   // Configurations
   RequestedDaysToExpire: z.int().positive().optional(),
@@ -44,6 +46,8 @@ export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
   ReceivedDateTime: z.string(),
   ValidatedDateTime: z.string(),
   ProcessedDateTime: z.string(),
-  ExpirationDateTime: z.string(),
+  // Fallback for pre migration
+  // TODO: migrate data to new schema
+  ExpirationDateTime: z.number().optional().catch(undefined),
 });
 export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

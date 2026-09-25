@@ -443,9 +443,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   protected createExpirationDatePartial(expirationInDays?: number): Partial<z.infer<RecordSchema>> {
     if (this.tableAttributes.expirationAttribute && expirationInDays) {
       return {
-        [this.tableAttributes.expirationAttribute]: new Date(
-          Date.now() + expirationInDays * 24 * 60 * 60 * 1000
-        ).toISOString(),
+        [this.tableAttributes.expirationAttribute]: Date.now() + expirationInDays * 24 * 60 * 60 * 1000,
       } as Partial<z.infer<RecordSchema>>;
     }
 
@@ -455,9 +453,8 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       this.tableAttributes.expirationDurationInSeconds > 0
     ) {
       return {
-        [this.tableAttributes.expirationAttribute]: new Date(
-          Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
-        ).toISOString(),
+        [this.tableAttributes.expirationAttribute]:
+          Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000,
       } as Partial<z.infer<RecordSchema>>;
     }
 

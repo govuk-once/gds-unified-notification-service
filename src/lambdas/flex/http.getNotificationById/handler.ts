@@ -75,8 +75,13 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
       throw new NotFoundError();
     }
 
+    this.observability.logger.error(`notification.ExpirationDateTime < Date.now()`, {
+      expiration: notification.ExpirationDateTime,
+      now: Date.now(),
+      result: notification.ExpirationDateTime && notification.ExpirationDateTime < Date.now(),
+    });
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
-    if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+    if (notification.ExpirationDateTime !== undefined && notification.ExpirationDateTime < Date.now()) {
       this.observability.logger.debug('Notification has expired - returning 404');
       throw new NotFoundError();
     }
