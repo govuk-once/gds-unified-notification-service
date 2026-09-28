@@ -1,34 +1,30 @@
 import {
   ChannelsControlPreset,
+  DeeplinkPreset,
   IOrganisationRecordBuilder,
   MessageRetentionPresent,
 } from '@common/models/OrganisationMetadata';
 import { EnvVars } from 'infrastructure/cdk/config';
 
 export const orgMetadata = {
-  // Internal test account
+  // Internal test accounts
   UNS: IOrganisationRecordBuilder('UNS', {
     Channels: ChannelsControlPreset.All,
     MessageRetention: MessageRetentionPresent.OneMonth,
-    DeeplinkAllowList: [
-      {
-        protocol: 'govuk:',
-      },
-      {
-        protocol: 'https:',
-      },
-    ],
+    DeeplinkAllowList: DeeplinkPreset.AppOnly,
   }),
 
   // Consumers
   DVLA: IOrganisationRecordBuilder('DVLA', {
-    Channels: ChannelsControlPreset.None,
-    MessageRetention: MessageRetentionPresent.NotAllowed,
+    Channels: ChannelsControlPreset.All,
+    MessageRetention: MessageRetentionPresent.OneMonth,
+    DeeplinkAllowList: DeeplinkPreset.AppOnly,
   }),
 
   EventsAggregator: IOrganisationRecordBuilder('Foreign Travel Advice', {
     Channels: ChannelsControlPreset.Standard,
-    MessageRetention: MessageRetentionPresent.NotAllowed,
+    MessageRetention: MessageRetentionPresent.OneMonth,
+    DeeplinkAllowList: DeeplinkPreset.AppOnly,
   }),
 } as const;
 

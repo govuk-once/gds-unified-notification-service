@@ -13,6 +13,15 @@ export const ChannelsControlPreset = {
   All: [ChannelsEnum.PUSH_NOTIFICATION_AND_MESSAGE_CENTRE, ChannelsEnum.MESSAGE_CENTRE_ONLY] as ChannelsEnum[],
 };
 
+export const DeeplinkPreset = {
+  None: [] as IOrganisationConfig['DeeplinkAllowList'],
+  AppOnly: [
+    {
+      protocol: 'govuk:',
+    },
+  ] as IOrganisationConfig['DeeplinkAllowList'],
+};
+
 export const IOrganisationRecordBuilder = (displayName: string, props: IOrganisationConfig) => {
   return {
     DisplayName: displayName,
@@ -20,6 +29,7 @@ export const IOrganisationRecordBuilder = (displayName: string, props: IOrganisa
       ...props,
       MessageRetention: props.MessageRetention ?? MessageRetentionPresent.NotAllowed,
       Channels: props.Channels ?? ChannelsControlPreset.None,
+      DeeplinkAllowList: props.DeeplinkAllowList ?? DeeplinkPreset.None,
     },
   };
 };

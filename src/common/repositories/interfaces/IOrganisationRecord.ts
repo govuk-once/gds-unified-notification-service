@@ -1,4 +1,5 @@
 import { ChannelsEnum } from '@common/models';
+import { ChannelsControlPreset, MessageRetentionPresent } from '@common/models/OrganisationMetadata';
 import z from 'zod';
 
 export const IOrganisationConfigSchema = z.object({
@@ -41,8 +42,9 @@ export const IOrganisationConfigSchema = z.object({
         }
       }
     })
+    .catch(MessageRetentionPresent.NotAllowed)
     .optional(),
-  Channels: z.enum(ChannelsEnum).array().optional(),
+  Channels: z.enum(ChannelsEnum).array().catch(ChannelsControlPreset.None).optional(),
 
   DeeplinkAllowList: z
     .object({
