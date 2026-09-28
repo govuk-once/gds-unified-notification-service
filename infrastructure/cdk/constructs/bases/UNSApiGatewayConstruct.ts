@@ -567,7 +567,7 @@ export class UNSAPIGatewayGateway extends Construct {
     this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
 
     // Shield Advanced protection for the CloudFront distribution - staging & production only
-    if (distribution && config.isNonDevEnv) {
+    if (distribution && config.isNonDevEnv && config.isMainEnv) {
       this.shieldProtection = this.constructShieldProtection(config, props, distribution);
     }
 
