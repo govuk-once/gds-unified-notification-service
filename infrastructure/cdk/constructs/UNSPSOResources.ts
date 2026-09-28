@@ -144,9 +144,11 @@ export class UNSPSOResource extends Construct {
     };
 
     Object.values(this.queues).forEach((queue) => {
-      applyPiiTag(queue, 'unknown');
-      applyPiiTag(queue.dlq, 'unknown');
-      applyExposureTag(queue, 'Isolated');
+      if (queue) {
+        applyPiiTag(queue, 'unknown');
+        applyPiiTag(queue.dlq, 'unknown');
+        applyExposureTag(queue, 'Isolated');
+      }
     });
     applyPiiTag(this.queues.analytics.queue, 'false');
     applyPiiTag(this.queues.analytics.dlq, 'false');

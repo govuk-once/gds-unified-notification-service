@@ -24,7 +24,7 @@ export const productionConsumers: () => GroupedConsumerCertificates = () => [
     commonName: 'dvla',
     organization: 'DVLA',
     organizationalUnit: 'dvla',
-    startDate: new Date('2026-10-05T23:59:59Z'),
+    startDate: new Date('2026-09-27T23:59:59Z'),
     frequencyInMonths: 4,
     migrationPeriodInWeeks: 4,
   }),
