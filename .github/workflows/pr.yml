@@ -14,9 +14,6 @@ jobs:
   pr:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    concurrency:
-      group: pr-${{ github.event.number }}
-      cancel-in-progress: false
     steps:
       # Setup
       - name: ⚙️ Checkout Code
