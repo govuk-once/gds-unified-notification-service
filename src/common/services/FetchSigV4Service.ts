@@ -39,9 +39,8 @@ export class FetchSigV4Service extends FetchService {
 
   async fetch(url: FetchInputParameter, init?: FetchOptionsParameter): Promise<Response> {
     const { roleArn, externalId, region, sessionName } = this.props.credentials;
-
     const parsedUrl = new URL(url as string);
-    const bodyString = init?.body ? JSON.stringify(init?.body) : undefined;
+    const bodyString = init?.body as string | undefined;
 
     const query: Record<string, string> = {};
     parsedUrl.searchParams.forEach((value, key) => {

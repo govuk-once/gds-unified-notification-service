@@ -9,10 +9,25 @@ export type UNSDynamoDbWriterProps = {
   data: Record<string, string | number | boolean | object>;
 };
 
+// CloudFormation stringifies all primitives in Custom Resource properties before invoking the Lambda.
+// This restores boolean and number types recursively throughout nested objects.
+function coerceValue(value: unknown): unknown {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (typeof value === 'string' && value !== '' && !Number.isNaN(Number(value))) return Number(value);
+  if (Array.isArray(value)) return value.map(coerceValue);
+  if (typeof value === 'object' && value !== null) return deepCoercePrimitives(value as Record<string, unknown>);
+  return value;
+}
+
+function deepCoercePrimitives(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, coerceValue(value)]));
+}
+
 export const handler = async (event: CloudFormationCustomResourceEvent<UNSDynamoDbWriterProps>) => {
   // Allow this handler to handle hashing of values, any property with suffix `ToSerializeToSha256` will be hashed, and have the suffix removed
   // This is needed due to CDK limitations of not being able to generate hashes on references
-  const data = { ...event.ResourceProperties.data };
+  const data: Record<string, unknown> = { ...event.ResourceProperties.data };
   for (const [key, value] of Object.entries(data)) {
     if (key.endsWith('ToSerializeToSha256')) {
       data[key.replace(`ToSerializeToSha256`, ``)] = createHash('sha256')
@@ -20,11 +35,9 @@ export const handler = async (event: CloudFormationCustomResourceEvent<UNSDynamo
         .digest('hex');
       delete data[key];
     }
-    // If value is a boolean string - CDK seems to be loosing this definition when passing the message
-    if (value === 'true' || value === 'false') {
-      data[key] = value === 'true';
-    }
   }
+  // Recursively restore booleans and numbers that CloudFormation converted to strings
+  Object.assign(data, deepCoercePrimitives(data));
 
   // Dont delete records, mark them as deleted instead & update the values
   data['Deleted'] = event.RequestType === 'Delete';

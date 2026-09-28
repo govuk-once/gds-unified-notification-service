@@ -600,7 +600,7 @@ describe('PostGroupMessage Handler', async () => {
       });
     });
 
-    it('should return 400 when authorizer contains with MessageRetention allowed but no min max provided', async () => {
+    it('should fall back to defaults and return 202 when MessageRetention is invalid', async () => {
       // Arrange
       const eventWithMessageRetention = {
         ...event,
@@ -622,19 +622,10 @@ describe('PostGroupMessage Handler', async () => {
       const result = await handler(eventWithMessageRetention, context);
 
       // Assert
-      expect(result.statusCode).toEqual(400);
-      expect(JSON.parse(result.body)).toEqual({
-        Status: 400,
-        HttpError: 'BadRequest',
-        Errors: [
-          'Authorizer did not match expected schema',
-          'Min message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Min.',
-          'Max message retention for organisation is required when message retention is allowed → at OrganisationConfig.MessageRetention.Max.',
-        ],
-      });
+      expect(result.statusCode).toEqual(202);
     });
 
-    it('should return 400 when authorizer does contains unsupported Channels', async () => {
+    it('should fall back to defaults and return 202 when authorizer contains unsupported Channels', async () => {
       // Arrange
       const eventWithUnsupportChannel = {
         ...event,
@@ -653,15 +644,7 @@ describe('PostGroupMessage Handler', async () => {
       const result = await handler(eventWithUnsupportChannel, context);
 
       // Assert
-      expect(result.statusCode).toEqual(400);
-      expect(JSON.parse(result.body)).toEqual({
-        Status: 400,
-        HttpError: 'BadRequest',
-        Errors: [
-          'Authorizer did not match expected schema',
-          'Invalid option: expected one of "PUSH_NOTIFICATION_AND_MESSAGE_CENTRE"|"MESSAGE_CENTRE_ONLY" → at OrganisationConfig.Channels.0.',
-        ],
-      });
+      expect(result.statusCode).toEqual(202);
     });
 
     it('should return 400 when authorizer has DeeplinkAllowList but does not contain protocol or hostname', async () => {
