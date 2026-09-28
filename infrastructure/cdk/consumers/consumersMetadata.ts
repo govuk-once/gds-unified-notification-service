@@ -11,7 +11,7 @@ export const orgMetadata = {
   UNS: IOrganisationRecordBuilder('UNS', {
     Channels: ChannelsControlPreset.All,
     MessageRetention: MessageRetentionPresent.OneMonth,
-    DeeplinkAllowList: DeeplinkPreset.AppOnly,
+    DeeplinkAllowList: DeeplinkPreset.AppAndWeb,
   }),
 
   // Consumers

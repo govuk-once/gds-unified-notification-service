@@ -20,6 +20,14 @@ export const DeeplinkPreset = {
       protocol: 'govuk:',
     },
   ] as IOrganisationConfig['DeeplinkAllowList'],
+  AppAndWeb: [
+    {
+      protocol: 'govuk:',
+    },
+    {
+      protocol: 'https:',
+    },
+  ] as IOrganisationConfig['DeeplinkAllowList'],
 };
 
 export const IOrganisationRecordBuilder = (displayName: string, props: IOrganisationConfig) => {
