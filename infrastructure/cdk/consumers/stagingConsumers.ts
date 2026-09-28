@@ -46,6 +46,14 @@ export const stagingConsumers: () => GroupedConsumerCertificates = () => [
     expirationDate: new Date('2026-06-16T23:59:59Z'),
     revoked: false,
   }),
+  certificate({
+    commonName: 'pentest.2026-Q3',
+    organization: 'pentest',
+    organizationalUnit: 'pentest',
+    startDate: new Date('2026-09-27T23:59:59Z'),
+    expirationDate: new Date('2026-11-08T23:59:59Z'),
+    revoked: false,
+  }),
 
   // Events Aggregator
   certificate({
