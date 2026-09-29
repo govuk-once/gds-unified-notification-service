@@ -5,7 +5,7 @@ export default class DateInSeconds {
     return Math.floor(Date.now() / 1000);
   }
 
-  public static toSeconds(input: Date | string): number {
+  public static toUnix(input: Date | string): number {
     if (typeof input === 'string') {
       const inputDate = new Date(input);
 

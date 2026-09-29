@@ -36,14 +36,14 @@ describe('DateInSeconds', () => {
     });
   });
 
-  describe('toSeconds', () => {
+  describe('toUnix', () => {
     it('should convert a Date object to seconds', () => {
       // Arrange
       const date = new Date('2025-06-15T12:00:00Z');
       const expectedSeconds = Math.floor(date.getTime() / 1000);
 
       // Act
-      const result = DateInSeconds.toSeconds(date);
+      const result = DateInSeconds.toUnix(date);
 
       // Assert
       expect(result).toBe(expectedSeconds);
@@ -55,7 +55,7 @@ describe('DateInSeconds', () => {
       const expectedSeconds = Math.floor(new Date(dateString).getTime() / 1000);
 
       // Act
-      const result = DateInSeconds.toSeconds(dateString);
+      const result = DateInSeconds.toUnix(dateString);
 
       // Assert
       expect(result).toBe(expectedSeconds);
@@ -66,7 +66,7 @@ describe('DateInSeconds', () => {
       const date = new Date('2025-06-15T12:00:00.999Z');
 
       // Act
-      const result = DateInSeconds.toSeconds(date);
+      const result = DateInSeconds.toUnix(date);
 
       // Assert
       expect(Number.isInteger(result)).toBe(true);
@@ -78,7 +78,7 @@ describe('DateInSeconds', () => {
       const dateString = '2025-06-15T12:00:00.999Z';
 
       // Act
-      const result = DateInSeconds.toSeconds(dateString);
+      const result = DateInSeconds.toUnix(dateString);
 
       // Assert
       expect(Number.isInteger(result)).toBe(true);
@@ -89,10 +89,10 @@ describe('DateInSeconds', () => {
       const dateString = '2025-06-15T12:00:00Z';
       const dateObject = new Date(dateString);
 
-      const fromDate = DateInSeconds.toSeconds(dateObject);
+      const fromDate = DateInSeconds.toUnix(dateObject);
 
       // Act
-      const fromString = DateInSeconds.toSeconds(dateString);
+      const fromString = DateInSeconds.toUnix(dateString);
 
       // Assert
       expect(fromString).toBe(fromDate);
@@ -103,7 +103,7 @@ describe('DateInSeconds', () => {
       const invalidString = 'not-a-date';
 
       // Act
-      const result = () => DateInSeconds.toSeconds(invalidString);
+      const result = () => DateInSeconds.toUnix(invalidString);
 
       // Act & Assert
       expect(result).toThrow(ParsingFailedError);
@@ -111,7 +111,7 @@ describe('DateInSeconds', () => {
 
     it('should throw ParsingFailedError for an empty string', () => {
       // Act
-      const result = () => DateInSeconds.toSeconds('');
+      const result = () => DateInSeconds.toUnix('');
 
       // Assert
       expect(result).toThrow(ParsingFailedError);
