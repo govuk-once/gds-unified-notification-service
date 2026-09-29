@@ -95,7 +95,7 @@ describe('getNotifications Handler', async () => {
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValueOnce([
       {
         ...messageRecord,
-        ExpirationDateTime: new Date(0).getTime(), // 1970
+        ExpirationDateTime: 0, // 1970
       },
     ]);
 

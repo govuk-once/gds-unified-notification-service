@@ -2,6 +2,7 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models';
 import { IDynamoAttributesSchema, IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
@@ -80,7 +81,7 @@ describe('NotificationsDynamoRepository', async () => {
       vi.useFakeTimers();
       const date = new Date();
       vi.setSystemTime(date);
-      const expirationDate = date.getTime() + 30 * 60 * 60 * 24 * 1000;
+      const expirationDate = DateInSeconds.toSeconds(date) + 30 * 60 * 60 * 24;
 
       // Act
       await instance.createRecord(messageRecord);
@@ -148,7 +149,7 @@ describe('NotificationsDynamoRepository', async () => {
       });
 
       const record: IMessageRecord = { ...recordBody, RequestedDaysToExpire: 25 };
-      const expirationDateTime = date.getTime() + 25 * 24 * 60 * 60 * 1000;
+      const expirationDateTime = DateInSeconds.toSeconds(date) + 25 * 24 * 60 * 60;
 
       // Act
       await instance.createRecord(record);
@@ -428,9 +429,10 @@ describe('NotificationsDynamoRepository', async () => {
     it('should use fallback if expiration date is in datetime string format', async () => {
       // Arrange
       const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+      const ExpirationDateTimeInMS = messageRecordWithExpiration.ExpirationDateTime! * 1000;
       const dynamoItemWithDatetime = {
         ...messageRecordWithExpiration,
-        ExpirationDateTime: new Date(messageRecordWithExpiration.ExpirationDateTime!).toISOString(),
+        ExpirationDateTime: new Date(ExpirationDateTimeInMS).toISOString(),
       };
       const messageRecordWithNoExpiration = {
         ...messageRecordWithExpiration,

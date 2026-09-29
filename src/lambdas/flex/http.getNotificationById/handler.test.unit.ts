@@ -127,7 +127,7 @@ describe('GetNotificationById Handler', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue({
       ...messageRecord,
-      ExpirationDateTime: new Date(0).getTime(),
+      ExpirationDateTime: 0,
     });
 
     // Act

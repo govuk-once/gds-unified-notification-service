@@ -14,6 +14,7 @@ import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models
 import { IDynamoAttributes } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 import { zodErrorFormatter } from '@common/utils';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
@@ -443,7 +444,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   protected createExpirationDatePartial(expirationInDays?: number): Partial<z.infer<RecordSchema>> {
     if (this.tableAttributes.expirationAttribute && expirationInDays) {
       return {
-        [this.tableAttributes.expirationAttribute]: Date.now() + expirationInDays * 24 * 60 * 60 * 1000,
+        [this.tableAttributes.expirationAttribute]: DateInSeconds.now() + expirationInDays * 24 * 60 * 60,
       } as Partial<z.infer<RecordSchema>>;
     }
 
@@ -454,7 +455,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     ) {
       return {
         [this.tableAttributes.expirationAttribute]:
-          Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000,
+          DateInSeconds.now() + this.tableAttributes.expirationDurationInSeconds,
       } as Partial<z.infer<RecordSchema>>;
     }
 
