@@ -89,9 +89,10 @@ describe('DateInSeconds', () => {
       const dateString = '2025-06-15T12:00:00Z';
       const dateObject = new Date(dateString);
 
+      const fromDate = DateInSeconds.toSeconds(dateObject);
+
       // Act
       const fromString = DateInSeconds.toSeconds(dateString);
-      const fromDate = DateInSeconds.toSeconds(dateObject);
 
       // Assert
       expect(fromString).toBe(fromDate);
@@ -101,13 +102,19 @@ describe('DateInSeconds', () => {
       // Arrange
       const invalidString = 'not-a-date';
 
+      // Act
+      const result = () => DateInSeconds.toSeconds(invalidString);
+
       // Act & Assert
-      expect(() => DateInSeconds.toSeconds(invalidString)).toThrow(ParsingFailedError);
+      expect(result).toThrow(ParsingFailedError);
     });
 
     it('should throw ParsingFailedError for an empty string', () => {
-      // Act & Assert
-      expect(() => DateInSeconds.toSeconds('')).toThrow(ParsingFailedError);
+      // Act
+      const result = () => DateInSeconds.toSeconds('');
+
+      // Assert
+      expect(result).toThrow(ParsingFailedError);
     });
   });
 });
