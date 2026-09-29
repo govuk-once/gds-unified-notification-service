@@ -43,10 +43,38 @@ jobs:
       - name: ⚙️ Install Dependencies
         run: pnpm ci
 
+      # Download both artifacts in parallel — they are independent of each other
+      - parallel:
+          - name: ⬇️ Download dist artifact
+            id: download-dist
+            continue-on-error: true
+            uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+            with:
+              name: dist
+              path: ./dist
+
+          - name: ⬇️ Download coverage
+            uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+            with:
+              name: coverage.report
+              path: ./coverage
+
       - name: 🔨 Build bundles
+        if: steps.download-dist.outcome == 'failure'
         run: pnpm run build
 
-      # CDK Validation - Explicitly overwriting AWS env vars so CDK:SYNTH ignores assumed role
+      # SonarQube scan starts in background while the CDK chain runs in the foreground.
+      # Coverage is already in ./coverage from the parallel download above.
+      - name: 🕵🏻 Run SonarQube Scan
+        id: sonar-scan
+        background: true
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+      # CDK Validation runs in the foreground while the SonarQube scan runs in the background
       - name: 🏗️ CDK Synth (mock env)
         run: |
           env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
@@ -69,19 +97,8 @@ jobs:
         with:
           sarif_file: results.sarif
 
-      # SonarQube - Scan, Gate, Report
-      - name: Download coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: coverage.report
-          path: ./coverage
-
-      - name: 🕵🏻 Run SonarQube Scan
-        continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+      # Wait for the SonarQube scan (background) before running the quality gate
+      - wait: sonar-scan
 
       - name: 🕵🏻 SonarQube Quality Gate check
         id: sonarqube-quality-gate-check

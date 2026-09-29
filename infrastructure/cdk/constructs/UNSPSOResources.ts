@@ -1,14 +1,13 @@
+import SSMParameters from '@shared/ssmParameter';
 import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
+import { Schedule } from 'aws-cdk-lib/aws-events';
 import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
-import { Construct } from 'constructs';
-
-import SSMParameters from '@shared/ssmParameter';
-import { Schedule } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSAPIGatewayGateway } from 'infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from 'infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct';
@@ -78,6 +77,9 @@ export class UNSPSOResource extends Construct {
         truststorePath: string;
         dependencies: Construct[];
       };
+      waf: {
+        cloudfrontWebAclArn: string;
+      };
     }
   ) {
     const { constructNamingHelper, namingHelper } = config.utils;
@@ -142,9 +144,11 @@ export class UNSPSOResource extends Construct {
     };
 
     Object.values(this.queues).forEach((queue) => {
-      applyPiiTag(queue, 'unknown');
-      applyPiiTag(queue.dlq, 'unknown');
-      applyExposureTag(queue, 'Isolated');
+      if (queue) {
+        applyPiiTag(queue, 'unknown');
+        applyPiiTag(queue.dlq, 'unknown');
+        applyExposureTag(queue, 'Isolated');
+      }
     });
     applyPiiTag(this.queues.analytics.queue, 'false');
     applyPiiTag(this.queues.analytics.dlq, 'false');
@@ -583,7 +587,16 @@ export class UNSPSOResource extends Construct {
 
     // Define authorizer
     const authorizer = new RequestAuthorizer(this, config.utils.namingHelper(`mtlsRequestAuthorizer`), {
-      identitySources: [IdentitySource.context(`identity.clientCert.clientCertPem`)],
+      identitySources: [
+        // Identifying CloudFront source
+        IdentitySource.header(`x-origin-header`),
+        // Usage plan key
+        IdentitySource.header(`x-api-key`),
+        // mTLS headers are required
+        IdentitySource.header('CloudFront-Viewer-Cert-Subject'),
+        IdentitySource.header('CloudFront-Viewer-Cert-Pem'),
+        IdentitySource.header('CloudFront-Viewer-Cert-Validity'),
+      ],
       handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
       resultsCacheTtl: Duration.seconds(0),
     });
@@ -595,6 +608,9 @@ export class UNSPSOResource extends Construct {
       domain: 'pso',
       mtls: {
         truststore: props.mtls.truststorePath,
+      },
+      waf: {
+        cloudfrontWebAclArn: props.waf.cloudfrontWebAclArn,
       },
       resources: {
         kms: refs.kms,

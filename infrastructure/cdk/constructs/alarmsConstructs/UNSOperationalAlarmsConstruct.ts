@@ -44,6 +44,9 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
 
     // SQS Depth Alarm
     for (const { name, queueName } of queues) {
+      if (queueName == undefined || name == undefined) {
+        continue;
+      }
       this.addAlarm({
         id: constructNamingHelper('sqsDepthAlarm', group, name),
         name: namingHelper(alarmPriority.HIGH, group, 'SqsQueueDepthHigh', name),
@@ -246,6 +249,9 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
     }
 
     for (const { name, queueName } of dlqs) {
+      if (queueName == undefined || name == undefined) {
+        continue;
+      }
       // DLQ Number of Messages Alarm
       this.addAlarm({
         id: constructNamingHelper('dlqMessageCountAlarmMedium', group, name),
