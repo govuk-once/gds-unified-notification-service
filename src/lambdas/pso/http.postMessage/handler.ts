@@ -20,11 +20,19 @@ import {
 import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { NotificationStateEnum } from '@common/models';
 import { ValidationService } from '@common/services/validationService';
-import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
+import { IMessage, IValidatedMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IValidateMessageSchema.strict()).min(1);
+const requestBodySchema = z
+  .array(IValidateMessageSchema.strict())
+  .min(1)
+  .transform((validatedMessage) => {
+    // Dedupe NotificationIDs - if the same ID is sent more than once, keep the last one
+    const messagesByNotificationID = new Map<string, IValidatedMessage>();
+    validatedMessage.forEach((message) => messagesByNotificationID.set(message.NotificationID, message));
+    return Array.from(messagesByNotificationID.values());
+  });
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 const authorizerSchema = psoAuthorizerSchema;
 
