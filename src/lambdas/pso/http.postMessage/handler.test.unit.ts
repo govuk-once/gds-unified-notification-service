@@ -323,6 +323,40 @@ describe('PostMessage Handler', async () => {
     ]);
   });
 
+  it('should dedupe messages with the same notificationID, keeping the last occurence', async () => {
+    // Arrange
+    const firstMessage = { ...message, NotificationTitle: 'Title 1A' };
+    const secondMessage = {
+      ...message,
+      NotificationID: '6be48fa7-7a49-46c4-9730-792c105daf6b',
+      NotificationTitle: 'Title 2',
+    };
+    const lastMessage = { ...message, NotificationTitle: 'Title 1B' };
+    const eventWithDuplicateNotificationID = mockAPIPostMessageEvent([
+      firstMessage,
+      secondMessage,
+      lastMessage,
+    ]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithDuplicateNotificationID, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(202);
+    const body = JSON.parse(result.body);
+    expect(body).toHaveLength(2);
+    expect(body).toEqual(
+      expect.arrayContaining([
+        { NotificationID: message.NotificationID },
+        { NotificationID: secondMessage.NotificationID },
+      ])
+    );
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledExactlyOnceWith([
+      expect.objectContaining({ NotificationID: lastMessage.NotificationID, NotificationTitle: 'Title 1B' }),
+      expect.objectContaining({ NotificationID: secondMessage.NotificationID, NotificationTitle: 'Title 2' }),
+    ]);
+  });
+
   it('should return 400 when Channel is an empty string', async () => {
     // Arrange
     const messageWithEmptyChannel = {
