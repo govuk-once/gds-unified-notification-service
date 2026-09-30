@@ -3,7 +3,7 @@ import { test } from '@test/e2e/utils/setup.e2e.vitest';
 import { mockIMessageRecord_E2E } from '@test/mocks';
 import { expect } from 'vitest';
 
-const url = (notificationID: string, pushID?: string) =>
+export const url = (notificationID: string, pushID?: string) =>
   `/notifications/${notificationID}${pushID ? `?pushID=${pushID}` : ''}`;
 
 const createNotificationIfNotFound = async (notificationID: string, pushID: string) => {

@@ -2,7 +2,7 @@ import { ChannelsEnum } from '@common/models';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
-import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
+import { getNotificationMessage, checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
@@ -503,6 +503,77 @@ describe('Post /send', () => {
       // Assert
       expect(result.status).toBe(202);
       expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('status 202 when - the duplicate NotificationIDs are sent, validation dedupes & uses the last occurance', async ({
+      psoAPI,
+      flexAPI,
+    }) => {
+      // Arrange
+      const messagesWithDuplicateNotificationIDs = [
+        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 1' },
+        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 2' },
+      ];
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithDuplicateNotificationIDs });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+      const message = await getNotificationMessage(flexAPI, messageRequest[0].NotificationID, messageRequest[0].UserID);
+      expect(message).toMatchObject({
+        NotificationTitle: 'E2E Test - Title 2',
+      });
+    });
+
+    test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
+      // Arrange
+      const messageWithDisallowedURL = [
+        {
+          CampaignID: 'MESSAGE_API_E2E_TEST',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test - POST Message',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+          DeeplinkURL: 'https://test.com',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messageWithDisallowedURL });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError(['https://test.com is using test.com hostname which is not on the allow list'])
+      );
+    });
+
+    test('status 400 when - the message has DeeplinkURL thats not on allowed protocol list', async ({ psoAPI }) => {
+      // Arrange
+      const messageWithDisallowedURL = [
+        {
+          CampaignID: 'MESSAGE_API_E2E_TEST',
+          DepartmentID: 'testDepartmentID',
+          UserID: 'testExternalUserID',
+          NotificationTitle: 'End 2 End Test - POST Message',
+          NotificationBody: 'This is an end 2 end test!',
+          MessageTitle: 'End 2 End Test Message Title',
+          MessageBody: 'End 2 End Test Message Body',
+          DeeplinkURL: 'mailto://test@example.com',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messageWithDisallowedURL });
+
+      // Assert
+      await expect(result).rejects.toMatchObject(
+        BadRequestAxiosError([
+          'mailto://test@example.com is using mailto: protocol which is not allowed. Allowed protocols: govuk:,https:',
+        ])
+      );
     });
 
     test('notification status DISPATCH when - the message has Channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async ({
