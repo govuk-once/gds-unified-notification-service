@@ -298,20 +298,3 @@ export const checkCampaignStatus = async (
     throw error;
   }
 };
-
-export const getNotificationMessage = async (
-  flexApi: FetchService,
-  notificationID: string,
-  externalUserID?: string
-) => {
-  try {
-    const result = await flexApi.get({ path: flexGetNotificationByIDUrl(notificationID, externalUserID) });
-    expect(result.status).toEqual(200);
-    return result.body;
-  } catch (error) {
-    console.log(error);
-    throw new Error(
-      `Failed to get notification ${notificationID} with externalUserID: ${externalUserID || 'Not Provided'}`
-    );
-  }
-};
