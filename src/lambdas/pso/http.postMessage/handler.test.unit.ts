@@ -323,7 +323,7 @@ describe('PostMessage Handler', async () => {
     ]);
   });
 
-  it('should dedupe messages with the same notificationID, keeping the last occurence', async () => {
+  it('should return 400 when the request contains messages with duplicate notificationIDs', async () => {
     // Arrange
     const firstMessage = { ...message, NotificationTitle: 'Title 1A' };
     const secondMessage = {
@@ -342,19 +342,12 @@ describe('PostMessage Handler', async () => {
     const result = await handler(eventWithDuplicateNotificationID, context);
 
     // Assert
-    expect(result.statusCode).toEqual(202);
-    const body = JSON.parse(result.body);
-    expect(body).toHaveLength(2);
-    expect(body).toEqual(
-      expect.arrayContaining([
-        { NotificationID: message.NotificationID },
-        { NotificationID: secondMessage.NotificationID },
-      ])
-    );
-    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledExactlyOnceWith([
-      expect.objectContaining({ NotificationID: lastMessage.NotificationID, NotificationTitle: 'Title 1B' }),
-      expect.objectContaining({ NotificationID: secondMessage.NotificationID, NotificationTitle: 'Title 2' }),
-    ]);
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Duplicate notificationIDs are not allowed → at 2.NotificationID.'],
+    });
   });
 
   it('should return 400 when Channel is an empty string', async () => {

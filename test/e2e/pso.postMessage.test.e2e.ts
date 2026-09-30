@@ -260,6 +260,28 @@ describe('Post /send', () => {
       // Assert
       await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
     });
+
+    test('status 400 when - the request contains messages with the same NotificationID', async ({ psoAPI }) => {
+      // Arrange
+      const messagesWithDuplicateNotificationIDs = [
+        messageRequest[0],
+        {
+          ...messageRequest[0],
+          MessageTitle: 'Duplicate message',
+        },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithDuplicateNotificationIDs });
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        expect.objectContaining({
+          status: 400,
+          body: expect.stringContaining('Duplicate notificationIDs are not allowed'),
+        })
+      );
+    });
   });
 
   describe(`Happy paths`, () => {
@@ -432,27 +454,6 @@ describe('Post /send', () => {
       // Assert
       expect(result.status).toBe(202);
       expect(result.body).toEqual([{ NotificationID: notificationID }]);
-    });
-
-    test('status 202 when - the duplicate NotificationIDs are sent, validation dedupes & uses the last occurance', async ({
-      psoAPI,
-      flexAPI,
-    }) => {
-      // Arrange
-      const messagesWithDuplicateNotificationIDs = [
-        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 1' },
-        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 2' },
-      ];
-      // Act
-      const result = await psoAPI.post({ path, body: messagesWithDuplicateNotificationIDs });
-
-      // Assert
-      expect(result.status).toBe(202);
-      expect(result.body).toEqual([{ NotificationID: notificationID }]);
-      const message = await getNotificationMessage(flexAPI, messageRequest[0].NotificationID, messageRequest[0].UserID);
-      expect(message).toMatchObject({
-        NotificationTitle: 'E2E Test - Title 2',
-      });
     });
 
     test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
