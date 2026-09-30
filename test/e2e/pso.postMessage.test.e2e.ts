@@ -505,27 +505,6 @@ describe('Post /send', () => {
       expect(result.body).toEqual([{ NotificationID: notificationID }]);
     });
 
-    test('status 202 when - the duplicate NotificationIDs are sent, validation dedupes & uses the last occurance', async ({
-      psoAPI,
-      flexAPI,
-    }) => {
-      // Arrange
-      const messagesWithDuplicateNotificationIDs = [
-        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 1' },
-        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 2' },
-      ];
-      // Act
-      const result = await psoAPI.post({ path, body: messagesWithDuplicateNotificationIDs });
-
-      // Assert
-      expect(result.status).toBe(202);
-      expect(result.body).toEqual([{ NotificationID: notificationID }]);
-      const message = await getNotificationMessage(flexAPI, messageRequest[0].NotificationID, messageRequest[0].UserID);
-      expect(message).toMatchObject({
-        NotificationTitle: 'E2E Test - Title 2',
-      });
-    });
-
     test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [

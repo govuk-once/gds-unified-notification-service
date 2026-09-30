@@ -20,7 +20,7 @@ import {
 import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { NotificationStateEnum } from '@common/models';
 import { ValidationService } from '@common/services/validationService';
-import { IMessage, IValidatedMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
+import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
