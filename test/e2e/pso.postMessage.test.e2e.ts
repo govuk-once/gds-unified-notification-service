@@ -2,7 +2,7 @@ import { ChannelsEnum } from '@common/models';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { IMessage } from '@project/lambdas/interfaces/IMessage';
 import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
-import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
+import { getNotificationMessage, checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
@@ -432,6 +432,27 @@ describe('Post /send', () => {
       // Assert
       expect(result.status).toBe(202);
       expect(result.body).toEqual([{ NotificationID: notificationID }]);
+    });
+
+    test('status 202 when - the duplicate NotificationIDs are sent, validation dedupes & uses the last occurance', async ({
+      psoAPI,
+      flexAPI,
+    }) => {
+      // Arrange
+      const messagesWithDuplicateNotificationIDs = [
+        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 1' },
+        { ...messageRequest[0], NotificationTitle: 'E2E Test - Title 2' },
+      ];
+      // Act
+      const result = await psoAPI.post({ path, body: messagesWithDuplicateNotificationIDs });
+
+      // Assert
+      expect(result.status).toBe(202);
+      expect(result.body).toEqual([{ NotificationID: notificationID }]);
+      const message = await getNotificationMessage(flexAPI, messageRequest[0].NotificationID, messageRequest[0].UserID);
+      expect(message).toMatchObject({
+        NotificationTitle: 'E2E Test - Title 2',
+      });
     });
 
     test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {

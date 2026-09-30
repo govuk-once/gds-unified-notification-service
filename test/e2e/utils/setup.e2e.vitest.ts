@@ -8,6 +8,7 @@ import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
+import { url as flexGetNotificationByIDUrl } from '@test/e2e/flex.getNotificationById.test.e2e';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -295,5 +296,22 @@ export const checkCampaignStatus = async (
       throw new Error(`Campaign ${campaignID} not found yet (404) - retrying`);
     }
     throw error;
+  }
+};
+
+export const getNotificationMessage = async (
+  flexApi: FetchService,
+  notificationID: string,
+  externalUserID?: string
+) => {
+  try {
+    const result = await flexApi.get({ path: flexGetNotificationByIDUrl(notificationID, externalUserID) });
+    expect(result.status).toEqual(200);
+    return result.body;
+  } catch (error) {
+    console.log(error);
+    throw new Error(
+      `Failed to get notification ${notificationID} with externalUserID: ${externalUserID || 'Not Provided'}`
+    );
   }
 };
