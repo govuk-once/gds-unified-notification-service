@@ -78,6 +78,6 @@ jobs:
 
       - name: 🧪 End to end testing suite
         run: |
-          VITEST_TREE_REPORT=true pnpm test:e2e
+          VITEST_TREE_REPORT=true pnpm test:e2e:cucumber
         env:
           env: ${{ github.event.number }}
