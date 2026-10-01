@@ -23,7 +23,25 @@ import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IGroupMessageSchema.omit({ OrganisationID: true }).strict()).min(1);
+const requestBodySchema = z
+  .array(IGroupMessageSchema.omit({ OrganisationID: true }).strict())
+  .min(1)
+  .superRefine((messages, ctx) => {
+    // Checks for duplicate GroupNotificationIDs
+    const seen = new Set<string>();
+    for (let i = 0; i < messages.length; i++) {
+      const id = messages[i].GroupNotificationID;
+      if (seen.has(id)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Duplicate GroupNotificationIDs are not allowed',
+          path: [i, 'GroupNotificationID'],
+        });
+        return;
+      }
+      seen.add(id);
+    }
+  });
 const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
 const authorizerSchema = psoAuthorizerSchema;
 

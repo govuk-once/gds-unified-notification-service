@@ -35,7 +35,7 @@ const requestBodySchema = z
       if (seen.has(id)) {
         ctx.addIssue({
           code: 'custom',
-          message: 'Duplicate notificationIDs are not allowed',
+          message: 'Duplicate NotificationIDs are not allowed',
           path: [i, 'NotificationID'],
         });
         return;

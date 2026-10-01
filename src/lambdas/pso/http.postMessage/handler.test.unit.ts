@@ -346,7 +346,7 @@ describe('PostMessage Handler', async () => {
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,
       HttpError: 'BadRequest',
-      Errors: ['Duplicate notificationIDs are not allowed → at 2.NotificationID.'],
+      Errors: ['Duplicate NotificationIDs are not allowed → at 2.NotificationID.'],
     });
   });
 

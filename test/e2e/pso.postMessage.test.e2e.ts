@@ -276,10 +276,9 @@ describe('Post /send', () => {
 
       // Assert
       await expect(result).rejects.toThrow(
-        expect.objectContaining({
-          status: 400,
-          body: expect.stringContaining('Duplicate notificationIDs are not allowed'),
-        })
+        expect.objectContaining(
+          BadRequestAxiosError(['Duplicate NotificationIDs are not allowed → at 1.NotificationID.'])
+        )
       );
     });
 
