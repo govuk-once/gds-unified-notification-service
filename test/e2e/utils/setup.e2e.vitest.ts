@@ -8,7 +8,6 @@ import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
-import { url as flexGetNotificationByIDUrl } from '@test/e2e/flex.getNotificationById.test.e2e';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
