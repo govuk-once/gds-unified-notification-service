@@ -31,6 +31,8 @@
     "test:report:review": "npx vite preview --outDir html",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
+    "test:e2e:cucumber": "NODE_OPTIONS='--import tsx/esm' npx cucumber-js -f progress",
+    "test:e2e:cucumber:bar": "NODE_OPTIONS='--import tsx/esm' npx cucumber-js -f progress-bar",
     "test:ui": "vitest --ui --coverage --project unit",
     "upgrade": "ncu -u -d 'pnpm run test:unit' && pnpm audit --omit dev",
     "upgrade:diff": "ncu -x @eslint/js -x eslint-plugin-markdownlint -x eslint-plugin-prettier"
@@ -43,6 +45,7 @@
     "@aws-sdk/client-sts": "^3.1110.0",
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-angular": "^21.2.2",
+    "@cucumber/cucumber": "^13.2.1",
     "@eslint/js": "^9.39.1",
     "@inquirer/prompts": "^8.0.2",
     "@semantic-release/exec": "^7.1.0",
