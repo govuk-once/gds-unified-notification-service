@@ -18,6 +18,7 @@ Then('the request should fail with a connection protocol error', async function 
 
 Then('the request should fail with a transport error', async function (this: CustomWorld) {
   const err = (await this.result.catch((e) => e as Error)) as Error;
+
   expect(err).toBeInstanceOf(Error);
   expect(err.name === 'FetchTimeoutError' || err.message === 'fetch failed').toBe(true);
 });

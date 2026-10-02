@@ -1,3 +1,4 @@
+import { FetchErrorResponse } from '@common/services/FetchService';
 import { Given } from '@cucumber/cucumber';
 import { checkStatus, waitUntil } from '@test/e2e/utils/setup.e2e';
 import type CustomWorld from '@test/e2e/utils/world';
@@ -64,22 +65,26 @@ Given('with a pushID that is no associated with the notification', function (thi
 Given('no pushID', function () {});
 
 Given('a notification record for that notification ID', async function (this: CustomWorld) {
-  const initialCheck = await this.api.get({ path: `/status/${this.notificationID}` });
-  if (initialCheck.status === 404) {
-    this.messageRequest = [
-      {
-        NotificationID: this.notificationID!,
-        CampaignID: 'TestCampaignID',
-        DepartmentID: 'TestDepartmentID',
-        UserID: 'TestUserID',
-        MessageTitle: 'You have a new Test Message',
-        MessageBody: 'Open Notification Centre to read your notifications',
-        NotificationTitle: 'This message is an end to end test.',
-        NotificationBody: 'Here is the Notification body.',
-      },
-    ];
+  await this.api.get({ path: `/status/${this.notificationID}` }).catch(async (e) => {
+    if (e instanceof FetchErrorResponse) {
+      if (e.status === 404) {
+        this.messageRequest = [
+          {
+            NotificationID: this.notificationID!,
+            CampaignID: 'TestCampaignID',
+            DepartmentID: 'TestDepartmentID',
+            UserID: 'TestUserID',
+            MessageTitle: 'You have a new Test Message',
+            MessageBody: 'Open Notification Centre to read your notifications',
+            NotificationTitle: 'This message is an end to end test.',
+            NotificationBody: 'Here is the Notification body.',
+          },
+        ];
 
-    await this.psoAPI.post({ path: '/send', body: this.messageRequest });
-    await waitUntil(() => checkStatus(this.psoAPI, this.notificationID!), { timeout: 30000, interval: 2000 });
-  }
+        console.log('Test notification does not exist, creating test notification');
+        await this.psoAPI.post({ path: '/send', body: this.messageRequest });
+        await waitUntil(() => checkStatus(this.psoAPI, this.notificationID!), { timeout: 30000, interval: 2000 });
+      }
+    }
+  });
 });
