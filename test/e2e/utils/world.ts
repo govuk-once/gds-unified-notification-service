@@ -3,11 +3,11 @@
 
 // Using relative over alias path for now until solution found
 import { World } from '@cucumber/cucumber';
+import { IMessage } from '@project/lambdas';
 import { config } from '../../../infrastructure/cdk/config';
 import { FetchResponse, FetchService } from '../../../src/common/services/FetchService';
 import { FetchSigV4Service } from '../../../src/common/services/FetchSigV4Service';
 import { domainName, prepareDispatchConfig } from '../utils/setup.e2e';
-import { IMessage } from '@project/lambdas';
 
 process.env.POWERTOOLS_DEV = 'true';
 process.env.POWERTOOLS_METRICS_DISABLED = 'false';
@@ -41,6 +41,8 @@ export default class CustomWorld extends World {
     this.psoUrl = domainName(`pso`);
     this.flexUrl = domainName(`flex`, usePrivateGateway);
     this.flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
+
+    console.log(this.flexKeyMarker);
   }
 
   public testIDs = {

@@ -1,10 +1,12 @@
 {
   "default": {
     "paths": ["test/e2e/features/"],
-    "import": ["test/e2e/steps/**/*.ts", "test/e2e/utils/world.ts", "test/e2e/utils/hook.ts"],
-    "worldParameters": {},
-    "formatOptions": {
-      "snippetInterface": "async-await"
-    }
+    "import": [
+      "test/e2e/steps/**/*.ts",
+      "test/e2e/utils/setup.e2e.ts",
+      "test/e2e/utils/world.ts",
+      "test/e2e/utils/hook.ts"
+    ],
+    "worldParameters": {}
   }
 }

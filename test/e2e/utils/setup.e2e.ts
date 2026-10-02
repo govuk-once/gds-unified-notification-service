@@ -12,7 +12,7 @@ import CustomWorld from '../utils/world';
 export const domainName = (name: string, usePrivateDomain: boolean = false) => {
   if (name === 'flex' && usePrivateDomain) {
     if (!process.env.UNS_FLEX_BASE_URL) {
-      throw new Error('UNS_FLEX_BASE_URL needs to be configured in the env varaibles');
+      throw new Error('UNS_FLEX_BASE_URL needs to be configured in the env variables');
     }
     return process.env.UNS_FLEX_BASE_URL?.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }
