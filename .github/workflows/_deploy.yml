@@ -85,6 +85,8 @@ jobs:
           SSM_PARAMETERS_TO_UPDATE: ${{ vars.SSM_PARAMETERS_TO_UPDATE }}
 
       - name: 🎉 Announce release
+        id: announce
+        background: true
         continue-on-error: true
         env:
           region: ${{ vars.AWS_REGION }}
