@@ -98,6 +98,7 @@ export const prepareDispatchConfig = async (world: CustomWorld) => {
           includeValue: true,
         })
       );
+      console.log(value);
 
       // UNS is the org name attached to dev consumer definition
       if (value && value.value && key.name?.includes('pso') && key.name?.includes('uns')) {
