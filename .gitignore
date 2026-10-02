@@ -117,3 +117,6 @@ coverage.md
 
 .eslintcache
 html
+
+# Generated — attached to GitHub releases, not committed
+CHANGELOG.md

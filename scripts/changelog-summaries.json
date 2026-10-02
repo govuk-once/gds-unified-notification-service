@@ -1,0 +1,81 @@
+{
+  "2025-W50": "The project was bootstrapped: Terraform infrastructure-as-code was initialised with the first Lambda module, pre-commit hooks were configured to enforce code standards, and the repository was prepared for collaborative development.",
+
+  "2025-W51": "The initial Lambda-to-SQS wiring was completed — SQS queue modules were built, the API Gateway was integrated with the receiving Lambda, and queue-triggered processing Lambdas were connected, forming the skeleton of the inbound notification pipeline.",
+
+  "2026-W01": "CloudWatch logging and X-Ray distributed tracing modules were configured, establishing the observability foundation for the service.",
+
+  "2026-W02": "Core messaging infrastructure was built: SQS queues for the notification pipeline, DynamoDB tables for storage, and Parameter Store integration for runtime configuration. OpenTelemetry was integrated for distributed tracing across Lambda functions, and unit test coverage was increased across services.",
+
+  "2026-W03": "DynamoDB for notification persistence, ElastiCache (Redis) for caching, and Lambda trigger wiring connecting SQS queues to handler functions were all added. Terraform resource tagging was made mandatory via tflint rules, and unit tests were added for the cache service.",
+
+  "2026-W04": "Validation and analytics Lambdas were added to the pipeline: validation ensures incoming messages meet the required schema before processing, and analytics captures notification lifecycle events to a queue-triggered Lambda for downstream reporting. CloudTrail audit logging was also integrated for compliance.",
+
+  "2026-W05": "The core PSO send endpoint and processing Lambda were delivered, forming the end-to-end notification dispatch path from API receipt through SQS processing. Rate limiting was added to protect the API from excessive traffic, sensitive fields were excluded from platform logs to prevent data leakage, and in-memory caching was introduced for SSM parameter reads to reduce latency on hot paths.",
+
+  "2026-W06": "Outbound message batching was implemented — the publishing queue now recursively splits large payloads into batches of ten before sending to SQS, respecting SQS batch size limits. Group validation error handling was improved to surface meaningful error responses when invalid group data is submitted.",
+
+  "2026-W07": "The Flex API Gateway was set up in Terraform and an initial mock endpoint was added, laying the groundwork for the consumer-facing API surface. Dependency injection was refactored to use Middy middleware for cleaner handler composition, and the configuration service was improved to support mocking in tests.",
+
+  "2026-W09": "Two new Flex API endpoints were added — get notification by ID and patch (update) notification by ID — giving end-user applications the ability to retrieve and modify individual notifications. API Gateway path and deployment configuration was fixed to correctly route requests to these endpoints.",
+
+  "2026-W10": "mTLS client certificate authentication was implemented with certificate revocation list support, providing the mutual authentication layer required for PSO API access. A delete notification endpoint was added to the Flex API, and configurable deeplinks were introduced allowing notifications to carry organisation-specific deep-link URLs.",
+
+  "2026-W11": "Infrastructure groundwork for the UDP dispatch integration was laid, including the necessary IAM roles and Lambda constructs. A schema validation fix was applied to handle null values gracefully in Flex API payloads.",
+
+  "2026-W12": "The PSO API was moved behind a private API Gateway with mTLS authentication, significantly hardening the service's security posture. Notification expiry can now be set dynamically per-notification rather than using a global default, admin CloudWatch dashboards were added for operational visibility, and a cache bug in the mTLS authoriser was fixed to prevent stale certificate lookups.",
+
+  "2026-W13": "Dead-letter queues were integrated across the SQS pipeline to capture messages that fail all processing retries, preventing data loss and providing a path for investigation and reprocessing of failed notifications.",
+
+  "2026-W14": "UDP (Unified Display Platform) was integrated as a second notification dispatch adapter alongside OneSignal, enabling notifications to be sent to government mobile apps via a separate channel. CloudTrail audit logging was scoped to main environments only, and the dead-letter queue IAM configuration was corrected.",
+
+  "2026-W15": "A circuit breaker was implemented to protect downstream notification providers from overload — the service stops sending to a failing provider after a configurable failure threshold and automatically recovers once it stabilises. SonarCloud scanning was added to the main branch pipeline, and GitHub Actions workflow environments were configured to enforce deployment approvals.",
+
+  "2026-W16": "AWS CDK was introduced as the infrastructure-as-code framework, beginning a migration away from Terraform. A validation check was added to the dispatch flow to verify notification status before proceeding, and a Terraform cleanup pass was completed.",
+
+  "2026-W17": "VPC infrastructure was implemented with subnets, security groups, and VPC endpoints, isolating the service from the public internet. SonarCloud analysis and GitHub Releases were wired into the CI/CD pipeline for automated code quality reporting and release management. A CloudWatch dashboard for DynamoDB consumed capacity was added for cost and performance visibility.",
+
+  "2026-W18": "A Lambda factory pattern was introduced to standardise how Lambda handlers are constructed, reducing boilerplate and ensuring consistent middleware configuration across all functions. Platform status monitoring was added to surface the health of upstream dependencies.",
+
+  "2026-W19": "The initial DynamoDB integration was shipped, providing persistent storage for notifications. The get-notifications endpoint was updated to filter out hidden notifications, ensuring end users only see active content.",
+
+  "2026-W20": "Campaign support was introduced: the PSO send endpoint now accepts an optional campaign ID, allowing organisations to associate batches of notifications with a named campaign for reporting and tracking. Analytics events were extended to capture campaign attribution.",
+
+  "2026-W21": "End-to-end tests were implemented for the full PSO notification flow, running automatically after each deployment to verify the live service. The API Gateway and processing Lambda were migrated from Terraform to CDK, and a batch processor was introduced to handle SQS messages with built-in retry and partial-failure support.",
+
+  "2026-W22": "mTLS truststore configuration was migrated to be fully managed in CDK, removing a manual setup step and ensuring truststore definitions are version-controlled alongside the infrastructure. A bug was fixed where analytics events were not being emitted on retry attempts, closing a gap in the notification lifecycle audit trail.",
+
+  "2026-W23": "Checkov security scanning findings in the CDK infrastructure code were addressed, improving the security posture of the infrastructure-as-code. The campaign status endpoint was slimmed down to expose only fields relevant to consumers, and the OpenAPI specification was updated to reflect the current API surface.",
+
+  "2026-W24": "Rich text support was added — notification body fields now accept Markdown content, which is rendered to HTML before dispatch. The API was improved with consistent JSON error responses, `departmentID` was made optional on the send endpoint, and the `externalUserID` field was renamed to `pushID` across the service for clarity.",
+
+  "2026-W25": "API usage plans were configured on both API Gateways, enabling per-consumer rate limiting and quota management at the gateway level. A shared mTLS certificate was introduced for sandbox environments, and the notification service now surfaces a display name field to consumers.",
+
+  "2026-W26": "A BigQuery integration was delivered, enabling notification analytics data to be exported from CloudWatch Logs to BigQuery for cross-platform reporting. The package manager was also migrated from npm to pnpm, improving install performance and stricter dependency resolution.",
+
+  "2026-W27": "Network ACL controls were added to restrict inbound and outbound VPC traffic beyond security groups, hardening the network perimeter. Slack integration was set up to route service alerts. Axios was removed in favour of the Node.js native fetch API, reducing bundle size and eliminating an external dependency.",
+
+  "2026-W28": "The production environment was set up for the first time, completing the deployment pipeline end-to-end across all environments. API Gateway alarms were added for 4xx and 5xx error rates to provide production-level monitoring coverage, and a dedicated Flex consumer secret was introduced to support secure consumer onboarding.",
+
+  "2026-W29": "VPC Flow Logs were enabled to capture network traffic for security auditing. A significant rework of SSM and Secrets Manager parameter management was completed, consolidating the flow for setting per-environment parameters via GitHub Actions and moving the dispatch API key to Secrets Manager. Alerting was extended with WAF authentication failure and PSO queue failure alarms.",
+
+  "2026-W30": "The DynamoDB table backing the group store was introduced, along with secret sharing for the Events Aggregator consumer. Upstream and downstream alerting was added to monitor inter-service communication health. Several reliability fixes were applied including reverting from ADOT to X-Ray (which caused cold-start regressions) and preventing concurrent SSM configuration fetching.",
+
+  "2026-W31": "A new Flex API endpoint was added for modifying group membership, allowing end-user applications to add or remove users from notification groups at runtime. Runtime feature flags for deeplinks were introduced so that deeplink sending can be toggled per environment without a deployment.",
+
+  "2026-W32": "The foundational group-messaging feature was shipped: a new POST endpoint allows sending a notification to a named group of users, backed by a dedicated SQS processing queue and an internal publishing flow. GitHub Releases were wired into the semantic-release pipeline, so each version tag now automatically creates a release with generated notes.",
+
+  "2026-W33": "Notifications can now carry a custom deeplink using external protocols (e.g. organisation-specific URL schemes), with the underlying schemas extended to support this. Group messages now generate and return a notification ID, enabling end-to-end tracking of batch-sent notifications. A fix was made to the modify-groups endpoint to return results from business logic rather than re-querying the database.",
+
+  "2026-W34": "Feature flags were introduced to control message retention and channel functionality per organisation, allowing these capabilities to be enabled or disabled through configuration rather than code changes. The mTLS authoriser was extended to pass organisation configuration in a request header, enabling downstream services to make organisation-aware decisions without additional lookups.",
+
+  "2026-W35": "The core deeplink and channel-controls features were delivered: notifications can now carry a `govuk://` or `https://` deeplink URL, with per-organisation allow-lists controlling which URLs are permitted. Each organisation can be configured to allow only specific delivery channels (e.g. push-only or message-centre-only), enforced at the API validation layer. A new Environment Agency consumer configuration was added, and monitoring dashboards were migrated from hand-written JSON to CDK-managed infrastructure-as-code.",
+
+  "2026-W36": "S3 access logging was enabled for the VPC flow log bucket and the mTLS certificate bucket, ensuring all object access is audited for compliance. Test coverage was improved across key service components, and a minor infrastructure fix corrected an object-lock retention configuration error.",
+
+  "2026-W37": "A bug was fixed where the deeplink URL and channel fields were not being correctly passed through the group-message dispatch path. All CloudWatch alarms were extracted into a dedicated alarms stack so they can be managed and deployed independently of the main application stack. SonarCloud code-quality gate enforcement was made mandatory on the CI pipeline, and resource tagging standards were applied consistently across infrastructure.",
+
+  "2026-W38": "The pipeline gained full support for ephemeral (short-lived, per-PR) environments — including automatic teardown — enabling safe end-to-end testing in isolation without touching shared environments. Automatic rolling certificate rotation was implemented for dev and staging, removing the need for manual certificate renewal. A release-announcement script was added to post structured deployment notifications to an SNS topic, giving the team automatic visibility of what version is live.",
+
+  "2026-W39": "A dedicated CloudWatch dashboard for group-dispatch observability was added, surfacing worker start, completion, and failure metrics alongside log queries to make diagnosing group-message processing issues in production much easier. End-to-end tests were moved to run inside the private API Gateway via a new CodeBuild construct executing the test suite from within the VPC, removing the need for public test endpoints. A minor bug where the channel field was not being forwarded to the notification service was also fixed."
+}
