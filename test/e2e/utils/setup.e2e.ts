@@ -36,6 +36,10 @@ export const prepareDispatchConfig = async (world: CustomWorld) => {
       );
     }
 
+    console.log(`psoUrl: ${world.psoUrl}`);
+    console.log(`flexUrl: ${world.flexUrl}`);
+    console.log(`flexKeyMarker: ${world.flexKeyMarker}`);
+    console.log(`env: uns-${config.env}`);
     process.env.PREFIX = `uns-${config.env}`;
 
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs

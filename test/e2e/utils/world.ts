@@ -41,8 +41,6 @@ export default class CustomWorld extends World {
     this.psoUrl = domainName(`pso`);
     this.flexUrl = domainName(`flex`, usePrivateGateway);
     this.flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
-
-    console.log(this.flexKeyMarker);
   }
 
   public testIDs = {
