@@ -36,10 +36,6 @@ export const prepareDispatchConfig = async (world: CustomWorld) => {
       );
     }
 
-    console.log(`psoUrl: ${world.psoUrl}`);
-    console.log(`flexUrl: ${world.flexUrl}`);
-    console.log(`flexKeyMarker: ${world.flexKeyMarker}`);
-    console.log(`env: uns-${config.env}`);
     process.env.PREFIX = `uns-${config.env}`;
 
     // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
@@ -89,16 +85,14 @@ export const prepareDispatchConfig = async (world: CustomWorld) => {
     let flexApiKey;
 
     const apiGwClient = new APIGatewayClient({ region: 'eu-west-2' });
-    for (const key of ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? []).filter((key) =>
-      key.name?.includes(config.prefix)
-    )) {
+    const apiGwKeys = await apiGwClient.send(new GetApiKeysCommand({ limit: 500 }));
+    for (const key of (apiGwKeys.items ?? []).filter((key) => key.name?.includes(config.prefix))) {
       const value = await apiGwClient.send(
         new GetApiKeyCommand({
           apiKey: key.id,
           includeValue: true,
         })
       );
-      console.log(value);
 
       // UNS is the org name attached to dev consumer definition
       if (value && value.value && key.name?.includes('pso') && key.name?.includes('uns')) {
