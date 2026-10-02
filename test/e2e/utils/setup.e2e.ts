@@ -85,8 +85,9 @@ export const prepareDispatchConfig = async (world: CustomWorld) => {
     let flexApiKey;
 
     const apiGwClient = new APIGatewayClient({ region: 'eu-west-2' });
-    const apiGwKeys = await apiGwClient.send(new GetApiKeysCommand({ limit: 500 }));
-    for (const key of (apiGwKeys.items ?? []).filter((key) => key.name?.includes(config.prefix))) {
+    for (const key of (
+      (await apiGwClient.send(new GetApiKeysCommand({ nameQuery: config.prefix }))).items ?? []
+    ).filter((key) => key.name?.includes(config.prefix))) {
       const value = await apiGwClient.send(
         new GetApiKeyCommand({
           apiKey: key.id,
