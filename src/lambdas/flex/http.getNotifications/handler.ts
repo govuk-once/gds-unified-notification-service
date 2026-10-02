@@ -13,6 +13,7 @@ import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { filters } from '@common/utils/array';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -71,7 +72,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
-        if (new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+        if (notification.ExpirationDateTime === undefined || notification.ExpirationDateTime < DateInSeconds.now()) {
           return false;
         }
         return true;

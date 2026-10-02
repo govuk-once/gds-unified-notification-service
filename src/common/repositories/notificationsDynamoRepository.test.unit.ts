@@ -2,6 +2,7 @@ import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models';
 import { IDynamoAttributesSchema, IMessageRecord } from '@common/repositories/interfaces';
 import { NotificationsDynamoRepository } from '@common/repositories/notificationsDynamoRepository';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
@@ -27,6 +28,7 @@ describe('NotificationsDynamoRepository', async () => {
   // Test Fixtures
   const message = mockIProcessedMessage();
   const messageRecord = mockIMessageRecord(message);
+  const messageRecordWithExpiration = mockIMessageRecord(message, { ExpirationDateTime: true });
 
   beforeEach(async () => {
     // Reset all mock
@@ -79,7 +81,7 @@ describe('NotificationsDynamoRepository', async () => {
       vi.useFakeTimers();
       const date = new Date();
       vi.setSystemTime(date);
-      const expirationDate = new Date(date.getTime() + 30 * 60 * 60 * 24 * 1000).toISOString();
+      const expirationDate = DateInSeconds.toUnix(date) + 30 * 60 * 60 * 24;
 
       // Act
       await instance.createRecord(messageRecord);
@@ -147,7 +149,7 @@ describe('NotificationsDynamoRepository', async () => {
       });
 
       const record: IMessageRecord = { ...recordBody, RequestedDaysToExpire: 25 };
-      const expirationDateTime = new Date(date.getTime() + 25 * 24 * 60 * 60 * 1000).toISOString();
+      const expirationDateTime = DateInSeconds.toUnix(date) + 25 * 24 * 60 * 60;
 
       // Act
       await instance.createRecord(record);
@@ -187,7 +189,7 @@ describe('NotificationsDynamoRepository', async () => {
                 PutRequest: {
                   Item: {
                     ...marshall(record[0], { removeUndefinedValues: true }),
-                    ExpirationDateTime: { S: expect.any(String) },
+                    ExpirationDateTime: { N: expect.any(String) },
                   },
                 },
               },
@@ -422,6 +424,30 @@ describe('NotificationsDynamoRepository', async () => {
         key: 'NotificationID',
         value: keyValue,
       });
+    });
+
+    it('should use fallback if expiration date is in datetime string format', async () => {
+      // Arrange
+      const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+      const ExpirationDateTimeInMS = messageRecordWithExpiration.ExpirationDateTime! * 1000;
+      const dynamoItemWithDatetime = {
+        ...messageRecordWithExpiration,
+        ExpirationDateTime: new Date(ExpirationDateTimeInMS).toISOString(),
+      };
+      const messageRecordWithNoExpiration = {
+        ...messageRecordWithExpiration,
+        ExpirationDateTime: undefined,
+      };
+
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+        Item: marshall(dynamoItemWithDatetime, { removeUndefinedValues: true }),
+      });
+
+      // Act
+      const result = await instance.getRecord(notificationID);
+
+      // Assert
+      expect(result).toEqual(messageRecordWithNoExpiration);
     });
   });
 });

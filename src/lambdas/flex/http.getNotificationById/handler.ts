@@ -13,6 +13,7 @@ import { NotificationDispatchedStateEnum } from '@common/models/NotificationStat
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -76,7 +77,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     }
 
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
-    if (notification.ExpirationDateTime && new Date(notification.ExpirationDateTime).getTime() < Date.now()) {
+    if (notification.ExpirationDateTime !== undefined && notification.ExpirationDateTime < DateInSeconds.now()) {
       this.observability.logger.debug('Notification has expired - returning 404');
       throw new NotFoundError();
     }
