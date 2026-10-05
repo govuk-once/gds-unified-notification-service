@@ -1,76 +1,53 @@
 import { FetchErrorResponse } from '@common/services/FetchService';
-import { Given } from '@cucumber/cucumber';
+import { defineParameterType, Given } from '@cucumber/cucumber';
 import { checkStatus, waitUntil } from '@test/e2e/utils/setup.e2e';
 import type CustomWorld from '@test/e2e/utils/world';
 
-Given('a {string} API client configured with an insecure HTTP protocol', function (this: CustomWorld, service: string) {
-  switch (service) {
-    case 'Flex':
-      this.api = this.flexAPIUsingInsecureProtocol;
-      break;
-    case 'Pso':
-      this.api = this.psoAPIUsingInsecureProtocol;
-      break;
-    default:
-      throw new Error('Invalid inputted API client');
-  }
+export enum APIConfigurations {
+  InsecureHTTP = 'configured with an insecure HTTP',
+  InvalidAPIKey = 'configured with an invalid api key',
+  MissingMTLS = 'with missing MTLS certificate',
+  CorrectConfig = 'configured correctly',
+}
+
+defineParameterType({
+  name: 'APIConfig',
+  regexp:
+    /configured with an insecure HTTP|configured with an invalid api key|with missing MTLS certificate|configured correctly/,
+  transformer: (s) => s as APIConfigurations,
 });
 
-Given('a {string} API client configured with an invalid api key', function (this: CustomWorld, service: string) {
-  switch (service) {
-    case 'Flex':
-      this.api = this.flexAPIWithoutAPIKey;
-      break;
-    case 'Pso':
-      this.api = this.psoAPIWithoutAPIKey;
-      break;
-    default:
-      throw new Error('Invalid inputted API client');
-  }
-});
+Given('a {string} API client {APIConfig}', function (this: CustomWorld, service: string, apiConfig: APIConfigurations) {
+  const apiClients: Record<string, Record<string, () => CustomWorld['api']>> = {
+    Flex: {
+      [APIConfigurations.InsecureHTTP]: () => this.flexAPIUsingInsecureProtocol,
+      [APIConfigurations.InvalidAPIKey]: () => this.flexAPIWithoutAPIKey,
+      [APIConfigurations.MissingMTLS]: () => {
+        throw new Error('Flex API does not use mTLS certs');
+      },
+      [APIConfigurations.CorrectConfig]: () => this.flexAPI,
+    },
+    Pso: {
+      [APIConfigurations.InsecureHTTP]: () => this.psoAPIUsingInsecureProtocol,
+      [APIConfigurations.InvalidAPIKey]: () => this.psoAPIWithoutAPIKey,
+      [APIConfigurations.MissingMTLS]: () => this.psoAPIWithoutMTLSCert,
+      [APIConfigurations.CorrectConfig]: () => this.psoAPI,
+    },
+  };
 
-Given('a {string} API client', function (this: CustomWorld, service: string) {
-  switch (service) {
-    case 'Flex':
-      this.api = this.flexAPI;
-      break;
-    case 'Pso':
-      this.api = this.psoAPI;
-      break;
-    default:
-      throw new Error('Invalid inputted API client');
-  }
-});
+  if (!apiClients[service]) throw new Error(`Unknown API service: ${service}`);
+  if (!apiClients[service][apiConfig]) throw new Error(`Unknown API configuration: ${apiConfig}`);
 
-Given('a Pso API client missing MTLS certificate', function (this: CustomWorld) {
-  this.api = this.psoAPIWithoutMTLSCert;
+  this.api = apiClients[service][apiConfig]();
 });
-
-Given('a valid notification ID path', function (this: CustomWorld) {
-  this.notificationID = this.testIDs.mockNotificationID.valid;
-});
-
-Given('a notificationID points at an non-existing resource', function (this: CustomWorld) {
-  this.notificationID = this.testIDs.mockNotificationID.notFound;
-});
-
-Given('with a pushID', function (this: CustomWorld) {
-  this.pushID = this.testIDs.pushID;
-});
-
-Given('with a pushID that is no associated with the notification', function (this: CustomWorld) {
-  this.pushID = this.testIDs.pushID;
-});
-
-Given('no pushID', function () {});
 
 Given('a notification record for that notification ID', async function (this: CustomWorld) {
-  await this.api.get({ path: `/status/${this.notificationID}` }).catch(async (e) => {
+  await this.api.get({ path: `/status/${this.testIDs.mockNotificationID.valid}` }).catch(async (e) => {
     if (e instanceof FetchErrorResponse) {
       if (e.status === 404) {
         this.messageRequest = [
           {
-            NotificationID: this.notificationID!,
+            NotificationID: this.testIDs.mockNotificationID.valid,
             CampaignID: 'TestCampaignID',
             DepartmentID: 'TestDepartmentID',
             UserID: 'TestUserID',
@@ -83,7 +60,10 @@ Given('a notification record for that notification ID', async function (this: Cu
 
         console.log('Test notification does not exist, creating test notification');
         await this.psoAPI.post({ path: '/send', body: this.messageRequest });
-        await waitUntil(() => checkStatus(this.psoAPI, this.notificationID!), { timeout: 30000, interval: 2000 });
+        await waitUntil(() => checkStatus(this.psoAPI, this.testIDs.mockNotificationID.valid), {
+          timeout: 30000,
+          interval: 2000,
+        });
       }
     }
   });

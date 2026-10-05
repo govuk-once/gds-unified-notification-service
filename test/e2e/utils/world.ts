@@ -26,8 +26,6 @@ export default class CustomWorld extends World {
   public flexAPIUsingInsecureProtocol!: FetchService;
 
   public api!: FetchSigV4Service | FetchService;
-  public notificationID?: string;
-  public pushID?: string;
   public path!: string;
   public result!: Promise<FetchResponse>;
 
