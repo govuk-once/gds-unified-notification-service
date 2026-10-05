@@ -3,7 +3,7 @@ Feature: Get Notification Status
   Scenario: Insecure protocol
     Given a 'Pso' API client configured with an insecure HTTP
     When I send a 'GET' request to "/status/$VALID_NOTIFICATION$"
-    Then the 'GET' request should fail with a connection protocol error
+    Then the 'GET' request should fail with a transport error
 
   @Pso
   Scenario: Missing MTLS Certificates
