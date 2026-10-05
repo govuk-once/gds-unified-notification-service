@@ -19,8 +19,6 @@ When('I send a {string} request to {string}', function (this: CustomWorld, metho
       this.result = this.api.post({ path: this.path });
       break;
     case 'GET':
-      console.log(this.api);
-      console.log(this.path);
       this.result = this.api.get({ path: this.path });
       break;
     case 'DELETE':
