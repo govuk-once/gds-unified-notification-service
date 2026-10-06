@@ -1,0 +1,33 @@
+env:
+  contexts:
+    - name: Default Context
+      urls:
+        - '${TARGET_URL}'
+      includePaths:
+        - '${TARGET_URL}.*'
+  configs:
+    network.clientCertificates.pkcs12.file: /zap/wrk/client.p12
+    network.clientCertificates.pkcs12.password: Test123
+    network.clientCertificates.pkcs12.index: 0
+    network.clientCertificates.pkcs12.store: true
+    network.clientCertificates.use: true
+jobs:
+  - type: openapi
+    parameters:
+      apiFile: '/zap/wrk/docs/${TARGET_SPEC}/openapi.yml'
+      targetUrl: '${TARGET_URL}'
+      context: Default Context
+  - type: replacer
+    rules:
+      - description: Add x-api-key header
+        matchType: req_header
+        matchString: x-api-key
+        replacementString: ${X_API_KEY}
+        initiators: null
+    parameters:
+      deleteAllRules: false
+  - type: activeScan
+    parameters: {}
+    policyDefinition:
+      defaultStrength: medium
+      defaultThreshold: medium
