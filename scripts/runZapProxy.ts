@@ -2,26 +2,23 @@ import { domainName, fetchApiKeys, fetchMtlsCertificates } from '@shared/credent
 import { parseArgs } from 'node:util';
 import { config } from '../infrastructure/cdk/config';
 import * as fs from 'node:fs';
-import * as crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 async function configureZaproxyEnvironmentVars(target: string): Promise<void> {
   const usePrivateGateway = config.isE2ERunner;
-
-  // Fetch API keys, certs and generate a password for the p12 file
-  const password = crypto.randomBytes(16).toString('base64url');
+  const password = 'zap-mtls';
   const { psoApiKey, flexApiKey } = await fetchApiKeys('private');
   const { crt, key } = await fetchMtlsCertificates();
 
   // Set the correct target URL and API key based on target
-  switch(target) {
+  switch (target) {
     case 'pso':
-      const psoUrl = domainName('pso');
+      const psoUrl = 'https://' + domainName('pso');
       console.log(`export TARGET_URL=${psoUrl}`);
       console.log(`export X_API_KEY=${psoApiKey}`);
       break;
     case 'flex':
-      const flexUrl = domainName('flex', usePrivateGateway);
+      const flexUrl = 'https://' + domainName('flex', usePrivateGateway);
       console.log(`export TARGET_URL=${flexUrl}`);
       console.log(`export X_API_KEY=${flexApiKey}`);
       break;
@@ -32,12 +29,11 @@ async function configureZaproxyEnvironmentVars(target: string): Promise<void> {
   // Generate the p12 file for mTLS
   fs.writeFileSync('tls.crt', crt, { encoding: 'utf-8' });
   fs.writeFileSync('tls.key', key, { encoding: 'utf-8' });
-  execSync(
-    `openssl pkcs12 -export -out client.p12 -inkey tls.key -in tls.crt -passout pass:${password}`,
-    { encoding: 'utf-8' }
-  );
+  execSync(`openssl pkcs12 -export -out client.p12 -inkey tls.key -in tls.crt -passout pass:${password}`, {
+    encoding: 'utf-8',
+  });
   console.log(`export TLS_PASSWORD=${password}`);
-  console.log(`export TARGET=${target}`);
+  console.log(`export TARGET_SPEC=${target}`);
 }
 
 const ALLOWED_TARGETS = ['flex', 'pso'];
