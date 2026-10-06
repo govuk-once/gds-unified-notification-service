@@ -1,31 +1,18 @@
-import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
-import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FetchErrorResponse, FetchService } from '@common/services/FetchService';
+import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
+import { domainName, fetchApiKeys, fetchMtlsCertificates } from '@shared/credentials';
 import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
-import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
-
-const domainName = (name: string, usePrivateDomain: boolean = false) => {
-  if (name === 'flex' && usePrivateDomain) {
-    if (!process.env.UNS_FLEX_BASE_URL) {
-      throw new Error('UNS_FLEX_BASE_URL needs to be configured in the env varaibles');
-    }
-    return process.env.UNS_FLEX_BASE_URL?.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  }
-  const rootDomain = config.ssm.hostedZoneName;
-  const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;
-  return `${subdomain}.${rootDomain}`;
-};
 
 const usePrivateGateway = config.isE2ERunner;
 const psoUrl = domainName(`pso`);
@@ -60,77 +47,13 @@ const prepareBeforeAll = async () => {
 
     process.env.PREFIX = `uns-${config.env}`;
 
-    // Retrieve mTLS certificates from parameter store for authenticating PSO and FLEX APIs
-    const smClient = new SecretsManagerClient({ region: 'eu-west-2' });
-
-    // Fetch dev certificates
-    const secrets = await smClient.send(
-      new ListSecretsCommand({
-        Filters: [
-          {
-            Key: 'name',
-            Values: [config.isMainEnv ? `uns-${config.env}/tls/UNS` : `uns-dev/tls/UNS`],
-          },
-        ],
-      })
-    );
-    // New certificate format has two dates separated by dots cn.{startDate}.{endDate}
-    secrets.SecretList = secrets.SecretList?.filter((x) => x.Name?.split(`.`).length == 3);
-
-    if (secrets.SecretList?.length !== 2) {
-      throw new Error(`Fetching certs from SM returned too many results, expected 2`);
-    }
-
-    const result = (
-      await Promise.all(
-        (secrets.SecretList ?? [])
-          .map((entry) => entry.Name!)
-          .map((SecretId) =>
-            smClient
-              .send(
-                new GetSecretValueCommand({
-                  SecretId,
-                })
-              )
-              .then((result) => ({ [SecretId.split('/').pop()!.split('-').pop()!]: result.SecretString }))
-          )
-      )
-    ).reduce((a, b) => ({ ...a, ...b }), {}) as { crt: string; key: string };
-    const { crt, key } = result;
-
-    if (!crt || !key) {
-      throw new Error('mTLS certificates were not returned from parameter store.');
-    }
+    // Retrieve mTLS certificates from Secrets Manager
+    const { crt, key } = await fetchMtlsCertificates();
 
     // Fetch API Keys from usage plans on the fly
-    const apiGwClient = new APIGatewayClient({ region: 'eu-west-2' });
-    for (const key of ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? []).filter((key) =>
-      key.name?.includes(config.prefix)
-    )) {
-      const value = await apiGwClient.send(
-        new GetApiKeyCommand({
-          apiKey: key.id,
-          includeValue: true,
-        })
-      );
-
-      // UNS is the org name attached to dev consumer definition
-      if (value && value.value && key.name?.includes('pso') && key.name?.includes('uns')) {
-        psoApiKey = value.value!;
-      }
-
-      // Our e2e tests are hitting flex api
-      if (value && value.value && key.name?.includes('flex') && key.name?.includes(flexKeyMarker)) {
-        flexApiKey = value.value!;
-      }
-    }
-
-    if (psoApiKey == '') {
-      throw new Error('Failed to retrieve API Token for PSO');
-    }
-    if (flexApiKey == '') {
-      throw new Error('Failed to retrieve API Token for FLEX');
-    }
+    const apiKeys = await fetchApiKeys(flexKeyMarker);
+    psoApiKey = apiKeys.psoApiKey;
+    flexApiKey = apiKeys.flexApiKey;
 
     // Creates a https agent for mTLS using imported credentials
     httpsAgent = new Agent({
