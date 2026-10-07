@@ -451,17 +451,39 @@ describe('NotificationsDynamoRepository', async () => {
       // Assert
       expect(result).toEqual(messageRecordWithNoExpiration);
     });
+
+    it('should set ExpirationDatetime as undefined if not in datetime string format', async () => {
+      // Arrange
+      const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+      const dynamoItemWithDatetime = {
+        ...messageRecordWithExpiration,
+        ExpirationDateTime: 'a date',
+      };
+
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+        Item: marshall(dynamoItemWithDatetime, { removeUndefinedValues: true }),
+      });
+
+      // Act
+      const result = await instance.getRecord(notificationID);
+
+      // Assert
+      expect(result).toEqual({ ...messageRecordWithExpiration, ExpirationDateTime: undefined });
+    });
   });
 
   describe('getProcessedMessageByID', () => {
     it('should use fallback if ExpirationDatetime is in datetime string format', async () => {
       // Arrange
       const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
-      const processedMessageRecordWithDatetime = {
+      const dynamoItemWithDatetime = {
         ...processedMessageRecord,
         ExpirationDateTime: new Date(processedMessageRecord.ExpirationDateTime * 1000).toISOString(),
       };
-      instance.getRecord = vi.fn().mockResolvedValueOnce(processedMessageRecordWithDatetime);
+
+      awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
+        Item: marshall(dynamoItemWithDatetime, { removeUndefinedValues: true }),
+      });
 
       // Act
       const result = await instance.getProcessedMessageByID(notificationID);
@@ -473,9 +495,9 @@ describe('NotificationsDynamoRepository', async () => {
     it('should return undefined if ExpirationDatetime fails to be parsed', async () => {
       // Arrange
       const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
-      const messageRecord = {
+      const messageRecord: IMessageRecord = {
         ...messageRecordWithExpiration,
-        ExpirationDateTime: 'a date',
+        ExpirationDateTime: undefined,
       };
       instance.getRecord = vi.fn().mockResolvedValueOnce(messageRecord);
 
@@ -491,9 +513,9 @@ describe('NotificationsDynamoRepository', async () => {
     it('should return undefined if ExpirationDatetime fails to be parsed', async () => {
       // Arrange
       const externalUserID = 'user_1';
-      const messageRecord = {
+      const messageRecord: IMessageRecord = {
         ...messageRecordWithExpiration,
-        ExpirationDateTime: 'a date',
+        ExpirationDateTime: undefined,
       };
       instance.getRecordsQuery = vi.fn().mockResolvedValueOnce([messageRecord]);
 

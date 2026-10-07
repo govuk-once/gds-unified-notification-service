@@ -31,15 +31,18 @@ export const IMessageRecordSchema = z.object({
   ProcessedDateTime: z.string().optional(),
   DispatchedDateTime: z.string().optional(),
   // Fallback for pre migration
-  ExpirationDateTime: z
-    .number()
-    .optional()
-    .catch((val) => {
-      const value = val.value as string;
-      if (!isNaN(Date.parse(value))) {
-        return DateInSeconds.toUnix(value);
-      }
-    }),
+  ExpirationDateTime: z.union([
+    z.number(),
+    z
+      .string()
+      .transform((val) => {
+        if (!isNaN(Date.parse(val))) {
+          return DateInSeconds.toUnix(val);
+        }
+        return undefined;
+      })
+      .optional(),
+  ]),
 
   // Configurations
   RequestedDaysToExpire: z.int().positive().optional(),
@@ -55,15 +58,6 @@ export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
   ValidatedDateTime: z.string(),
   ProcessedDateTime: z.string(),
   // Fallback for pre migration
-  ExpirationDateTime: z.union([
-    z.number(),
-    z.string().transform((val, ctx) => {
-      if (!isNaN(Date.parse(val))) {
-        return DateInSeconds.toUnix(val);
-      }
-      ctx.addIssue({ code: 'custom', message: 'ExpirationDateTime is not in valid unix or datetime format' });
-      return z.NEVER;
-    }),
-  ]),
+  ExpirationDateTime: z.number(),
 });
 export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

@@ -481,14 +481,14 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
 
   private parseArrayOfRecords(items: Record<string, AttributeValue>[]): z.infer<RecordSchema>[] {
     return items.flatMap((rawItem) => {
-      const unmarshalledItem = unmarshall(rawItem);
-      const { data, error } = this.recordSchema.safeParse(unmarshalledItem);
+      const unmarshaledItem = unmarshall(rawItem);
+      const { data, error } = this.recordSchema.safeParse(unmarshaledItem);
 
       if (error) {
         this.observability.logger.error('Record in table failed to parse to record schema, filtering out record', {
           tableName: this.tableAttributes.name,
           key: this.tableAttributes.hashKey,
-          value: unmarshalledItem[this.tableAttributes.hashKey] ?? undefined,
+          value: unmarshaledItem[this.tableAttributes.hashKey] ?? undefined,
           zodErrors: zodErrorFormatter(error),
         });
         return [];
