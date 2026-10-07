@@ -21,6 +21,7 @@ import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from 'infrastructure/cdk/constructs/UNSOrganisations';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsRecursive, applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyDataProtectionTag } from 'infrastructure/cdk/utils/applyDataProtectionTag';
 import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
@@ -185,10 +186,12 @@ export class UNSPSOResource extends Construct {
       serverAccessLogsBucket: refs.accessLogs.bucket,
       serverAccessLogsPrefix: namingHelper('analytics-export'),
     });
-
     applyCheckovSkipsS3Bucket(analyticsExportBucket);
     applyExposureTag(analyticsExportBucket, 'Isolated');
     applyPiiTag(analyticsExportBucket, 'false');
+    if (config.isEphemeral) {
+      applyDataProtectionTag(analyticsExportBucket, 'Ephemeral');
+    }
 
     analyticsExportBucket.addToResourcePolicy(
       new PolicyStatement({
