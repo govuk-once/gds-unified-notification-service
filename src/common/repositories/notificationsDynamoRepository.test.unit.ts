@@ -9,6 +9,7 @@ import {
   mockAWSClientsExpectedBehaviour,
   mockIMessageRecord,
   mockIProcessedMessage,
+  mockIProcessedMessageRecord,
   mockServicesExpectedBehaviour,
 } from '@test/mocks';
 
@@ -29,6 +30,7 @@ describe('NotificationsDynamoRepository', async () => {
   const message = mockIProcessedMessage();
   const messageRecord = mockIMessageRecord(message);
   const messageRecordWithExpiration = mockIMessageRecord(message, { ExpirationDateTime: true });
+  const processedMessageRecord = mockIProcessedMessageRecord(message);
 
   beforeEach(async () => {
     // Reset all mock
@@ -452,6 +454,22 @@ describe('NotificationsDynamoRepository', async () => {
   });
 
   describe('getProcessedMessageByID', () => {
+    it('should use fallback if ExpirationDatetime is in datetime string format', async () => {
+      // Arrange
+      const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+      const processedMessageRecordWithDatetime = {
+        ...processedMessageRecord,
+        ExpirationDateTime: new Date(processedMessageRecord.ExpirationDateTime * 1000).toISOString(),
+      };
+      instance.getRecord = vi.fn().mockResolvedValueOnce(processedMessageRecordWithDatetime);
+
+      // Act
+      const result = await instance.getProcessedMessageByID(notificationID);
+
+      // Assert
+      expect(result).toEqual(processedMessageRecord);
+    });
+
     it('should return undefined if ExpirationDatetime fails to be parsed', async () => {
       // Arrange
       const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
