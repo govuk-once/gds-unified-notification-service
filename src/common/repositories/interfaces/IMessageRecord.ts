@@ -1,4 +1,5 @@
 import { ChannelsEnum } from '@common/models';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import * as z from 'zod';
 
@@ -30,8 +31,15 @@ export const IMessageRecordSchema = z.object({
   ProcessedDateTime: z.string().optional(),
   DispatchedDateTime: z.string().optional(),
   // Fallback for pre migration
-  // TODO: migrate data to new schema
-  ExpirationDateTime: z.number().optional().catch(undefined),
+  ExpirationDateTime: z
+    .number()
+    .optional()
+    .catch((val) => {
+      const value = val.value as string;
+      if (!isNaN(Date.parse(value))) {
+        return DateInSeconds.toUnix(value);
+      }
+    }),
 
   // Configurations
   RequestedDaysToExpire: z.int().positive().optional(),
@@ -47,7 +55,14 @@ export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
   ValidatedDateTime: z.string(),
   ProcessedDateTime: z.string(),
   // Fallback for pre migration
-  // TODO: migrate data to new schema
-  ExpirationDateTime: z.number().optional().catch(undefined),
+  ExpirationDateTime: z
+    .number()
+    .optional()
+    .catch((val) => {
+      const value = val.value as string;
+      if (!isNaN(Date.parse(value))) {
+        return DateInSeconds.toUnix(value);
+      }
+    }),
 });
 export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

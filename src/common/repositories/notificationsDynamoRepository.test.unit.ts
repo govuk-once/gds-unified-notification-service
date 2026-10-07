@@ -429,14 +429,14 @@ describe('NotificationsDynamoRepository', async () => {
     it('should use fallback if expiration date is in datetime string format', async () => {
       // Arrange
       const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
-      const ExpirationDateTimeInMS = messageRecordWithExpiration.ExpirationDateTime! * 1000;
+      const ExpirationDateTime = messageRecordWithExpiration.ExpirationDateTime! * 1000;
       const dynamoItemWithDatetime = {
         ...messageRecordWithExpiration,
-        ExpirationDateTime: new Date(ExpirationDateTimeInMS).toISOString(),
+        ExpirationDateTime: new Date(ExpirationDateTime * 1000).toISOString(),
       };
       const messageRecordWithNoExpiration = {
         ...messageRecordWithExpiration,
-        ExpirationDateTime: undefined,
+        ExpirationDateTime: ExpirationDateTime,
       };
 
       awsClientMocks.dynamoDBClientMock.getItem = vi.fn().mockResolvedValueOnce({
