@@ -1,0 +1,25 @@
+version: 0.2
+
+env:
+  variables:
+    ZAP_IMAGE: 'zaproxy/zap-stable'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 24
+    commands:
+      - echo 'Running Scripts'
+      - corepack enable
+      - aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2
+  pre_build:
+    commands:
+      - echo "RUNNING" && eval "$(pnpm --silent tsx scripts/runZapProxy.ts --target flex)" && echo "DONE"
+      - docker pull $ZAP_IMAGE
+      - chmod 644 client.p12
+      - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
+
+  build:
+    commands:
+      - >-
+        docker run --network host -v "$(pwd)":/zap/wrk/:rw -e TARGET_SPEC="${TARGET_SPEC}" -e TARGET_URL="${TARGET_URL}" -e ZAP_AUTH_HEADER="x-api-key" -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}" -t zaproxy/zap-stable zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml
