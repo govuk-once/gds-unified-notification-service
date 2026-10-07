@@ -18,7 +18,32 @@ jobs:
       targetUrl: '${TARGET_URL}'
       context: Default Context
   - type: activeScan
-    parameters: {}
+    parameters:
+      maxScanDurationInMins: 2
+      maxRuleDurationInMins: 1
     policyDefinition:
       defaultStrength: medium
       defaultThreshold: medium
+  - type: report
+    parameters:
+      template: traditional-pdf
+      reportTitle: ZAP by Checkmarx Scanning Report
+    risks:
+      - info
+      - low
+      - medium
+      - high
+    confidences:
+      - falsepositive
+      - low
+      - medium
+      - high
+      - confirmed
+    sections:
+      - alertcount
+      - insights
+      - scriptdiagnostics
+      - scriptdiagnosticsscreenshots
+      - scriptdiagnosticsoutput
+      - instancecount
+      - alertdetails
