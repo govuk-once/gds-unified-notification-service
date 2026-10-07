@@ -6,8 +6,9 @@ import { execSync } from 'node:child_process';
 
 async function configureZaproxyEnvironmentVars(target: string): Promise<void> {
   const usePrivateGateway = config.isE2ERunner;
+  const flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
   const password = 'zap-mtls';
-  const { psoApiKey, flexApiKey } = await fetchApiKeys('private');
+  const { psoApiKey, flexApiKey } = await fetchApiKeys(flexKeyMarker);
   const { crt, key } = await fetchMtlsCertificates();
 
   // Set the correct target URL and API key based on target
