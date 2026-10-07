@@ -55,14 +55,15 @@ export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
   ValidatedDateTime: z.string(),
   ProcessedDateTime: z.string(),
   // Fallback for pre migration
-  ExpirationDateTime: z
-    .number()
-    .optional()
-    .catch((val) => {
-      const value = val.value as string;
-      if (!isNaN(Date.parse(value))) {
-        return DateInSeconds.toUnix(value);
+  ExpirationDateTime: z.union([
+    z.number(),
+    z.string().transform((val, ctx) => {
+      if (!isNaN(Date.parse(val))) {
+        return DateInSeconds.toUnix(val);
       }
+      ctx.addIssue({ code: 'custom', message: 'ExpirationDateTime is not in valid unix or datetime format' });
+      return z.NEVER;
     }),
+  ]),
 });
 export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

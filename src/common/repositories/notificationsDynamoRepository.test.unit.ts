@@ -426,7 +426,7 @@ describe('NotificationsDynamoRepository', async () => {
       });
     });
 
-    it('should use fallback if expiration date is in datetime string format', async () => {
+    it('should use fallback if ExpirationDatetime is in datetime string format', async () => {
       // Arrange
       const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
       const ExpirationDateTime = messageRecordWithExpiration.ExpirationDateTime! * 1000;
@@ -448,6 +448,42 @@ describe('NotificationsDynamoRepository', async () => {
 
       // Assert
       expect(result).toEqual(messageRecordWithNoExpiration);
+    });
+  });
+
+  describe('getProcessedMessageByID', () => {
+    it('should return undefined if ExpirationDatetime fails to be parsed', async () => {
+      // Arrange
+      const notificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc3';
+      const messageRecord = {
+        ...messageRecordWithExpiration,
+        ExpirationDateTime: 'a date',
+      };
+      instance.getRecord = vi.fn().mockResolvedValueOnce(messageRecord);
+
+      // Act
+      const result = await instance.getProcessedMessageByID(notificationID);
+
+      // Assert
+      expect(result).toEqual(undefined);
+    });
+  });
+
+  describe('getProcessedMessages', () => {
+    it('should return undefined if ExpirationDatetime fails to be parsed', async () => {
+      // Arrange
+      const externalUserID = 'user_1';
+      const messageRecord = {
+        ...messageRecordWithExpiration,
+        ExpirationDateTime: 'a date',
+      };
+      instance.getRecordsQuery = vi.fn().mockResolvedValueOnce([messageRecord]);
+
+      // Act
+      const result = await instance.getProcessedMessages(externalUserID);
+
+      // Assert
+      expect(result).toEqual([]);
     });
   });
 });
