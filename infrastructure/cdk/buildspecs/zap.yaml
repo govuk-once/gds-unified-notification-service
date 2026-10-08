@@ -19,11 +19,14 @@ jobs:
       context: Default Context
   - type: activeScan
     parameters:
-      maxScanDurationInMins: 5
-      maxRuleDurationInMins: 3
+      maxScanDurationInMins: 2
+      maxRuleDurationInMins: 1
     policyDefinition:
       defaultStrength: medium
       defaultThreshold: medium
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 2
   - type: report
     parameters:
       template: traditional-pdf
@@ -47,8 +50,30 @@ jobs:
       - scriptdiagnosticsoutput
       - instancecount
       - alertdetails
+  - type: report
+    parameters:
+      template: traditional-md
+      reportDir: /zap/wrk/
+      reportFile: zap-report.md
+      reportTitle: ZAP Security Scan Results
+    risks:
+      - info
+      - low
+      - medium
+      - high
+    confidences:
+      - falsepositive
+      - low
+      - medium
+      - high
+      - confirmed
+    sections:
+      - alertcount
+      - instancecount
   - type: exitStatus
     parameters:
-      errorLevel: Low
+      errorLevel: Medium
+      warnLevel: Low
       okExitValue: 0
       errorExitValue: 1
+      warnExitValue: 2

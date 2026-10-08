@@ -57,6 +57,7 @@ export class UNSE2EConstruct extends Construct {
       environment: {
         buildImage: LinuxBuildImage.STANDARD_7_0,
         computeType: ComputeType.MEDIUM,
+        privileged: true,
       },
       subnetSelection: {
         subnetType: SubnetType.PRIVATE_WITH_EGRESS,
@@ -71,10 +72,12 @@ export class UNSE2EConstruct extends Construct {
       environmentVariables: {
         UNS_E2E_RUNNER: { value: 'true' },
         UNS_FLEX_BASE_URL: { value: props.flexPrivateUrl },
+        UNS_REPORT_BUCKET: { value: this.sourceBucket.bucket.bucketName },
         env: { value: config.env },
       },
     });
-    this.sourceBucket.bucket.grantRead(this.role);
+    this.project.enableBatchBuilds();
+    this.sourceBucket.bucket.grantReadWrite(this.role);
 
     // Access to DynamoDB (testing injects notifications)
     props.messagesTable.grantReadWriteData(this.role);
