@@ -19,7 +19,7 @@ jobs:
       context: Default Context
   - type: activeScan
     parameters:
-      maxScanDurationInMins: 2
+      maxScanDurationInMins: 1
       maxRuleDurationInMins: 1
     policyDefinition:
       defaultStrength: medium
@@ -47,3 +47,10 @@ jobs:
       - scriptdiagnosticsoutput
       - instancecount
       - alertdetails
+  - type: exitStatus
+    parameters:
+      errorLevel: Informational
+      warnLevel: Informational
+      okExitValue: 0
+      warnExitValue: 1
+      errorExitValue: 1
