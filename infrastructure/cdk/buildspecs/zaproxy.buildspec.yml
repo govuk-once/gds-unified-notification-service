@@ -23,3 +23,14 @@ phases:
     commands:
       - >-
         docker run --network host -v "$(pwd)":/zap/wrk/:rw -e TARGET_SPEC="${TARGET_SPEC}" -e TARGET_URL="${TARGET_URL}" -e ZAP_AUTH_HEADER="x-api-key" -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}" -t zaproxy/zap-stable zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml
+  post_build:
+    commands:
+      - cd infrastructure/cdk/buildspecs/
+      - DATE=$(date +%Y-%m-%d)
+      - TIMESTAMP=$(date +%Y-%m-%dT%H:%M:%S)
+      - BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '_')
+      - >-
+        for f in *.pdf; do
+          [ -f "$f" ] || continue;
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/${DATE}/${TARGET_SPEC}-${BRANCH_NAME}-${TIMESTAMP}-${CODEBUILD_BUILD_NUMBER}.pdf";
+        done
