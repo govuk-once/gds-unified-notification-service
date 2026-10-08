@@ -38,7 +38,7 @@ export class UNSZaproxyConstruct extends Construct {
 
     this.project = new Project(this, constructNamingHelper(...props.name, 'project'), {
       projectName: namingHelper(...props.name, 'project'),
-      description: 'Runs the zaproxy test suite from within VPC',
+      description: 'Runs the zaproxy scan against PSO and Flex APIs from within VPC',
       role: props.role,
       environment: {
         buildImage: LinuxBuildImage.STANDARD_7_0,
@@ -64,6 +64,7 @@ export class UNSZaproxyConstruct extends Construct {
         webhook: false,
       }),
     });
+    this.project.enableBatchBuilds();
 
     this.reportBucket.bucket.grantReadWrite(props.role);
   }

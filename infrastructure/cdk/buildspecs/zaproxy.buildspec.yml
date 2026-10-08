@@ -1,5 +1,16 @@
 version: 0.2
 
+batch:
+  build-graph:
+    - identifier: pso_scan
+      env:
+        variables:
+          ZAP_TARGET: pso
+    - identifier: flex_scan
+      env:
+        variables:
+          ZAP_TARGET: flex
+
 env:
   variables:
     ZAP_IMAGE: 'zaproxy/zap-stable'
@@ -14,7 +25,7 @@ phases:
       - aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2
   pre_build:
     commands:
-      - echo "RUNNING" && eval "$(pnpm --silent tsx scripts/runZapProxy.ts --target flex)" && echo "DONE"
+      - echo "RUNNING ${ZAP_TARGET}" && eval "$(pnpm --silent tsx scripts/runZapProxy.ts --target ${ZAP_TARGET})" && echo "DONE ${ZAP_TARGET}"
       - docker pull $ZAP_IMAGE
       - chmod 644 client.p12
       - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
@@ -32,5 +43,5 @@ phases:
       - >-
         for f in *.pdf; do
           [ -f "$f" ] || continue;
-          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/${DATE}/${TARGET_SPEC}-${BRANCH_NAME}-${TIMESTAMP}-${CODEBUILD_BUILD_NUMBER}.pdf";
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/${DATE}/${ZAP_TARGET}-${BRANCH_NAME}-${TIMESTAMP}-${CODEBUILD_BUILD_NUMBER}.pdf";
         done
