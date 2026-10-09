@@ -1,0 +1,58 @@
+version: 0.2
+
+batch:
+  build-graph:
+    - identifier: pso_scan
+      env:
+        variables:
+          ZAP_TARGET: pso
+    - identifier: flex_scan
+      env:
+        variables:
+          ZAP_TARGET: flex
+
+env:
+  variables:
+    ZAP_IMAGE: 'zaproxy/zap-stable'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 24
+    commands:
+      - echo 'Running Scripts'
+      - corepack enable
+      - aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2
+  pre_build:
+    commands:
+      - echo $ZAP_TARGET
+      - echo "RUNNING ${ZAP_TARGET}" && eval "$(pnpm --silent tsx scripts/runZapProxy.ts --target ${ZAP_TARGET})" && echo "DONE ${ZAP_TARGET}"
+      - docker pull $ZAP_IMAGE
+      - chmod 644 client.p12
+      - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
+
+  build:
+    commands:
+      - >-
+        docker run --network host -v "$(pwd)":/zap/wrk/:rw -e TARGET_SPEC="${TARGET_SPEC}" -e TARGET_URL="${TARGET_URL}" -e ZAP_AUTH_HEADER="x-api-key" -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}" -t zaproxy/zap-stable zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml || true
+      - ZAP_EXIT=$?
+      - echo "******** ZAP EXIT STATUS $ZAP_EXIT ********"
+      - >-
+        if [ "$ZAP_EXIT" -eq 0 ]; then
+          echo "ZAP scan completed successfully - no issues found";
+        elif [ "$ZAP_EXIT" -ge 2 ]; then
+          echo "::warning::ZAP scan found low-level warnings (exit code $ZAP_EXIT)";
+        else
+          echo "::error::ZAP scan failed with medium or higher warnings (exit code $ZAP_EXIT)";
+          exit 1;
+        fi
+      - echo "********************************"
+
+  post_build:
+    commands:
+      - cd infrastructure/cdk/buildspecs/
+      - >-
+        for f in *.md; do
+          [ -f "$f" ] || continue;
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/reports/${ZAP_TARGET}-${f}";
+        done

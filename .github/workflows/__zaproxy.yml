@@ -1,0 +1,133 @@
+name: Running Zap Security Scan
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+on: workflow_call
+
+jobs:
+  zaproxyScan:
+    name: Running Zap Security Scan
+    runs-on: ubuntu-latest
+    environment:
+      name: ephemeral
+    env:
+      SOURCE_BUCKET: uns-${{ github.event.pull_request.number }}-e2e-runner-builds
+      PROJECT_NAME: uns-${{ github.event.pull_request.number }}-e2e-runner-project
+    steps:
+      - name: ⚙️ Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show OIDC claims (right before assume)
+        if: ${{ runner.debug }}
+        env:
+          AUDIENCE: 'sts.amazonaws.com'
+        run: |
+          TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")
+          ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r .value)
+          echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r '.sub'
+
+      - name: ⚙️ Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: 📤 Upload source code for the zaproxy scan
+        id: upload
+        env:
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          zip -rqy source.zip .
+          SOURCE_KEY="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
+          aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
+          echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: 🧪 Run zap proxy batch scan in codebuild
+        id: start
+        env:
+          SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
+          DATE: ${{ steps.upload.outputs.date }}
+          REF: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          BATCH_ID=$(aws codebuild start-build-batch \
+            --project-name "$PROJECT_NAME" \
+            --source-location-override "${SOURCE_BUCKET}/${SOURCE_KEY}" \
+            --buildspec-override "infrastructure/cdk/buildspecs/zaproxy.buildspec.yml" \
+            --environment-variables-override \
+              "name=BUILD_DATE,value=${DATE},type=PLAINTEXT" \
+              "name=GITHUB_REF_NAME,value=${REF},type=PLAINTEXT" \
+              "name=GITHUB_RUN_NUMBER,value=${RUN_NUMBER},type=PLAINTEXT" \
+            --query 'buildBatch.id' --output text)
+          echo "Batch build started: $BATCH_ID"
+          echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: ⏳ Wait for batch build to finish
+        env:
+          BATCH_ID: ${{ steps.start.outputs.batch_id }}
+        run: |
+          echo "Waiting for batch: $BATCH_ID"
+          while true; do
+            STATUS=$(aws codebuild batch-get-build-batches \
+              --ids "$BATCH_ID" \
+              --query 'buildBatches[0].buildBatchStatus' --output text)
+            echo "Status: $STATUS"
+            case "$STATUS" in
+              SUCCEEDED) echo "Batch build succeeded"; break ;;
+              FAILED|FAULT|TIMED_OUT|STOPPED)
+                echo "::error::Batch build finished with status: $STATUS"
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+
+      - name: 📥 Download ZAP report artifacts
+        continue-on-error: true
+        env:
+          DATE: ${{ steps.upload.outputs.date }}
+          REF: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          REPORT_PREFIX="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/reports"
+          echo "Downloading reports from: s3://${SOURCE_BUCKET}/${REPORT_PREFIX}/"
+          mkdir -p zap-reports
+          aws s3 cp "s3://${SOURCE_BUCKET}/${REPORT_PREFIX}/" ./zap-reports/ --recursive
+
+      - name: 📝 Build combined report
+        continue-on-error: true
+        id: report
+        run: |
+          {
+            echo '# PSO API'
+            echo ''
+            cat zap-reports/pso-zap-report.md
+            echo ''
+            echo '---'
+            echo ''
+            echo '# Flex API'
+            echo ''
+            cat zap-reports/flex-zap-report.md
+          } >> zap-reports/comment.md
+          echo "report=$(cat zap-reports/comment.md)" >> "$GITHUB_OUTPUT"
+
+      - name: 💬 Comment ZAP report on PR
+        continue-on-error: true
+        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: 'govuk-once/gds-unified-notification-service'
+          number: ${{ github.event.number }}
+          id: zapreportcomment
+          recreate: true
+          message: ${{ steps.report.outputs.report }}

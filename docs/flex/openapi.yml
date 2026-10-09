@@ -3,8 +3,6 @@ info:
   title: Unified Notification Service v0.1 - Flex integration
   version: 'v0.1'
   description: Work in progress
-servers:
-  - url: /api
 
 security:
   - bearerAuth: []

@@ -1,0 +1,78 @@
+env:
+  contexts:
+    - name: Default Context
+      urls:
+        - '${TARGET_URL}'
+      includePaths:
+        - '${TARGET_URL}.*'
+  configs:
+    network.clientCertificates.pkcs12.file: /zap/wrk/client.p12
+    network.clientCertificates.pkcs12.password: zap-mtls
+    network.clientCertificates.pkcs12.index: 0
+    network.clientCertificates.pkcs12.store: true
+    network.clientCertificates.use: true
+jobs:
+  - type: openapi
+    parameters:
+      apiFile: '/zap/wrk/docs/${TARGET_SPEC}/openapi.yml'
+      targetUrl: '${TARGET_URL}'
+      context: Default Context
+  - type: activeScan
+    parameters:
+      maxScanDurationInMins: 2
+      maxRuleDurationInMins: 1
+    policyDefinition:
+      defaultStrength: medium
+      defaultThreshold: medium
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 2
+  - type: report
+    parameters:
+      template: traditional-pdf
+      reportTitle: ZAP by Checkmarx Scanning Report
+    risks:
+      - info
+      - low
+      - medium
+      - high
+    confidences:
+      - falsepositive
+      - low
+      - medium
+      - high
+      - confirmed
+    sections:
+      - alertcount
+      - insights
+      - scriptdiagnostics
+      - scriptdiagnosticsscreenshots
+      - scriptdiagnosticsoutput
+      - instancecount
+      - alertdetails
+  - type: report
+    parameters:
+      template: traditional-md
+      reportFile: zap-report.md
+      reportTitle: ZAP Security Scan Results
+    risks:
+      - info
+      - low
+      - medium
+      - high
+    confidences:
+      - falsepositive
+      - low
+      - medium
+      - high
+      - confirmed
+    sections:
+      - alertcount
+      - instancecount
+  - type: exitStatus
+    parameters:
+      errorLevel: Medium
+      warnLevel: Low
+      okExitValue: 0
+      errorExitValue: 1
+      warnExitValue: 2
