@@ -120,20 +120,13 @@ jobs:
             cat zap-reports/flex-zap-report.md
           } >> zap-reports/comment.md
 
-      - name: Testing
+      - name: 💬 Comment ZAP report on PR
         continue-on-error: true
-        run: |
-          cd zap-reports
-          ls
-          cat comment.md
-
-      # - name: 💬 Comment ZAP report on PR
-      #   continue-on-error: true
-      #   uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
-      #   with:
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     repository: 'govuk-once/gds-unified-notification-service'
-      #     number: ${{ github.event.number }}
-      #     id: zapreportcomment
-      #     recreate: true
-      #     message: ${{ steps.report.outputs.body }}
+        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: 'govuk-once/gds-unified-notification-service'
+          number: ${{ github.event.number }}
+          id: zapreportcomment
+          recreate: true
+          message: zap-reports/comment.md
