@@ -31,7 +31,7 @@ export async function fetchApiKeys(flexKeyMarker: string): Promise<ApiKeys> {
     flexApiKey: '',
   };
 
-  const keys = ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? []).filter((key) =>
+  const keys = ((await apiGwClient.send(new GetApiKeysCommand({ limit: 1000 }))).items ?? []).filter((key) =>
     key.name?.includes(config.prefix)
   );
 
