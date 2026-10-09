@@ -53,7 +53,6 @@ jobs:
   - type: report
     parameters:
       template: traditional-md
-      reportDir: /zap/wrk/
       reportFile: zap-report.md
       reportTitle: ZAP Security Scan Results
     risks:
