@@ -51,34 +51,33 @@ jobs:
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
           echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
 
-      - name: 🧪 Run zap proxy scan in codebuild
+      - name: 🧪 Run zap proxy batch scan in codebuild
         id: start
         env:
           SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
         run: |
-          BUILD_ID=$(aws codebuild start-build \
+          BATCH_ID=$(aws codebuild start-build-batch \
             --project-name "$PROJECT_NAME" \
             --source-location-override "${SOURCE_BUCKET}/${SOURCE_KEY}" \
             --buildspec-override "infrastructure/cdk/buildspecs/zaproxy.buildspec.yml" \
-            --query 'build.id' --output text)
-          echo "Build started: $BUILD_ID"
-          echo "build_id=${BUILD_ID}" >> "$GITHUB_OUTPUT"
+            --query 'buildBatch.id' --output text)
+          echo "Batch build started: $BATCH_ID"
+          echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
 
-      - name: ⏳ Wait for CodeBuild to finish
-        id: wait
+      - name: ⏳ Wait for batch build to finish
         env:
-          BUILD_ID: ${{ steps.start.outputs.build_id }}
+          BATCH_ID: ${{ steps.start.outputs.batch_id }}
         run: |
-          echo "Waiting for build: $BUILD_ID"
+          echo "Waiting for batch: $BATCH_ID"
           while true; do
-            STATUS=$(aws codebuild batch-get-builds \
-              --ids "$BUILD_ID" \
-              --query 'builds[0].buildStatus' --output text)
+            STATUS=$(aws codebuild batch-get-build-batches \
+              --ids "$BATCH_ID" \
+              --query 'buildBatches[0].buildBatchStatus' --output text)
             echo "Status: $STATUS"
             case "$STATUS" in
-              SUCCEEDED) echo "Build succeeded"; break ;;
+              SUCCEEDED) echo "Batch build succeeded"; break ;;
               FAILED|FAULT|TIMED_OUT|STOPPED)
-                echo "::error::CodeBuild finished with status: $STATUS"
+                echo "::error::Batch build finished with status: $STATUS"
                 exit 1
                 ;;
             esac
@@ -87,14 +86,19 @@ jobs:
 
       - name: 📥 Download ZAP report artifacts
         env:
-          BUILD_ID: ${{ steps.start.outputs.build_id }}
+          BATCH_ID: ${{ steps.start.outputs.batch_id }}
         run: |
-          ARTIFACTS_LOC=$(aws codebuild batch-get-builds \
-            --ids "$BUILD_ID" \
-            --query 'builds[0].artifacts.location' --output text)
-          echo "Downloading artifacts from: $ARTIFACTS_LOC"
           mkdir -p zap-reports
-          aws s3 cp "$ARTIFACTS_LOC" ./zap-reports/ --recursive
+          BUILD_IDS=$(aws codebuild batch-get-build-batches \
+            --ids "$BATCH_ID" \
+            --query 'buildBatches[0].buildGroups[].currentBuildSummary.arn' --output text)
+          for BUILD_ID in $BUILD_IDS; do
+            ARTIFACTS_LOC=$(aws codebuild batch-get-builds \
+              --ids "$BUILD_ID" \
+              --query 'builds[0].artifacts.location' --output text)
+            echo "Downloading from: $ARTIFACTS_LOC"
+            aws s3 cp "$ARTIFACTS_LOC" ./zap-reports/ --recursive
+          done
 
       - name: 📎 Upload artifacts to GitHub
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
