@@ -61,7 +61,7 @@ Only suggest splitting when it genuinely aids measurability. Don't split for the
 ## Policies
 
 - **Rely on CLAUDE.md and codebase knowledge.** Reference the project's tech stack (TypeScript, AWS CDK, Lambda, DynamoDB, SQS, API Gateway, mTLS, Middy, Zod, Powertools) and patterns when assessing feasibility.
-- **GitHub and CI/CD awareness.** This project uses GitHub with CI/CD pipelines, Husky pre-commit hooks, and commitlint. Factor this into acceptance criteria where relevant (e.g., "CI passes", "no lint errors").
+- **GitHub and CI/CD awareness.** This project uses GitHub with CI/CD pipelines, Husky pre-commit hooks, and commit message validation via `scripts/validate-commit-msg.ts`. Factor this into acceptance criteria where relevant (e.g., "CI passes", "no lint errors").
 - **Don't solutionise.** Confirm feasibility, flag risks, but don't prescribe implementation. The ticket describes _what_, not _how_.
 - **Avoid excessive file/policy references** unless directly pertinent to the ticket's scope.
 - **Personas for user stories are limited to:** Developer, Security Engineer, QA Tester, Mobile App Developer. Do not invent other personas.
