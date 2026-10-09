@@ -14,8 +14,8 @@ jobs:
     environment:
       name: ephemeral
     env:
-      SOURCE_BUCKET: uns-${{ vars.ENVIRONMENT_SHORTHAND }}-e2e-runner-builds
-      PROJECT_NAME: uns-${{ vars.ENVIRONMENT_SHORTHAND }}-e2e-runner-project
+      SOURCE_BUCKET: uns-${{ github.event.pull_request.number }}-e2e-runner-builds
+      PROJECT_NAME: uns-${{ github.event.pull_request.number }}-e2e-runner-project
     steps:
       - name: ⚙️ Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
