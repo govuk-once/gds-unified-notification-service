@@ -119,11 +119,15 @@ jobs:
             echo ''
             cat zap-reports/flex-zap-report.md
           } >> zap-reports/comment.md
+          echo "report=(cat zap-reports/comment.md)" >> "$GITHUB_OUTPUT"
 
       - name: 💬 Comment ZAP report on PR
         continue-on-error: true
-        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b # v3.0.1
+        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
         with:
-          file-path: zap-reports/comment.md
-          comment-tag: zapreportcomment
-          mode: recreate
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: 'govuk-once/gds-unified-notification-service'
+          number: ${{ github.event.number }}
+          id: zapreportcomment
+          recreate: true
+          message: ${{ steps.report }}
