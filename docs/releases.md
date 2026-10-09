@@ -40,7 +40,7 @@ A git tag existing means the code is merged and versioned. It does **not** mean 
 
 ## Commit message format
 
-PRs are squash-merged, so the PR title becomes the commit on `main` and is what the commit analyser reads. Commit messages are enforced locally by Husky's `commit-msg` hook plus [`commitlint.config.ts`](/commitlint.config.ts) (extends `@commitlint/config-angular`):
+PRs are squash-merged, so the PR title becomes the commit on `main` and is what the commit analyser reads. Commit messages are enforced locally by Husky's `commit-msg` hook via [`scripts/validate-commit-msg.ts`](/scripts/validate-commit-msg.ts):
 
 ```text
 <type>(<TICKET-REF>): <description>
@@ -94,6 +94,6 @@ If a deployment announcement is something the team wants, it doesn't exist yet â
 **Code:**
 
 - [`.releaserc`](/.releaserc)
-- [`commitlint.config.ts`](/commitlint.config.ts)
+- [`scripts/validate-commit-msg.ts`](/scripts/validate-commit-msg.ts)
 - [`.husky/README.md`](/.husky/README.md)
 - [`.github/workflows/main.release.yml`](/.github/workflows/main.release.yml)
