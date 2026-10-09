@@ -130,4 +130,4 @@ jobs:
           number: ${{ github.event.number }}
           id: zapreportcomment
           recreate: true
-          message: ${{ steps.report }}
+          message: ${{ steps.report.outputs.report }}
