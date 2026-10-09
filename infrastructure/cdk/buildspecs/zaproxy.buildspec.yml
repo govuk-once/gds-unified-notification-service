@@ -25,6 +25,7 @@ phases:
       - aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2
   pre_build:
     commands:
+      - echo $ZAP_TARGET
       - echo "RUNNING ${ZAP_TARGET}" && eval "$(pnpm --silent tsx scripts/runZapProxy.ts --target ${ZAP_TARGET})" && echo "DONE ${ZAP_TARGET}"
       - docker pull $ZAP_IMAGE
       - chmod 644 client.p12
