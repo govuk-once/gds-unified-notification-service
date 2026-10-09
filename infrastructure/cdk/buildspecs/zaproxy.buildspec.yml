@@ -41,7 +41,7 @@ phases:
       - TIMESTAMP=$(date +%Y-%m-%dT%H:%M:%S)
       - BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '_')
       - >-
-        for f in *.pdf; do
+        for f in *.md; do
           [ -f "$f" ] || continue;
-          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/${DATE}/${ZAP_TARGET}-${BRANCH_NAME}-${TIMESTAMP}-${CODEBUILD_BUILD_NUMBER}.pdf";
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/${DATE}/${ZAP_TARGET}-${BRANCH_NAME}-${TIMESTAMP}-${CODEBUILD_BUILD_NUMBER}.md";
         done
