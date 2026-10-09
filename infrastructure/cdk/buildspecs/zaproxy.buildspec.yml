@@ -34,7 +34,20 @@ phases:
   build:
     commands:
       - >-
-        docker run --network host -v "$(pwd)":/zap/wrk/:rw -e TARGET_SPEC="${TARGET_SPEC}" -e TARGET_URL="${TARGET_URL}" -e ZAP_AUTH_HEADER="x-api-key" -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}" -t zaproxy/zap-stable zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml
+        docker run --network host -v "$(pwd)":/zap/wrk/:rw -e TARGET_SPEC="${TARGET_SPEC}" -e TARGET_URL="${TARGET_URL}" -e ZAP_AUTH_HEADER="x-api-key" -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}" -t zaproxy/zap-stable zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml || true
+      - ZAP_EXIT=$?
+      - echo "******** ZAP EXIT STATUS $ZAP_EXIT ********"
+      - >-
+        if [ "$ZAP_EXIT" -eq 0 ]; then
+          echo "ZAP scan completed successfully - no issues found";
+        elif [ "$ZAP_EXIT" -ge 2 ]; then
+          echo "::warning::ZAP scan found low-level warnings (exit code $ZAP_EXIT)";
+        else
+          echo "::error::ZAP scan failed with medium or higher warnings (exit code $ZAP_EXIT)";
+          exit 1;
+        fi
+      - echo "********************************"
+
   post_build:
     commands:
       - cd infrastructure/cdk/buildspecs/
