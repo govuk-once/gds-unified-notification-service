@@ -119,7 +119,7 @@ jobs:
             echo ''
             cat zap-reports/flex-zap-report.md
           } >> zap-reports/comment.md
-          echo "report=(cat zap-reports/comment.md)" >> "$GITHUB_OUTPUT"
+          echo "report=$(cat zap-reports/comment.md)" >> "$GITHUB_OUTPUT"
 
       - name: 💬 Comment ZAP report on PR
         continue-on-error: true
