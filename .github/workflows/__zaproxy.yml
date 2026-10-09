@@ -93,6 +93,7 @@ jobs:
           done
 
       - name: 📥 Download ZAP report artifacts
+        continue-on-error: true
         env:
           DATE: ${{ steps.upload.outputs.date }}
           REF: ${{ github.ref_name }}
@@ -103,8 +104,29 @@ jobs:
           mkdir -p zap-reports
           aws s3 cp "s3://${SOURCE_BUCKET}/${REPORT_PREFIX}/" ./zap-reports/ --recursive
 
-      - name: 📎 Upload artifacts to GitHub
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: 📝 Build combined report
+        continue-on-error: true
+        id: report
+        run: |
+          {
+            echo '# PSO API'
+            echo ''
+            cat zap-reports/pso-zap-report.md
+            echo ''
+            echo '---'
+            echo ''
+            echo '# Flex API'
+            echo ''
+            cat zap-reports/flex-zap-report.md
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 💬 Comment ZAP report on PR
+        continue-on-error: true
+        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
         with:
-          name: zap-report
-          path: zap-reports/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: 'govuk-once/gds-unified-notification-service'
+          number: ${{ github.event.number }}
+          id: zapreportcomment
+          recreate: true
+          message: ${{ steps.report.outputs.body }}
