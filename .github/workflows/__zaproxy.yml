@@ -47,19 +47,27 @@ jobs:
         run: |
           DATE=$(date +%Y-%m-%d)
           zip -rqy source.zip .
-          SOURCE_KEY="zaproxy/${DATE}/${REF}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
+          SOURCE_KEY="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
           echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
 
       - name: 🧪 Run zap proxy batch scan in codebuild
         id: start
         env:
           SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
+          DATE: ${{ steps.upload.outputs.date }}
+          REF: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           BATCH_ID=$(aws codebuild start-build-batch \
             --project-name "$PROJECT_NAME" \
             --source-location-override "${SOURCE_BUCKET}/${SOURCE_KEY}" \
             --buildspec-override "infrastructure/cdk/buildspecs/zaproxy.buildspec.yml" \
+            --environment-variables-override \
+              "name=BUILD_DATE,value=${DATE},type=PLAINTEXT" \
+              "name=GITHUB_REF_NAME,value=${REF},type=PLAINTEXT" \
+              "name=GITHUB_RUN_NUMBER,value=${RUN_NUMBER},type=PLAINTEXT" \
             --query 'buildBatch.id' --output text)
           echo "Batch build started: $BATCH_ID"
           echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
@@ -86,19 +94,14 @@ jobs:
 
       - name: 📥 Download ZAP report artifacts
         env:
-          BATCH_ID: ${{ steps.start.outputs.batch_id }}
+          DATE: ${{ steps.upload.outputs.date }}
+          REF: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
+          REPORT_PREFIX="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/reports"
+          echo "Downloading reports from: s3://${SOURCE_BUCKET}/${REPORT_PREFIX}/"
           mkdir -p zap-reports
-          BUILD_IDS=$(aws codebuild batch-get-build-batches \
-            --ids "$BATCH_ID" \
-            --query 'buildBatches[0].buildGroups[].currentBuildSummary.arn' --output text)
-          for BUILD_ID in $BUILD_IDS; do
-            ARTIFACTS_LOC=$(aws codebuild batch-get-builds \
-              --ids "$BUILD_ID" \
-              --query 'builds[0].artifacts.location' --output text)
-            echo "Downloading from: $ARTIFACTS_LOC"
-            aws s3 cp "$ARTIFACTS_LOC" ./zap-reports/ --recursive
-          done
+          aws s3 cp "s3://${SOURCE_BUCKET}/${REPORT_PREFIX}/" ./zap-reports/ --recursive
 
       - name: 📎 Upload artifacts to GitHub
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
