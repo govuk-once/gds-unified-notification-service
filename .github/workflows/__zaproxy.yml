@@ -133,7 +133,6 @@ jobs:
             echo "- [View Logs in CodeBuild](https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION})"
             echo ''
             echo '</details>'
-            echo '</details>'
           } >> zap-reports/comment.md
 
           # Adding multiline string delimiter
