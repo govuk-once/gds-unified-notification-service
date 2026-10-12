@@ -107,7 +107,12 @@ jobs:
       - name: 📝 Build combined report
         continue-on-error: true
         id: report
+        env:
+          DATE: ${{ steps.upload.outputs.date }}
+          REF: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
+          PRIVATE_PREFIX="s3://${SOURCE_BUCKET}/zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports"
           {
             echo '# PSO API'
             echo ''
@@ -118,6 +123,13 @@ jobs:
             echo '# Flex API'
             echo ''
             cat zap-reports/flex-zap-report.md
+            echo ''
+            echo '---'
+            echo ''
+            echo '## Private Reports'
+            echo ''
+            echo "- PSO: \`${PRIVATE_PREFIX}/pso-zap-report.pdf\`"
+            echo "- Flex: \`${PRIVATE_PREFIX}/flex-zap-report.pdf\`"
           } >> zap-reports/comment.md
 
           # Adding multiline string delimiter

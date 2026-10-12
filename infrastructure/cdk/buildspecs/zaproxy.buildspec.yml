@@ -63,3 +63,8 @@ phases:
           tail -n +5 "$f" > "$f.tmp" && mv "$f.tmp" "$f";
           aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/reports/${ZAP_TARGET}-${f}";
         done
+      - >-
+        for f in *.pdf; do
+          [ -f "$f" ] || continue;
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/private-reports/${ZAP_TARGET}-${f}";
+        done
