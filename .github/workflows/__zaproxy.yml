@@ -38,6 +38,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: ⚙️ Configure Codeartifact
+        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
+
       - name: ⚙️ Setup pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
@@ -51,6 +54,7 @@ jobs:
         run: pnpm ci
 
       - name: 🔐 Resolve ZAP environment variables
+        id: zap_env
         run: |
           eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target pso)"
           echo $TARGET_URL
