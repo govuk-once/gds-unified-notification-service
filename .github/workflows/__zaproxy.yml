@@ -116,11 +116,15 @@ jobs:
         run: |
           PRIVATE_PREFIX="s3://${SOURCE_BUCKET}/zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports"
           {
-            echo '<details><summary><h3>PSO API</h3</summary>'
+            echo '<details><summary><h3>PSO API</h3></summary>'
+            echo ''
             cat zap-reports/pso-zap-report.md
+            echo ''
             echo '</details>'
             echo '<details><summary><h3>Flex API</h3></summary>'
+            echo ''
             cat zap-reports/flex-zap-report.md
+            echo ''
             echo '</details>'
             # echo '<details><summary><h3>Private Reports & Logs</h3></summary>'
             # echo "- [View in S3](https://s3.console.aws.amazon.com/s3/buckets/${SOURCE_BUCKET}?region=${AWS_REGION}&prefix=zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports/)"
