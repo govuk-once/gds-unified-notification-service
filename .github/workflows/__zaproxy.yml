@@ -89,7 +89,7 @@ jobs:
                 exit 1
                 ;;
             esac
-            sleep 30
+            sleep 60
           done
 
       - name: 📥 Download ZAP report artifacts

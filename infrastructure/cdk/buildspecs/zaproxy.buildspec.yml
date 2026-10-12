@@ -26,7 +26,7 @@ phases:
   pre_build:
     commands:
       - echo $ZAP_TARGET
-      - echo "RUNNING ${ZAP_TARGET}" && eval "$(pnpm --silent tsx scripts/runZapProxy.ts --target ${ZAP_TARGET})" && echo "DONE ${ZAP_TARGET}"
+      - echo "RUNNING ${ZAP_TARGET}" && eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target ${ZAP_TARGET})" && echo "DONE ${ZAP_TARGET}"
       - docker pull $ZAP_IMAGE
       - chmod 644 client.p12
       - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
