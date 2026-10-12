@@ -34,10 +34,16 @@ phases:
   build:
     commands:
       - >-
-        docker run --network host -v "$(pwd)":/zap/wrk/:rw -e TARGET_SPEC="${TARGET_SPEC}" -e TARGET_URL="${TARGET_URL}" -e ZAP_AUTH_HEADER="x-api-key" -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}" -t zaproxy/zap-stable zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml || true
-      - ZAP_EXIT=$?
-      - echo "******** ZAP EXIT STATUS $ZAP_EXIT ********"
-      - >-
+        docker run --network host
+        -v "$(pwd)":/zap/wrk/:rw
+        -e TARGET_SPEC="${TARGET_SPEC}"
+        -e TARGET_URL="${TARGET_URL}"
+        -e ZAP_AUTH_HEADER="x-api-key"
+        -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}"
+        -t zaproxy/zap-stable
+        zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml;
+        ZAP_EXIT=$?;
+        echo "******** ZAP EXIT STATUS $ZAP_EXIT ********";
         if [ "$ZAP_EXIT" -eq 0 ]; then
           echo "ZAP scan completed successfully - no issues found";
         elif [ "$ZAP_EXIT" -ge 2 ]; then
@@ -45,8 +51,8 @@ phases:
         else
           echo "::error::ZAP scan failed with medium or higher warnings (exit code $ZAP_EXIT)";
           exit 1;
-        fi
-      - echo "********************************"
+        fi;
+        echo "********************************"
 
   post_build:
     commands:
@@ -54,5 +60,6 @@ phases:
       - >-
         for f in *.md; do
           [ -f "$f" ] || continue;
+          tail -n +5 "$f" > "$f.tmp" && mv "$f.tmp" "$f";
           aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/reports/${ZAP_TARGET}-${f}";
         done
