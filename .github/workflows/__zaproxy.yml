@@ -116,21 +116,21 @@ jobs:
         run: |
           PRIVATE_PREFIX="s3://${SOURCE_BUCKET}/zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports"
           {
-            echo '### Zap Proxy Report'
-            echo '<details><summary><b><font size="4">PSO API</font></b></summary>'
+            echo '## Zap Proxy Report'
+            echo '<details><summary><b><font size="5">PSO API</font></b></summary>'
             echo ''
             cat zap-reports/pso-zap-report.md
             echo ''
             echo '</details>'
-            echo '<details><summary><b><font size="4">Flex API</font></b></summary>'
+            echo '<details><summary><b><font size="5">Flex API</font></b></summary>'
             echo ''
             cat zap-reports/flex-zap-report.md
             echo ''
             echo '</details>'
-            # echo '<details><summary><h3>Private Reports & Logs</h3></summary>'
-            # echo "- [View in S3](https://s3.console.aws.amazon.com/s3/buckets/${SOURCE_BUCKET}?region=${AWS_REGION}&prefix=zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports/)"
-            # echo "- [View Logs in CodeBuild](https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION})"
-            # echo '</details>'
+            echo '<details><summary><b><font size="5">Private Reports & Logs<font></b></summary>'
+            echo "- [View in S3](https://s3.console.aws.amazon.com/s3/buckets/${SOURCE_BUCKET}?region=${AWS_REGION}&prefix=zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports/)"
+            echo "- [View Logs in CodeBuild](https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION})"
+            echo '</details>'
           } >> zap-reports/comment.md
 
           # Adding multiline string delimiter
