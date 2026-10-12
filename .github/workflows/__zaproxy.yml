@@ -112,6 +112,7 @@ jobs:
           REF: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
           BATCH_ID: ${{ steps.start.outputs.batch_id }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
           PRIVATE_PREFIX="s3://${SOURCE_BUCKET}/zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports"
           {
@@ -130,13 +131,13 @@ jobs:
             echo '## Private Reports & Logs'
             echo ''
             echo "- [View in S3](https://s3.console.aws.amazon.com/s3/buckets/${SOURCE_BUCKET}?prefix=zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports/)"
-            echo "- [View Logs in CodeBuild](https://eu-west-2.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=eu-west-2)"
+            echo "- [View Logs in CodeBuild](https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION})"
           } >> zap-reports/comment.md
 
           # Adding multiline string delimiter
           echo "report<<EOF" >> "$GITHUB_OUTPUT"
           cat zap-reports/comment.md >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"ÌÙÁÌ
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: 💬 Comment ZAP report on PR
         continue-on-error: true
