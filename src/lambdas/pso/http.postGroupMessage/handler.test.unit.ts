@@ -88,6 +88,38 @@ describe('PostGroupMessage Handler', async () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).not.toHaveBeenCalled();
   });
 
+  it('should return 400 when the request contains messages with duplicate GroupNotificationIDs', async () => {
+    // Arrange
+    const duplicateGroupNotificationID = 'DUPLICATE_GROUP_ID';
+    const firstMessage = { ...groupMessage, GroupNotificationID: duplicateGroupNotificationID };
+    const secondMessage = {
+      ...groupMessage,
+      GroupNotificationID: 'UNIQUE_GROUP_ID',
+      Group: 'turkey',
+    };
+    const lastMessage = {
+      ...groupMessage,
+      GroupNotificationID: duplicateGroupNotificationID,
+      NotificationTitle: 'Duplicate',
+    };
+    const eventWithDuplicateGroupNotificationIDs = mockAPIPostMessageEvent([
+      firstMessage,
+      secondMessage,
+      lastMessage,
+    ]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithDuplicateGroupNotificationIDs, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Duplicate GroupNotificationIDs are not allowed → at 2.GroupNotificationID.'],
+    });
+  });
+
   it('should return a status 202 and list of GroupNotificationID with the number of users it is sent to', async () => {
     // Act
     const result = await handler(event, context);

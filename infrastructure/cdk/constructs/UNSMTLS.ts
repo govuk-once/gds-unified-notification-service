@@ -15,6 +15,7 @@ import { UNSSMWriterProvider } from 'infrastructure/cdk/constructs/customResourc
 import { UNSCommon } from 'infrastructure/cdk/constructs/UNSCommon';
 import { getConsumers } from 'infrastructure/cdk/consumers/consumers';
 import { applyCheckovSkipsS3Bucket } from 'infrastructure/cdk/utils/applyCheckovSkip';
+import { applyDataProtectionTag } from 'infrastructure/cdk/utils/applyDataProtectionTag';
 import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
@@ -55,6 +56,9 @@ export class UNSMTLSCommon extends Construct {
       serverAccessLogsBucket: common.accessLogs.bucket,
       serverAccessLogsPrefix: namingHelper('mtls-certificates'),
     });
+    if (config.isEphemeral) {
+      applyDataProtectionTag(truststoreBucket, 'Ephemeral');
+    }
     applyCheckovSkipsS3Bucket(truststoreBucket);
     applyExposureTag(truststoreBucket, 'Isolated');
     applyPiiTag(truststoreBucket, 'false');

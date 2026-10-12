@@ -7,6 +7,7 @@ import { IKey, Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
+import { applyDataProtectionTag } from 'infrastructure/cdk/utils/applyDataProtectionTag';
 import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 export interface UNSCodeBuildConstructProps {
@@ -35,6 +36,9 @@ export class UNSE2EConstruct extends Construct {
         },
       ],
     });
+    if (config.isEphemeral) {
+      applyDataProtectionTag(this.sourceBucket, 'Ephemeral');
+    }
     applyExposureTag(this.sourceBucket, 'Isolated');
     applyPiiTag(this.sourceBucket, 'false');
 

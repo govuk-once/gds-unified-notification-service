@@ -1,4 +1,5 @@
 import { IMessageRecord, IProcessedMessageRecord } from '@common/repositories';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import { IAnalytics, IProcessedMessage } from '@project/lambdas';
 
 export const mockIMessageRecord = (
@@ -30,7 +31,7 @@ export const mockIMessageRecord = (
   ValidatedDateTime: metadata?.ReceivedDateTime ? '2026-01-01T12:00:01.000Z' : undefined,
   ProcessedDateTime: metadata?.ReceivedDateTime ? '2026-01-01T12:00:02.000Z' : undefined,
   DispatchedDateTime: metadata?.DispatchedDateTime ? '2026-01-01T12:00:03.000Z' : undefined,
-  ExpirationDateTime: metadata?.ExpirationDateTime ? '2100-01-31T12:00:00.000Z' : undefined,
+  ExpirationDateTime: metadata?.ExpirationDateTime ? DateInSeconds.toUnix('2100-01-31T12:00:00.000Z') : undefined,
 });
 
 export const mockIProcessedMessageRecord = (
@@ -54,7 +55,7 @@ export const mockIProcessedMessageRecord = (
   ValidatedDateTime: '2026-01-01T12:00:01.000Z',
   ProcessedDateTime: '2026-01-01T12:00:02.000Z',
   DispatchedDateTime: metadata?.DispatchedDateTime ? '2026-01-01T12:00:03.000Z' : undefined,
-  ExpirationDateTime: '2100-01-31T12:00:00.000Z',
+  ExpirationDateTime: DateInSeconds.toUnix('2100-01-31T12:00:00.000Z'),
 });
 
 export const mockIMessageRecord_E2E = (notificationID: string, pushID: string): IMessageRecord => ({
@@ -73,6 +74,6 @@ export const mockIMessageRecord_E2E = (notificationID: string, pushID: string): 
   ValidatedDateTime: '2026-01-01T12:00:01.000Z',
   ProcessedDateTime: '2026-01-01T12:00:02.000Z',
   DispatchedDateTime: '2026-01-01T12:00:03.000Z',
-  ExpirationDateTime: '2100-01-31T12:00:00.000Z',
+  ExpirationDateTime: DateInSeconds.toUnix('2100-01-31T12:00:00.000Z'),
   Events: [],
 });

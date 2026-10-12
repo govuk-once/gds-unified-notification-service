@@ -1,5 +1,6 @@
 import { ChannelsEnum } from '@common/models';
 import { IGroupMessage } from '@project/lambdas';
+import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkCampaignStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
@@ -204,6 +205,25 @@ describe('POST {{pso}}/send-to-group - Send a group message', () => {
 
       // Assert
       await expect(result).rejects.toThrow(`API [POST] ${path} Failed with 400`);
+    });
+
+    test('status 400 when - the request contains messages with the same GroupNotificationID', async ({ psoAPI }) => {
+      // Arrange
+      const duplicateGroupNotificationID = 'GROUP_ID' + uuid();
+      const messagesWithDuplicateGroupNotificationIDs = [
+        { ...mockGroupMessage, GroupNotificationID: duplicateGroupNotificationID },
+        { ...mockGroupMessage, GroupNotificationID: duplicateGroupNotificationID, NotificationTitle: 'Duplicate' },
+      ];
+
+      // Act
+      const result = psoAPI.post({ path, body: messagesWithDuplicateGroupNotificationIDs });
+
+      // Assert
+      await expect(result).rejects.toThrow(
+        expect.objectContaining(
+          BadRequestAxiosError(['Duplicate GroupNotificationIDs are not allowed → at 1.GroupNotificationID.'])
+        )
+      );
     });
   });
 

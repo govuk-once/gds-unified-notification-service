@@ -323,6 +323,33 @@ describe('PostMessage Handler', async () => {
     ]);
   });
 
+  it('should return 400 when the request contains messages with duplicate notificationIDs', async () => {
+    // Arrange
+    const firstMessage = { ...message, NotificationTitle: 'Title 1A' };
+    const secondMessage = {
+      ...message,
+      NotificationID: '6be48fa7-7a49-46c4-9730-792c105daf6b',
+      NotificationTitle: 'Title 2',
+    };
+    const lastMessage = { ...message, NotificationTitle: 'Title 1B' };
+    const eventWithDuplicateNotificationID = mockAPIPostMessageEvent([
+      firstMessage,
+      secondMessage,
+      lastMessage,
+    ]) as unknown as EventType;
+
+    // Act
+    const result = await handler(eventWithDuplicateNotificationID, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(400);
+    expect(JSON.parse(result.body)).toEqual({
+      Status: 400,
+      HttpError: 'BadRequest',
+      Errors: ['Duplicate NotificationIDs are not allowed → at 2.NotificationID.'],
+    });
+  });
+
   it('should return 400 when Channel is an empty string', async () => {
     // Arrange
     const messageWithEmptyChannel = {

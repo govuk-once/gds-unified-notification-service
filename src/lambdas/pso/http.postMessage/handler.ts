@@ -24,7 +24,25 @@ import { IMessage, IValidateMessageSchema } from '@project/lambdas/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
-const requestBodySchema = z.array(IValidateMessageSchema.strict()).min(1);
+const requestBodySchema = z
+  .array(IValidateMessageSchema.strict())
+  .min(1)
+  .superRefine((messages, ctx) => {
+    // Checks for duplicate notificationIDs
+    const seen = new Set<string>();
+    for (let i = 0; i < messages.length; i++) {
+      const id = messages[i].NotificationID;
+      if (seen.has(id)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Duplicate NotificationIDs are not allowed',
+          path: [i, 'NotificationID'],
+        });
+        return;
+      }
+      seen.add(id);
+    }
+  });
 const responseBodySchema = z.array(z.object({ NotificationID: z.string() })).or(z.object());
 const authorizerSchema = psoAuthorizerSchema;
 

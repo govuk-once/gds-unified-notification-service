@@ -20,16 +20,16 @@ pnpm run pre-commit
 
 This is the same command as the one triggered by husky in [./pre-commit](./pre-commit)
 
-## Commit Message Hooks
+## Commit Message Hooks
 
-In addition to pre-commit hooks, Husky combined with commitlint also enforces commit message formatting using a hook that ensures commit messages follow Angular conventions. This includes checking for proper commit message structure, including a descriptive subject line and a meaningful body.
+In addition to pre-commit hooks, Husky enforces commit message formatting via a TypeScript validation script. The hook ensures commit messages follow a consistent structure.
 
 The message format is as follows:
-type(scope): subject
+type(SCOPE): subject
 
 Rules:
 
-- Must use one of the following built-in types: build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test.
+- Must use one of the following built-in types: build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|BREAKING CHANGE|BREAKING.
 - The scope should always be upper case and should never be empty.
 - The scope must reference a specific ticket number like 'JIRA-123'
 - The subject is not case-sensitive and should never be empty.
@@ -40,4 +40,4 @@ fix(ABC-321): increased font size
 chore(JIRA-456): added endpoint
 BREAKING CHANGE(JIRA-456): removed an endpoint
 
-Configuration for the above is triggered via [./commit-msg](./commit-msg), and advanced configuration is defined via: [./../commitlint.config.ts](./../commitlint.config.ts).
+Configuration for the above is triggered via [./commit-msg](./commit-msg), with validation logic defined in [./../scripts/validate-commit-msg.ts](./../scripts/validate-commit-msg.ts).

@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ephemeral
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
     timeout-minutes: 60
     steps:
       # Setup
