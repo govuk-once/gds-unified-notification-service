@@ -60,7 +60,7 @@ phases:
       - >-
         for f in *.md; do
           [ -f "$f" ] || continue;
-          tail -n +5 "$f" > "$f.tmp" && mv "$f.tmp" "$f";
+          tail -n +6 "$f" > "$f.tmp" && mv "$f.tmp" "$f";
           aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/reports/${ZAP_TARGET}-${f}";
         done
       - >-
