@@ -117,17 +117,17 @@ jobs:
           PRIVATE_PREFIX="s3://${SOURCE_BUCKET}/zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports"
           {
             echo '## Zap Proxy Report'
-            echo '<details><summary><b><font size="5">PSO API</font></b></summary>'
+            echo '<details><summary><b>PSO API</b></summary>'
             echo ''
             cat zap-reports/pso-zap-report.md
             echo ''
             echo '</details>'
-            echo '<details><summary><b><font size="5">FLEX API</font></b></summary>'
+            echo '<details><summary><b>FLEX API</b></summary>'
             echo ''
             cat zap-reports/flex-zap-report.md
             echo ''
             echo '</details>'
-            echo '<details><summary><b><font size="5">Private Reports & Logs<font></b></summary>'
+            echo '<details><summary><b>Private Reports & Logs</b></summary>'
             echo ''
             echo "- [View in S3](https://s3.console.aws.amazon.com/s3/buckets/${SOURCE_BUCKET}?region=${AWS_REGION}&prefix=zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports/)"
             echo "- [View Logs in CodeBuild](https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION})"
