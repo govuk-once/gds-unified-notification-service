@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
-// Configuration — update JIRA_BASE_URL for your instance
+// Configuration
 // ---------------------------------------------------------------------------
 const REPO_BASE_URL = 'https://github.com/govuk-once/gds-unified-notification-service';
 const JIRA_BASE_URL = process.env.JIRA_BASE_URL ?? 'https://gdsgovukagents.atlassian.net/browse';
