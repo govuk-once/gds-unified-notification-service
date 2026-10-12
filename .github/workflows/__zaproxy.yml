@@ -128,8 +128,7 @@ jobs:
             echo ''
             echo '## Private Reports'
             echo ''
-            echo "- PSO: \`${PRIVATE_PREFIX}/pso-zap-report.pdf\`"
-            echo "- Flex: \`${PRIVATE_PREFIX}/flex-zap-report.pdf\`"
+            echo "- [View in S3](https://s3.console.aws.amazon.com/s3/buckets/${SOURCE_BUCKET}?prefix=zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports/)"
           } >> zap-reports/comment.md
 
           # Adding multiline string delimiter
