@@ -116,12 +116,13 @@ jobs:
         run: |
           PRIVATE_PREFIX="s3://${SOURCE_BUCKET}/zaproxy/${DATE}/${REF}/${RUN_NUMBER}/private-reports"
           {
-            echo '<details><summary><h3>PSO API</h3></summary>'
+            echo '### Zap Proxy Report'
+            echo '<details><summary><b><font size="4">PSO API</font></b></summary>'
             echo ''
             cat zap-reports/pso-zap-report.md
             echo ''
             echo '</details>'
-            echo '<details><summary><h3>Flex API</h3></summary>'
+            echo '<details><summary><b><font size="4">Flex API</font></b></summary>'
             echo ''
             cat zap-reports/flex-zap-report.md
             echo ''
