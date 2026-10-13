@@ -54,7 +54,7 @@ Reusable wrappers around individual AWS resources, used throughout `UNSCommon`/`
 | [`UNSCertificateAuthorityConstruct`](/infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct.ts) | ACM Private CA Root CA | See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
 | [`UNSClientCertificateConstruct`](/infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct.ts) | Per-consumer client cert | See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
 | [`UNSCustomResourceConstruct`](/infrastructure/cdk/constructs/bases/UNSCustomResourceConstruct.ts) | `NodejsFunction` + `customResources.Provider` | Generic base for CloudFormation custom resources — see [Custom resources](#custom-resources) |
-| [`UNSSlackIntegration`](/infrastructure/cdk/constructs/bases/UNSSlackIntegration.ts) | `chatbot.SlackChannelConfiguration` | Subscribes AWS Chatbot to one or more SNS topics — see [Alerting](#alerting) |
+| [`UNSSlackIntegration`](/infrastructure/cdk/constructs/bases/UNSSlackIntegration.ts) | `chatbot.SlackChannelConfiguration` | Subscribes AWS Chatbot to one or more SNS topics |
 
 ### Lambda entry-point resolution
 

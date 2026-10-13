@@ -8,11 +8,11 @@ How release versions are computed and how they flow into a deploy. Releases are 
 
 On every push to `main`, the `release` job in [`main.release.yml`](/.github/workflows/main.release.yml) runs `pnpm run semantic:release` (`semantic-release`) before anything is deployed. It reads [`.releaserc`](/.releaserc) and analyses every commit since the last release tag using the Angular commit-analyzer preset, with these release rules:
 
-| Commit type in the squashed message                 | Version bump    | Example                              |
+| Commit type in the squashed message | Version bump | Example |
 | ------------------------------------------------------- | ------------------ | ---------------------------------------- |
-| `BREAKING` or `BREAKING CHANGE`                          | Major (`2.0.0`)     | `BREAKING CHANGE(NOT-789): drop legacy field` |
-| `feat`                                                    | Minor (`1.2.0`)     | `feat(NOT-123): add preferences endpoint`  |
-| Anything else (`fix`, `chore`, `docs`, `refactor`, `style`, `test`, `build`, `ci`, `revert`, …) | Patch (`1.1.1`) | `fix(NOT-456): handle empty payload`       |
+| `BREAKING` or `BREAKING CHANGE` | Major (`2.0.0`) | `BREAKING CHANGE(NOT-789): drop legacy field` |
+| `feat` | Minor (`1.2.0`) | `feat(NOT-123): add preferences endpoint` |
+| Anything else (`fix`, `chore`, `docs`, `refactor`, `style`, `test`, `build`, `ci`, `revert`, …) | Patch (`1.1.1`) | `fix(NOT-456): handle empty payload` |
 
 > Every commit type other than `feat` and a breaking change bumps **patch** — the `.releaserc` rules are `{ type: '*', release: 'patch' }` and a `{ message: '*', release: 'patch' }` fallback, not just `fix`. A `chore` or `docs` commit still cuts a patch release.
 
@@ -74,13 +74,13 @@ If a deployment announcement is something the team wants, it doesn't exist yet �
 
 ## Troubleshooting
 
-| Symptom                                       | Likely cause                                                                                   |
+| Symptom | Likely cause |
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Commit rejected locally by Husky                 | Message doesn't match `type(TICKET-REF): subject` — see [Commit message format](#commit-message-format) |
-| No tag appears after a merge to `main`             | Extremely unusual given almost every type bumps at least a patch — check the `release` job log for a commit-analyzer parse failure |
-| `release` job fails                                | Check the semantic-release log in the job output; deployment to `dev`/`staging`/`production` is blocked until it's fixed |
-| Wrong bump for what you expected to be breaking     | Ensure the type is exactly `BREAKING` or `BREAKING CHANGE` (case-sensitive, matching the `.releaserc` rule) — `feat!:`-style bang syntax is **not** configured as a breaking-change trigger here, unlike some Angular-preset setups |
-| Looking for a changelog or GitHub Release entry      | Neither exists — see [What semantic-release does not do here](#what-semantic-release-does-not-do-here) |
+| Commit rejected locally by Husky | Message doesn't match `type(TICKET-REF): subject` — see [Commit message format](#commit-message-format) |
+| No tag appears after a merge to `main` | Extremely unusual given almost every type bumps at least a patch — check the `release` job log for a commit-analyzer parse failure |
+| `release` job fails | Check the semantic-release log in the job output; deployment to `dev`/`staging`/`production` is blocked until it's fixed |
+| Wrong bump for what you expected to be breaking | Ensure the type is exactly `BREAKING` or `BREAKING CHANGE` (case-sensitive, matching the `.releaserc` rule) — `feat!:`-style bang syntax is **not** configured as a breaking-change trigger here, unlike some Angular-preset setups |
+| Looking for a changelog or GitHub Release entry | Neither exists — see [What semantic-release does not do here](#what-semantic-release-does-not-do-here) |
 
 ---
 

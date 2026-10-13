@@ -65,11 +65,13 @@ export class FetchService {
       defaultHeaders?: Record<string, string>;
       defaultTimeout?: number;
       fetchOptions?: FetchOptionsParameter;
+      fetchImpl?: (input: FetchInputParameter, init?: FetchOptionsParameter) => Promise<Response>;
     }
   ) {}
 
   async fetch(input: FetchInputParameter, init?: FetchOptionsParameter): Promise<Response> {
-    return await fetch(input, init);
+    const fetchFn = this.props.fetchImpl ?? fetch;
+    return await fetchFn(input, init);
   }
 
   async request<T = unknown>(options: FetchRequest): Promise<FetchResponse<T>> {

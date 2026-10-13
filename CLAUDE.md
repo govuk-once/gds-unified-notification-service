@@ -14,7 +14,7 @@ GDS Unified Notification Service — a serverless notification system for GOV.UK
 ```sh
 pnpm install                        # install dependencies
 pnpm run build                      # esbuild bundle lambdas → dist/
-pnpm run build:validate             # typecheck only (tsc --noEmit)
+pnpm run build:validate             # typecheck only (tsc6 --noEmit via @typescript/typescript6)
 pnpm run lint                       # eslint + prettier (check)
 pnpm run lint:fix                   # eslint + prettier (auto-fix)
 pnpm run test                       # all tests (unit + e2e)
@@ -80,7 +80,7 @@ Lambda directories follow `{trigger}.{operationName}/` naming. Each contains `ha
 
 ### Path Aliases
 
-```
+```text
 @common/*  → src/common/*
 @project/* → src/*
 @test/*    → test/*
@@ -106,7 +106,7 @@ Enforced by a regex validation script (`scripts/validate-commit-msg.ts`) via Hus
 
 ## Tech Stack
 
-- **Runtime:** Node.js 22 (ESM), TypeScript 5.9+
+- **Runtime:** Node.js 22 (ESM), TypeScript 6 (via `@typescript/typescript6` compat shim aliased as `typescript`)
 - **Package manager:** pnpm 11.x
 - **Build:** esbuild (via `tsx scripts/build.ts`)
 - **Infrastructure:** AWS CDK v2
@@ -127,3 +127,4 @@ Never target `prod` or `stg` environments (e.g., `env=prod`, `env=stg`) without 
 
 - Prettier: single quotes, 2-space indent, 120-char lines, trailing commas (ES5), semicolons
 - ESLint: typescript-eslint with type checking. `no-floating-promises: error`
+- TypeScript runs via the `@typescript/typescript6` compat shim (`npm:@typescript/typescript6@^6.0.2` aliased as `typescript`). typescript-eslint v8 hard-blocks on TypeScript >=7.0, so the JS-based TypeScript 6 API is used for all tooling. To adopt the Go-based TypeScript 7 type checker once typescript-eslint ships TS7 support, add `"typescript7": "npm:typescript@^7.0.2"` to devDependencies and update `build:validate` to `tsgo` (tracked: [typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).

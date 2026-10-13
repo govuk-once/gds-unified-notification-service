@@ -130,7 +130,7 @@ sequenceDiagram
 
 **Trigger:** push to `main` (i.e. every merged PR).
 
-Runs [semantic-release](https://github.com/semantic-release/semantic-release) to compute and tag the next version (see the [Releases Guide](./releases.md)), then deploys `dev`, then `staging` and `production` in parallel — see [Deployment flow](#deployment-flow) above. Each environment deploy is the reusable [`_deploy.yml`](#reusable-deploy-workflow) workflow.
+Runs [semantic-release](https://github.com/semantic-release/semantic-release) to compute and tag the next version (see the [Releases Guide](./releases.md)), then deploys `dev`, then `staging` and `production` in parallel — see the Overview above for the full environment list. Each environment deploy is the reusable [`_deploy.yml`](#reusable-deploy-workflow) workflow.
 
 ```mermaid
 sequenceDiagram
