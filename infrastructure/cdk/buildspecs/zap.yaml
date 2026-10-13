@@ -19,7 +19,7 @@ jobs:
       context: Default Context
   - type: activeScan
     parameters:
-      maxScanDurationInMins: 2
+      maxScanDurationInMins: 15
       maxRuleDurationInMins: 1
     policyDefinition:
       defaultStrength: medium
@@ -75,4 +75,4 @@ jobs:
       warnLevel: Low
       okExitValue: 0
       errorExitValue: 1
-      warnExitValue: 1
+      warnExitValue: 2
