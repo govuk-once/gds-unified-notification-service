@@ -15,7 +15,7 @@ export interface UNSCodeBuildConstructProps {
   vpc: IVpc;
   securityGroups: ISecurityGroup[];
   kms: IKey;
-  flexPrivateUrl: string;
+
   messagesTable: Table;
 }
 export class UNSE2EConstruct extends Construct {
@@ -71,7 +71,6 @@ export class UNSE2EConstruct extends Construct {
       buildSpec: BuildSpec.fromSourceFilename('infrastructure/cdk/buildspecs/e2e-runner.buildspec.yml'),
       environmentVariables: {
         UNS_E2E_RUNNER: { value: 'true' },
-        UNS_FLEX_BASE_URL: { value: props.flexPrivateUrl },
         UNS_REPORT_BUCKET: { value: this.sourceBucket.bucket.bucketName },
         env: { value: config.env },
       },
