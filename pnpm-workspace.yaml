@@ -1,5 +1,8 @@
 ## PNPM Configuration
 
+# Hoist all packages to root node_modules so TypeScript can resolve transitive dependencies
+nodeLinker: hoisted
+
 # Instruct pnpm to override any dependency in the dependency graph, including peer dependencies
 overrides:
   'semantic-release>@semantic-release/npm': '^13.1.5'

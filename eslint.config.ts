@@ -13,6 +13,7 @@ export default defineConfig([
     '.claude',
     'artifacts',
     'coverage',
+    'coverage.md',
     'dist',
     'node_modules',
     'infrastructure/cdk/cdk.out',
