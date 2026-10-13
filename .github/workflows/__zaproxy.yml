@@ -117,7 +117,7 @@ jobs:
           echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
 
       - name: ⏳ Wait for batch build to finish
-        continue-on-error: true
+        id: wait
         env:
           BATCH_ID: ${{ steps.start.outputs.batch_id }}
         run: |
@@ -128,14 +128,11 @@ jobs:
               --query 'buildBatches[0].buildBatchStatus' --output text)
             echo "Status: $STATUS"
             case "$STATUS" in
-              SUCCEEDED) echo "Batch build succeeded"; break ;;
-              FAILED|FAULT|TIMED_OUT|STOPPED)
-                echo "::error::Batch build finished with status: $STATUS"
-                exit 1
-                ;;
+              SUCCEEDED|FAILED|FAULT|TIMED_OUT|STOPPED) break ;;
             esac
             sleep 60
           done
+          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
 
       - name: 📥 Download ZAP report artifacts
         continue-on-error: true
@@ -195,3 +192,14 @@ jobs:
           id: zapreportcomment
           recreate: true
           message: ${{ steps.report.outputs.report }}
+
+      - name: ❌ Fail if ZAP scan did not succeed
+        if: ${{ steps.wait.outputs.status != 'SUCCEEDED' }}
+        env:
+          STATUS: ${{ steps.wait.outputs.status }}
+          BATCH_ID: ${{ steps.start.outputs.batch_id }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          echo "::error::ZAP scan batch build finished with status: ${STATUS}"
+          echo "Check the logs in CodeBuild: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION}"
+          exit 1
