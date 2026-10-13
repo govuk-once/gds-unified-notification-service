@@ -88,7 +88,6 @@ jobs:
 
       - name: 🧪 Run zap proxy batch scan in codebuild
         id: start
-        continue-on-error: true
         env:
           SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
           DATE: ${{ steps.upload.outputs.date }}
@@ -118,6 +117,7 @@ jobs:
           echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
 
       - name: ⏳ Wait for batch build to finish
+        continue-on-error: true
         env:
           BATCH_ID: ${{ steps.start.outputs.batch_id }}
         run: |
