@@ -75,4 +75,4 @@ jobs:
       warnLevel: Low
       okExitValue: 0
       errorExitValue: 1
-      warnExitValue: 1
+      warnExitValue: 2

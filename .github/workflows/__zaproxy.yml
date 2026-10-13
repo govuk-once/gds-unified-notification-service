@@ -80,7 +80,7 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          zip -rqy source.zip .
+          zip -rqy source.zip client.p12 infrastructure/cdk/buildspecs/*
           SOURCE_KEY="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
           echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
