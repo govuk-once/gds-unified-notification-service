@@ -80,7 +80,7 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          zip -rqy source.zip client.p12 infrastructure/cdk/buildspecs/* docs/flex/* docs/flex/pso/*
+          zip -rqy source.zip client.p12 infrastructure/cdk/buildspecs/* docs/pso/* docs/flex/*
           SOURCE_KEY="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"
           echo "source_key=${SOURCE_KEY}" >> "$GITHUB_OUTPUT"
@@ -117,9 +117,9 @@ jobs:
           echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
 
       - name: ⏳ Wait for batch build to finish
-        id: wait
         env:
           BATCH_ID: ${{ steps.start.outputs.batch_id }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
           echo "Waiting for batch: $BATCH_ID"
           while true; do
@@ -128,13 +128,18 @@ jobs:
               --query 'buildBatches[0].buildBatchStatus' --output text)
             echo "Status: $STATUS"
             case "$STATUS" in
-              SUCCEEDED|FAILED|FAULT|TIMED_OUT|STOPPED) break ;;
+              SUCCEEDED) echo "Batch build succeeded"; break ;;
+              FAILED|FAULT|TIMED_OUT|STOPPED)
+                echo "::error::ZAP scan batch build finished with status: ${STATUS}"
+                echo "::error::Logs: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION}"
+                exit 1
+                ;;
             esac
             sleep 60
           done
-          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
 
       - name: 📥 Download ZAP report artifacts
+        if: always()
         continue-on-error: true
         env:
           DATE: ${{ steps.upload.outputs.date }}
@@ -147,6 +152,7 @@ jobs:
           aws s3 cp "s3://${SOURCE_BUCKET}/${REPORT_PREFIX}/" ./zap-reports/ --recursive
 
       - name: 📝 Build combined report
+        if: always()
         continue-on-error: true
         id: report
         env:
@@ -183,6 +189,7 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: 💬 Comment ZAP report on PR
+        if: always()
         continue-on-error: true
         uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
         with:
@@ -192,14 +199,3 @@ jobs:
           id: zapreportcomment
           recreate: true
           message: ${{ steps.report.outputs.report }}
-
-      - name: ❌ Fail if ZAP scan did not succeed
-        if: ${{ steps.wait.outputs.status != 'SUCCEEDED' }}
-        env:
-          STATUS: ${{ steps.wait.outputs.status }}
-          BATCH_ID: ${{ steps.start.outputs.batch_id }}
-          AWS_REGION: ${{ vars.AWS_REGION }}
-        run: |
-          echo "::error::ZAP scan batch build finished with status: ${STATUS}"
-          echo "Check the logs in CodeBuild: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codebuild/projects/${PROJECT_NAME}/batch/${BATCH_ID}?region=${AWS_REGION}"
-          exit 1

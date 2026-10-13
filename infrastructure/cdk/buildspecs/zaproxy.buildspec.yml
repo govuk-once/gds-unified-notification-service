@@ -26,7 +26,6 @@ phases:
           pso)  export TARGET_URL="$PSO_TARGET_URL"; export X_API_KEY="$PSO_X_API_KEY" ;;
           flex) export TARGET_URL="$FLEX_TARGET_URL"; export X_API_KEY="$FLEX_X_API_KEY" ;;
         esac
-        export TARGET_SPEC="$ZAP_TARGET"
       - docker pull $ZAP_IMAGE
       - chmod 644 client.p12
       - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
@@ -36,7 +35,7 @@ phases:
       - >-
         docker run --network host
         -v "$(pwd)":/zap/wrk/:rw
-        -e TARGET_SPEC="${TARGET_SPEC}"
+        -e TARGET_SPEC="${ZAP_TARGET}"
         -e TARGET_URL="${TARGET_URL}"
         -e ZAP_AUTH_HEADER="x-api-key"
         -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}"
