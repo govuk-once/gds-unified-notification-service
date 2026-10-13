@@ -55,6 +55,8 @@ jobs:
 
       - name: 🔐 Resolve ZAP environment variables
         id: zap_env
+        env:
+          env: ${{ github.event.number }}
         run: |
           eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target pso)"
           echo "pso_target_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
