@@ -22,7 +22,7 @@ export default mergeConfig(
           ? ['html']
           : process.env.VITEST_TREE_REPORT === 'true'
             ? ['tree']
-            : [],
+            : ['default'],
       coverage: {
         provider: 'v8',
         thresholds: {
@@ -31,8 +31,8 @@ export default mergeConfig(
           functions: 80,
           lines: 80,
         },
-        include: ['src/**/*.ts'],
-        exclude: ['src/**/*.{test,test.unit,mocks,util}.ts', 'src/common/ioc.ts'],
+        include: ['**/*.ts'],
+        exclude: ['**/*.{test,test.unit,mocks,util}.ts', 'common/ioc.ts'],
         reporter: [process.env.VITEST_DETAILED_COVERAGE == 'true' ? 'text' : 'text-summary', 'lcov'],
       },
       silent: 'passed-only',

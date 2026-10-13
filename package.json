@@ -30,8 +30,8 @@
     "test": "vitest",
     "test:report:generate": "rm -rf html && env=dev VITEST_HTML_REPORT=true npm run test",
     "test:report:review": "npx vite preview --outDir html",
-    "test:unit": "vitest --project unit",
-    "test:e2e": "vitest --project e2e",
+    "test:unit": "vitest run --project unit",
+    "test:e2e": "vitest run --project e2e",
     "test:ui": "vitest --ui --coverage --project unit",
     "upgrade": "ncu -u -d 'pnpm run test:unit' && pnpm audit --omit dev",
     "upgrade:diff": "ncu -x eslint-plugin-prettier"
