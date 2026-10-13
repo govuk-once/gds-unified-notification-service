@@ -1,8 +1,5 @@
 ## PNPM Configuration
 
-# Defines what linker should be used for installing Node packages
-nodeLinker: hoisted
-
 # Instruct pnpm to override any dependency in the dependency graph, including peer dependencies
 overrides:
   'semantic-release>@semantic-release/npm': '^13.1.5'

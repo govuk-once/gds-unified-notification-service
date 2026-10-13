@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsx scripts/build.ts",
-    "build:validate": "tsc",
+    "build:validate": "tsc6",
     "checkov": "checkov --config-file .checkov.yaml --directory infrastructure/cdk/cdk.out/ --framework cloudformation --compact --quiet",
     "development:sandbox:release": "pnpm run build && pnpm run cdk:deploy",
     "development:sandbox:plan": "pnpm run build && pnpm run cdk:diff",
@@ -72,7 +72,7 @@
     "prettier": "3.9.9",
     "semantic-release": "^25.0.9",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.71.0",
     "undici": "^8.11.2",
     "vitest": "^5.0.3"
