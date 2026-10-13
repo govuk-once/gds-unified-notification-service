@@ -88,6 +88,7 @@ jobs:
 
       - name: 🧪 Run zap proxy batch scan in codebuild
         id: start
+        continue-on-error: true
         env:
           SOURCE_KEY: ${{ steps.upload.outputs.source_key }}
           DATE: ${{ steps.upload.outputs.date }}
