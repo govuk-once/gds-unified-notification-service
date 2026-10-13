@@ -10,6 +10,8 @@ batch:
       env:
         variables:
           ZAP_TARGET: flex
+  fast-fail: false
+  build-timeout-in-minutes: 30
 
 env:
   variables:
