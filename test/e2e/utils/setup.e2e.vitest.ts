@@ -5,7 +5,7 @@ import { FetchErrorResponse, FetchService } from '@common/services/FetchService'
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
-import { Agent } from 'undici';
+import { Agent, fetch as undiciFetch } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
 
@@ -170,6 +170,7 @@ export const testFixtures = () => {
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
+      fetchImpl: undiciFetch,
     }),
     psoAPIWithoutAPIKey: new FetchService({
       baseUrl: `https://${psoUrl}`,
@@ -178,6 +179,7 @@ export const testFixtures = () => {
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
+      fetchImpl: undiciFetch,
     }),
     psoAPIWithoutMTLSCert: new FetchService({
       baseUrl: `https://${psoUrl}`,
@@ -212,6 +214,7 @@ export const testFixtures = () => {
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
+      fetchImpl: undiciFetch,
     }),
   };
 };
