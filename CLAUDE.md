@@ -80,7 +80,7 @@ Lambda directories follow `{trigger}.{operationName}/` naming. Each contains `ha
 
 ### Path Aliases
 
-```
+```text
 @common/*  → src/common/*
 @project/* → src/*
 @test/*    → test/*

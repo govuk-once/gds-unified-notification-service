@@ -34,7 +34,7 @@
     "test:e2e": "vitest --project e2e",
     "test:ui": "vitest --ui --coverage --project unit",
     "upgrade": "ncu -u -d 'pnpm run test:unit' && pnpm audit --omit dev",
-    "upgrade:diff": "ncu -x @eslint/js -x eslint-plugin-markdownlint -x eslint-plugin-prettier"
+    "upgrade:diff": "ncu -x eslint-plugin-prettier"
   },
   "devDependencies": {
     "@aws-sdk/client-api-gateway": "^3.1145.0",
@@ -42,7 +42,7 @@
     "@aws-sdk/client-sns": "^3.1145.0",
     "@aws-sdk/client-sqs": "^3.1145.0",
     "@aws-sdk/client-sts": "^3.1145.0",
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@inquirer/prompts": "^8.7.2",
     "@semantic-release/exec": "^7.1.0",
     "@types/aws-lambda": "^8.10.164",
@@ -59,9 +59,9 @@
     "aws-sdk-client-mock-vitest": "^8.0.0",
     "dotenv": "^18.0.6",
     "esbuild": "^0.28.2",
-    "eslint": "^9.39.5",
+    "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-markdownlint": "^0.10.1",
+    "eslint-plugin-markdownlint": "^1.0.0",
     "eslint-plugin-prettier": "^5.5.6",
     "globals": "^17.13.0",
     "husky": "^9.1.7",
