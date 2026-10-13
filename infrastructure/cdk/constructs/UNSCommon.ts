@@ -17,6 +17,7 @@ import { UNSQueueConstruct } from 'infrastructure/cdk/constructs/bases/UNSQueueC
 import { UNSS3Bucket } from 'infrastructure/cdk/constructs/bases/UNSS3BucketConstruct';
 import { UNSSlackAlert } from 'infrastructure/cdk/constructs/bases/UNSSlackIntegration';
 import { UNSVpcConstruct } from 'infrastructure/cdk/constructs/bases/UNSVpcConstruct';
+import { applyDataProtectionTag } from 'infrastructure/cdk/utils/applyDataProtectionTag';
 import { applyExposureTag } from 'infrastructure/cdk/utils/applyExposureTag';
 import { applyPiiTag } from 'infrastructure/cdk/utils/applyPiiTag';
 import { SSMFromObject } from 'infrastructure/cdk/utils/SSMFromObject';
@@ -166,6 +167,10 @@ export class UNSCommon extends Construct {
     this.accessLogs = new UNSS3Bucket(this, config, {
       name: ['s3-accesslog'],
     });
+    if (config.isEphemeral) {
+      applyDataProtectionTag(this.accessLogs, 'Ephemeral');
+    }
+
     //// =====================================================
     // VPC Configuration & Endpoints
     //// =====================================================

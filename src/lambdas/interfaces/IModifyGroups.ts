@@ -6,9 +6,12 @@ export enum GroupActionEnum {
 }
 
 export const IModifyGroupsSchema = z.object({
-  Namespace: z.string(),
-  Group: z.string(),
-  Subgroup: z.string().optional(),
+  Namespace: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+  Group: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+  Subgroup: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]+$/)
+    .optional(),
   Action: z.enum(GroupActionEnum),
 });
 export type IModifyGroups = z.infer<typeof IModifyGroupsSchema>;

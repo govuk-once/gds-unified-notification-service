@@ -14,6 +14,7 @@ import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models
 import { IDynamoAttributes } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 import { zodErrorFormatter } from '@common/utils';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import z, { ZodObject } from 'zod';
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
@@ -443,9 +444,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   protected createExpirationDatePartial(expirationInDays?: number): Partial<z.infer<RecordSchema>> {
     if (this.tableAttributes.expirationAttribute && expirationInDays) {
       return {
-        [this.tableAttributes.expirationAttribute]: new Date(
-          Date.now() + expirationInDays * 24 * 60 * 60 * 1000
-        ).toISOString(),
+        [this.tableAttributes.expirationAttribute]: DateInSeconds.now() + expirationInDays * 24 * 60 * 60,
       } as Partial<z.infer<RecordSchema>>;
     }
 
@@ -455,9 +454,8 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       this.tableAttributes.expirationDurationInSeconds > 0
     ) {
       return {
-        [this.tableAttributes.expirationAttribute]: new Date(
-          Date.now() + this.tableAttributes.expirationDurationInSeconds * 1000
-        ).toISOString(),
+        [this.tableAttributes.expirationAttribute]:
+          DateInSeconds.now() + this.tableAttributes.expirationDurationInSeconds,
       } as Partial<z.infer<RecordSchema>>;
     }
 
@@ -483,14 +481,14 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
 
   private parseArrayOfRecords(items: Record<string, AttributeValue>[]): z.infer<RecordSchema>[] {
     return items.flatMap((rawItem) => {
-      const unmarshalledItem = unmarshall(rawItem);
-      const { data, error } = this.recordSchema.safeParse(unmarshalledItem);
+      const unmarshaledItem = unmarshall(rawItem);
+      const { data, error } = this.recordSchema.safeParse(unmarshaledItem);
 
       if (error) {
         this.observability.logger.error('Record in table failed to parse to record schema, filtering out record', {
           tableName: this.tableAttributes.name,
           key: this.tableAttributes.hashKey,
-          value: unmarshalledItem[this.tableAttributes.hashKey] ?? undefined,
+          value: unmarshaledItem[this.tableAttributes.hashKey] ?? undefined,
           zodErrors: zodErrorFormatter(error),
         });
         return [];

@@ -130,7 +130,7 @@ Read more on the conventions used for each suite: [unit testing](./src/README.md
 A quick summary:
 
 - Husky - Automatically lint commit messages. [Husky](https://typicode.github.io/husky)
-- commitlint - Lint commit messages to adhere to a commit convention. [commitlint](https://github.com/conventional-changelog/commitlint)
+- Commit message validation - Lint commit messages via `scripts/validate-commit-msg.ts` to adhere to a commit convention.
 
 Read more in : [./.husky/README.md](./.husky/README.md)
 

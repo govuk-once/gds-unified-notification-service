@@ -102,7 +102,7 @@ Format: `type(SCOPE): subject`
 - **Scope:** UPPER-CASE ticket number (e.g., `NOT-123`, `ABC-456`)
 - **Example:** `feat(NOT-111): added unit tests`
 
-Enforced by commitlint via Husky pre-commit hooks. The pre-commit hook also runs typecheck, unit tests, and lint in parallel.
+Enforced by a regex validation script (`scripts/validate-commit-msg.ts`) via Husky's `commit-msg` hook. The pre-commit hook also runs typecheck, unit tests, and lint in parallel.
 
 ## Tech Stack
 

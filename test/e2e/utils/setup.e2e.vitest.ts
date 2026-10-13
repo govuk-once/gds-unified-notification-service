@@ -2,12 +2,12 @@ import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FetchErrorResponse, FetchService } from '@common/services/FetchService';
+import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
 import { Agent } from 'undici';
 import { test as baseTest } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
-import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
@@ -104,9 +104,15 @@ const prepareBeforeAll = async () => {
 
     // Fetch API Keys from usage plans on the fly
     const apiGwClient = new APIGatewayClient({ region: 'eu-west-2' });
-    for (const key of ((await apiGwClient.send(new GetApiKeysCommand({}))).items ?? []).filter((key) =>
-      key.name?.includes(config.prefix)
-    )) {
+    for (const key of (
+      (
+        await apiGwClient.send(
+          new GetApiKeysCommand({
+            limit: 1000,
+          })
+        )
+      ).items ?? []
+    ).filter((key) => key.name?.includes(config.prefix))) {
       const value = await apiGwClient.send(
         new GetApiKeyCommand({
           apiKey: key.id,
