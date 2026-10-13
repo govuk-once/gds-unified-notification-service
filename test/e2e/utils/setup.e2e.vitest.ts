@@ -15,8 +15,8 @@ vi.hoisted(() => {
 });
 
 const usePrivateGateway = config.isE2ERunner;
-const psoUrl = domainName(`pso`);
-const flexUrl = domainName(`flex`, usePrivateGateway);
+const psoUrl = await domainName(`pso`);
+const flexUrl = await domainName(`flex`, usePrivateGateway);
 const flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
 
 let flexApiKey = '';

@@ -57,16 +57,20 @@ jobs:
         id: zap_env
         env:
           env: ${{ github.event.number }}
+          UNS_E2E_RUNNER: 'true'
         run: |
-          eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target pso)"
+          set -e
+
+          PSO_OUTPUT=$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target pso)
+          eval "$PSO_OUTPUT"
           echo "pso_target_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
           echo "pso_x_api_key=${X_API_KEY}" >> "$GITHUB_OUTPUT"
           echo "tls_password=${TLS_PASSWORD}" >> "$GITHUB_OUTPUT"
 
-          eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target flex)"
+          FLEX_OUTPUT=$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target flex)
+          eval "$FLEX_OUTPUT"
           echo "flex_target_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
           echo "flex_x_api_key=${X_API_KEY}" >> "$GITHUB_OUTPUT"
-          ls
 
       - name: 📤 Upload source code for the zaproxy scan
         id: upload
@@ -76,7 +80,6 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          ls
           zip -rqy source.zip .
           SOURCE_KEY="zaproxy/${DATE}/${REF}/${RUN_NUMBER}/source-${SHA:0:7}-${RUN_NUMBER}.zip"
           aws s3 cp source.zip "s3://${SOURCE_BUCKET}/$SOURCE_KEY"

@@ -1,4 +1,4 @@
-import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand } from '@aws-sdk/client-api-gateway';
+import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand, GetRestApisCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { config } from '../infrastructure/cdk/config';
 
@@ -12,12 +12,16 @@ export interface MtlsCertificates {
   key: string;
 }
 
-export const domainName = (name: string, usePrivateDomain: boolean = false) => {
+export const domainName = async (name: string, usePrivateDomain: boolean = false) => {
   if (name === 'flex' && usePrivateDomain) {
-    if (!process.env.UNS_FLEX_BASE_URL) {
-      throw new Error('UNS_FLEX_BASE_URL needs to be configured in the env varaibles');
+    const apiGwClient = new APIGatewayClient({ region: config.region });
+    const flexPrivateName = config.utils.namingHelper('apigw', 'flex-private');
+    const apis = await apiGwClient.send(new GetRestApisCommand({ limit: 500 }));
+    const api = apis.items?.find((a) => a.name === flexPrivateName);
+    if (!api?.id) {
+      throw new Error(`Could not find private flex API Gateway: ${flexPrivateName}`);
     }
-    return process.env.UNS_FLEX_BASE_URL?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    return `${api.id}.execute-api.${config.region}.amazonaws.com/api`;
   }
   const rootDomain = config.ssm.hostedZoneName;
   const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;

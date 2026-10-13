@@ -14,12 +14,12 @@ async function configureZaproxyEnvironmentVars(target: string): Promise<void> {
   // Set the correct target URL and API key based on target
   switch (target) {
     case 'pso':
-      const psoUrl = 'https://' + domainName('pso');
+      const psoUrl = 'https://' + (await domainName('pso'));
       console.log(`export TARGET_URL=${psoUrl}`);
       console.log(`export X_API_KEY=${psoApiKey}`);
       break;
     case 'flex':
-      const flexUrl = 'https://' + domainName('flex', usePrivateGateway);
+      const flexUrl = 'https://' + (await domainName('flex', usePrivateGateway));
       console.log(`export TARGET_URL=${flexUrl}`);
       console.log(`export X_API_KEY=${flexApiKey}`);
       break;
