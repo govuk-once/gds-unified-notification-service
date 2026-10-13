@@ -1,4 +1,4 @@
-### Conventions to follow when creating new lambdas.
+### Conventions to follow when creating new lambdas
 
 Some quick conventions to keep in mind when creating & naming new lambdas
 

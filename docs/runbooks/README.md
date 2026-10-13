@@ -2,10 +2,10 @@
 
 Operational runbooks for the GDS Unified Notification Service. Use the table below to find the runbook that matches your situation.
 
-| Runbook                                                                    | Use it when                                                                                     |
+| Runbook | Use it when |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [Fix Forward](./fix-forward.md)                                              | You need to ship a corrective change during a live incident and want to choose the right path      |
-| [API Gateway Errors](./api-gateway-errors.md)                                | PSO or Flex is returning an elevated rate of 4xx/5xx responses                                       |
+| [Fix Forward](./fix-forward.md) | You need to ship a corrective change during a live incident and want to choose the right path |
+| [API Gateway Errors](./api-gateway-errors.md) | PSO or Flex is returning an elevated rate of 4xx/5xx responses |
 | [Queue Backlog and Dispatch Failures](./queue-backlog-and-dispatch-failures.md) | A PSO SQS queue is backing up, a stage's failure rate is elevated, or the dispatch circuit breaker has opened |
 
 These are a starting set, not exhaustive — see [Documentation Guide: templates](../documentation-guide.md#a-runbook) for the template to use when adding another.

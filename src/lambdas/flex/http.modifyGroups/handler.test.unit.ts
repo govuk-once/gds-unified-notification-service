@@ -172,4 +172,75 @@ describe('ModifyGroups Handler', async () => {
     // Assert
     expect(result.statusCode).toEqual(400);
   });
+
+  it.each([
+    [
+      'Namespace',
+      { Namespace: 'travel namespace', Group: 'france', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Namespace',
+      { Namespace: 'travel.namespace', Group: 'france', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Namespace',
+      { Namespace: 'travel!namespace', Group: 'france', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    ['Group', { Namespace: 'travel', Group: 'france group', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN }],
+    ['Group', { Namespace: 'travel', Group: 'france.group', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN }],
+    ['Subgroup', { Namespace: 'travel', Group: 'france', Subgroup: 'IMMEDIATE!', Action: GroupActionEnum.JOIN }],
+    [
+      'Subgroup',
+      { Namespace: 'travel', Group: 'france', Subgroup: 'IMMEDIATE subgroup', Action: GroupActionEnum.JOIN },
+    ],
+  ])(
+    'should return 400 when %s contains characters other than alphanumeric, dashes or underscores',
+    async (_field, body) => {
+      // Arrange
+      const event = mockFlexAPIEvent({ body: [body], queryStringParameters: { pushID } }) as unknown as EventType;
+
+      // Act
+      const result = await handler(event, context);
+
+      // Assert
+      expect(result.statusCode).toEqual(400);
+    }
+  );
+
+  it.each([
+    [
+      'Namespace with dash',
+      { Namespace: 'travel-namespace', Group: 'france', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Namespace with underscore',
+      { Namespace: 'travel_namespace', Group: 'france', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Group with dash',
+      { Namespace: 'travel', Group: 'france-group', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Group with underscore',
+      { Namespace: 'travel', Group: 'france_group', Subgroup: 'IMMEDIATE', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Subgroup with dash',
+      { Namespace: 'travel', Group: 'france', Subgroup: 'IMMEDIATE-subgroup', Action: GroupActionEnum.JOIN },
+    ],
+    [
+      'Subgroup with underscore',
+      { Namespace: 'travel', Group: 'france', Subgroup: 'IMMEDIATE_subgroup', Action: GroupActionEnum.JOIN },
+    ],
+    ['Subgroup omitted', { Namespace: 'travel', Group: 'france', Action: GroupActionEnum.JOIN }],
+  ])('should return 200 when %s contains only alphanumeric characters, dashes or underscores', async (_field, body) => {
+    // Arrange
+    const event = mockFlexAPIEvent({ body: [body], queryStringParameters: { pushID } }) as unknown as EventType;
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+  });
 });
