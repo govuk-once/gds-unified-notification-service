@@ -57,9 +57,13 @@ jobs:
         id: zap_env
         run: |
           eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target pso)"
-          echo $TARGET_URL
+          echo "pso_target_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
+          echo "pso_x_api_key=${X_API_KEY}" >> "$GITHUB_OUTPUT"
+          echo "tls_password=${TLS_PASSWORD}" >> "$GITHUB_OUTPUT"
+
           eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target flex)"
-          echo $TARGET_URL
+          echo "flex_target_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
+          echo "flex_x_api_key=${X_API_KEY}" >> "$GITHUB_OUTPUT"
 
       - name: 📤 Upload source code for the zaproxy scan
         id: upload
@@ -82,6 +86,11 @@ jobs:
           DATE: ${{ steps.upload.outputs.date }}
           REF: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
+          PSO_TARGET_URL: ${{ steps.zap_env.outputs.pso_target_url }}
+          PSO_X_API_KEY: ${{ steps.zap_env.outputs.pso_x_api_key }}
+          FLEX_TARGET_URL: ${{ steps.zap_env.outputs.flex_target_url }}
+          FLEX_X_API_KEY: ${{ steps.zap_env.outputs.flex_x_api_key }}
+          TLS_PASSWORD: ${{ steps.zap_env.outputs.tls_password }}
         run: |
           BATCH_ID=$(aws codebuild start-build-batch \
             --project-name "$PROJECT_NAME" \
@@ -91,6 +100,11 @@ jobs:
               "name=BUILD_DATE,value=${DATE},type=PLAINTEXT" \
               "name=GITHUB_REF_NAME,value=${REF},type=PLAINTEXT" \
               "name=GITHUB_RUN_NUMBER,value=${RUN_NUMBER},type=PLAINTEXT" \
+              "name=PSO_TARGET_URL,value=${PSO_TARGET_URL},type=PLAINTEXT" \
+              "name=PSO_X_API_KEY,value=${PSO_X_API_KEY},type=PLAINTEXT" \
+              "name=FLEX_TARGET_URL,value=${FLEX_TARGET_URL},type=PLAINTEXT" \
+              "name=FLEX_X_API_KEY,value=${FLEX_X_API_KEY},type=PLAINTEXT" \
+              "name=TLS_PASSWORD,value=${TLS_PASSWORD},type=PLAINTEXT" \
             --query 'buildBatch.id' --output text)
           echo "Batch build started: $BATCH_ID"
           echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"

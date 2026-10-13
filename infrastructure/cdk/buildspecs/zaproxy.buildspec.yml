@@ -16,17 +16,15 @@ env:
     ZAP_IMAGE: 'zaproxy/zap-stable'
 
 phases:
-  install:
-    runtime-versions:
-      nodejs: 24
-    commands:
-      - echo 'Running Scripts'
-      - corepack enable
-      - aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2
   pre_build:
     commands:
       - echo $ZAP_TARGET
-      - echo "RUNNING ${ZAP_TARGET}" && eval "$(pnpm --silent tsx scripts/configureZaproxyEnv.ts --target ${ZAP_TARGET})" && echo "DONE ${ZAP_TARGET}"
+      - |
+        case "$ZAP_TARGET" in
+          pso)  export TARGET_URL="$PSO_TARGET_URL"; export X_API_KEY="$PSO_X_API_KEY" ;;
+          flex) export TARGET_URL="$FLEX_TARGET_URL"; export X_API_KEY="$FLEX_X_API_KEY" ;;
+        esac
+        export TARGET_SPEC="$ZAP_TARGET"
       - docker pull $ZAP_IMAGE
       - chmod 644 client.p12
       - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
