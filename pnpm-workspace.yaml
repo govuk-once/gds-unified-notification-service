@@ -13,8 +13,8 @@ overrides:
   'vite>rollup': 'npm:@rollup/wasm-node'
   'fast-uri': 3.1.4
   'js-yaml': 4.3.0
-  'markdown-it>linkify-it': 5.0.2
-  'aws-cdk-lib': 2.260.0
+  'markdown-it>linkify-it': 6.0.0
+  'aws-cdk-lib': 2.272.0
 
 # A map of package matchers to explicitly allow (true) or disallow (false) script execution
 allowBuilds:
@@ -26,3 +26,5 @@ minimumReleaseAge: 10080 # 7 days in minutes
 # Minimum release age exclusions - only for recommendations raised via dependabot
 minimumReleaseAgeExclude:
   - fast-uri@3.1.4
+  - dotenv@18.0.6
+  - tinybench@6.2.1

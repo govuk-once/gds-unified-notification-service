@@ -1,7 +1,7 @@
 import { ContentValidationError } from '@common/models';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import MarkdownIt from 'markdown-it';
-import Token from 'markdown-it/lib/token.mjs';
+import type { Token } from 'markdown-it';
 import z, { ZodType } from 'zod';
 
 const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
@@ -158,7 +158,7 @@ export class ContentValidationService {
     // Handle Explicit Markdown Links
     if (token.type === 'link_open') {
       const urlAttr = token.attrs?.find((attr) => attr[0] === 'href');
-      const url = urlAttr ? urlAttr[1] : undefined;
+      const url = urlAttr ? String(urlAttr[1]) : undefined;
 
       if (!url || url.trim() === '') {
         throw this.createError('Failed markdown validation as url is empty.');
