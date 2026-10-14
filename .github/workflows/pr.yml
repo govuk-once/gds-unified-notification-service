@@ -126,7 +126,7 @@ jobs:
 
   zaproxyScan:
     name: PR / Zap Security Scan
-    uses: ./.github/workflows/__zaproxy.yml
+    uses: ./.github/workflows/_zaproxy.yml
     needs: [ephemeralTesting]
     secrets: inherit
     with:

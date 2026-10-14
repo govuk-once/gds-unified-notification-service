@@ -170,5 +170,14 @@ export class UNSE2EConstruct extends Construct {
         resources: [`arn:aws:execute-api:${config.region}:${stack.account}:*/*`],
       })
     );
+
+    // Access to list all APIs
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['apigateway:GET'],
+        resources: [`arn:aws:apigateway:${config.region}::/restapis`],
+      })
+    );
   }
 }

@@ -29,7 +29,7 @@ jobs:
     if: ${{ inputs.ENVIRONMENT != 'production' }}
     needs: release
     name: Zap Security Scan(temp)
-    uses: ./.github/workflows/__zaproxy.yml
+    uses: ./.github/workflows/_zaproxy.yml
     secrets: inherit
   release:
     name: Release
