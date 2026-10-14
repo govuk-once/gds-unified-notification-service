@@ -1,12 +1,14 @@
+import { FetchErrorResponse } from '@common/services/FetchService';
 import { When } from '@cucumber/cucumber';
 import type CustomWorld from '@test/e2e/utils/world';
+import { v4 as uuid } from 'uuid';
 
-When('I send a {string} request to {string}', function (this: CustomWorld, method: string, path: string) {
+When('I send a {string} request to {string}', async function (this: CustomWorld, method: string, path: string) {
   const substrings: Record<string, string> = {
-    $VALID_NOTIFICATION$: this.testIDs.mockNotificationID.valid,
-    $NOT_FOUND_NOTIFICATION$: this.testIDs.mockNotificationID.notFound,
-    $VALID_PUSH_ID$: this.testIDs.pushID,
-    $MISSING_PUSH_ID$: '',
+    $KNOWN_IDS_VALID_NOTIFICATION$: this.testIDs.mockNotificationID,
+    $KNOWN_IDS_VALID_PUSH_ID$: this.testIDs.pushID,
+    $RANDOM_UUID$: uuid(),
+    $MISSING_ID$: '',
   };
 
   this.path = path.replace(/\$[A-Z_]+\$/g, (match) => {
@@ -14,18 +16,22 @@ When('I send a {string} request to {string}', function (this: CustomWorld, metho
     return substrings[match];
   });
 
-  switch (method) {
-    case 'POST':
-      this.result = this.api.post({ path: this.path });
-      break;
-    case 'GET':
-      this.result = this.api.get({ path: this.path });
-      break;
-    case 'DELETE':
-      this.result = this.api.delete({ path: this.path });
-      break;
-    case 'PUT':
-      this.result = this.api.put({ path: this.path });
-      break;
+  try {
+    switch (method) {
+      case 'POST':
+        this.result = await this.api.post({ path: this.path });
+        break;
+      case 'GET':
+        this.result = await this.api.get({ path: this.path });
+        break;
+      case 'DELETE':
+        this.result = await this.api.delete({ path: this.path });
+        break;
+      case 'PUT':
+        this.result = await this.api.put({ path: this.path });
+        break;
+    }
+  } catch (e) {
+    this.result = e as FetchErrorResponse;
   }
 });

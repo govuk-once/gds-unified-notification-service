@@ -98,7 +98,7 @@ jobs:
         run: |
           pnpm run release:announcement
 
-      # Unit testing - all envs
+      # Unit testing and End to end testing - Non production only, to avoid shipping test data into analytics
       - name: 🧪 All Testing suites
         if: ${{ inputs.ENVIRONMENT != 'production' && inputs.ENVIRONMENT != 'staging' }}
         run: |
@@ -106,7 +106,7 @@ jobs:
         env:
           env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
 
-      # End to end testing - Non production only, to avoid shipping test data into analytics
+      # Unit testing - Production envs
       - name: 🧪 Limited testing suites
         if: ${{ inputs.ENVIRONMENT == 'production' }}
         run: |

@@ -14,3 +14,11 @@ Before(async function (this: CustomWorld) {
   }
   this.applyDispatchConfig(dispatchConfigCache);
 });
+
+let messageExists = false;
+Before(async function (this: CustomWorld) {
+  if (!messageExists) {
+    await this.createTestNotification();
+    messageExists = true;
+  }
+});

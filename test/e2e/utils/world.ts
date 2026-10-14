@@ -5,9 +5,9 @@
 import { World } from '@cucumber/cucumber';
 import { IMessage } from '@project/lambdas';
 import { config } from '../../../infrastructure/cdk/config';
-import { FetchResponse, FetchService } from '../../../src/common/services/FetchService';
+import { FetchErrorResponse, FetchResponse, FetchService } from '../../../src/common/services/FetchService';
 import { FetchSigV4Service } from '../../../src/common/services/FetchSigV4Service';
-import { domainName, prepareDispatchConfig } from '../utils/setup.e2e';
+import { checkStatus, domainName, prepareDispatchConfig, waitUntil } from '../utils/setup.e2e';
 
 process.env.POWERTOOLS_DEV = 'true';
 process.env.POWERTOOLS_METRICS_DISABLED = 'false';
@@ -27,7 +27,7 @@ export default class CustomWorld extends World {
 
   public api!: FetchSigV4Service | FetchService;
   public path!: string;
-  public result!: Promise<FetchResponse>;
+  public result!: FetchResponse | FetchErrorResponse;
 
   public messageRequest?: Omit<IMessage, 'OrganisationID'>[];
 
@@ -42,10 +42,7 @@ export default class CustomWorld extends World {
   }
 
   public testIDs = {
-    mockNotificationID: {
-      valid: 'd4e04ac4-5696-45b7-8e8c-0060883a84f5',
-      notFound: 'unknown-notification-id',
-    },
+    mockNotificationID: 'd4e04ac4-5696-45b7-8e8c-0060883a84f5',
     pushID: 'abc123',
     validPushID:
       {
@@ -105,6 +102,36 @@ export default class CustomWorld extends World {
       fetchOptions: {
         dispatcher: dispatchConfig.httpsAgent as unknown as never,
       },
+    });
+  }
+
+  public async createTestNotification(this: CustomWorld) {
+    // Checks if a notification with the test ID already exists
+    // If not then a notification is created and checked that it has the required statuses for testing.
+    await this.psoAPI.get({ path: `/status/${this.testIDs.mockNotificationID}` }).catch(async (e) => {
+      if (e instanceof FetchErrorResponse) {
+        if (e.status === 404) {
+          this.messageRequest = [
+            {
+              NotificationID: this.testIDs.mockNotificationID,
+              CampaignID: 'TestCampaignID',
+              DepartmentID: 'TestDepartmentID',
+              UserID: 'TestUserID',
+              MessageTitle: 'You have a new Test Message',
+              MessageBody: 'Open Notification Centre to read your notifications',
+              NotificationTitle: 'This message is an end to end test.',
+              NotificationBody: 'Here is the Notification body.',
+            },
+          ];
+
+          console.log('Test notification does not exist, creating test notification');
+          await this.psoAPI.post({ path: '/send', body: this.messageRequest });
+          await waitUntil(() => checkStatus(this.psoAPI, this.testIDs.mockNotificationID), {
+            timeout: 30000,
+            interval: 2000,
+          });
+        }
+      }
     });
   }
 }

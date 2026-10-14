@@ -1,6 +1,4 @@
-import { FetchErrorResponse } from '@common/services/FetchService';
 import { defineParameterType, Given } from '@cucumber/cucumber';
-import { checkStatus, waitUntil } from '@test/e2e/utils/setup.e2e';
 import type CustomWorld from '@test/e2e/utils/world';
 
 export enum APIConfigurations {
@@ -39,32 +37,4 @@ Given('a {string} API client {APIConfig}', function (this: CustomWorld, service:
   if (!apiClients[service][apiConfig]) throw new Error(`Unknown API configuration: ${apiConfig}`);
 
   this.api = apiClients[service][apiConfig]();
-});
-
-Given('a notification record for that notification ID', async function (this: CustomWorld) {
-  await this.api.get({ path: `/status/${this.testIDs.mockNotificationID.valid}` }).catch(async (e) => {
-    if (e instanceof FetchErrorResponse) {
-      if (e.status === 404) {
-        this.messageRequest = [
-          {
-            NotificationID: this.testIDs.mockNotificationID.valid,
-            CampaignID: 'TestCampaignID',
-            DepartmentID: 'TestDepartmentID',
-            UserID: 'TestUserID',
-            MessageTitle: 'You have a new Test Message',
-            MessageBody: 'Open Notification Centre to read your notifications',
-            NotificationTitle: 'This message is an end to end test.',
-            NotificationBody: 'Here is the Notification body.',
-          },
-        ];
-
-        console.log('Test notification does not exist, creating test notification');
-        await this.psoAPI.post({ path: '/send', body: this.messageRequest });
-        await waitUntil(() => checkStatus(this.psoAPI, this.testIDs.mockNotificationID.valid), {
-          timeout: 30000,
-          interval: 2000,
-        });
-      }
-    }
-  });
 });

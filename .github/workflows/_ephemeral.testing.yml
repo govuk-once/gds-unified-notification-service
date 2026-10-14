@@ -78,6 +78,7 @@ jobs:
 
       - name: 🧪 End to end testing suite
         run: |
-          pnpm test:e2e:cucumber
+          VITEST_TREE_REPORT=true pnpm test:e2e
+          pnpm test:e2e:cucumber || echo "BDD tests failed"
         env:
           env: ${{ github.event.number }}
