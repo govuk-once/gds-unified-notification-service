@@ -3,7 +3,7 @@ name: Running Zap Security Scan
 permissions:
   contents: read
   id-token: write
-  pull-requests: write
+  # pull-requests: write
 
 on:
   schedule:
@@ -231,14 +231,14 @@ jobs:
           cat zap-reports/comment.md >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: 💬 Comment ZAP report on PR
-        if: always() && inputs.environment == 'ephemeral'
-        continue-on-error: true
-        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: 'govuk-once/gds-unified-notification-service'
-          number: ${{ github.event.number }}
-          id: zapreportcomment
-          recreate: true
-          message: ${{ steps.report.outputs.report }}
+      # - name: 💬 Comment ZAP report on PR
+      #   if: always() && inputs.environment == 'ephemeral'
+      #   continue-on-error: true
+      #   uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     repository: 'govuk-once/gds-unified-notification-service'
+      #     number: ${{ github.event.number }}
+      #     id: zapreportcomment
+      #     recreate: true
+      #     message: ${{ steps.report.outputs.report }}
