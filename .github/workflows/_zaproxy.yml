@@ -242,3 +242,7 @@ jobs:
           id: zapreportcomment
           recreate: true
           message: ${{ steps.report.outputs.report }}
+
+      - name: Publish ZAP report to job summary
+        if: always()
+        run: cat zap-reports/comment.md >> "$GITHUB_STEP_SUMMARY"
