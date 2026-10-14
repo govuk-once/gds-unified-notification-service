@@ -5,17 +5,30 @@ permissions:
   id-token: write
   pull-requests: write
 
-on: workflow_call
-
+on:
+  workflow_call:
+    inputs:
+      scan-mode:
+        description: 'passive(PR) or active (nightly)'
+        required: true
+        type: string
+      environment:
+        description: 'Github environment'
+        required: true
+        type: string
+      env-identifier:
+        description: 'Needed to set source bucket and project name'
+        required: true
+        type: string
 jobs:
   zaproxyScan:
-    name: Running Zap Security Scan
+    name: Running Zap Security Scan (Scan Mode ${{ inputs.scan-mode }})
     runs-on: ubuntu-latest
     environment:
-      name: ephemeral
+      name: ${{ inputs.environment }}
     env:
-      SOURCE_BUCKET: uns-${{ github.event.pull_request.number }}-e2e-runner-builds
-      PROJECT_NAME: uns-${{ github.event.pull_request.number }}-e2e-runner-project
+      SOURCE_BUCKET: uns-${{ inputs.env-identifier }}-e2e-runner-builds
+      PROJECT_NAME: uns-${{ inputs.env-identifier }}-e2e-runner-project
     steps:
       - name: ⚙️ Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,7 +69,7 @@ jobs:
       - name: 🔐 Resolve ZAP environment variables
         id: zap_env
         env:
-          env: ${{ github.event.number }}
+          env: ${{ inputs.env-identifier }}
           UNS_E2E_RUNNER: 'true'
         run: |
           set -e
@@ -112,6 +125,7 @@ jobs:
               "name=FLEX_TARGET_URL,value=${FLEX_TARGET_URL},type=PLAINTEXT" \
               "name=FLEX_X_API_KEY,value=${FLEX_X_API_KEY},type=PLAINTEXT" \
               "name=TLS_PASSWORD,value=${TLS_PASSWORD},type=PLAINTEXT" \
+              "name=SCAN_MODE,value=${{ inputs.scan-mode }},type=PLAINTEXT" \
             --query 'buildBatch.id' --output text)
           echo "Batch build started: $BATCH_ID"
           echo "batch_id=${BATCH_ID}" >> "$GITHUB_OUTPUT"
@@ -189,7 +203,7 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: 💬 Comment ZAP report on PR
-        if: always()
+        if: always() && inputs.environment == 'ephemeral'
         continue-on-error: true
         uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
         with:

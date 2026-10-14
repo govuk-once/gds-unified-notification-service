@@ -129,3 +129,7 @@ jobs:
     uses: ./.github/workflows/__zaproxy.yml
     needs: [ephemeralTesting]
     secrets: inherit
+    with:
+      scan-mode: passive
+      env-identifier: ${{ github.event.pull_request.number }}
+      environment: ephemeral
