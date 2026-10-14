@@ -111,6 +111,7 @@ coverage.md
 **/*.crt
 **/*.pem
 **/*.key
+**/*.p12
 
 # Local claude code settings
 .claude/settings.local.json

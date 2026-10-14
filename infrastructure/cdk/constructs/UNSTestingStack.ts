@@ -10,7 +10,7 @@ export interface UNSTestingContract {
   readonly vpc: IVpc;
   readonly securityGroups: ISecurityGroup[];
   readonly kms: IKey;
-  readonly flexPrivateUrl: string;
+
   readonly messagesTable: Table;
 }
 
