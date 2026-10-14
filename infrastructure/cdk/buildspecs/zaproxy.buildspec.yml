@@ -40,7 +40,7 @@ phases:
         -e ZAP_AUTH_HEADER="x-api-key"
         -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}"
         -t zaproxy/zap-stable
-        zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap.yaml;
+        zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/zap-passive.yaml;
         ZAP_EXIT=$?;
         echo "******** ZAP EXIT STATUS $ZAP_EXIT ********";
         if [ "$ZAP_EXIT" -eq 0 ]; then
