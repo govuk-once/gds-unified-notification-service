@@ -17,7 +17,7 @@ if (process.env.VITEST_DISABLE_MSW == undefined || process.env.VITEST_DISABLE_MS
       // This tells MSW to throw an error whenever it
       // encounters a request that doesn't have a
       // matching request handler.
-      onUnhandledRequest: 'error',
+      onUnhandledFrame: 'error',
     })
   );
   afterEach(() => server.resetHandlers());

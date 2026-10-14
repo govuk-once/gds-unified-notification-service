@@ -1,0 +1,70 @@
+version: 0.2
+
+batch:
+  build-graph:
+    - identifier: pso_scan
+      env:
+        variables:
+          ZAP_TARGET: pso
+    - identifier: flex_scan
+      env:
+        variables:
+          ZAP_TARGET: flex
+  fast-fail: false
+  build-timeout-in-minutes: 30
+
+env:
+  variables:
+    ZAP_IMAGE: 'zaproxy/zap-stable'
+
+phases:
+  pre_build:
+    commands:
+      - echo $ZAP_TARGET
+      - |
+        case "$ZAP_TARGET" in
+          pso)  export TARGET_URL="$PSO_TARGET_URL"; export X_API_KEY="$PSO_X_API_KEY" ;;
+          flex) export TARGET_URL="$FLEX_TARGET_URL"; export X_API_KEY="$FLEX_X_API_KEY" ;;
+        esac
+      - export ZAP_CONFIG="zap-${SCAN_MODE}.yaml"
+      - docker pull $ZAP_IMAGE
+      - chmod 644 client.p12
+      - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
+
+  build:
+    commands:
+      - >-
+        docker run --network host
+        -v "$(pwd)":/zap/wrk/:rw
+        -e TARGET_SPEC="${ZAP_TARGET}"
+        -e TARGET_URL="${TARGET_URL}"
+        -e ZAP_AUTH_HEADER="x-api-key"
+        -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}"
+        -t zaproxy/zap-stable
+        zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/${ZAP_CONFIG};
+        ZAP_EXIT=$?;
+        echo "******** ZAP EXIT STATUS $ZAP_EXIT ********";
+        if [ "$ZAP_EXIT" -eq 0 ]; then
+          echo "ZAP scan completed successfully - no issues found";
+        elif [ "$ZAP_EXIT" -ge 2 ]; then
+          echo "::warning::ZAP scan found low-level warnings (exit code $ZAP_EXIT)";
+        else
+          echo "::error::ZAP scan failed with medium or higher warnings (exit code $ZAP_EXIT)";
+          exit 1;
+        fi;
+        echo "********************************"
+
+  post_build:
+    commands:
+      - cd infrastructure/cdk/buildspecs/
+      - >-
+        for f in *.md; do
+          [ -f "$f" ] || continue;
+          tail -n +6 "$f" > "$f.tmp" && mv "$f.tmp" "$f";
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/reports/${ZAP_TARGET}-${f}";
+        done
+      - >-
+        for f in *.pdf; do
+          [ -f "$f" ] || continue;
+          aws s3 cp "$f" "s3://${UNS_REPORT_BUCKET}/zaproxy/${BUILD_DATE}/${GITHUB_REF_NAME}/${GITHUB_RUN_NUMBER}/private-reports/${ZAP_TARGET}-${f}";
+        done

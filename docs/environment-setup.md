@@ -171,12 +171,12 @@ Make sure your IDE respects [`eslint.config.ts`](/eslint.config.ts) and [`.prett
 
 Most day-to-day development needs no environment variables beyond what `development:sandbox:setup` writes to `infrastructure/cdk/.env`. The ones you may need to set directly:
 
-| Variable                  | When needed                    | Description                                                                 |
+| Variable | When needed | Description |
 | -------------------------- | --------------------------------- | ------------------------------------------------------------------------------- |
-| `env`                      | CDK deploy/diff/synth              | Deployment environment name (`dev`, `stg`, `prod`, or your sandbox name — see [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts)) |
-| `env` (test runner)        | End-to-end tests                    | Target environment for `pnpm run test:e2e` (e.g. `env=dev pnpm run test:e2e`)   |
-| `VITEST_DISABLE_MSW`       | Unit tests                          | Bypasses MSW HTTP interception, letting requests hit the real network (debugging only, not for CI) |
-| `VITEST_DETAILED_COVERAGE` | Unit tests                          | Switches `test:coverage` output to a per-file breakdown instead of a summary    |
+| `env` | CDK deploy/diff/synth | Deployment environment name (`dev`, `stg`, `prod`, or your sandbox name — see [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts)) |
+| `env` (test runner) | End-to-end tests | Target environment for `pnpm run test:e2e` (e.g. `env=dev pnpm run test:e2e`) |
+| `VITEST_DISABLE_MSW` | Unit tests | Bypasses MSW HTTP interception, letting requests hit the real network (debugging only, not for CI) |
+| `VITEST_DETAILED_COVERAGE` | Unit tests | Switches `test:coverage` output to a per-file breakdown instead of a summary |
 
 See [`test/e2e/README.md`](/test/e2e/README.md#prerequisites) for the additional credentials and mTLS certificates end-to-end tests need.
 

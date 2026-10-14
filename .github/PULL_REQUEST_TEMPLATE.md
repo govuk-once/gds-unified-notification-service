@@ -2,7 +2,7 @@
 
 A short summary of the changes made
 
-**Ticket:** https://gdsgovukagents.atlassian.net/browse/NOT-XXXX
+**Ticket:** <https://gdsgovukagents.atlassian.net/browse/NOT-XXXX>
 
 PR Readiness checklist:
 

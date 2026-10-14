@@ -2,13 +2,13 @@
 
 `src/common/operations` is the base-class layer every Lambda handler in this repo is built on. A handler in `src/lambdas/**` (see [`src/lambdas/README.md`](../../lambdas/README.md)) never wires up [middy](https://middy.js.org/) or [AWS Lambda Powertools](https://docs.powertools.aws.dev/lambda/typescript/latest/) itself - it extends one of the abstract classes here, declares a schema/`operationId`/dependencies, and implements a single `implementation()` (or `recordHandler`) method. Everything else - observability, validation, error formatting, IoC wiring - is inherited.
 
-| Base class            | File                                                 | Trigger                                | Used by                                                                                      |
-| --------------------- | ---------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `APIHandler`          | [`httpOperation.ts`](./httpOperation.ts)             | API Gateway (HTTP + Lambda authorizer) | All PSO `http.*` lambdas, `MtlsCertificateRevocationAuthorizer`                              |
-| `FlexAPIHandler`      | [`flexApiHandler.ts`](./flexApiHandler.ts)           | API Gateway (HTTP)                     | All Flex `http.*` lambdas                                                                    |
-| `ScheduleOperation`   | [`scheduleOperation.ts`](./scheduleOperation.ts)     | EventBridge Scheduler                  | `schedule.analyticsExport`                                                                   |
-| `QueueHandler`        | [`queueOperation.ts`](./queueOperation.ts)           | SQS                                    | Not used directly by any lambda - see [Known issues](#known-issues--things-worth-revisiting) |
-| `BatchQueueOperation` | [`batchQueueOperation.ts`](./batchQueueOperation.ts) | SQS, partial batch failures            | `sqs.validation`, `sqs.processing`, `sqs.dispatch`, `sqs.analytics`                          |
+| Base class            | File                                                 | Trigger                                | Used by                                                             |
+| --------------------- | ---------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------- |
+| `APIHandler`          | [`httpOperation.ts`](./httpOperation.ts)             | API Gateway (HTTP + Lambda authorizer) | All PSO `http.*` lambdas, `MtlsCertificateRevocationAuthorizer`     |
+| `FlexAPIHandler`      | [`flexApiHandler.ts`](./flexApiHandler.ts)           | API Gateway (HTTP)                     | All Flex `http.*` lambdas                                           |
+| `ScheduleOperation`   | [`scheduleOperation.ts`](./scheduleOperation.ts)     | EventBridge Scheduler                  | `schedule.analyticsExport`                                          |
+| `QueueHandler`        | [`queueOperation.ts`](./queueOperation.ts)           | SQS                                    | Not used directly by any lambda                                     |
+| `BatchQueueOperation` | [`batchQueueOperation.ts`](./batchQueueOperation.ts) | SQS, partial batch failures            | `sqs.validation`, `sqs.processing`, `sqs.dispatch`, `sqs.analytics` |
 
 ### The shared shape
 
@@ -43,7 +43,7 @@ Because `iocGetXxx()` calls are lazy/memoized (see the services README), this li
 
 `implementation()` in the concrete handler only has to deal with already-validated, already-typed input and return a body matching the output schema - see [`PostMessage`](../../lambdas/pso/http.postMessage/handler.ts) for a representative example.
 
-`FlexAPIHandler` is a two-line subclass that adds a `ConfigurationService` constructor parameter ahead of `observability` - it exists purely to standardise that constructor shape across the Flex lambdas (see [Known issues](#known-issues--things-worth-revisiting) for how consistently that's actually used).
+`FlexAPIHandler` is a two-line subclass that adds a `ConfigurationService` constructor parameter ahead of `observability` - it exists purely to standardise that constructor shape across the Flex lambdas.
 
 ### `ScheduleOperation` (EventBridge)
 

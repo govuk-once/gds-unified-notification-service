@@ -25,19 +25,19 @@ Recommending using [Mise-en-place](https://mise.jdx.dev/getting-started.html) [c
 git clone git@github.com:govuk-once/gds-unified-notification-service.git
 ```
 
-3. Enable relevant utils
+1. Enable relevant utils
 
 ```sh
 fnm use # or nvm use  # or mise install
 ```
 
-4. Install dependencies:
+1. Install dependencies:
 
 ```sh
 pnpm install
 ```
 
-5. Initialize CDK - relies on gds-cli being already configured
+1. Initialize CDK - relies on gds-cli being already configured
 
 This guided wizard will create a tfstate bucket within AWS based on your developer email, and initialize CDK on your behalf.
 
@@ -46,7 +46,7 @@ eval $(gds-cli aws once-notifications-development-admin -e)
 pnpm run development:sandbox:setup
 ```
 
-6. Recommended - Install checkov - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
+1. Recommended - Install checkov - run them before publishing PRs, these steps are also ran during the PR pipelines, however this can allows for a quicker feedback loop:
 
 ```sh
 brew install checkov # not needed if using mise
@@ -143,9 +143,9 @@ Read more [./.github/README-Pipelines.md](./.github/README-Pipelines.md)
 
 This repository is automatically updating the following API pages on release to main
 
-- Public Service Organization API - https://govuk-once.github.io/gds-unified-notification-service/pso/ -
+- Public Service Organization API - <https://govuk-once.github.io/gds-unified-notification-service/pso/> -
 
-- Flex API - https://govuk-once.github.io/gds-unified-notification-service/flex/ -
+- Flex API - <https://govuk-once.github.io/gds-unified-notification-service/flex/> -
 
 ## Documentation
 

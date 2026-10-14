@@ -75,7 +75,7 @@ export abstract class APIHandler<
       )
       .use(httpEventNormalizer())
       .use(serializeBodyToJson())
-      .use(httpErrorHandler());
+      .use(httpErrorHandler()) as unknown as IMiddleware;
   }
 
   /**

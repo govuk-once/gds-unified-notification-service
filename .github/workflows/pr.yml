@@ -123,3 +123,13 @@ jobs:
     uses: ./.github/workflows/_ephemeral.testing.yml
     needs: [pr]
     secrets: inherit
+
+  zaproxyScan:
+    name: PR / Zap Security Scan
+    uses: ./.github/workflows/_zaproxy.yml
+    needs: [ephemeralTesting]
+    secrets: inherit
+    with:
+      scan-mode: passive
+      env-identifier: ${{ github.event.pull_request.number }}
+      environment: ephemeral

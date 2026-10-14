@@ -5,7 +5,6 @@
     "allowUnusedLabels": false,
     "exactOptionalPropertyTypes": false,
     "isolatedModules": true,
-    "baseUrl": "./",
     "target": "esnext",
     "module": "esnext",
     "noEmit": true,
@@ -27,6 +26,8 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["node", "vitest/globals"],
+    "baseUrl": "./",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@common/*": ["./src/common/*"],
       "@common": ["./src/common"],
@@ -38,5 +39,5 @@
       "@test": ["./test"]
     }
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "eslint.config.ts"]
 }

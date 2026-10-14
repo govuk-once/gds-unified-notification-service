@@ -67,7 +67,7 @@ export const testingStack = config.deployE2ERunner
         vpc: stack.common.vpc.vpc,
         securityGroups: [stack.common.vpc.securityGroups.privateEgress],
         kms: stack.common.kms,
-        flexPrivateUrl: stack.flex.gateway.restApi.url,
+
         messagesTable: stack.common.dynamodb.messages.table,
       }
     )
