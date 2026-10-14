@@ -6,19 +6,24 @@ permissions:
   pull-requests: write
 
 on:
+  schedule:
+    - cron: 19 10 * * *
   workflow_call:
     inputs:
       scan-mode:
         description: 'passive(PR) or active (nightly)'
-        required: true
+        required: false
+        default: 'active'
         type: string
       environment:
         description: 'Github environment'
-        required: true
+        required: false
+        default: 'dev'
         type: string
       env-identifier:
         description: 'Needed to set source bucket and project name'
-        required: true
+        required: false
+        default: 'dev'
         type: string
 jobs:
   zaproxyScan:
