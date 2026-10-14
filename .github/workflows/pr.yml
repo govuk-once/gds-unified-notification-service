@@ -132,4 +132,4 @@ jobs:
     with:
       scan-mode: passive
       env-identifier: ${{ github.event.pull_request.number }}
-      environment: dev
+      environment: ephemeral
