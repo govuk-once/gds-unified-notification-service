@@ -37,7 +37,7 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.debug('Received request', {
+    this.observability.logger.info('Received request', {
       pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
       groups: event.body,
@@ -46,7 +46,7 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
     // Validate
     const pushID = event.queryStringParameters?.pushID;
     if (!pushID) {
-      this.observability.logger.debug('pushID has not been provided - returning 400');
+      this.observability.logger.info('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 
@@ -55,7 +55,7 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
 
     // Leave groups
     const groupsToLeave = event.body.filter((g) => g.Action === GroupActionEnum.LEAVE);
-    this.observability.logger.debug('Leaving groups', {
+    this.observability.logger.info('Leaving groups', {
       pushID,
       groupsToLeave,
     });
@@ -63,13 +63,13 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
 
     // Join Groups
     const groupsToJoin = event.body.filter((g) => g.Action === GroupActionEnum.JOIN);
-    this.observability.logger.debug('Joining groups', {
+    this.observability.logger.info('Joining groups', {
       pushID,
       groupsToJoin,
     });
     usersGroups = await this.groupStoreDynamoRepository.joinGroups(pushID, groupsToJoin, usersGroups);
 
-    this.observability.logger.debug('Successful request - returning 200', {
+    this.observability.logger.info('Successful request - returning 200', {
       pushID,
     });
     return {

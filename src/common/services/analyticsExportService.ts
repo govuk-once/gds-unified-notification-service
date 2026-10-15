@@ -70,7 +70,9 @@ export class AnalyticsExportService {
           if (error instanceof CloudWatchLogsServiceException && error.name === 'ResourceAlreadyExistsException') {
             this.observability.logger.debug(`Log stream already exists`, { logStreamName });
           } else {
-            this.observability.logger.error(`Error creating log stream`, { error });
+            this.observability.logger.error(`Error creating log stream`, {
+              error: this.observability.formatError(error),
+            });
             throw error;
           }
         }

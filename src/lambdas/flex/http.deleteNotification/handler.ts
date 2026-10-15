@@ -40,7 +40,7 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.debug('Received request', {
+    this.observability.logger.info('Received request', {
       path: event.path,
       notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
@@ -54,26 +54,26 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     // Handle missing path param
     if (notificationID == undefined) {
-      this.observability.logger.debug('notificationID has not been provided - returning 400');
+      this.observability.logger.info('notificationID has not been provided - returning 400');
       throw new BadRequestError(['notificationID has not been provided']);
     }
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('pushID has not been provided - returning 400');
+      this.observability.logger.info('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
-      this.observability.logger.debug('Notification does not exists - returning 404');
+      this.observability.logger.info('Notification does not exists - returning 404');
       throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      this.observability.logger.debug('Notification belongs to another user - returning 404', {
+      this.observability.logger.info('Notification belongs to another user - returning 404', {
         userOnNotification: notification.ExternalUserID,
         queryingUser: externalUserID,
       });

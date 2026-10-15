@@ -102,7 +102,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
   private errorHandler(request: ProcessingAdapterRequest, error: unknown): never {
     this.observability.recordProviderHttpMetric(ProviderDimension.UDP, 'error');
 
-    this.observability.logger.error(`Processing adapter error`, { error });
+    this.observability.logger.error(`Processing adapter error`, { error: this.observability.formatError(error) });
 
     if (isFetchResponseError(error)) {
       this.observability.logger.error(`API Error data`, {
@@ -121,7 +121,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
 
       throw new ProcessingAdapterError([error.message]);
     }
-    this.observability.logger.error(`Non-api Error`, { error });
+    this.observability.logger.error(`Non-api Error`, { error: this.observability.formatError(error) });
     throw error;
   }
 }

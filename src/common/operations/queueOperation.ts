@@ -118,7 +118,7 @@ export abstract class QueueHandler<InputType, OutputType> {
       }
 
       // Trigger implementation
-      this.observability.logger.info(`Request received`, { event });
+      this.observability.logger.info(`Received request`, { event });
       const result = await this.implementation(event, context);
       this.observability.logger.info(`Request completed`);
       return result;

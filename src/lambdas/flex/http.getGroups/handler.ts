@@ -42,7 +42,7 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.debug('Received request', {
+    this.observability.logger.info('Received request', {
       path: event.path,
       pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
@@ -51,14 +51,14 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
     // Validate
     const pushID = event.queryStringParameters?.pushID;
     if (!pushID) {
-      this.observability.logger.debug('pushID has not been provided - returning 400');
+      this.observability.logger.info('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 
     // Get users groups to return
     const groups = await this.groupStoreDynamoRepository.getUsersGroups(pushID);
 
-    this.observability.logger.debug('Successful request - returning 200', {
+    this.observability.logger.info('Successful request - returning 200', {
       pushID,
     });
 

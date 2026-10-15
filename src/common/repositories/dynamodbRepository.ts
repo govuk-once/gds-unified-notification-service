@@ -65,7 +65,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
 
     const { data, error } = this.recordSchema.safeParse(record);
     if (error) {
-      this.observability.logger.error('Input to create record does not match the record schema', record);
+      this.observability.logger.error('Input to create record does not match the record schema', { record });
       throw new ParsingFailedError(['Input to create record does not match the record schema']);
     }
 
