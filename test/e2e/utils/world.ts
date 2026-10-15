@@ -2,20 +2,21 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 // Using relative over alias path for now until solution found
+import { iocGetNotificationDynamoRepository } from '@common/ioc';
 import { World } from '@cucumber/cucumber';
 import { IMessage } from '@project/lambdas';
+import { domainName, fetchApiKeys } from '@shared/credentials';
+import { mockIMessageRecord_E2E } from '@test/mocks';
+import { Agent, fetch as undiciFetch } from 'undici';
 import { config } from '../../../infrastructure/cdk/config';
 import { FetchErrorResponse, FetchResponse, FetchService } from '../../../src/common/services/FetchService';
 import { FetchSigV4Service } from '../../../src/common/services/FetchSigV4Service';
-import { checkStatus, domainName, prepareDispatchConfig, waitUntil } from '../utils/setup.e2e';
 
 process.env.POWERTOOLS_DEV = 'true';
 process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 
 export default class CustomWorld extends World {
-  public psoUrl: string;
-  public flexUrl: string;
-  public flexKeyMarker: string;
+  public flexKeyMarker!: string;
 
   public psoAPI!: FetchService;
   public psoAPIWithoutAPIKey!: FetchService;
@@ -33,105 +34,88 @@ export default class CustomWorld extends World {
 
   constructor(options: any) {
     super(options);
-
-    // Initialize pso and flex urls
-    const usePrivateGateway = config.isE2ERunner;
-    this.psoUrl = domainName(`pso`);
-    this.flexUrl = domainName(`flex`, usePrivateGateway);
-    this.flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
   }
 
-  public testIDs = {
-    mockNotificationID: 'd4e04ac4-5696-45b7-8e8c-0060883a84f5',
-    pushID: 'abc123',
-    validPushID:
+  public knownTestIDs = {
+    notificationID: '69aeaf44-1357-4053-99bc-b822b5df3f25',
+    pushID:
       {
         dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
-      }[config.env] ?? 'cde456',
+      }[config.env] ?? 'uns123',
   };
 
-  public applyDispatchConfig(dispatchConfig: Awaited<ReturnType<typeof prepareDispatchConfig>>) {
+  public async applyDispatchConfig(httpsAgent: Agent) {
+    const usePrivateGateway = config.isE2ERunner;
+    this.flexKeyMarker = this.flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
+
+    const psoUrl = await domainName(`pso`);
+    const flexUrl = await domainName(`flex`, usePrivateGateway);
+
+    const { psoApiKey, flexApiKey } = await fetchApiKeys(this.flexKeyMarker);
+
     this.psoAPI = new FetchService({
-      baseUrl: `https://${this.psoUrl}`,
+      baseUrl: `https://${psoUrl}`,
       defaultHeaders: {
-        'x-api-key': dispatchConfig.psoApiKey,
+        'x-api-key': psoApiKey,
       },
       defaultTimeout: 60000,
       fetchOptions: {
-        dispatcher: dispatchConfig.httpsAgent as unknown as never,
+        dispatcher: httpsAgent,
       },
+      fetchImpl: undiciFetch,
     });
     this.psoAPIWithoutAPIKey = new FetchService({
-      baseUrl: `https://${this.psoUrl}`,
+      baseUrl: `https://${psoUrl}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
       fetchOptions: {
-        dispatcher: dispatchConfig.httpsAgent as unknown as never,
+        dispatcher: httpsAgent,
       },
+      fetchImpl: undiciFetch,
     });
     this.psoAPIWithoutMTLSCert = new FetchService({
-      baseUrl: `https://${this.psoUrl}`,
+      baseUrl: `https://${psoUrl}`,
       defaultHeaders: {
-        'x-api-key': dispatchConfig.psoApiKey,
+        'x-api-key': psoApiKey,
       },
       defaultTimeout: 60000,
     });
     this.psoAPIUsingInsecureProtocol = new FetchService({
-      baseUrl: `http://${this.psoUrl}`,
+      baseUrl: `http://${psoUrl}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
     });
     this.flexAPI = new FetchSigV4Service({
-      baseUrl: `https://${this.flexUrl}`,
+      baseUrl: `https://${flexUrl}`,
       credentials: { region: config.region },
       defaultHeaders: {
-        'x-api-key': dispatchConfig.flexApiKey,
+        'x-api-key': flexApiKey,
       },
     });
     this.flexAPIWithoutAPIKey = new FetchSigV4Service({
-      baseUrl: `https://${this.flexUrl}`,
+      baseUrl: `https://${flexUrl}`,
       credentials: { region: config.region },
       defaultHeaders: {},
     });
     this.flexAPIUsingInsecureProtocol = new FetchService({
-      baseUrl: `http://${this.flexUrl}`,
+      baseUrl: `http://${flexUrl}`,
       defaultTimeout: 60000,
       defaultHeaders: {
-        'x-api-key': dispatchConfig.psoApiKey,
-      },
-      fetchOptions: {
-        dispatcher: dispatchConfig.httpsAgent as unknown as never,
+        'x-api-key': psoApiKey,
       },
     });
   }
 
-  public async createTestNotification(this: CustomWorld) {
+  public async createNotificationIfNotFound() {
     // Checks if a notification with the test ID already exists
-    // If not then a notification is created and checked that it has the required statuses for testing.
-    await this.psoAPI.get({ path: `/status/${this.testIDs.mockNotificationID}` }).catch(async (e) => {
-      if (e instanceof FetchErrorResponse) {
-        if (e.status === 404) {
-          this.messageRequest = [
-            {
-              NotificationID: this.testIDs.mockNotificationID,
-              CampaignID: 'TestCampaignID',
-              DepartmentID: 'TestDepartmentID',
-              UserID: 'TestUserID',
-              MessageTitle: 'You have a new Test Message',
-              MessageBody: 'Open Notification Centre to read your notifications',
-              NotificationTitle: 'This message is an end to end test.',
-              NotificationBody: 'Here is the Notification body.',
-            },
-          ];
+    // If not then a notification record in dynamoDB with expected statuses
+    const notificationsRepository = await iocGetNotificationDynamoRepository();
+    const message = await notificationsRepository.getRecord(this.knownTestIDs.notificationID);
 
-          console.log('Test notification does not exist, creating test notification');
-          await this.psoAPI.post({ path: '/send', body: this.messageRequest });
-          await waitUntil(() => checkStatus(this.psoAPI, this.testIDs.mockNotificationID), {
-            timeout: 30000,
-            interval: 2000,
-          });
-        }
-      }
-    });
+    if (message === null) {
+      console.log('No message record found, creating a new message in message table');
+      const messageRecord = mockIMessageRecord_E2E(this.knownTestIDs.notificationID, this.knownTestIDs.pushID);
+      await notificationsRepository.createRecord(messageRecord);
+    }
   }
 }

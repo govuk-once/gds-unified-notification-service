@@ -28,4 +28,4 @@ Feature: Get Notification Status
     Given a 'Pso' API client configured correctly
     When I send a 'GET' request to "/status/$KNOWN_IDS_VALID_NOTIFICATION$"
     Then the 'GET' request should succeeded with a 200
-    And I expect response to contain "VALIDATED_API_CALL, PROCESSING"
+    And I expect response to contain "VALIDATED_API_CALL, PROCESSING, PROCESSED, DISPATCHING, DISPATCHED"

@@ -5,8 +5,8 @@ import { v4 as uuid } from 'uuid';
 
 When('I send a {string} request to {string}', async function (this: CustomWorld, method: string, path: string) {
   const substrings: Record<string, string> = {
-    $KNOWN_IDS_VALID_NOTIFICATION$: this.testIDs.mockNotificationID,
-    $KNOWN_IDS_VALID_PUSH_ID$: this.testIDs.pushID,
+    $KNOWN_IDS_VALID_NOTIFICATION$: this.knownTestIDs.notificationID,
+    $KNOWN_IDS_VALID_PUSH_ID$: this.knownTestIDs.pushID,
     $RANDOM_UUID$: uuid(),
     $MISSING_ID$: '',
   };

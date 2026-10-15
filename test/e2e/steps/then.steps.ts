@@ -59,14 +59,13 @@ defineParameterType({
 Then(
   'I expect response to contain {notificationStatusArray}',
   function (this: CustomWorld, notificationStatuses: NotificationStateEnum[]) {
-    console.log(this.result);
     expect(this.result.body).toEqual(
       expect.arrayContaining(
         notificationStatuses.map((Status) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           expect.objectContaining({
             Status,
-            NotificationID: this.testIDs.mockNotificationID,
+            NotificationID: this.knownTestIDs.notificationID,
           })
         )
       )
