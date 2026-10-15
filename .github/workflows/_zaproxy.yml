@@ -19,7 +19,6 @@ on:
       env-identifier:
         description: 'Needed to set source bucket and project name'
         required: true
-        default: 'dev'
         type: string
 
 jobs:
