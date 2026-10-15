@@ -45,7 +45,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.debug('Received request', {
+    this.observability.logger.info('Received request', {
       path: event.path,
       notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
@@ -58,7 +58,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('pushID has not been provided - returning 400');
+      this.observability.logger.info('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided.']);
     }
 

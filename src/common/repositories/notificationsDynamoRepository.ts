@@ -40,10 +40,9 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
   }
 
   public async getProcessedMessageByID(NotificationID: string): Promise<IProcessedMessageRecord | undefined> {
-    this.observability.logger.debug(
-      'Retrieving message by notificationID and validating it has been processed',
-      NotificationID
-    );
+    this.observability.logger.debug('Retrieving message by notificationID and validating it has been processed', {
+      NotificationID,
+    });
     const messageRecords = await this.getRecord(NotificationID);
 
     this.observability.logger.debug('Parsing all message records against processed message schema');

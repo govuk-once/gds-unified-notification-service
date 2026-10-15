@@ -125,7 +125,7 @@ export class PostGroupMessage extends APIHandler<
         message.Subgroup
       );
       const chunksOfPushIDs = splitArrayIntoChunks(pushIds, numberOfWorkers);
-      this.observability.logger.debug('Chunk of PushIDS', { chunksOfPushIDs });
+      this.observability.logger.info('Chunk of PushIDS', { chunksOfPushIDs });
 
       const batch: IGroupMessageMetadata[] = [];
       for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID++) {
@@ -136,7 +136,7 @@ export class PostGroupMessage extends APIHandler<
         }
 
         const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
-        this.observability.logger.debug('Storing list of pushIDs to process in cache for group processing worker.', {
+        this.observability.logger.info('Storing list of pushIDs to process in cache for group processing worker.', {
           cacheKey,
           pushIDs: chunk,
         });
@@ -154,16 +154,15 @@ export class PostGroupMessage extends APIHandler<
 
         // Log to verify the CacheKey has been correctly stored and configured
         const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
-        this.observability.logger.debug(`Verifying CacheKey and length of pushIDs for the batch in the cache.`, {
+        this.observability.logger.info(`Verifying CacheKey and length of pushIDs for the batch in the cache.`, {
           cacheKey,
           pushIDs: elasticacheValue,
         });
       }
 
-      this.observability.logger.debug(
-        'Requeuing validated group message to group process queue.',
-        message.GroupNotificationID
-      );
+      this.observability.logger.info('Requeuing validated group message to group process queue.', {
+        GroupNotificationID: message.GroupNotificationID,
+      });
       await this.groupProcessingQueue.publishMessageBatch(batch);
       responses.push({ GroupNotificationID: message.GroupNotificationID, UsersInGroup: pushIds.length });
     }

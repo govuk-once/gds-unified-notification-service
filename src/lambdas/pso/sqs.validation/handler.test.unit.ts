@@ -75,7 +75,7 @@ describe('Validation QueueHandler', async () => {
     await handler(event, context);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request received`, { event });
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Received request`, { event });
     expect(observabilityMocks.logger.info).toHaveBeenCalledWith(`Request completed`);
   });
 

@@ -117,7 +117,7 @@ describe('NotificationsDynamoRepository', async () => {
       );
       expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Input to create record does not match the record schema',
-        invalidRecord
+        { record: invalidRecord }
       );
     });
 
