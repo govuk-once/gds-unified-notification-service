@@ -3,6 +3,7 @@ name: Running Zap Security Scan (scheduled)
 permissions:
   contents: read
   id-token: write
+  pull-requests: write
 
 on:
   schedule:
