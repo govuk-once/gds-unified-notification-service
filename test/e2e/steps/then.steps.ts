@@ -44,7 +44,7 @@ Then('the {string} request should fail with a {int}', function (this: CustomWorl
 });
 
 Then(
-  'the {string} request should succeeded with a {int}',
+  'the {string} request should succeed with a {int}',
   function (this: CustomWorld, method: string, statusCode: number) {
     expect(this.result.status).toBe(statusCode);
   }
