@@ -54,7 +54,7 @@ jobs:
     name: Running Zap Security Scan (Mode -> ${{ inputs.scan-mode }})
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.environment }}
+      name: ${{ inputs.environment || 'dev'}}
     env:
       SOURCE_BUCKET: uns-${{ inputs.env-identifier }}-e2e-runner-builds
       PROJECT_NAME: uns-${{ inputs.env-identifier }}-e2e-runner-project
