@@ -73,6 +73,32 @@ jobs:
       - name: 🔨 Build bundles
         run: pnpm run build
 
+      # CDK Needs initialisation for first time in each AWS Account & Region
+      # This ensures relevant regions are enabled - can be commented out in the future if the regions are unchanged
+      # eu-west-2 holds all of our resources, however us-east-1 needs enabling in order to support CloudFront
+      - name: 🔍 Check & Ensure CDK Bootstrap
+        env:
+          TARGET_REGIONS: 'eu-west-2 us-east-1'
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          for REGION in $TARGET_REGIONS; do
+            echo "Checking bootstrap status for ${REGION}..."
+
+            BOOTSTRAP_VERSION=$(aws ssm get-parameter \
+              --name "/cdk-bootstrap/hnb659fds/version" \
+              --region "$REGION" \
+              --query "Parameter.Value" \
+              --output text 2>/dev/null || echo "0")
+
+            if [ "$BOOTSTRAP_VERSION" -eq "0" ]; then
+              echo "⚠️ Region ${REGION} is not bootstrapped. Running bootstrap..."
+              pnpm exec cdk bootstrap "aws://${ACCOUNT_ID}/${REGION}"
+            else
+              echo "✅ Region ${REGION} is already bootstrapped (Version: ${BOOTSTRAP_VERSION})."
+            fi
+          done
+
       - name: 🏗️ CDK Deploy
         run: |
           pnpm run cdk:deploy

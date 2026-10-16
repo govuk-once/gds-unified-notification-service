@@ -22,7 +22,7 @@ export const orgMetadata = {
   }),
 
   EventsAggregator: IOrganisationRecordBuilder('Foreign Travel Advice', {
-    Channels: ChannelsControlPreset.Standard,
+    Channels: ChannelsControlPreset.All,
     MessageRetention: MessageRetentionPresent.OneMonth,
     DeeplinkAllowList: DeeplinkPreset.AppOnly,
   }),
