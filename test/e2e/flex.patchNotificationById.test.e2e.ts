@@ -8,7 +8,7 @@ const body = { Status: `READ` };
 
 describe('PATCH {{flex}}/notifications/{{notificationID}} - Update notification status', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT/Zscalar 404 when - attempting to use insecure protocol (http instead of https)', async ({
+    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT/Zscaler 404 when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
       mockNotificationID,
     }) => {
