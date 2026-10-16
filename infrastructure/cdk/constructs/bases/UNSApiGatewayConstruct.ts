@@ -4,6 +4,7 @@ import {
   AccessLogFormat,
   AuthorizationType,
   DomainNameOptions,
+  EndpointAccessMode,
   EndpointType,
   IAuthorizer,
   Integration,
@@ -150,8 +151,9 @@ export class UNSAPIGatewayGateway extends Construct {
           ? {
               domainName: fullDomain,
               certificate: certificate,
-              securityPolicy: SecurityPolicy.TLS_1_2,
+              securityPolicy: SecurityPolicy.TLS13_1_3_2025_09,
               endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
+              endpointAccessMode: EndpointAccessMode.STRICT,
             }
           : undefined,
       disableExecuteApiEndpoint: fullDomain && certificate && rootDomain ? true : false,
