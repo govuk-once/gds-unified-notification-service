@@ -32,6 +32,8 @@
     "test:report:review": "npx vite preview --outDir html",
     "test:unit": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e",
+    "test:e2e:cucumber": "NODE_OPTIONS='--import tsx/esm' npx cucumber-js -f progress",
+    "test:e2e:cucumber:bar": "NODE_OPTIONS='--import tsx/esm' npx cucumber-js -f progress-bar",
     "test:ui": "vitest --ui --coverage --project unit",
     "upgrade": "ncu -u -d 'pnpm run test:unit' && pnpm audit --omit dev",
     "upgrade:diff": "ncu -x eslint-plugin-prettier"
@@ -93,6 +95,7 @@
     "@aws-sdk/credential-providers": "^3.1145.0",
     "@aws-sdk/util-dynamodb": "^3.996.9",
     "@aws-sdk/util-format-url": "^3.972.48",
+    "@cucumber/cucumber": "^13.3.0",
     "@middy/core": "^7.9.2",
     "@middy/http-error-handler": "^7.9.2",
     "@middy/http-event-normalizer": "^7.9.2",

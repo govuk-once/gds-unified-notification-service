@@ -1,3 +1,4 @@
+import { NotificationStateEnum } from '@common/models';
 import { IMessageRecord, IProcessedMessageRecord } from '@common/repositories';
 import DateInSeconds from '@common/utils/dateInSeconds';
 import { IAnalytics, IProcessedMessage } from '@project/lambdas';
@@ -75,5 +76,46 @@ export const mockIMessageRecord_E2E = (notificationID: string, pushID: string): 
   ProcessedDateTime: '2026-01-01T12:00:02.000Z',
   DispatchedDateTime: '2026-01-01T12:00:03.000Z',
   ExpirationDateTime: DateInSeconds.toUnix('2100-01-31T12:00:00.000Z'),
-  Events: [],
+  Events: [
+    {
+      EventID: '1ebd114e-789e-49ba-aae8-60a699411e43',
+      NotificationID: notificationID,
+      OrganisationID: 'UNS',
+      EventDateTime: '2026-01-01T12:00:01.000Z',
+      Event: NotificationStateEnum.VALIDATED_API_CALL,
+      CampaignID: 'CAM_ID',
+    },
+    {
+      EventID: 'cb8a4811-85ee-4601-9464-4ab3c2a66f23',
+      NotificationID: notificationID,
+      OrganisationID: 'UNS',
+      EventDateTime: '2026-01-01T12:00:02.000Z',
+      Event: NotificationStateEnum.PROCESSING,
+      CampaignID: 'CAM_ID',
+    },
+    {
+      EventID: '02d1e59b-70f8-40bb-af67-554ce8c5b8ce',
+      NotificationID: notificationID,
+      OrganisationID: 'UNS',
+      EventDateTime: '2026-01-01T12:00:03.000Z',
+      Event: NotificationStateEnum.PROCESSED,
+      CampaignID: 'CAM_ID',
+    },
+    {
+      Event: NotificationStateEnum.DISPATCHING,
+      CampaignID: 'CAM_ID',
+      NotificationID: notificationID,
+      OrganisationID: 'UNS',
+      EventID: 'e747d88e-2ba2-4e78-a50c-e330358a3a47',
+      EventDateTime: '2026-01-01T12:00:04.000Z',
+    },
+    {
+      OrganisationID: 'UNS',
+      EventID: 'cbebf1c2-4f8f-4077-8bfc-7b2815dc4009',
+      NotificationID: notificationID,
+      CampaignID: 'CAM_ID',
+      EventDateTime: '2026-01-01T12:00:05.000Z',
+      Event: NotificationStateEnum.DISPATCHED,
+    },
+  ],
 });
