@@ -3,9 +3,8 @@ import { FetchErrorResponse, FetchService } from '@common/services/FetchService'
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
-import { domainName, fetchApiKeys, fetchMtlsCertificates } from '@shared/credentials';
 import { Agent, fetch as undiciFetch } from 'undici';
-import { test as baseTest } from 'vitest';
+import { test as baseTest, inject } from 'vitest';
 import { config } from '../../../infrastructure/cdk/config';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
@@ -14,52 +13,35 @@ vi.hoisted(() => {
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';
 });
 
-const usePrivateGateway = config.isE2ERunner;
-const psoUrl = await domainName(`pso`);
-const flexUrl = await domainName(`flex`, usePrivateGateway);
-const flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
-
-let flexApiKey = '';
-let psoApiKey = '';
-
 let httpsAgent: Agent;
 
-const prepareBeforeAll = async () => {
+let psoUrl = '';
+let flexUrl = '';
+let psoApiKey = '';
+let flexApiKey = '';
+
+const prepareBeforeAll = () => {
   try {
+    const e2eCredentials = inject('e2eCredentials');
+
+    psoUrl = e2eCredentials.psoUrl;
+    flexUrl = e2eCredentials.flexUrl;
+    psoApiKey = e2eCredentials.psoApiKey;
+    flexApiKey = e2eCredentials.flexApiKey;
+
     if (!psoUrl || !flexUrl) {
       throw new Error(
         'Domain names are not setup for end to end testing, please run development:sandbox:setup to configure.'
       );
     }
 
-    // Ensure AWS env vars are available (ignore for codebuild)
-    const runningCodeBuild = process.env.CODEBUILD_BUILD_ID !== undefined;
-    if (
-      !runningCodeBuild &&
-      (process.env.AWS_ACCESS_KEY_ID == undefined ||
-        process.env.AWS_SECRET_ACCESS_KEY == undefined ||
-        process.env.AWS_REGION == undefined)
-    ) {
-      throw new Error(
-        `No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY present in env vars, please use 'eval $(gds-cli aws {accountName} -e)'`
-      );
-    }
-
     process.env.PREFIX = `uns-${config.env}`;
-
-    // Retrieve mTLS certificates from Secrets Manager
-    const { crt, key } = await fetchMtlsCertificates();
-
-    // Fetch API Keys from usage plans on the fly
-    const apiKeys = await fetchApiKeys(flexKeyMarker);
-    psoApiKey = apiKeys.psoApiKey;
-    flexApiKey = apiKeys.flexApiKey;
 
     // Creates a https agent for mTLS using imported credentials
     httpsAgent = new Agent({
       connect: {
-        cert: crt,
-        key: key,
+        cert: e2eCredentials.crt,
+        key: e2eCredentials.key,
         rejectUnauthorized: false,
       },
     });
@@ -73,7 +55,7 @@ const prepareBeforeAll = async () => {
   }
 };
 
-beforeAll(async () => await prepareBeforeAll());
+beforeAll(() => prepareBeforeAll());
 
 // Add clients to test implementation for e2d
 export const testFixtures = () => {
