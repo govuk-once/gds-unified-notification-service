@@ -94,6 +94,7 @@ export const iocGetLogger = ioc(
             `x-api-key`,
             `apiKey`,
             'CloudFront-Viewer-Cert-PEM',
+            `x-origin-header`,
           ].includes(key)
         ) {
           return `******`;
