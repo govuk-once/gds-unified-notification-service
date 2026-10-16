@@ -1,5 +1,5 @@
 import { GroupActionEnum } from '@project/lambdas';
-import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { isCI, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
@@ -14,25 +14,19 @@ const testCase = (Namespace: string, Group: string, Subgroup?: string, Action?: 
 
 describe('GET {{flex}}/groups?pushID={{pushID}} - Get groups', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
-      flexAPIUsingInsecureProtocol: api,
-    }) => {
-      // Arrange
-      const path = url(pushID);
+    test.runIf(isCI)(
+      'ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)',
+      async ({ flexAPIUsingInsecureProtocol: api, insecureProtocolError }) => {
+        // Arrange
+        const path = url(pushID);
 
-      // Act
-      const result = api.get({ path });
+        // Act
+        const result = api.get({ path });
 
-      // Assert
-      await expect(result).rejects.toMatchObject({
-        message: 'fetch failed',
-        cause: expect.objectContaining(
-          api.isPrivateGateway() // Handle private & public api gateway
-            ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
-            : { code: 'ECONNREFUSED' }
-        ),
-      });
-    });
+        // Assert
+        await expect(result).rejects.toMatchObject(insecureProtocolError);
+      }
+    );
 
     test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api }) => {
       // Arrange
