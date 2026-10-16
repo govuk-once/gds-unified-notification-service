@@ -76,6 +76,7 @@ const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
 const isE2ERunner = process.env.UNS_E2E_RUNNER === 'true';
 const deployE2ERunner = e2eRunnerEnvironments.includes(env) || isEphemeral;
+const isCI = isE2ERunner || process.env.GITHUB_ACTIONS === 'true';
 
 // Setup importable config object
 export const config = {
@@ -118,6 +119,7 @@ export const config = {
   isEphemeral,
   isE2ERunner,
   deployE2ERunner,
+  isCI,
 
   ssm: {
     // These values are created by the Infra team and are always present in each AWS acc

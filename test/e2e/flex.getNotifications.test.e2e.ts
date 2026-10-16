@@ -1,24 +1,38 @@
 import { test } from '@test/e2e/utils/setup.e2e.vitest';
 import { expect } from 'vitest';
+import { config } from '../../infrastructure/cdk/config';
 
 const path = `/notifications`;
 describe('GET {{flex}}/notifications', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
+    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT/Zscalar 404 when - attempting to use insecure protocol (http instead of https)', async ({
       flexAPIUsingInsecureProtocol: api,
     }) => {
       // Arrange & Act
+      const { isCI } = config;
       const result = api.get({ path });
 
       // Assert
-      await expect(result).rejects.toMatchObject({
-        message: 'fetch failed',
-        cause: expect.objectContaining(
-          api.isPrivateGateway() // Handle private & public api gateway
-            ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
-            : { code: 'ECONNREFUSED' }
-        ),
-      });
+      await expect(result).rejects.toMatchObject(
+        isCI
+          ? {
+              message: 'fetch failed',
+              cause: expect.objectContaining(
+                api.isPrivateGateway() // Handle private & public api gateway
+                  ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
+                  : { code: 'ECONNREFUSED' }
+              ),
+            }
+          : {
+              // Zscaler intercepts non-secure requests (local dev)
+              errorType: 'FetchErrorResponse',
+              status: 404,
+              message: expect.stringContaining(`API [GET] ${path} Failed with 404`),
+              headers: expect.objectContaining({
+                server: expect.stringContaining('Zscaler'),
+              }),
+            }
+      );
     });
 
     test('status 403 when - using invalid api key', async ({ flexAPIWithoutAPIKey: api }) => {
