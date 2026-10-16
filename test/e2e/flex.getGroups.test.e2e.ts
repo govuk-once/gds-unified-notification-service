@@ -2,7 +2,6 @@ import { GroupActionEnum } from '@project/lambdas';
 import { test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
-import { config } from '../../infrastructure/cdk/config';
 
 const pushID = uuid();
 const url = (pushID?: string) => `/v1/groups${pushID ? `?pushID=${pushID}` : ''}`;
@@ -15,38 +14,19 @@ const testCase = (Namespace: string, Group: string, Subgroup?: string, Action?: 
 
 describe('GET {{flex}}/groups?pushID={{pushID}} - Get groups', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT/Zscaler 404 when - attempting to use insecure protocol (http instead of https)', async ({
-      flexAPIUsingInsecureProtocol: api,
-    }) => {
-      // Arrange
-      const { isCI } = config;
-      const path = url(pushID);
+    test.runIf(isCI)(
+      'ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)',
+      async ({ flexAPIUsingInsecureProtocol: api, insecureProtocolError }) => {
+        // Arrange
+        const path = url(pushID);
 
-      // Act
-      const result = api.get({ path });
+        // Act
+        const result = api.get({ path });
 
-      // Assert
-      await expect(result).rejects.toMatchObject(
-        isCI
-          ? {
-              message: 'fetch failed',
-              cause: expect.objectContaining(
-                api.isPrivateGateway() // Handle private & public api gateway
-                  ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
-                  : { code: 'ECONNREFUSED' }
-              ),
-            }
-          : {
-              // Zscaler intercepts non-secure requests (local dev)
-              errorType: 'FetchErrorResponse',
-              status: 404,
-              message: expect.stringContaining(`API [GET] ${path} Failed with 404`),
-              headers: expect.objectContaining({
-                server: expect.stringContaining('Zscaler'),
-              }),
-            }
-      );
-    });
+        // Assert
+        await expect(result).rejects.toMatchObject(insecureProtocolError);
+      }
+    );
 
     test('status 403 when using invalid api key', async ({ flexAPIWithoutAPIKey: api }) => {
       // Arrange

@@ -19,6 +19,25 @@ Configuration lives in [`vitest.e2e.config.ts`](./vitest.e2e.config.ts) (extende
 - An authenticated AWS shell session against the target account, e.g. `eval $(gds-cli aws once-notifications-development-admin -e)` (see the root [README.md](../../README.md#setting-up-dev--sandbox-environmnent)) - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION` must be present.
 - mTLS certificates and API keys are fetched automatically at suite startup from Secrets Manager / API Gateway - run `pnpm run development:sandbox:setup` first if this fails, to provision the domain names these tests depend on.
 
+#### Zscaler certificate setup
+
+If you are using Zscaler, some of the e2e tests will fail as Zscaler intercepts the TLS traffic and Node rejects these request unless you trust the Zscaler root CA. On mac,
+
+```sh
+# Check the common Zscaler install directory and find certs
+find /Library/Application\ Support/Zscaler -name "*.pem" -o -name "*.crt" 2>/dev/null
+# Or in Keychain (most likely)
+security find-certificate -a -c "Zscaler" /Library/Keychains/System.keychain
+
+# Export the Zscaler cert to PEM format
+mkdir -p ~/.config/zscaler
+security find-certificate -a -p -c "Zscaler" /Library/Keychains/System.keychain > ~/.config/zscaler/zscaler-ca.pem
+
+# Then tell Node to trust this cert permanently (assuming zsh)
+echo "export NODE_EXTRA_CA_CERTS=~/.config/zscaler/zscaler-ca.pem" >> ~/.zshrc
+source ~/.zshrc
+```
+
 ### File naming & location
 
 - Test files live under `test/e2e/` and are named `<api>.<operationName>.test.e2e.ts` (e.g. `pso.postMessage.test.e2e.ts`, `flex.getNotifications.test.e2e.ts`), matching the operation naming convention in [`src/lambdas/README.md`](../../src/lambdas/README.md).

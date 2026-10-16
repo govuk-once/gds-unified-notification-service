@@ -123,6 +123,8 @@ env=dev pnpm run test:e2e
 End to end testing require mTLS authentication to be setup locally, to test both PSO and FLEX endpoints. To setup the correct authentication, run the developer setup script to setup this authentication.
 Make sure these credentials are not added to git.
 
+If you use Zscaler, Node needs to rust the Zscaler root CA before all the E2E tests can pass - see [Zscaler certificate setup](./test/e2e/README.md#zscaler-certificate-setup)
+
 Read more on the conventions used for each suite: [unit testing](./src/README.md) / [end to end testing](./test/e2e/README.md).
 
 ## Pre-commit hooks

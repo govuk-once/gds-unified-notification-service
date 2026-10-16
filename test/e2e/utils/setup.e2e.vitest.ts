@@ -169,7 +169,13 @@ export const test = baseTest
       ({
         dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
       })[config.env] ?? 'cde456'
-  );
+  )
+  .extend('insecureProtocolError', () => ({
+    message: 'fetch failed',
+    cause: usePrivateGateway
+      ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
+      : { code: 'ECONNREFUSED' },
+  }));
 
 export const checkStatus = async (psoAPI: FetchService, notificationID: string) => {
   const result = await psoAPI.get({ path: `/status/${notificationID}` });
