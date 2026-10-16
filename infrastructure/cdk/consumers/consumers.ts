@@ -76,6 +76,7 @@ export const rollingCertificate = (props: {
 export type GroupedConsumerCertificates = ReturnType<typeof certificate>[];
 
 export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCertificates => {
+  // TODO: Add filter here to skip / remove past certificates
   switch (env) {
     case 'dev':
       return devConsumers();
