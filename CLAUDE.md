@@ -17,9 +17,9 @@ pnpm run build                      # esbuild bundle lambdas → dist/
 pnpm run build:validate             # typecheck only (tsc6 --noEmit via @typescript/typescript6)
 pnpm run lint                       # eslint + prettier (check)
 pnpm run lint:fix                   # eslint + prettier (auto-fix)
-pnpm run test                       # all tests (unit + e2e)
-pnpm run test:unit                  # unit tests only
-pnpm run test:e2e                   # e2e tests (requires mTLS certs + AWS credentials)
+pnpm run test                       # all tests in watch mode (development)
+pnpm run test:unit                  # unit tests, run once and exit
+pnpm run test:e2e                   # e2e tests, run once and exit (requires mTLS certs + AWS credentials)
 pnpm run test:coverage              # unit tests with coverage
 pnpm run cdk:synth                  # synthesize CloudFormation templates
 pnpm run cdk:diff                   # diff against deployed stack

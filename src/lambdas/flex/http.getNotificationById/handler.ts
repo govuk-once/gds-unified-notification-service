@@ -44,7 +44,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
-    this.observability.logger.debug('Received request', {
+    this.observability.logger.info('Received request', {
       path: event.path,
       notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
@@ -64,7 +64,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.debug('pushID has not been provided - returning 400');
+      this.observability.logger.info('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 
@@ -72,19 +72,19 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle not found or hidden notifications
     if (!notification) {
-      this.observability.logger.debug('Notification not found - returning 404');
+      this.observability.logger.info('Notification not found - returning 404');
       throw new NotFoundError();
     }
 
     // Handle notification that is past TTL expiration - DynamoDB can take up to 48h to remove these
     if (notification.ExpirationDateTime < DateInSeconds.now()) {
-      this.observability.logger.debug('Notification has expired - returning 404');
+      this.observability.logger.info('Notification has expired - returning 404');
       throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      this.observability.logger.debug('Notification belongs to another user - returning 404', {
+      this.observability.logger.info('Notification belongs to another user - returning 404', {
         userOnNotification: notification.ExternalUserID,
         queryingUser: externalUserID,
       });
@@ -97,13 +97,13 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // If no organisation record matches the organisation - return 404
     if (!notificationResponse) {
-      this.observability.logger.debug('Notification failed parsing to flex notification - returning 404');
+      this.observability.logger.info('Notification failed parsing to flex notification - returning 404');
       throw new NotFoundError();
     }
 
     // If message is marked as hidden - return 404
     if (notificationResponse.Status == NotificationDispatchedStateEnum.HIDDEN) {
-      this.observability.logger.debug('Notification has been marked as hidden - returning 404');
+      this.observability.logger.info('Notification has been marked as hidden - returning 404');
       throw new NotFoundError();
     }
 

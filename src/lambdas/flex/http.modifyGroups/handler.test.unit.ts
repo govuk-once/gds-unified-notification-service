@@ -152,7 +152,7 @@ describe('ModifyGroups Handler', async () => {
     const result = await handler(event, context);
 
     // Assert
-    expect(observabilityMocks.logger.debug).toHaveBeenCalledWith('pushID has not been provided - returning 400');
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('pushID has not been provided - returning 400');
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,

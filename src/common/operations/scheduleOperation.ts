@@ -76,7 +76,7 @@ export abstract class ScheduleOperation {
       await initializeDependencies(this, this.dependencies);
 
       // Trigger implementation
-      this.observability.logger.info(`Request received`, { event });
+      this.observability.logger.info(`Received request`, { event });
       await this.implementation(event, context);
       this.observability.logger.info(`Request completed`);
     });

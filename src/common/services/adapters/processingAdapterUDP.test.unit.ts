@@ -133,7 +133,7 @@ describe('ProcessingAdapterUDP', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(nonApiError);
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Non-api Error`, { error: nonApiError });
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Non-api Error`, { error: nonApiError.message });
     });
 
     it('should throw when the response body from the fetch call fails to match the expected schema', async () => {

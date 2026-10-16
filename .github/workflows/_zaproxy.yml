@@ -6,47 +6,19 @@ permissions:
   pull-requests: write
 
 on:
-  schedule:
-    - cron: '0 1 * * *'
-  workflow_dispatch:
-    inputs:
-      scan-mode:
-        description: 'passive(PR) or active (nightly)'
-        required: false
-        default: 'active'
-        type: choice
-        options:
-          - active
-          - passive
-      environment:
-        description: 'Github environment'
-        required: false
-        default: 'dev'
-        type: choice
-        options:
-          - dev
-          - ephemeral
-      env-identifier:
-        description: 'Needed to set source bucket and project name'
-        required: false
-        default: 'dev'
-        type: string
   workflow_call:
     inputs:
       scan-mode:
         description: 'passive(PR) or active (nightly)'
-        required: false
-        default: 'active'
+        required: true
         type: string
       environment:
         description: 'Github environment'
-        required: false
-        default: 'dev'
+        required: true
         type: string
       env-identifier:
         description: 'Needed to set source bucket and project name'
-        required: false
-        default: 'dev'
+        required: true
         type: string
 
 jobs:

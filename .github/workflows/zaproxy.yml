@@ -1,0 +1,20 @@
+name: Running Zap Security Scan (scheduled)
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+
+jobs:
+  zaproxyScan:
+    name: PR / Zap Security Scan
+    uses: ./.github/workflows/_zaproxy.yml
+    secrets: inherit
+    with:
+      scan-mode: active
+      env-identifier: dev
+      environment: dev

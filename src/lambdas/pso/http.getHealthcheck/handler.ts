@@ -30,7 +30,7 @@ export class GetHealthcheck extends APIHandler<typeof requestBodySchema, typeof 
     _event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info(`Event received`, { _event, _context });
+    this.observability.logger.info(`Received request`, { _event, _context });
     // Return placeholder status
     return {
       body: {
