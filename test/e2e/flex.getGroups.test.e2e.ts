@@ -1,5 +1,5 @@
 import { GroupActionEnum } from '@project/lambdas';
-import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { isCI, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 

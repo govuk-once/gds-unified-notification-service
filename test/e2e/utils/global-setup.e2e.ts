@@ -29,7 +29,10 @@ export default async function setup(project: TestProject) {
   const psoApiKey = apiKeys.psoApiKey;
   const flexApiKey = apiKeys.flexApiKey;
 
+  const isCI = config.isE2ERunner || process.env.GITHUB_ACTIONS === 'true';
+
   project.provide('e2eCredentials', { psoUrl, flexUrl, psoApiKey, flexApiKey, crt, key });
+  project.provide('isCI', isCI);
 }
 
 declare module 'vitest' {
@@ -42,5 +45,6 @@ declare module 'vitest' {
       crt: string;
       key: string;
     };
+    isCI: boolean;
   }
 }

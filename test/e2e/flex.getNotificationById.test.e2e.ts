@@ -1,5 +1,5 @@
 import { iocGetNotificationDynamoRepository } from '@common/ioc';
-import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { isCI, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { mockIMessageRecord_E2E } from '@test/mocks';
 import { expect } from 'vitest';
 

@@ -1,4 +1,4 @@
-import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { isCI, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { expect } from 'vitest';
 
 const path = `/notifications`;

@@ -57,6 +57,8 @@ const prepareBeforeAll = () => {
 
 beforeAll(() => prepareBeforeAll());
 
+export const isCI = inject('isCI');
+
 // Add clients to test implementation for e2d
 export const testFixtures = () => {
   return {
