@@ -11,6 +11,10 @@ on:
         description: 'Github environment to use'
         type: string
         required: true
+      ENV_IDENTIFIER:
+        description: 'Environment identifier for resource naming'
+        type: string
+        required: false
 
 jobs:
   test:
@@ -19,8 +23,8 @@ jobs:
     environment:
       name: ${{ inputs.ENVIRONMENT }}
     env:
-      SOURCE_BUCKET: uns-${{ vars.ENVIRONMENT_SHORTHAND }}-e2e-runner-builds
-      PROJECT_NAME: uns-${{ vars.ENVIRONMENT_SHORTHAND }}-e2e-runner-project
+      SOURCE_BUCKET: uns-${{ inputs.ENV_IDENTIFIER || vars.ENVIRONMENT_SHORTHAND }}-e2e-runner-builds
+      PROJECT_NAME: uns-${{ inputs.ENV_IDENTIFIER || vars.ENVIRONMENT_SHORTHAND }}-e2e-runner-project
     steps:
       - name: ⚙️ Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

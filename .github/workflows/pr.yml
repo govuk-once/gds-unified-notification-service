@@ -118,16 +118,24 @@ jobs:
     needs: [pr]
     secrets: inherit
 
-  ephemeralTesting:
+  ephemeralTestingSetup:
     name: PR / Ephemeral Testing
-    uses: ./.github/workflows/_ephemeral.testing.yml
-    needs: [pr]
+    uses: ./.github/workflows/_ephemeral.setup.yml
     secrets: inherit
+
+  ephemeralE2ETesting:
+    name: Ephemeral testing
+    uses: ./.github/workflows/_test_e2e.yml
+    needs: [ephemeralTestingSetup]
+    secrets: inherit
+    with:
+      ENVIRONMENT: ephemeral
+      ENV_IDENTIFIER: ${{ github.event.pull_request.number }}
 
   zaproxyScan:
     name: PR / Zap Security Scan
     uses: ./.github/workflows/_zaproxy.yml
-    needs: [ephemeralTesting]
+    needs: [ephemeralTestingSetup]
     secrets: inherit
     with:
       scan-mode: passive
