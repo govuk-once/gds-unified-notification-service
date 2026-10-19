@@ -91,11 +91,18 @@ export interface UNSAPIGatewayGatewayProps {
   >;
 
   readonly iam?: {
-    readonly allowOnlyFromKnownSources?: {
-      readonly awsAccountID: string;
-      readonly vpceIDs: string[];
-      readonly vpceEndpoints: IVpcEndpoint[];
-    };
+    readonly allowOnlyFromKnownSources?:
+      | {
+          readonly crossAccount: true;
+          readonly awsAccountID: string;
+          readonly vpceIDs: string[];
+          readonly vpceEndpoints: IVpcEndpoint[];
+        }
+      | {
+          readonly crossAccount?: false;
+          readonly vpceIDs: string[];
+          readonly vpceEndpoints: IVpcEndpoint[];
+        };
   };
 }
 
@@ -362,23 +369,25 @@ export class UNSAPIGatewayGateway extends Construct {
         })
       );
 
-      // Create external execution invoker IAM role
-      const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`), {
-        roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`),
-        assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
-      });
-      role.node.addDependency(this.restApi);
+      if (props.iam.allowOnlyFromKnownSources.crossAccount) {
+        // Create external execution invoker IAM role
+        const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`), {
+          roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`),
+          assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
+        });
+        role.node.addDependency(this.restApi);
 
-      role.attachInlinePolicy(
-        new Policy(this, config.utils.namingHelper(`iamr`, ...props.name, `gateway-invoker`), {
-          statements: [
-            new PolicyStatement({
-              actions: ['execute-api:Invoke'],
-              resources: [this.restApi.arnForExecuteApi()],
-            }),
-          ],
-        })
-      );
+        role.attachInlinePolicy(
+          new Policy(this, config.utils.namingHelper(`iamr`, ...props.name, `gateway-invoker`), {
+            statements: [
+              new PolicyStatement({
+                actions: ['execute-api:Invoke'],
+                resources: [this.restApi.arnForExecuteApi()],
+              }),
+            ],
+          })
+        );
+      }
     }
   }
   constructor(scope: Construct, config: EnvVars, props: UNSAPIGatewayGatewayProps) {

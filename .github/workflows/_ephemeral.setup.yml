@@ -7,8 +7,8 @@ permissions:
 on: workflow_call
 
 jobs:
-  ephemeralTesting:
-    name: Ephemeral Testing
+  ephemeralTestingSetup:
+    name: Setup Ephemeral Environment
     runs-on: ubuntu-latest
     environment:
       name: ephemeral
@@ -54,17 +54,7 @@ jobs:
       - name: ⚙️ Install Dependencies
         run: pnpm ci
 
-      # Build & release
-      - name: ⬇️ Download dist artifact
-        id: download-dist
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dist
-          path: ./dist
-
       - name: 🔨 Build bundles
-        if: steps.download-dist.outcome == 'failure'
         run: pnpm run build
 
       - name: 🏗️ CDK Deploy Ephemeral Build
@@ -75,9 +65,3 @@ jobs:
           region: ${{ vars.AWS_REGION }}
           env: ${{ github.event.number }}
           code_version: pr-${{ github.event.number }}
-
-      - name: 🧪 End to end testing suite
-        run: |
-          VITEST_TREE_REPORT=true pnpm test:e2e
-        env:
-          env: ${{ github.event.number }}

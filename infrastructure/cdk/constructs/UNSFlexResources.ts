@@ -211,12 +211,20 @@ export class UNSFlexResource extends Construct {
         config.ssm.flex.account !== null && config.ssm.flex.vpce && config.ssm.flex.vpce.length > 0
           ? {
               allowOnlyFromKnownSources: {
+                crossAccount: true as const,
                 awsAccountID: config.ssm.flex.account,
                 vpceIDs: [...config.ssm.flex.vpce, refs.vpc.interfaceEndpoints.Apigateway.vpcEndpointId],
                 vpceEndpoints: [refs.vpc.interfaceEndpoints.Apigateway],
               },
             }
-          : {},
+          : config.isEphemeral
+            ? {
+                allowOnlyFromKnownSources: {
+                  vpceIDs: [refs.vpc.interfaceEndpoints.Apigateway.vpcEndpointId],
+                  vpceEndpoints: [refs.vpc.interfaceEndpoints.Apigateway],
+                },
+              }
+            : {},
       usagePlanDefaults: {
         quota: {
           limit: 100000,
