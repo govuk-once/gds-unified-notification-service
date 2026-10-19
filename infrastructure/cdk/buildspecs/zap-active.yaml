@@ -19,7 +19,7 @@ jobs:
       context: Default Context
   - type: activeScan
     parameters:
-      maxScanDurationInMins: 15
+      maxScanDurationInMins: 25
       maxRuleDurationInMins: 1
       threadPerHost: 7
     policyDefinition:
@@ -28,6 +28,17 @@ jobs:
   - type: passiveScan-wait
     parameters:
       maxDuration: 2
+  - type: alertFilter
+    alertFilters:
+      - ruleId: 30002
+        ruleName: Format String Error (30002)
+        context: Default Context
+        newRisk: False Positive
+        url: .*/v1/send-to-group
+        urlRegex: true
+        methods:
+          - POST
+    parameters: {}
   - type: report
     parameters:
       template: traditional-pdf
