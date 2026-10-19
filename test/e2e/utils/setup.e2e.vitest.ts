@@ -150,6 +150,7 @@ export const test = baseTest
     ({}) =>
       ({
         dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
+        stg: `SjkZR2ltkgQknY5YQfItrUCsgg8K3O-2HBo7dED7NV4`,
       })[config.env] ?? 'cde456'
   );
 
