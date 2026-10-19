@@ -28,4 +28,14 @@ export const productionConsumers: () => GroupedConsumerCertificates = () => [
     frequencyInMonths: 4,
     migrationPeriodInWeeks: 4,
   }),
+
+  // Events Aggregator
+  ...rollingCertificate({
+    commonName: 'ea',
+    organization: 'EventsAggregator',
+    organizationalUnit: 'ea',
+    startDate: new Date('2026-10-15T23:59:59Z'),
+    frequencyInMonths: 4,
+    migrationPeriodInWeeks: 4,
+  }),
 ];

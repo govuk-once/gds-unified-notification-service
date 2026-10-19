@@ -72,5 +72,5 @@ export const testingStack = config.deployE2ERunner
       }
     )
   : undefined;
-alarmsStack.addDependency(stack);
-testingStack?.addDependency(stack);
+alarmsStack.addStackDependency(stack);
+testingStack?.addStackDependency(stack);

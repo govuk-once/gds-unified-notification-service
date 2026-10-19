@@ -253,8 +253,8 @@ export class UNSAPIGatewayGateway extends Construct {
     const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
       name: config.utils.namingHelper(...props.name, 'waf'),
       scope: 'REGIONAL',
-
-      defaultAction: { allow: {} },
+      // If secret is defined - default to BLOCK - only allow requests With secret to pass through
+      defaultAction: secret == null ? { allow: {} } : { block: {} },
       visibilityConfig: {
         metricName: config.utils.namingHelper(...props.name, 'main-metric'),
         cloudWatchMetricsEnabled: true,
@@ -266,7 +266,7 @@ export class UNSAPIGatewayGateway extends Construct {
           ? [
               {
                 name: 'RequireOriginSecret',
-                priority: 1,
+                priority: 15,
                 visibilityConfig: {
                   cloudWatchMetricsEnabled: true,
                   sampledRequestsEnabled: false,
@@ -278,7 +278,7 @@ export class UNSAPIGatewayGateway extends Construct {
                 statement: {
                   byteMatchStatement: {
                     fieldToMatch: {
-                      singleHeader: { Name: 'x-origin-verify' },
+                      singleHeader: { Name: 'x-origin-header' },
                     },
                     positionalConstraint: 'EXACTLY',
                     searchString: secret.secretValueFromJson('token').unsafeUnwrap(),
