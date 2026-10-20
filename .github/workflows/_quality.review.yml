@@ -75,9 +75,6 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       # CDK Validation runs in the foreground while the SonarQube scan runs in the background
-      - name: 🏗️ CDK Synth (mock env)
-        run: |
-          env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
         if: success()
@@ -99,25 +96,22 @@ jobs:
 
       # Wait for the SonarQube scan (background) before running the quality gate
       - wait: sonar-scan
+      - parallel:
+          - name: 🧪 SonarQube Quality Gate check
+            id: sonarqube-quality-gate-check
+            uses: sonarsource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
+            if: success() || failure()
+            with:
+              pollingTimeoutSec: 600
+            env:
+              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
+              SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+          - name: 🧪 CDK Synth (mock env)
+            run: |
+              env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
-      - name: 🕵🏻 SonarQube Quality Gate check
-        id: sonarqube-quality-gate-check
-        uses: sonarsource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
-        if: success() || failure()
-        with:
-          pollingTimeoutSec: 600
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
-
-      - name: 🕵🏻 Create Comment with SonarQube's Quality Gate
-        continue-on-error: true
-        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
-        if: success() || failure()
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: 'govuk-once/gds-unified-notification-service'
-          number: ${{ github.event.number }}
-          id: qualitygatecomment
-          message: 'SonarQube Quality Gate Status: ${{steps.sonarqube-quality-gate-check.outputs.quality-gate-status}} [LINK](https://sonarcloud.io/summary/new_code?id=govuk-once_gds-unified-notification-service&pullRequest=${{github.event.number}})'
-          recreate: true
+          - name: 🧪 Spell Check
+            uses: streetsidesoftware/cspell-action@ce1816e4ce36532956ac6e983737392774b6e169 #9.2.0
+            with:
+              files: '**'
+              config: '.config/cspell.json'

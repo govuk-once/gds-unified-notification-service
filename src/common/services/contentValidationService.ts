@@ -102,7 +102,7 @@ export class ContentValidationService {
       return input;
     }
 
-    // Use overrides if availalble, otherwise fall on defaults
+    // Use overrides if available, otherwise fall on defaults
     const protocols = overrides?.protocols ?? this.protocols;
     const hostnames = overrides?.hostnames ?? this.hostnames;
 

@@ -47,7 +47,7 @@ const authorizerSchema = psoAuthorizerSchema;
 
 /**
 {
-  "body": "{\n  \"Namespace\": \"travel\", \n  \"Group\": \"france\",\n  \"Subgroup\": \"immediate\",\n  \"GroupNotificationID\": \"TO_GROUP_ID\",\n  \"CampaignID\": \"CAM_ID\",\n  \"NotificationTitle\": \"You have a new Notification\",\n  \"NotificationBody\": \"Here is the Notification body.\",\n  \"MessageTitle\": \"You have a new Message\",\n  \"MessageBody\": \"Open Notification Centre to read your notifications\",\n  \"DeeplinkURL\": \"myappid://path/to/page\"\n}",
+  "body": "{\n  \"Namespace\": \"travel\", \n  \"Group\": \"france\",\n  \"Subgroup\": \"immediate\",\n  \"GroupNotificationID\": \"TO_GROUP_ID\",\n  \"CampaignID\": \"CAM_ID\",\n  \"NotificationTitle\": \"You have a new Notification\",\n  \"NotificationBody\": \"Here is the Notification body.\",\n  \"MessageTitle\": \"You have a new Message\",\n  \"MessageBody\": \"Open Notification Centre to read your notifications\",\n  \"DeeplinkURL\": \"appid://path/to/page\"\n}",
   "headers": {
     "Content-Type": "application/json"
   },
@@ -70,7 +70,7 @@ const authorizerSchema = psoAuthorizerSchema;
   "NotificationBody": "Here is the Notification body.",
   "MessageTitle": "You have a new Message",
   "MessageBody": "Open Notification Centre to read your notifications",
-  "DeeplinkURL": "myappid://path/to/page"
+  "DeeplinkURL": "appid://path/to/page"
 }
  */
 

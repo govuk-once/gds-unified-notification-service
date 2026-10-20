@@ -260,7 +260,7 @@ describe('ProcessingQueueService', async () => {
       // Arrange
       const mockMessageList: IMessage[] = Array.from({ length: 11 }, (_, i) => ({
         ...message,
-        NotificationID: `notifiction-${i}`,
+        NotificationID: `notification-${i}`,
         UserId: i,
       }));
       awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValue({
