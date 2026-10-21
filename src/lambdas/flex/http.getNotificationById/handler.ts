@@ -1,5 +1,6 @@
 import {
   HandlerDependencies,
+  iocGetCacheService,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
@@ -12,8 +13,9 @@ import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { CacheService, ConfigurationService, ObservabilityService } from '@common/services';
 import DateInSeconds from '@common/utils/dateInSeconds';
+import { IAnalytics } from '@project/lambdas/interfaces';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -30,6 +32,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
   public organisationsDynamoRepository!: OrganisationsDynamoRepository;
+  public cacheService!: CacheService;
 
   constructor(
     protected config: ConfigurationService,
@@ -93,7 +96,16 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations([notification]);
-    const notificationResponse = IMessageRecordToIFlexNotification(notification, organisations, this.observability);
+
+    const cachedEvents = await this.cacheService.get<IAnalytics[]>(
+      this.cacheService.analyticsEventKey(notification.NotificationID)
+    );
+    const notificationResponse = IMessageRecordToIFlexNotification(
+      notification,
+      organisations,
+      this.observability,
+      cachedEvents
+    );
 
     // If no organisation record matches the organisation - return 404
     if (!notificationResponse) {
@@ -119,4 +131,5 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
+  cacheService: iocGetCacheService().connect(),
 })).handler();

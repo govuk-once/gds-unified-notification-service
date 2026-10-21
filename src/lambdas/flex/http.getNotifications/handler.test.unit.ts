@@ -38,7 +38,7 @@ describe('getNotifications Handler', async () => {
   });
   const organisationRecord = mockIOrganisationRecord();
   const externalUserID = `abc-cdef-ghi`;
-  const hiddenAnalyticsEvent = mockIAnalytics(NotificationStateEnum.HIDDEN);
+  const hiddenAnalyticsEvent = mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.HIDDEN);
 
   beforeEach(() => {
     // Reset all mocks
@@ -60,6 +60,7 @@ describe('getNotifications Handler', async () => {
     instance = new GetNotifications(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
       organisationsDynamoRepository: Promise.resolve(serviceMocks.organisationsDynamoRepositoryMock),
+      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
     }));
     handler = instance.handler();
   });
@@ -79,6 +80,61 @@ describe('getNotifications Handler', async () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([expectResponse]);
+  });
+
+  it('should return 200 and use cache events if they are not present in the message record', async () => {
+    // Arrange
+    const expectResponse = mockIFlexNotification();
+    serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce([
+      {
+        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.READ),
+      },
+    ]);
+    expectResponse.Status = NotificationStateEnum.READ;
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([expectResponse]);
+  });
+
+  it('should return 200 and use cache events for each notification record', async () => {
+    // Arrange
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValueOnce([
+      messageRecord,
+      {
+        ...messageRecord,
+        NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc4',
+      },
+    ]);
+
+    const expectResponse_1 = mockIFlexNotification();
+    const expectResponse_2 = mockIFlexNotification();
+    expectResponse_2.NotificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc4';
+
+    serviceMocks.cacheServiceMock.get = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.READ),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e6', NotificationStateEnum.MARKED_AS_UNREAD),
+        },
+      ]);
+    expectResponse_1.Status = NotificationStateEnum.READ;
+    expectResponse_2.Status = NotificationStateEnum.MARKED_AS_UNREAD;
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([expectResponse_1, expectResponse_2]);
   });
 
   it('should fetch all notifications from dynamo tabling using getRecordsQuery', async () => {

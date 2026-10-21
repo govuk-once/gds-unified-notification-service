@@ -30,7 +30,7 @@ describe('PatchNotification Handler', async () => {
   let context: Context;
 
   const message = mockIProcessedMessage();
-  const analyticEvent = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const analyticEvent = mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED);
   const messageRecord = mockIProcessedMessageRecord(message, {
     DispatchedDateTime: true,
     Events: [analyticEvent],

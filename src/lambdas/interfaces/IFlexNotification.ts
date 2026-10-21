@@ -2,6 +2,8 @@ import { NotificationDispatchedStateEnum, NotificationStateEnum } from '@common/
 import { IMessageRecordSchema, IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ObservabilityService } from '@common/services';
+import { compareEventsToCache } from '@common/utils/compareEventsToCache';
+import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import z from 'zod';
 
 export const IFlexNotificationSchema = IMessageRecordSchema.pick({
@@ -28,8 +30,14 @@ export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
 export const IMessageRecordToIFlexNotification = (
   item: IProcessedMessageRecord,
   organisations: IOrganisationRecord[],
-  observability: ObservabilityService
+  observability: ObservabilityService,
+  cachedEvents?: IAnalytics[]
 ): IFlexNotification | undefined => {
+  // Compared dynamo record to cached events and adds any missing events to response
+  if (cachedEvents) {
+    item.Events = compareEventsToCache(observability, item, cachedEvents);
+  }
+
   const latestEvent = [...(item.Events ?? [])]
     .filter((e) => Object.values(NotificationDispatchedStateEnum).includes(e.Event as NotificationDispatchedStateEnum))
     .sort((a, b) => a.EventDateTime.localeCompare(b.EventDateTime))

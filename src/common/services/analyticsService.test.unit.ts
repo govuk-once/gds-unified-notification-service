@@ -36,7 +36,11 @@ describe('analyticsService', async () => {
     // Mock expected aws clients responses
     mockServicesExpectedBehaviour(serviceMocks);
 
-    instance = new AnalyticsService(observabilityMocks, serviceMocks.analyticsQueueServiceMock);
+    instance = new AnalyticsService(
+      serviceMocks.cacheServiceMock,
+      observabilityMocks,
+      serviceMocks.analyticsQueueServiceMock
+    );
   });
 
   describe('publishMultipleEvents', () => {
@@ -69,7 +73,7 @@ describe('analyticsService', async () => {
       ]);
     });
 
-    it('should publish multiple analytics events to analytics queue with campaignID when provided.', async () => {
+    it('should publish multiple analytics events to analytics queue with campaignID when provided', async () => {
       // Act
       await instance.publishMultipleEvents(analyticsWithCampaignEvents, NotificationStateEnum.VALIDATED);
 
@@ -116,6 +120,136 @@ describe('analyticsService', async () => {
 
       // Assert
       expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
+    });
+
+    it('should cache analytics events by creating a new cache entry if no events are stored', async () => {
+      // Act
+      await instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+        1,
+        `analytics_${analyticsEvents[0].NotificationID}`,
+        [
+          {
+            EventID: expect.schemaMatching(z.uuid()),
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: expect.schemaMatching(z.coerce.date()),
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+        ],
+        600
+      );
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+        2,
+        `analytics_${analyticsEvents[1].NotificationID}`,
+        [
+          {
+            EventID: expect.schemaMatching(z.uuid()),
+            NotificationID: analyticsEvents[1].NotificationID,
+            DepartmentID: analyticsEvents[1].DepartmentID,
+            APIGWExtendedID: analyticsEvents[1].APIGWExtendedID,
+            EventDateTime: expect.schemaMatching(z.coerce.date()),
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[1].CampaignID,
+            OrganisationID: analyticsEvents[1].OrganisationID,
+          },
+        ],
+        600
+      );
+    });
+
+    it('should append events to cache if events are already stored for notification', async () => {
+      // Arrange
+      serviceMocks.cacheServiceMock.get = vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            EventID: '3b29c216-9195-44f4-a3ee-1e85afa85ee5',
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: '2026-01-22T00:00:01Z',
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            EventID: 'eb456589-f3e2-4384-9344-853ad05147e5',
+            NotificationID: analyticsEvents[1].NotificationID,
+            DepartmentID: analyticsEvents[1].DepartmentID,
+            APIGWExtendedID: analyticsEvents[1].APIGWExtendedID,
+            EventDateTime: '2026-01-22T00:00:01Z',
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[1].CampaignID,
+            OrganisationID: analyticsEvents[1].OrganisationID,
+          },
+        ]);
+
+      // Act
+      await instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.PROCESSING);
+
+      // Assert
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+        1,
+        `analytics_${analyticsEvents[0].NotificationID}`,
+        [
+          {
+            EventID: '3b29c216-9195-44f4-a3ee-1e85afa85ee5',
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: '2026-01-22T00:00:01Z',
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+          {
+            EventID: expect.schemaMatching(z.uuid()),
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: expect.schemaMatching(z.coerce.date()),
+            Event: 'PROCESSING',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+        ],
+        600
+      );
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
+        2,
+        `analytics_${analyticsEvents[1].NotificationID}`,
+        [
+          {
+            EventID: 'eb456589-f3e2-4384-9344-853ad05147e5',
+            NotificationID: analyticsEvents[1].NotificationID,
+            DepartmentID: analyticsEvents[1].DepartmentID,
+            APIGWExtendedID: analyticsEvents[1].APIGWExtendedID,
+            EventDateTime: '2026-01-22T00:00:01Z',
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[1].CampaignID,
+            OrganisationID: analyticsEvents[1].OrganisationID,
+          },
+          {
+            EventID: expect.schemaMatching(z.uuid()),
+            NotificationID: analyticsEvents[1].NotificationID,
+            DepartmentID: analyticsEvents[1].DepartmentID,
+            APIGWExtendedID: analyticsEvents[1].APIGWExtendedID,
+            EventDateTime: expect.schemaMatching(z.coerce.date()),
+            Event: 'PROCESSING',
+            CampaignID: analyticsEvents[1].CampaignID,
+            OrganisationID: analyticsEvents[1].OrganisationID,
+          },
+        ],
+        600
+      );
     });
   });
 
@@ -177,6 +311,76 @@ describe('analyticsService', async () => {
         MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
         1
+      );
+    });
+
+    it('should cache analytics events by creating a new cache entry if no events are stored', async () => {
+      // Act
+      await instance.publishEvent(analyticsEvents[0], NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+        `analytics_${analyticsEvents[0].NotificationID}`,
+        [
+          {
+            EventID: expect.schemaMatching(z.uuid()),
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: expect.schemaMatching(z.coerce.date()),
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+        ],
+        600
+      );
+    });
+
+    it('should append events to cache if events are already stored for notification', async () => {
+      // Arrange
+      serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce([
+        {
+          EventID: '3b29c216-9195-44f4-a3ee-1e85afa85ee5',
+          NotificationID: analyticsEvents[0].NotificationID,
+          DepartmentID: analyticsEvents[0].DepartmentID,
+          APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+          EventDateTime: '2026-01-22T00:00:01Z',
+          Event: 'VALIDATED',
+          CampaignID: analyticsEvents[0].CampaignID,
+          OrganisationID: analyticsEvents[0].OrganisationID,
+        },
+      ]);
+
+      // Act
+      await instance.publishEvent(analyticsEvents[0], NotificationStateEnum.PROCESSING);
+
+      // Assert
+      expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith(
+        `analytics_${analyticsEvents[0].NotificationID}`,
+        [
+          {
+            EventID: '3b29c216-9195-44f4-a3ee-1e85afa85ee5',
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: '2026-01-22T00:00:01Z',
+            Event: 'VALIDATED',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+          {
+            EventID: expect.schemaMatching(z.uuid()),
+            NotificationID: analyticsEvents[0].NotificationID,
+            DepartmentID: analyticsEvents[0].DepartmentID,
+            APIGWExtendedID: analyticsEvents[0].APIGWExtendedID,
+            EventDateTime: expect.schemaMatching(z.coerce.date()),
+            Event: 'PROCESSING',
+            CampaignID: analyticsEvents[0].CampaignID,
+            OrganisationID: analyticsEvents[0].OrganisationID,
+          },
+        ],
+        600
       );
     });
   });

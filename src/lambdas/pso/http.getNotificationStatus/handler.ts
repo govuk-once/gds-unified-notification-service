@@ -1,6 +1,7 @@
 import {
   APIHandler,
   HandlerDependencies,
+  iocGetCacheService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
   type ITypedRequestEvent,
@@ -8,7 +9,9 @@ import {
 } from '@common';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationsDynamoRepository } from '@common/repositories';
-import { ObservabilityService } from '@common/services';
+import { CacheService, ObservabilityService } from '@common/services';
+import { compareEventsToCache } from '@common/utils/compareEventsToCache';
+import { IAnalytics } from '@project/lambdas/interfaces';
 import { INotificationStatusSchema } from '@project/lambdas/interfaces/INotificationStatus';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -22,6 +25,7 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
   public responseBodySchema = responseBodySchema;
 
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
+  public cacheService!: CacheService;
 
   constructor(
     protected observability: ObservabilityService,
@@ -43,8 +47,16 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     if (notification == null) {
       throw new NotFoundError();
     }
-
     this.observability.logger.info(`Found notification`, { notification });
+
+    // Compared dynamo record to cached events and adds any missing events to response
+    const cachedEvents = await this.cacheService.get<IAnalytics[]>(
+      this.cacheService.analyticsEventKey(_event.pathParameters.notificationID ?? '')
+    );
+    if (cachedEvents) {
+      notification.Events = compareEventsToCache(this.observability, notification, cachedEvents);
+    }
+
     // If it does - return it's status only
     return {
       body: notification.Events.map((event) => ({
@@ -59,4 +71,5 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
 
 export const handler = new GetNotificationStatus(iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
+  cacheService: iocGetCacheService().connect(),
 })).handler();

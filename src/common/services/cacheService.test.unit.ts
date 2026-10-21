@@ -67,7 +67,24 @@ describe('CacheService', async () => {
 
       // Assert
       expect(setMock).toHaveBeenCalledTimes(1);
-      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(value));
+      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(value), undefined);
+    });
+
+    it('should trigger SET command with expiration when provided', async () => {
+      // Arrange
+      const key = 'a';
+      const value = 'example';
+      const expiration = 10 * 60;
+
+      // Act
+      await instance.connect();
+      await instance.store(key, value, expiration);
+
+      // Assert
+      expect(setMock).toHaveBeenCalledTimes(1);
+      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(value), {
+        expiration: { type: 'EX', value: expiration },
+      });
     });
   });
 
@@ -100,7 +117,7 @@ describe('CacheService', async () => {
       expect(getMock).toHaveBeenCalledTimes(2);
       expect(getMock).toHaveBeenCalledWith(key);
       expect(setMock).toHaveBeenCalledTimes(1);
-      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(7));
+      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(7), undefined);
       expect(factory).toHaveBeenCalledTimes(1);
     });
   });
