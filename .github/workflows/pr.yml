@@ -113,7 +113,7 @@ jobs:
               recreate: true
 
   codeQualityReview:
-    name: PR / Code Quality Review
+    name: PR / Quality Review
     uses: ./.github/workflows/_quality.review.yml
     needs: [pr]
     secrets: inherit
