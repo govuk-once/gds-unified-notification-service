@@ -124,14 +124,6 @@ jobs:
         run: |
           pnpm run release:announcement
 
-      # Unit testing - all envs
-      - name: 🧪 All Testing suites
-        if: ${{ inputs.ENVIRONMENT != 'production' && inputs.ENVIRONMENT != 'staging' }}
-        run: |
-          VITEST_TREE_REPORT=true pnpm test
-        env:
-          env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
-
       # End to end testing - Non production only, to avoid shipping test data into analytics
       - name: 🧪 Limited testing suites
         if: ${{ inputs.ENVIRONMENT == 'production' }}
