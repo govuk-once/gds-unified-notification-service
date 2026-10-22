@@ -95,15 +95,6 @@ export class AnalyticsService {
   }
 
   private async cacheAnalyticsEvent(event: AnalyticsEvent) {
-    let events = [event];
-    const cacheKey = this.cache.analyticsEventKey(event.NotificationID);
-    const cacheValue = await this.cache.get<AnalyticsEvent[]>(cacheKey);
-
-    if (cacheValue) {
-      events = [...cacheValue, event];
-    }
-
-    // Stores the list of analytics events for 10 minutes
-    await this.cache.store(cacheKey, events, 10 * 60);
+    await this.cache.appendToList(this.cache.analyticsEventKey(event.NotificationID), event, 10 * 60);
   }
 }

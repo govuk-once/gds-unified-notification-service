@@ -266,6 +266,8 @@ export const mockServicesExpectedBehaviour = (serviceMocks: Awaited<ReturnType<t
 
   serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValue(undefined);
   serviceMocks.cacheServiceMock.store = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.appendToList = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValue([]);
   serviceMocks.cacheServiceMock.increment = vi.fn().mockResolvedValue(1);
   serviceMocks.cacheServiceMock.rateLimit = vi.fn().mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
   serviceMocks.circuitBreakerServiceMock.checkCircuit = vi.fn().mockResolvedValue(undefined);

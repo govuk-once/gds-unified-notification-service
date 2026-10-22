@@ -1,7 +1,14 @@
 import { IRequestEvent } from '@common/middlewares';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { GetNotificationStatus } from '@project/lambdas/pso/http.getNotificationStatus/handler';
-import { iocSpies, mockEventContext, mockIAnalytics, mockIMessageRecord, mockIProcessedMessage } from '@test/mocks';
+import {
+  iocSpies,
+  mockEventContext,
+  mockIAnalytics,
+  mockIMessageRecord,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -30,6 +37,9 @@ describe('GetNotificationStatus Handler', async () => {
     // Test Fixtures
     context = mockEventContext('getNotificationStatus');
     event = { pathParameters: { notificationID } } as unknown as IRequestEvent;
+
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
 
     instance = new GetNotificationStatus(observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
@@ -70,7 +80,6 @@ describe('GetNotificationStatus Handler', async () => {
 
   it('should return 200 with the events mapped to status entires, sorted using the timestamp', async () => {
     // Arrange
-    serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce(undefined);
     const earlierEvent = {
       ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
       EventDateTime: new Date('2026-01-01T00:00:00.000Z').toISOString(),
@@ -105,7 +114,6 @@ describe('GetNotificationStatus Handler', async () => {
 
   it('should return 200 with an empty array if there are no events', async () => {
     // Arrange
-    serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce(undefined);
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValueOnce({
       ...messageRecord,
       Events: [],
@@ -131,7 +139,7 @@ describe('GetNotificationStatus Handler', async () => {
         EventDateTime: new Date('2026-01-02T00:00:00.000Z').toISOString(),
       },
     ];
-    serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce(cachedEvents);
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce(cachedEvents);
 
     const notificationEvent = {
       ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.VALIDATED_API_CALL),

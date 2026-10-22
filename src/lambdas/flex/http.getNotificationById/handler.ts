@@ -97,7 +97,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations([notification]);
 
-    const cachedEvents = await this.cacheService.get<IAnalytics[]>(
+    const cachedEvents = await this.cacheService.getList<IAnalytics>(
       this.cacheService.analyticsEventKey(notification.NotificationID)
     );
     const notificationResponse = IMessageRecordToIFlexNotification(

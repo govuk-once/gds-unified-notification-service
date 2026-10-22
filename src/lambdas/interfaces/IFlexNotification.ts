@@ -2,7 +2,6 @@ import { NotificationDispatchedStateEnum, NotificationStateEnum } from '@common/
 import { IMessageRecordSchema, IProcessedMessageRecord } from '@common/repositories/interfaces/IMessageRecord';
 import { IOrganisationRecord } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ObservabilityService } from '@common/services';
-import { compareEventsToCache } from '@common/utils/compareEventsToCache';
 import { IAnalytics } from '@project/lambdas/interfaces/IAnalyticsSchema';
 import z from 'zod';
 
@@ -31,11 +30,23 @@ export const IMessageRecordToIFlexNotification = (
   item: IProcessedMessageRecord,
   organisations: IOrganisationRecord[],
   observability: ObservabilityService,
-  cachedEvents?: IAnalytics[]
+  cachedEvents: IAnalytics[]
 ): IFlexNotification | undefined => {
   // Compared dynamo record to cached events and adds any missing events to response
-  if (cachedEvents) {
-    item.Events = compareEventsToCache(observability, item, cachedEvents);
+  if (cachedEvents?.length > 0) {
+    observability.logger.info(`Retrieved events from cache`, {
+      EventIDs: cachedEvents.map(({ EventID }) => EventID),
+    });
+    const notificationEventIDs = new Set(item.Events.map((n) => n.EventID));
+    const missingEvents = cachedEvents.filter((e) => !notificationEventIDs.has(e.EventID));
+
+    if (missingEvents.length > 0) {
+      observability.logger.info(`Events missing from dynamo records`, {
+        MissingEventIDs: missingEvents.map(({ EventID }) => EventID),
+      });
+    }
+
+    item.Events = [...item.Events, ...missingEvents];
   }
 
   const latestEvent = [...(item.Events ?? [])]
@@ -71,21 +82,3 @@ export const IMessageRecordToIFlexNotification = (
     },
   });
 };
-
-/**
- * Test Fixtures
- */
-export const mockIFlexNotification = (): IFlexNotification => ({
-  DispatchedDateTime: '2026-01-01T12:00:03.000Z',
-  MessageBody: 'Open Notification Centre to read your notifications',
-  MessageTitle: 'You have a new Message',
-  NotificationBody: 'Here is the Notification body.',
-  NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',
-  NotificationTitle: 'You have a new Notification',
-  Status: NotificationStateEnum.RECEIVED,
-  Metadata: {
-    Sender: {
-      DisplayName: 'ORG',
-    },
-  },
-});

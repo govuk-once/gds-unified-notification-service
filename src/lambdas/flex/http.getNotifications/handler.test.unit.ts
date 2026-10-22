@@ -1,11 +1,11 @@
 import { NotificationStateEnum } from '@common/models';
 import { GetNotifications } from '@project/lambdas/flex/http.getNotifications/handler';
-import { mockIFlexNotification } from '@project/lambdas/interfaces';
 import {
   iocSpies,
   mockEventContext,
   mockFlexAPIEvent,
   mockIAnalytics,
+  mockIFlexNotification,
   mockIOrganisationRecord,
   mockIProcessedMessage,
   mockIProcessedMessageRecord,
@@ -85,7 +85,7 @@ describe('getNotifications Handler', async () => {
   it('should return 200 and use cache events if they are not present in the message record', async () => {
     // Arrange
     const expectResponse = mockIFlexNotification();
-    serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce([
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([
       {
         ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.READ),
       },
@@ -114,7 +114,7 @@ describe('getNotifications Handler', async () => {
     const expectResponse_2 = mockIFlexNotification();
     expectResponse_2.NotificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc4';
 
-    serviceMocks.cacheServiceMock.get = vi
+    serviceMocks.cacheServiceMock.getList = vi
       .fn()
       .mockResolvedValueOnce([
         {
@@ -135,6 +135,25 @@ describe('getNotifications Handler', async () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([expectResponse_1, expectResponse_2]);
+  });
+
+  it('should return 200 and use message record only if cached events is an empty array', async () => {
+    // Arrange
+    const expectResponse = mockIFlexNotification();
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValueOnce([
+      {
+        ...messageRecord,
+        Events: [mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e6', NotificationStateEnum.RECEIVED)],
+      },
+    ]);
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([]);
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([expectResponse]);
   });
 
   it('should fetch all notifications from dynamo tabling using getRecordsQuery', async () => {

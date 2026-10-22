@@ -76,10 +76,10 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     // Retrieving cache events to compare with dynamo record
     const cachedEvents: Record<string, IAnalytics[]> = {};
     for (const notification of notifications) {
-      const cacheResult = await this.cacheService.get<IAnalytics[]>(
+      const cacheResult = await this.cacheService.getList<IAnalytics>(
         this.cacheService.analyticsEventKey(notification.NotificationID)
       );
-      if (cacheResult) {
+      if (cacheResult.length > 0) {
         cachedEvents[notification.NotificationID] = cacheResult;
       }
     }

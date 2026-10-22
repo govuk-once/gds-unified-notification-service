@@ -116,27 +116,64 @@ describe('GetNotificationById Handler', async () => {
     expect(JSON.parse(result.body)).toEqual(expectedResponse);
   });
 
+  it('should return 200 and use notification events when cached events are all present in notification', async () => {
+    // Arrange
+    const expectedResponse = mockIFlexNotification();
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([
+      {
+        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
+      },
+    ]);
+    messageRecord.Events = [
+      {
+        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
+      },
+    ];
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValueOnce(messageRecord);
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual(expectedResponse);
+  });
+
   it('should return 200 and use cache events if they are not present in the message record', async () => {
     // Arrange
-    const eventWithPushID = mockFlexAPIEvent({
-      pathParameters: {
-        notificationID: notificationID,
-      },
-      queryStringParameters: {
-        pushID: externalUserID,
-      },
-    }) as unknown as EventType;
     const expectedResponse = mockIFlexNotification();
-
-    serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValueOnce([
+    messageRecord.Events = [
       {
-        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.READ),
+        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
+      },
+    ];
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValueOnce(messageRecord);
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([
+      {
+        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e6', NotificationStateEnum.READ),
       },
     ]);
     expectedResponse.Status = NotificationStateEnum.READ;
 
     // Act
-    const result = await handler(eventWithPushID, context);
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual(expectedResponse);
+  });
+
+  it('should return 200 and message record events only if cached events is an empty array', async () => {
+    // Arrange
+    const expectedResponse = mockIFlexNotification();
+    serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValueOnce({
+      ...messageRecord,
+      Events: [mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e6', NotificationStateEnum.RECEIVED)],
+    });
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([]);
+
+    // Act
+    const result = await handler(event, context);
 
     // Assert
     expect(result.statusCode).toEqual(200);

@@ -10,7 +10,6 @@ import {
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
-import { compareEventsToCache } from '@common/utils/compareEventsToCache';
 import { IAnalytics } from '@project/lambdas/interfaces';
 import { INotificationStatusSchema } from '@project/lambdas/interfaces/INotificationStatus';
 import type { Context } from 'aws-lambda';
@@ -50,11 +49,23 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
     this.observability.logger.info(`Found notification`, { notification });
 
     // Compared dynamo record to cached events and adds any missing events to response
-    const cachedEvents = await this.cacheService.get<IAnalytics[]>(
+    const cachedEvents = await this.cacheService.getList<IAnalytics>(
       this.cacheService.analyticsEventKey(_event.pathParameters.notificationID ?? '')
     );
-    if (cachedEvents) {
-      notification.Events = compareEventsToCache(this.observability, notification, cachedEvents);
+    if (cachedEvents.length > 0) {
+      this.observability.logger.info(`Retrieved events from cache`, {
+        EventIDs: cachedEvents.map(({ EventID }) => EventID),
+      });
+      const notificationEventIDs = new Set(notification.Events.map((n) => n.EventID));
+      const missingEvents = cachedEvents.filter((e) => !notificationEventIDs.has(e.EventID));
+
+      if (missingEvents.length > 0) {
+        this.observability.logger.info(`Events missing from dynamo records`, {
+          MissingEventIDs: missingEvents.map(({ EventID }) => EventID),
+        });
+      }
+
+      notification.Events = [...notification.Events, ...missingEvents];
     }
 
     // If it does - return it's status only
