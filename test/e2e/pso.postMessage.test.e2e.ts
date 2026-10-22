@@ -282,7 +282,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {
@@ -306,7 +306,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed protocol list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed protocol list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {
@@ -332,7 +332,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {
@@ -356,7 +356,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed protocol list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed protocol list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {

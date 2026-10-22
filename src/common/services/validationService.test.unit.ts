@@ -394,7 +394,7 @@ describe('ValidationService', async () => {
       );
     });
 
-    it('should accept reqeuests with DeeplinkURL when it is on the allow list', () => {
+    it('should accept requests with DeeplinkURL when it is on the allow list', () => {
       // Arrange
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
@@ -410,7 +410,7 @@ describe('ValidationService', async () => {
       // Assert
       expect(result).toBe(undefined);
     });
-    it('should reject reqeuests with DeeplinkURL when is not on the allow list', () => {
+    it('should reject requests with DeeplinkURL when is not on the allow list', () => {
       // Arrange
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
@@ -431,7 +431,7 @@ describe('ValidationService', async () => {
       );
     });
 
-    it('should reject reqeuests with DeeplinkURL when protocol is not on the allow list', () => {
+    it('should reject requests with DeeplinkURL when protocol is not on the allow list', () => {
       // Arrange
       const organisationConfigWithDeeplinkURL: IOrganisationConfig = {
         DeeplinkAllowList: [{ hostname: 'example.com' }, { protocol: 'https:' }],
