@@ -18,7 +18,7 @@ on:
 
 jobs:
   test:
-    name: E2E (Codebuild)
+    name: 📝 E2E (Codebuild)
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.ENVIRONMENT }}

@@ -23,7 +23,7 @@ on:
 
 jobs:
   zaproxyScan:
-    name: Running Zap Security Scan (Mode -> ${{ inputs.scan-mode }})
+    name: ⚡️ Running Zap Security Scan (Mode -> ${{ inputs.scan-mode }})
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}

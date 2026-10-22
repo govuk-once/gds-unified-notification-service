@@ -81,18 +81,17 @@ jobs:
           recreate: true
 
   qualityReview:
-    name: PR / Quality Review
+    name: Quality Review
     uses: ./.github/workflows/_quality.review.yml
     needs: [buildCheck, unitTest]
     secrets: inherit
 
   ephemeralTestingSetup:
-    name: PR / Ephemeral Testing
     uses: ./.github/workflows/_ephemeral.setup.yml
     secrets: inherit
 
   ephemeralE2ETesting:
-    name: Ephemeral testing
+    name: PR
     uses: ./.github/workflows/_test_e2e.yml
     needs: [ephemeralTestingSetup]
     secrets: inherit
@@ -101,7 +100,7 @@ jobs:
       ENV_IDENTIFIER: ${{ github.event.pull_request.number }}
 
   zaproxyScan:
-    name: PR / Zap Security Scan
+    name: PR
     uses: ./.github/workflows/_zaproxy.yml
     needs: [ephemeralTestingSetup]
     secrets: inherit
