@@ -87,6 +87,7 @@ jobs:
     secrets: inherit
 
   ephemeralTestingSetup:
+    name: PR
     uses: ./.github/workflows/_ephemeral.setup.yml
     secrets: inherit
 
