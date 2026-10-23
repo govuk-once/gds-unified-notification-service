@@ -23,6 +23,7 @@ Feature-flagged (`config.featureFlag.groups`). Joins and/or leaves groups on beh
 ### Infrastructure
 
 - **DynamoDB** - `GroupStoreDynamoRepository` (the GroupStore table), read+write (`leaveGroups`, `joinGroups`, `getUsersGroups`).
+- `Namespace`, `Group` and `Subgroup` must match `^[a-zA-Z0-9_-]+$` (`IModifyGroupsSchema`); anything else is rejected with `400` before DynamoDB is touched.
 
 ### Logic
 
@@ -30,7 +31,9 @@ Feature-flagged (`config.featureFlag.groups`). Joins and/or leaves groups on beh
 flowchart TD
     A["POST /v1/groups?pushID (body: actions)"] --> B{pushID provided?}
     B -- No --> C[400 Bad Request]
-    B -- Yes --> D["getUsersGroups(pushID) — fetch current membership"]
+    B -- Yes --> B2{"Names match ^[a-zA-Z0-9_-]+$?"}
+    B2 -- No --> C
+    B2 -- Yes --> D["getUsersGroups(pushID) — fetch current membership"]
     D --> E["leaveGroups: items where Action == LEAVE"]
     E --> F["joinGroups: items where Action == JOIN"]
     F --> G[200 + resulting Namespace/Group/Subgroup array]
