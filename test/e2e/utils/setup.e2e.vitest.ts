@@ -57,6 +57,8 @@ const prepareBeforeAll = () => {
 
 beforeAll(() => prepareBeforeAll());
 
+export const isCI = inject('isCI');
+
 // Add clients to test implementation for e2d
 export const testFixtures = () => {
   return {
@@ -152,7 +154,13 @@ export const test = baseTest
         dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
         stg: `SjkZR2ltkgQknY5YQfItrUCsgg8K3O-2HBo7dED7NV4`,
       })[config.env] ?? 'cde456'
-  );
+  )
+  .extend('insecureProtocolError', () => ({
+    message: 'fetch failed',
+    cause: config.isE2ERunner
+      ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
+      : { code: 'ECONNREFUSED' },
+  }));
 
 export const checkStatus = async (psoAPI: FetchService, notificationID: string) => {
   const result = await psoAPI.get({ path: `/status/${notificationID}` });
