@@ -80,7 +80,9 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Retrieve parameter /test/testPath has no value');
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Retrieve parameter has no value', {
+        parameter: '/test/testPath',
+      });
     });
   });
 
@@ -124,9 +126,10 @@ describe('ConfigurationService', () => {
 
       // Assert
       await expect(result).rejects.toThrow(Error);
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Could not parse parameter testPath to type`, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(`Could not parse parameter to type`, {
         error: '✖ Invalid input',
         method: 'getParameterAsType',
+        parameter: 'testPath',
       });
     });
   });
@@ -153,16 +156,15 @@ describe('ConfigurationService', () => {
         Parameters: [{ Value: secretValue, Name: '/test/testPath' }],
       });
 
-      const errorMsg = 'Could not parse parameter testPath to type';
-
       // Act
       const result = config.getParameter(testNumericParameter);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(errorMsg, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Could not parse parameter to type', {
         error: '✖ Invalid number',
         method: `getParameterAsType`,
+        parameter: 'testPath',
       });
     });
   });
@@ -189,16 +191,15 @@ describe('ConfigurationService', () => {
         Parameters: [{ Value: 'yellow', Name: '/test/testPath' }],
       });
 
-      const errorMsg = 'Could not parse parameter testPath to type';
-
       // Act
       const result = config.getParameter(testEnumParameter, enumValues);
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(errorMsg, {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Could not parse parameter to type', {
         error: '✖ Invalid option: expected one of "blue"|"green"',
         method: 'getParameterAsType',
+        parameter: 'testPath',
       });
     });
   });

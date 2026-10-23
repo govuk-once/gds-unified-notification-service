@@ -56,7 +56,7 @@ export class AnalyticsService {
     }
 
     // Map events & reasons together based on index (expecting two arrays of same length)
-    this.observability.logger.info(`Events`, { events });
+    this.observability.logger.info('Events', { events });
     await this.queue.publishMessageBatch(
       events.map((event, index) => this.createEvent<T>(event, status, reasons ? reasons[index] : undefined))
     );

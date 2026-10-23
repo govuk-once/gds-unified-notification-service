@@ -10,7 +10,7 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
     return JSON.stringify(body);
   } catch {
     const errorMsg = 'Failed parsing record body to JSON';
-    observability.logger.info(errorMsg, { raw: body });
+    observability.logger.error(errorMsg, { raw: body });
     throw new SerializationError([errorMsg]);
   }
 };
@@ -35,9 +35,8 @@ export abstract class QueueService<InputType> {
   public abstract addPublishingFailedMetric(count: number): void;
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
-    this.observability.logger.info(`Publishing message to queue'`, {
+    this.observability.logger.info('Publishing message to queue', {
       queueName: this.getQueueName(),
-      sqsMessageBody: messageBody,
     });
 
     try {
@@ -51,7 +50,7 @@ export abstract class QueueService<InputType> {
       this.observability.logger.info('Successfully published message ID', { messageId: response.MessageId });
       this.addPublishingSuccessMetric(1);
     } catch (error) {
-      this.observability.logger.error('Error publishing to SQS', {
+      this.observability.logger.warn('Error publishing to SQS', {
         error: this.observability.formatError(error),
       });
       this.addPublishingFailedMetric(1);
@@ -90,14 +89,14 @@ export abstract class QueueService<InputType> {
           this.addPublishingSuccessMetric(response.Successful.length);
         }
         if (response.Failed?.length) {
-          this.observability.logger.error('Failed to publish messages in batch', {
+          this.observability.logger.warn('Failed to publish messages in batch', {
             failedMessageCount: response.Failed.length,
             failures: response.Failed,
           });
           this.addPublishingFailedMetric(response.Failed.length);
         }
       } catch (error) {
-        this.observability.logger.error('Error publishing to SQS', {
+        this.observability.logger.warn('Error publishing to SQS', {
           error: this.observability.formatError(error),
         });
         throw error;

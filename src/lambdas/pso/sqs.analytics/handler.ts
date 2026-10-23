@@ -87,14 +87,14 @@ export class Analytics extends BatchQueueOperation<typeof requestBodySchema, typ
 
     // Increments campaign
     if (entry.CampaignID) {
-      this.observability.logger.debug(`Incrementing CampaignID`, { CampaignID: entry.CampaignID });
+      this.observability.logger.debug('Incrementing CampaignID', { CampaignID: entry.CampaignID });
       await this.campaigns.incrementCampaigns(entry.CampaignID, entry.OrganisationID, entry.DepartmentID, entry.Event);
     }
 
     // Updates Elasticache with notification status
     const cacheKey = `/${entry.DepartmentID ?? entry.OrganisationID}/${entry.NotificationID}/Status`;
     await this.cache.store(cacheKey, entry.Event);
-    this.observability.logger.debug(`Updating Elasticache with notification status`, {
+    this.observability.logger.debug('Updated Elasticache with notification status', {
       NotificationID: entry.NotificationID,
       Status: entry.Event,
     });

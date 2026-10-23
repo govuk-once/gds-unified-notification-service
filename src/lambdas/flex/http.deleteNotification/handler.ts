@@ -54,26 +54,26 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
 
     // Handle missing path param
     if (notificationID == undefined) {
-      this.observability.logger.info('notificationID has not been provided - returning 400');
+      this.observability.logger.warn('notificationID has not been provided - returning 400');
       throw new BadRequestError(['notificationID has not been provided']);
     }
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.info('pushID has not been provided - returning 400');
+      this.observability.logger.warn('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 
     const notification = await this.notificationsDynamoRepository.getRecord(notificationID);
 
     if (!notification) {
-      this.observability.logger.info('Notification does not exists - returning 404');
+      this.observability.logger.info('Notification not found - returning 404');
       throw new NotFoundError();
     }
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      this.observability.logger.info('Notification belongs to another user - returning 404', {
+      this.observability.logger.warn('Notification belongs to another user - returning 404', {
         userOnNotification: notification.ExternalUserID,
         queryingUser: externalUserID,
       });
@@ -83,6 +83,7 @@ export class DeleteNotification extends FlexAPIHandler<typeof requestBodySchema,
     // Trigger marking as hidden
     await this.analyticsService.publishEvent(notification, NotificationStateEnum.HIDDEN);
 
+    this.observability.logger.info('Successful request - returning 204');
     return {
       body: {},
       statusCode: 204,

@@ -86,13 +86,17 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
     const message = data.body;
 
     if (!message.OrganisationID) {
-      throw new Error(
-        `OrganisationID is missing from ${message.NotificationID}. It must be stamped from the mTLS certificate.`
-      );
+      this.observability.logger.info('OrganisationID is missing from message', {
+        NotificationID: message.NotificationID,
+      });
+      throw new Error(`OrganisationID is missing from ${message.NotificationID}`);
     }
 
     // Pre-validate message & reject request when one of them contains unsupported url or invalid markdown
     this.contentValidationService!.validate(message.MessageBody);
+    this.observability.logger.info('Message was successfully validated', {
+      NotificationID: message.NotificationID,
+    });
 
     this.observability.metrics.addMetric(
       MetricsLabels.VALIDATION_DURATION,

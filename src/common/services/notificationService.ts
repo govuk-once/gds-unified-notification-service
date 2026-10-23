@@ -44,7 +44,7 @@ export class NotificationService {
       NotificationID: request.NotificationID,
     };
 
-    this.observability.logger.info(`Dispatching notification`, metadata);
+    this.observability.logger.info('Dispatching notification', metadata);
     const start = performance.now();
 
     this.observability.metrics.addMetric(MetricsLabels.DISPATCHING_ATTEMPTS, MetricUnit.Count, 1);

@@ -29,7 +29,7 @@ export const deserializeRecordBodyFromJson = <OutputType>(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         record.body = JSON.parse(record.body);
       } catch {
-        observability.logger.info('Failed parsing JSON within SQS Body', { raw: record.body });
+        observability.logger.warn('Failed parsing JSON within SQS Body', { raw: record.body });
       }
     }
   },
@@ -43,7 +43,7 @@ export abstract class QueueHandler<InputType, OutputType> {
   // Storage for IOC injections
   protected dependencies: (() => HandlerDependencies<object>)[] = [];
   public injectDependencies(dependencies?: () => HandlerDependencies<object>) {
-    this.observability.logger.info(`IoC Injection setup!`);
+    this.observability.logger.info('IoC Injection setup!');
     if (dependencies) {
       this.dependencies.push(dependencies);
     }
@@ -85,7 +85,7 @@ export abstract class QueueHandler<InputType, OutputType> {
       for (const record of event.Records as SQSRecord[]) {
         const receiveCount = Number.parseInt(record.attributes?.ApproximateReceiveCount ?? '1', 10);
         if (receiveCount > 1) {
-          this.observability.logger.warn(`SQS message retry attempt`, {
+          this.observability.logger.warn('SQS message retry attempt', {
             messageId: record.messageId,
             receiveCount,
             operationId: this.operationId,
@@ -112,22 +112,22 @@ export abstract class QueueHandler<InputType, OutputType> {
         const notificationTitle = object?.NotificationTitle;
 
         if (eventToOperationMap[notificationTitle] === this.operationId) {
-          this.observability.logger.warn(`Simulating an error for operation ${this.operationId}`);
+          this.observability.logger.warn('Simulating an error for operation', { OperationId: this.operationId });
           throw new SimulatedError([`Simulating an error!`]);
         }
       }
 
       // Trigger implementation
-      this.observability.logger.info(`Received request`, { event });
+      this.observability.logger.info('Received request', { event });
       const result = await this.implementation(event, context);
-      this.observability.logger.info(`Request completed`);
+      this.observability.logger.info('Request completed');
       return result;
     });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public implementation(event: QueueEvent<InputType>, context: Context): Promise<OutputType> {
-    this.observability.logger.error(`No implementation found for operation ${this.operationId}`);
+    this.observability.logger.error('No implementation found for operation', { OperationId: this.operationId });
     throw new NotImplementedError();
   }
 }

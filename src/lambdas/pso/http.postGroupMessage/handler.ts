@@ -102,7 +102,11 @@ export class PostGroupMessage extends APIHandler<
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request', { event });
+    this.observability.logger.info('Received request', {
+      path: event.path,
+      organisationID: event.requestContext.authorizer.Organization,
+      requestId: context.awsRequestId,
+    });
     const organisationID = event.requestContext.authorizer.Organization;
     const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
@@ -125,7 +129,7 @@ export class PostGroupMessage extends APIHandler<
         message.Subgroup
       );
       const chunksOfPushIDs = splitArrayIntoChunks(pushIds, numberOfWorkers);
-      this.observability.logger.info('Chunk of PushIDS', { chunksOfPushIDs });
+      this.observability.logger.debug('Chunk of PushIDS', { chunksOfPushIDs });
 
       const batch: IGroupMessageMetadata[] = [];
       for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID++) {
@@ -136,7 +140,7 @@ export class PostGroupMessage extends APIHandler<
         }
 
         const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
-        this.observability.logger.info('Storing list of pushIDs to process in cache for group processing worker.', {
+        this.observability.logger.debug('Storing list of pushIDs to process in cache for group processing worker.', {
           cacheKey,
           pushIDs: chunk,
         });
@@ -154,13 +158,13 @@ export class PostGroupMessage extends APIHandler<
 
         // Log to verify the CacheKey has been correctly stored and configured
         const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
-        this.observability.logger.info(`Verifying CacheKey and length of pushIDs for the batch in the cache.`, {
+        this.observability.logger.debug('Verifying CacheKey and length of pushIDs for the batch in the cache.', {
           cacheKey,
           pushIDs: elasticacheValue,
         });
       }
 
-      this.observability.logger.info('Requeuing validated group message to group process queue.', {
+      this.observability.logger.debug('Requeuing validated group message to group process queue.', {
         GroupNotificationID: message.GroupNotificationID,
       });
       await this.groupProcessingQueue.publishMessageBatch(batch);

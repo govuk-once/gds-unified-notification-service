@@ -22,12 +22,15 @@ export class AnalyticsExport extends ScheduleOperation {
     this.injectDependencies(dependencies);
   }
 
-  public async implementation(
-    event: ScheduledEvent,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _context: Context
-  ): Promise<void> {
+  public async implementation(event: ScheduledEvent, context: Context): Promise<void> {
+    this.observability.logger.info('Received request', {
+      path: event.time,
+      requestId: context.awsRequestId,
+    });
+
     await this.analyticsExportService.logStreamToS3Bucket(event.time);
+
+    this.observability.logger.info('Successful scheduled processing');
   }
 }
 

@@ -44,7 +44,7 @@ export abstract class APIHandler<
   // Storage for IOC injections - when extending use actual class name instead of <object>
   protected dependencies: (() => HandlerDependencies<object>)[] = [];
   public injectDependencies(dependencies?: () => HandlerDependencies<object>) {
-    this.observability.logger.info(`IoC Injection setup!`);
+    this.observability.logger.info('IoC Injection setup!');
     if (dependencies) {
       this.dependencies.push(dependencies);
     }
@@ -56,7 +56,7 @@ export abstract class APIHandler<
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _context: Context
   ): Promise<ITypedRequestResponse<InferredOutputSchema>> {
-    this.observability.logger.error(`No implementation found for operation ${this.operationId}`);
+    this.observability.logger.error('No implementation found for operation', { OperationId: this.operationId });
     throw new NotImplementedError();
   }
 
