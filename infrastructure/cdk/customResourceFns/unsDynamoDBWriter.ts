@@ -39,7 +39,7 @@ export const handler = async (event: CloudFormationCustomResourceEvent<UNSDynamo
   // Recursively restore booleans and numbers that CloudFormation converted to strings
   Object.assign(data, deepCoercePrimitives(data));
 
-  // Dont delete records, mark them as deleted instead & update the values
+  // Don't delete records, mark them as deleted instead & update the values
   data['Deleted'] = event.RequestType === 'Delete';
 
   switch (event.RequestType) {

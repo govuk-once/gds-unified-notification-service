@@ -56,7 +56,7 @@ pnpm run checkov
 
 Note: If you are using mise-en-place, you can skip brew install step.
 
-## Setting up dev / sandbox environmnent
+## Setting up dev / sandbox environment
 
 There's a set of utility scripts allows easy setting up of brand new developers within developer account.
 
@@ -67,9 +67,9 @@ If you are using mise-en-place, those aliases are [already setup](https://mise.j
 
 ```sh
 alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
-alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
+alias "aws:sandbox:web"='gds-cli aws once-notifications-development-admin -l'
 alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
-alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
+alias "aws:staging:web"='gds-cli aws once-notifications-staging-admin -l'
 alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
 ```
 
@@ -116,7 +116,7 @@ VITEST_DETAILED_COVERAGE=true
 ## Sample usage
 VITEST_DETAILED_COVERAGE=true pnpm run test:coverage
 
-## E2E tests against dev environemt
+## E2E tests against dev environment
 env=dev pnpm run test:e2e
 ```
 

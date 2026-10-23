@@ -228,7 +228,7 @@ describe('GetNotificationById Handler', async () => {
     expect(result.statusCode).toEqual(404);
   });
 
-  it('should return 404 when the noitification is marked as hidden in the database', async () => {
+  it('should return 404 when the notifications is marked as hidden in the database', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValue({
       ...messageRecord,

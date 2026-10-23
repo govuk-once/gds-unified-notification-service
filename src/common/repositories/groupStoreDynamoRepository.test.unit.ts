@@ -49,7 +49,7 @@ describe('GroupStoreDynamoRepository', async () => {
       awsClientMocks.dynamoDBClientMock
     );
 
-    // Creating spys of DynamoRepository
+    // Creating spies of DynamoRepository
     instance.getRecordsQuery = vi.fn().mockResolvedValueOnce(undefined);
     instance.deleteRecord = vi.fn().mockResolvedValueOnce(undefined);
     instance.createRecordBatch = vi.fn().mockResolvedValueOnce(undefined);

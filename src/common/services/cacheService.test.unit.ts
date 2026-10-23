@@ -170,7 +170,7 @@ describe('CacheService', async () => {
       });
     });
 
-    it('should increment the key and set an expiry on the cache when increment is proivded, and return the correct state', async () => {
+    it('should increment the key and set an expiry on the cache when increment is provided, and return the correct state', async () => {
       // Arrange
       const counter = 3;
       const increment = 1;

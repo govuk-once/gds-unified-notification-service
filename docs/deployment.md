@@ -17,7 +17,7 @@ The service deploys as a single CDK stack (`UNSStack` — see the [Infrastructur
 | Staging | `stg` | `staging` | Persistent | CI/CD (`main.release.yml`, or manually) |
 | Production | `prod` | `production` | Persistent | CI/CD (`main.release.yml`, or manually) |
 
-The CDK-internal `env` value and the GitHub Environment name differ (`stg`/`prod` vs `staging`/`production`) — the reusable [`_deploy.yml`](/.github/workflows/_deploy.yml) workflow bridges them via a GitHub Environment variable, `ENVIRONMENT_SHORTHAND`, passed into the CDK deploy as the `env` process environment variable. See [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts) for how `env` drives resource naming and which environments are treated as persistent (`unremoveableEnvironments = ['dev','stg','prod']`).
+The CDK-internal `env` value and the GitHub Environment name differ (`stg`/`prod` vs `staging`/`production`) — the reusable [`_deploy.yml`](/.github/workflows/_deploy.yml) workflow bridges them via a GitHub Environment variable, `ENVIRONMENT_SHORTHAND`, passed into the CDK deploy as the `env` process environment variable. See [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts) for how `env` drives resource naming and which environments are treated as persistent (`unremovableEnvironments = ['dev','stg','prod']`).
 
 > Unlike some sibling GOV.UK Once services, **pull requests do not get an ephemeral deployed environment.** The PR pipeline runs a CDK synth against mocked credentials (see [Quality Checks](#quality-checks-pryml) below) to validate the stack builds, but nothing is deployed until the change merges to `main`.
 
