@@ -158,7 +158,9 @@ export const ServiceSpies = async (
   )) as Mocked<GroupStoreDynamoRepository>;
 
   // Services
+  const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
   const analyticsServiceMock = new AnalyticsService(
+    cacheServiceMock,
     observabilityMock,
     analyticsQueueServiceMock
   ) as Mocked<AnalyticsService>;
@@ -167,7 +169,6 @@ export const ServiceSpies = async (
     configurationServiceMock,
     smConfigurationServiceMock
   )) as Mocked<NotificationService>;
-  const cacheServiceMock = new CacheService(configurationServiceMock, observabilityMock) as Mocked<CacheService>;
   const circuitBreakerServiceMock = new CircuitBreakerService(
     observabilityMock,
     configurationServiceMock,
@@ -263,7 +264,10 @@ export const mockServicesExpectedBehaviour = (serviceMocks: Awaited<ReturnType<t
   serviceMocks.analyticsServiceMock.publishEvent = vi.fn().mockResolvedValue(undefined);
   serviceMocks.analyticsServiceMock.publishMultipleEvents = vi.fn().mockResolvedValue(undefined);
 
+  serviceMocks.cacheServiceMock.get = vi.fn().mockResolvedValue(undefined);
   serviceMocks.cacheServiceMock.store = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.appendToList = vi.fn().mockResolvedValue(undefined);
+  serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValue([]);
   serviceMocks.cacheServiceMock.increment = vi.fn().mockResolvedValue(1);
   serviceMocks.cacheServiceMock.rateLimit = vi.fn().mockResolvedValue({ exceeded: false, capacityRemaining: 10 });
   serviceMocks.circuitBreakerServiceMock.checkCircuit = vi.fn().mockResolvedValue(undefined);

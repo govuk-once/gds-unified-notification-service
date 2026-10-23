@@ -32,7 +32,7 @@ describe('Analytics QueueHandler', async () => {
   let context: Context;
   let event: QueueEvent<IAnalytics>;
 
-  const message = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const message = mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED);
   const failedMessage = mockFailedIAnalytics();
 
   beforeEach(() => {
