@@ -33,18 +33,27 @@ export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, 
 
   public async implementation(
     _event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     _context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.info('Received request', {
+      path: _event.path,
+      notificationID: _event.pathParameters.notificationID,
+      requestId: _context.awsRequestId,
+    });
+
     // Fetch notification
     const notification = await this.notificationsDynamoRepository.getRecord(_event.pathParameters.notificationID ?? '');
 
     // If it doesn't exist - 404
     if (notification == null) {
+      this.observability.logger.info('Notification does not exists - returning 404');
       throw new NotFoundError();
     }
 
-    this.observability.logger.info(`Found notification`, { notification });
+    this.observability.logger.info('Successful request - returning 200', {
+      notification,
+    });
     // If it does - return it's status only
     return {
       body: notification.Events.map((event) => ({

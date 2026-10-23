@@ -62,15 +62,15 @@ export class AnalyticsExportService {
             logStreamName: logStreamName,
           };
 
-          this.observability.logger.debug(`Creating new log stream`, { logStreamName });
+          this.observability.logger.debug('Creating new log stream', { logStreamName });
           const command = new CreateLogStreamCommand(input);
           await this.client.send(command);
-          this.observability.logger.debug(`New log stream was created`, { logStreamName });
+          this.observability.logger.debug('New log stream was created', { logStreamName });
         } catch (error) {
           if (error instanceof CloudWatchLogsServiceException && error.name === 'ResourceAlreadyExistsException') {
-            this.observability.logger.debug(`Log stream already exists`, { logStreamName });
+            this.observability.logger.debug('Log stream already exists', { logStreamName });
           } else {
-            this.observability.logger.error(`Error creating log stream`, {
+            this.observability.logger.error('Error creating log stream', {
               error: this.observability.formatError(error),
             });
             throw error;
@@ -84,7 +84,7 @@ export class AnalyticsExportService {
   }
 
   public async logAnalytics(analytics: IAnalytics) {
-    this.observability.logger.debug(`Adding analytics to Cloudwatch log group`, { analytics });
+    this.observability.logger.info('Adding analytics to Cloudwatch log group', { analytics });
     const logStreamName = await this.getLogStreamName();
     const log = this.analyticsToCsvLog(analytics);
 
@@ -101,13 +101,13 @@ export class AnalyticsExportService {
     };
     const command = new PutLogEventsCommand(input);
 
-    this.observability.logger.debug(`Adding analytics in csv format to log group`, { LogStream: logStreamName, log });
+    this.observability.logger.debug('Adding analytics in csv format to log group', { LogStream: logStreamName, log });
     await this.client.send(command);
-    this.observability.logger.info(`Analytics was successful added to log group`, { LogStream: logStreamName });
+    this.observability.logger.info('Analytics was successfully added to log group', { LogStream: logStreamName });
   }
 
   public async logStreamToS3Bucket(timestamp: string) {
-    this.observability.logger.debug(`Exporting log group to s3 bucket`, { timestamp });
+    this.observability.logger.info('Exporting log group to s3 bucket', { timestamp });
 
     const time = Date.parse(timestamp);
     if (Number.isNaN(Date.parse(timestamp))) {
@@ -135,19 +135,19 @@ export class AnalyticsExportService {
     };
     const command = new CreateExportTaskCommand(input);
 
-    this.observability.logger.info(`Started export of log stream to s3 bucket`, {
+    this.observability.logger.debug('Started export of log stream to s3 bucket', {
       LogStream: logStreamName,
       s3Bucket: exportBucketName,
     });
     await this.client.send(command);
-    this.observability.logger.info(`Export of log stream to s3 bucket was successful`, {
+    this.observability.logger.info('Export of log stream to s3 bucket was successful', {
       LogStream: logStreamName,
       s3Bucket: exportBucketName,
     });
   }
 
   private analyticsToCsvLog(analytics: IAnalytics): string {
-    this.observability.logger.debug(`Converting analytics to csv format`, { analytics });
+    this.observability.logger.debug('Converting analytics to csv format', { analytics });
 
     const analyticsLog: AnalyticsLog = {
       EventID: analytics.EventID,

@@ -19,7 +19,7 @@ export abstract class ScheduleOperation {
   protected dependencies: (() => HandlerDependencies<object>)[] = [];
 
   public injectDependencies(dependencies?: () => HandlerDependencies<object>) {
-    this.observability.logger.info(`IoC Injection setup!`);
+    this.observability.logger.info('IoC Injection setup!');
     if (dependencies) {
       this.dependencies.push(dependencies);
     }
@@ -62,7 +62,7 @@ export abstract class ScheduleOperation {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public implementation(_event: ScheduledEvent, _context: Context): Promise<void> {
-    this.observability.logger.error(`No implementation found for operation ${this.operationId}`);
+    this.observability.logger.error('No implementation found for operation', { OperationId: this.operationId });
     throw new NotImplementedError();
   }
 
@@ -76,9 +76,9 @@ export abstract class ScheduleOperation {
       await initializeDependencies(this, this.dependencies);
 
       // Trigger implementation
-      this.observability.logger.info(`Received request`, { event });
+      this.observability.logger.info('Received request', { event });
       await this.implementation(event, context);
-      this.observability.logger.info(`Request completed`);
+      this.observability.logger.info('Request completed');
     });
   }
 }

@@ -103,7 +103,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
     const workerBatchSize = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerBatchSize);
 
     // Retrieve pushIDs from cache
-    this.observability.logger.debug(`Retrieving list of pushIDs to process from cache.`);
+    this.observability.logger.debug('Retrieving list of pushIDs to process from cache.');
     const start = performance.now();
 
     const unprocessedPushIDs = await this.cacheService.get<string[]>(cacheKey);
@@ -118,7 +118,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
       cacheKey,
     });
 
-    this.observability.logger.debug(`Splicing list of pushIDs to a max size of worker batch size`);
+    this.observability.logger.debug('Splicing list of pushIDs to a max size of worker batch size');
     const pushIDs = unprocessedPushIDs.splice(0, workerBatchSize);
     this.observability.logger.debug('pushIDs to be processed in this batch', {
       pushIDsToBeProcessed: pushIDs,
@@ -130,7 +130,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 
     const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
     this.observability.logger.debug(
-      `Unprocessed pushIDs to be sent to group processing queue to be processed by the next worker`,
+      'Unprocessed pushIDs to be sent to group processing queue to be processed by the next worker',
       {
         pushIDsToNextWorker: elasticacheValue,
         cacheKey,
@@ -159,7 +159,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
     }
 
     // Add record of group notifications to message table
-    this.observability.logger.debug(`Adding record of notification to message table`);
+    this.observability.logger.debug('Adding record of notification to message table');
     await this.notificationsRepository.createRecordBatch(
       processedMessages.map(({ ExpiresInDays, ...body }) => ({
         ...body,

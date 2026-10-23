@@ -16,7 +16,7 @@ export class SMConfigurationService extends BaseConfigurableValueService {
   }
 
   protected async getParameterRawValue(secretId: string): Promise<string> {
-    this.observability.logger.info(`Retrieving secret`, { secretId });
+    this.observability.logger.info('Retrieving secret', { secretId });
     const secret = await this.client.send(
       new GetSecretValueCommand({
         // Allow the value to be a serialized JSON string
@@ -24,7 +24,7 @@ export class SMConfigurationService extends BaseConfigurableValueService {
       })
     );
 
-    this.observability.logger.info(`Successfully retrieved secret`, { secretId });
+    this.observability.logger.info('Successfully retrieved secret', { secretId });
     return `${secret.SecretString}`;
   }
 

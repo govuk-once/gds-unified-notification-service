@@ -47,7 +47,6 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', {
       path: event.path,
-      notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
       pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
@@ -58,8 +57,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.info('pushID has not been provided - returning 400');
-      throw new BadRequestError(['pushID has not been provided.']);
+      this.observability.logger.warn('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided']);
     }
 
     // Get notifications of user from dynamoDB
@@ -68,7 +67,6 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations(notifications);
 
-    this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
@@ -88,6 +86,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         // If one of the records doesn't have a dispatch time - move it to the back
         return a.DispatchedDateTime ? -1 : 1;
       });
+    this.observability.logger.info('Successful request - returning 200', { length: responseBody.length });
 
     return {
       body: responseBody,
