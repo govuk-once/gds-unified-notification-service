@@ -105,7 +105,7 @@ describe('ProcessingQueueService', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
       expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
@@ -202,7 +202,7 @@ describe('ProcessingQueueService', async () => {
           }),
         })
       );
-      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Failed to publish messages in batch', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failed to publish messages in batch', {
         failedMessageCount: 1,
         failures: [
           {
@@ -229,7 +229,7 @@ describe('ProcessingQueueService', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
     });
 
     it('should use the index of the for loop of the batch processing as the batch entry Id', async () => {

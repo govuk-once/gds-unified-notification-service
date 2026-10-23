@@ -50,7 +50,7 @@ export abstract class QueueService<InputType> {
       this.observability.logger.info('Successfully published message ID', { messageId: response.MessageId });
       this.addPublishingSuccessMetric(1);
     } catch (error) {
-      this.observability.logger.warn('Error publishing to SQS', {
+      this.observability.logger.error('Error publishing to SQS', {
         error: this.observability.formatError(error),
       });
       this.addPublishingFailedMetric(1);
@@ -89,14 +89,14 @@ export abstract class QueueService<InputType> {
           this.addPublishingSuccessMetric(response.Successful.length);
         }
         if (response.Failed?.length) {
-          this.observability.logger.warn('Failed to publish messages in batch', {
+          this.observability.logger.error('Failed to publish messages in batch', {
             failedMessageCount: response.Failed.length,
             failures: response.Failed,
           });
           this.addPublishingFailedMetric(response.Failed.length);
         }
       } catch (error) {
-        this.observability.logger.warn('Error publishing to SQS', {
+        this.observability.logger.error('Error publishing to SQS', {
           error: this.observability.formatError(error),
         });
         throw error;

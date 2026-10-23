@@ -105,7 +105,7 @@ describe('GroupProcessingQueueService', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Error publishing to SQS', { error: error.message });
       expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_FAILED,
         MetricUnit.Count,
