@@ -12,7 +12,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: ⚙️ Configure AWS credentials (For package registry pulling)
+    - name: ⚙️ Configure AWS credentials (Codeartifact and Deployments)
       uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
       with:
         audience: sts.amazonaws.com
