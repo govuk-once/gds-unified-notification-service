@@ -33,9 +33,9 @@ A fix forward is the right call when: you understand what's broken and why the c
 ## Assessing the incident
 
 1. **Confirm the blast radius.** Which routes, queue stages or environments are affected? `dev`/`staging` as well as `production` points to code; `production` only points to configuration, data, scale, or an mTLS/consumer-specific issue.
-2. **Fix the timeline.** When did it start? There's no automated "deployment happened" Slack notification in this repository (see [Releases Guide](../releases.md#deployment-notifications)) — check the Actions tab for the `main.release.yml` run nearest the incident start time, and the git tag it produced.
+2. **Fix the timeline.** When did it start? Check the release announcements channel (one `UNS deployed to <env>` message per environment deploy, see [Releases Guide: Deployment notifications](../releases.md#deployment-notifications)), or the Actions tab for the `main.release.yml` or `manual.deploy.yml` run nearest the incident start time, and the git tag it produced.
 3. **Identify the suspected version.** Compare the current tag against the last known-healthy one (`git tag --sort=-creatordate | head`).
-4. **Check the alarms.** Review which CloudWatch alarms fired (see [Infrastructure Development Guide: CloudWatch alarms](../infrastructure-development.md#cloudwatch-alarms)) and whether they're still active. If Slack alerting is configured for the environment, check the channel history.
+4. **Check the alarms.** Review which CloudWatch alarms fired (see [Alarms](../alarms.md)) and whether they're still active. If Slack alerting is configured for the environment, check the channel history.
 5. **Decide the strategy** using the table above, and say so out loud (or in the incident channel) before touching code.
 
 > If you can't explain in one sentence what's broken and why your change fixes it, you're not ready to deploy. Mitigate first.
@@ -45,7 +45,8 @@ A fix forward is the right call when: you understand what's broken and why the c
 ## Preparing the fix
 
 - Change only what's needed to resolve or mitigate the incident. No unrelated tidy-ups, refactors or dependency bumps riding along.
-- Avoid infrastructure (CDK) changes unless the fault is infrastructural — a Lambda code change is far quicker and safer to deploy and reverse.
+- Avoid infrastructure (CDK) changes unless the fault is infrastructural. A Lambda code change is far quicker and safer to deploy and reverse.
+- Before writing code, check whether a runtime mitigation is enough - i.e. enabling stage's kill switch. Read the side effects in [Configuration: Kill switches](../configuration.md#kill-switches) first, because a disabled stage sends messages to its DLQ.
 - Follow the commit convention (see [Releases Guide](../releases.md#commit-message-format)) so the release is versioned correctly: `fix(<TICKET>): <what the fix does>`.
 - Get a second engineer to review the diff before it merges, even briefly. The GitHub Environment protection on `staging`/`production` (see [Deployment Guide](../deployment.md#persistent-environments)) means someone approves the deploy regardless, so build the code review in ahead of that, not instead of it.
 
@@ -59,8 +60,8 @@ Three paths, from safest to most urgent. Start at the top; only move down if the
 
 1. Raise the fix as a PR against `main` with a `fix(<TICKET>):` title.
 2. Get it reviewed.
-3. Merge. [`main.release.yml`](/.github/workflows/main.release.yml) runs semantic-release, then deploys `dev`, then `staging` and `production` in parallel (see [Deployment Guide](../deployment.md#deployment-flow)).
-4. Approve the `staging`/`production` Environment gates as they're reached, and watch each environment's post-deploy test step (see [`_deploy.yml`](/.github/workflows/_deploy.yml)) pass before considering that environment done.
+3. Merge. [`main.release.yml`](/.github/workflows/main.release.yml) runs semantic-release, then deploys `dev`, then `staging` and `production` in parallel (see [Deployment Guide: Release](../deployment.md#release-mainreleaseyml)). Expect the PR pipeline to take longer than a plain build: it deploys an ephemeral environment and runs e2e and a ZAP scan against it before the PR can merge.
+4. Approve the `staging`/`production` Environment gates as they're reached, and watch each environment's post-deploy checks pass before considering that environment done. `dev` runs the full suite plus e2e in CodeBuild, `staging` runs e2e in CodeBuild only, and `production` runs unit tests only (see [Deployment Guide: Reusable deploy workflow](../deployment.md#reusable-deploy-workflow)).
 
 Use this path whenever the incident tolerates the extra minutes a full pipeline run takes.
 
@@ -72,12 +73,12 @@ If the fix is already merged and you need to redeploy without a new release — 
 
 ## Validating the fix
 
-1. **Confirm the deploy landed:** Deployment status is showed within CloudFormation > Stacks selection in AWS Portal
+1. **Confirm the deploy landed:** check the release announcement for the environment, or the stack status in the CloudFormation console (`uns-<env>-stack`, `uns-<env>-alarms-stack`, and `uns-<env>-global-stack` in us-east-1).
 2. **Reproduce the original symptom** against the fixed environment and confirm it now behaves.
 3. **Check downstream of the change.** A fix to one SQS stage (validation, processing, dispatch, analytics — see [Developer Reference: notification pipeline](../developer-reference.md#notification-pipeline-pso)) can move a problem rather than remove it; check the stages after the one you touched.
 4. **Confirm the alarms have cleared** — an alarm still in `ALARM` after the fix means the incident isn't over.
 
-If validation fails, don't layer a second guess on top of the first — return to assessment, consider a runtime mitigation (an SSM config toggle, see [Developer Reference: adapters](../developer-reference.md#adapters)) to stop the impact, and prepare a corrected fix.
+If validation fails, don't layer a second guess on top of the first. Return to assessment, consider a runtime mitigation (an SSM config toggle; see [Developer Reference: Adapters](../developer-reference.md#adapters) and [Configuration](../configuration.md)) to stop the impact, and prepare a corrected fix.
 
 ---
 

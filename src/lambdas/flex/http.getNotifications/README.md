@@ -20,6 +20,7 @@ Returns the calling user's notifications (by push/external user ID), enriched wi
 
 - **DynamoDB** - `NotificationsDynamoRepository` (the Messages table), read-only, queried via the `ExternalUserIDIndex` GSI; `OrganisationsDynamoRepository` (the Organisations table), read-only, for display names.
 - No SQS, no outbound HTTP calls.
+- "Expired" means `ExpirationDateTime` (Unix epoch seconds, the table's TTL attribute) is in the past. DynamoDB can take up to 48h to delete expired items, so the handler filters them itself; see [Configuration: Message expiry](../../../../docs/configuration.md#message-expiry-ttl).
 
 ### Logic
 
