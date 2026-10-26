@@ -71,3 +71,10 @@ jmespath
 treeify
 opport
 DEPO
+Replacer
+circuitbreakeropen
+xxerrorrateelevated
+dispatchfailureratehigh
+incl
+PIPESTATUS
+SARIF

@@ -21,7 +21,8 @@
     "chann\\w*",
     "code\\w*",
     "[Aa][Ww][Ss]\\w*",
-    "uni\\w*"
+    "uni\\w*",
+    "/redrive\\w*/i"
   ],
   "ignorePaths": [
     "html",

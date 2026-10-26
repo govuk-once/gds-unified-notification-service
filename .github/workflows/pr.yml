@@ -51,12 +51,18 @@ jobs:
             run: |
               echo "Test results:" > coverage.md
               echo '```' >> coverage.md
-              (VITEST_TREE_REPORT=true pnpm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md) || echo "Failed to meet the criteria"
+              VITEST_TREE_REPORT=true pnpm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md
+              TEST_EXIT=${PIPESTATUS[0]}
+              # Guard: if vitest crashed before coverage ran, grep writes nothing — add a readable note
+              [ $(wc -l < coverage.md) -le 2 ] && echo "Tests failed before coverage was collected" >> coverage.md
               echo '```' >> coverage.md
 
+              # Export — always runs so the PR comment is posted even on failure
               echo 'report<<EOF' >> $GITHUB_OUTPUT
               cat coverage.md >> $GITHUB_OUTPUT
               echo 'EOF' >> $GITHUB_OUTPUT
+
+              exit $TEST_EXIT
 
       - parallel:
           - name: ⬆️ Upload dist artifact

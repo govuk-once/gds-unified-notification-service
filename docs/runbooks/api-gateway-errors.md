@@ -10,12 +10,13 @@ This runbook is for the on-call engineer. An elevated 5xx or 4xx rate means requ
 
 ## Where an error comes from in this service
 
-A request runs `API Gateway → (mTLS authorizer, PSO only) → Lambda handler → (optional) downstream adapter`. Every application-level error extends `BaseError` (see [Developer Reference: Errors](../developer-reference.md#errors)) and is mapped to a status code by `httpErrorHandlerMiddleware`; anything not a `BaseError` becomes a generic `500`.
+A PSO request runs `CloudFront (viewer mTLS, CloudFront WAF) → API Gateway (regional WAF) → mTLS authorizer → Lambda handler → (optional) downstream adapter`. A Flex request runs `API Gateway → Lambda handler`. Every application-level error extends `BaseError` (see [Developer Reference: Errors](../developer-reference.md#errors)) and is mapped to a status code by `httpErrorHandlerMiddleware`; anything not a `BaseError` becomes a generic `500`.
 
 | Status | Typically means |
 | -------- | ------------------------------------------------------------------------------------------------------------------------- |
 | **400** | `BadRequestError` — malformed request body/query, or a content-validation failure (`ContentValidationError`) |
-| **401** | `UnauthorizedError` |
+| **401** | `UnauthorizedError`, or (PSO) API Gateway rejecting a request missing an authorizer identity source (`x-api-key`, `x-origin-header`, `CloudFront-Viewer-Cert-*`) before the authorizer runs |
+| **403** | (PSO) the mTLS authorizer returned `Deny`, or the WAF blocked the request |
 | **404** | `NotFoundError` — includes `NoDispatchIdFound`/`NoLinkingIdFound` from the notification adapter |
 | **417** | `ExpectationFailedError` — the handler's own response failed its Zod schema. A code/contract bug, not client error or an outage |
 | **429** | `TooManyRequestsError`/`RateLimitingError` — the `CacheService.rateLimit` check in the dispatch stage was exceeded |
@@ -29,14 +30,15 @@ The important split: a **500, 502, 400, 404, 417 or 429 with a `BaseError` name 
 
 ## Step 1: identify and interpret the error
 
-1. **Read the alarm.** The relevant CloudWatch alarms (see [Infrastructure Development Guide: CloudWatch alarms](../infrastructure-development.md#cloudwatch-alarms) for the full table) are:
+1. **Read the alarm.** The relevant CloudWatch alarms (see [Alarms](../alarms.md) for the full catalogue, including the known threshold discrepancies) are:
 
    | Alarm | Threshold | Tells you |
    | ---------------------------------------------------- | --------------------------------- | ----------------------------------------------------------- |
-   | `Api5xxErrorRateElevated` (P1) | > 1% over 5 min | Requests are failing outright |
-   | `Api4xxErrorRateElevated` (P2) | > 10% over 5 min | Callers are sending requests the platform rejects, or auth is failing |
-   | `LambdaErrorRateElevated-${name}` (P2), per Lambda | > 1% over 5 min | A specific handler is throwing |
-   | `${provider}Offline` (P1) | > 40% HTTP error rate over 1 min | A downstream adapter (OneSignal) is failing — see [Queue Backlog and Dispatch Failures](./queue-backlog-and-dispatch-failures.md) |
+   | `Api5xxErrorRateElevated` (P1) | Nominally > 1% over 5 min (fires at ~0.33%, see [Alarms](../alarms.md#known-discrepancies-)) | Requests are failing outright |
+   | `Api4xxErrorRateElevated` (P2) | Nominally > 10% over 5 min (fires at ~3.3%) | Callers are sending requests the platform rejects, or auth is failing |
+   | `LambdaErrorRateElevated-${name}` (P2), per Lambda | Nominally > 1% over 5 min | A specific handler is throwing |
+   | `${provider}Offline` (P1) | Nominally > 40% HTTP error rate (evaluated over 5 min) | A downstream adapter (OneSignal, UDP) is failing; see [Queue Backlog and Dispatch Failures](./queue-backlog-and-dispatch-failures.md) |
+   | `WafBlockRequestSpike` (P2) | Blocked requests above the 3σ anomaly band | The regional WAF is blocking an unusual volume, which could be an attack or a client sending malformed requests |
    | `MTLSDenialRateHigh` / `RevokedCertificateDetected` / `UnknownCertificateSpikeDetected` (PSO only) | — | The mTLS authorizer is denying requests — see [Step 3](#step-3-mtls-specific-checks-pso-only) |
 
 2. **Find the exact status code and route.** Query the API Gateway access logs for the affected stage in CloudWatch Logs Insights:
@@ -47,7 +49,7 @@ The important split: a **500, 502, 400, 404, 417 or 429 with a `BaseError` name 
    | sort @timestamp desc
    ```
 
-3. **Interpret the spread.** All 5xx on one route points at that handler or a downstream it calls. A mix of 500s across many routes points at a shared fault (config, a resource, a recent deploy). A burst of 502s naming one provider points at a downstream outage. A spike of 401/403 on PSO points at mTLS — see [Step 3](#step-3-mtls-specific-checks-pso-only).
+3. **Interpret the spread.** All 5xx on one route points at that handler or a downstream it calls. A mix of 500s across many routes points at a shared fault (config, a resource, a recent deploy). A burst of 502s naming one provider points at a downstream outage. A spike of 401/403 on PSO points at mTLS or the WAF; see [Step 3](#step-3-mtls-specific-checks-pso-only).
 
 ---
 
@@ -63,9 +65,14 @@ The important split: a **500, 502, 400, 404, 417 or 429 with a `BaseError` name 
 
 Flex is not mTLS-protected; skip this section for Flex-only incidents.
 
-If PSO requests are failing at the edge before reaching application logs (401/403, or a distinctive TLS handshake failure), the mTLS authorizer or the certificate itself is the likely cause:
+PSO certificate checks happen in two places, and they fail differently:
 
-1. Check whether the caller's organisation is in the current consumer registry for the target environment — see [Infrastructure Development Guide: Consumers](../infrastructure-development.md#consumers-mtls-client-registry). A consumer whose certificate window has expired (sandbox certs roll weekly; see `consumers.ts`) will start failing with no code change on this side.
+- **At CloudFront (viewer mTLS)**: a missing, untrusted or expired certificate fails the **TLS handshake**. The caller sees a connection error, not an HTTP status, and **nothing** shows up in API Gateway or Lambda logs. Confirm with the caller's own error, and check the certificate's validity window in their consumer entry.
+- **At the authorizer**: a certificate that passed the handshake but is unknown, revoked or has no organisation gets a **403**, and the authorizer logs why.
+
+If PSO requests are failing before they reach application logs:
+
+1. Check whether the caller's organisation and certificate are in the current consumer registry for the target environment; see [Infrastructure Development Guide: Consumers](../infrastructure-development.md#consumers-mtls-client-registry). Certificates rotate on a schedule (see [Certificate rotation](../infrastructure-development.md#certificate-rotation)). A consumer still using a certificate whose window has ended will start failing with no code change on this side, and so will one whose new certificate was never issued because the environment wasn't deployed during the migration window.
 2. Check the `RevokedCertificateDetected` and `UnknownCertificateSpikeDetected` alarms — a spike in either points at a consumer using a stale or wrong certificate, not a platform fault.
 3. Search the authorizer's own Lambda log group for the denial reason (no cert presented, unknown cert, `Revoked: true`, or no `Organization` on the record) — the authorizer logs which branch it took.
 
@@ -113,7 +120,8 @@ Anything shipped as code follows the [Fix Forward Runbook](./fix-forward.md).
 - [Fix Forward Runbook](./fix-forward.md)
 - [Queue Backlog and Dispatch Failures](./queue-backlog-and-dispatch-failures.md)
 - [Developer Reference: Errors](../developer-reference.md#errors)
-- [Infrastructure Development Guide: CloudWatch alarms](../infrastructure-development.md#cloudwatch-alarms)
+- [Alarms](../alarms.md)
+- [Infrastructure Development Guide: mTLS certificate infrastructure](../infrastructure-development.md#mtls-certificate-infrastructure)
 
 **Code:**
 

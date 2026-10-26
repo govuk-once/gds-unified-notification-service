@@ -28,7 +28,7 @@ Final delivery stage. Applies circuit-breaker + rate-limiting protection, then s
 - **DynamoDB** - `NotificationsDynamoRepository` (the Messages table), read+write; stamps `DispatchedDateTime` and resets the record's TTL/expiration.
 - **ElastiCache (Redis)** - `CacheService` backs both the per-minute provider rate limiter and `CircuitBreakerService`'s sliding-window state, keyed per platform (`notification_dispatch`).
 - **Secrets Manager** - the OneSignal API key, read via `SMConfigurationService`.
-- **SSM** - reads `SSMParameters.Config.FeatureFlags.DeepLinkUrl` to conditionally include `DeeplinkURL` in the notification payload sent to the provider.
+- **SSM** - reads `SSMParameters.Config.FeatureFlags.DeepLinkUrl` and `...ChannelControls` and strips `DeeplinkURL` / `Channel` from the provider request when the matching flag is off (see [Configuration: Feature flags](../../../../docs/configuration.md#feature-flags)). With `Channel: MESSAGE_CENTRE_ONLY`, the OneSignal adapter skips the push entirely; the notification still appears in the message centre.
 - **VPC** - runs inside the private VPC subnets (shared with `sqs.processing`).
 - External call to the OneSignal push API (or no-op if the Void adapter is configured) - see [`NotificationAdapterOneSignal`](../../../common/services/adapters/notificationAdapterOneSignal.ts).
 

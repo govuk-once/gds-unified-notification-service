@@ -46,7 +46,7 @@ brew install checkov   # macOS
 pipx install checkov   # other platforms
 ```
 
-Checkov scans the synthesised CDK output (`infrastructure/cdk/cdk.out/`) against [`.checkov.yaml`](/.checkov.yaml) — see [`pnpm run checkov`](/package.json) and the [Deployment Guide](./deployment.md#quality-checks-pryml).
+Checkov scans the synthesised CDK output (`infrastructure/cdk/cdk.out/`) against [`.checkov.yaml`](/.checkov.yaml) — see [`pnpm run checkov`](/package.json) and the [Deployment Guide](./deployment.md#pr-pipeline-pryml).
 
 ---
 
@@ -148,7 +148,7 @@ See the [Deployment Guide](./deployment.md) for what these commands do under the
 ### Verify setup
 
 ```sh
-pnpm test
+pnpm run test:unit   # runs once; `pnpm test` starts watch mode
 ```
 
 ---
@@ -177,8 +177,12 @@ Most day-to-day development needs no environment variables beyond what `developm
 | `env` (test runner) | End-to-end tests | Target environment for `pnpm run test:e2e` (e.g. `env=dev pnpm run test:e2e`) |
 | `VITEST_DISABLE_MSW` | Unit tests | Bypasses MSW HTTP interception, letting requests hit the real network (debugging only, not for CI) |
 | `VITEST_DETAILED_COVERAGE` | Unit tests | Switches `test:coverage` output to a per-file breakdown instead of a summary |
+| `VITEST_TREE_REPORT` | Any test run | `true` uses Vitest's `tree` reporter (used in CI for readable logs) |
+| `VITEST_HTML_REPORT` | Any test run | `true` uses the `html` reporter; see `pnpm run test:report:generate` / `test:report:review` |
+| `pr_number` | CDK, CI only | Makes CDK target the PR environment `uns-<pr_number>` (`env` is ignored). Set by the ephemeral and cleanup workflows; set it locally only to clean up a stuck PR environment |
+| `UNS_E2E_RUNNER` | E2E, CodeBuild only | `true` inside the CodeBuild e2e runner. Makes the suite target the private Flex API Gateway |
 
-See [`test/e2e/README.md`](/test/e2e/README.md#prerequisites) for the additional credentials and mTLS certificates end-to-end tests need.
+See [`test/e2e/README.md`](/test/e2e/README.md#prerequisites) for the additional credentials and mTLS certificates end-to-end tests need. To save a certificate pair locally, run `pnpm run download:certificates [certificateId]` ([`scripts/download-certificates.ts`](/scripts/download-certificates.ts)).
 
 ---
 
