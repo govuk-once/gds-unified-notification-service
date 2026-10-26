@@ -135,7 +135,7 @@ export const importSSMNamespace = async (env: string, label: string, namespaces:
               )
             );
             if (putParameterResult) {
-              console.log(`Updated succesfully`);
+              console.log(`Updated successfully`);
             } else {
               console.error(`Update of ${sandboxParamName} has failed: ${putParameterError.message}`);
             }

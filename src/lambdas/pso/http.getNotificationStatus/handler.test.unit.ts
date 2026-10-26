@@ -54,7 +54,7 @@ describe('GetNotificationStatus Handler', async () => {
     expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 
-  it('should fetch the record uisng the notificationID path parameter', async () => {
+  it('should fetch the record using the notificationID path parameter', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue({
       ...messageRecord,
@@ -67,7 +67,7 @@ describe('GetNotificationStatus Handler', async () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(notificationID);
   });
 
-  it('should return 200 with the events mapped to status entires, sorted using the timestamp', async () => {
+  it('should return 200 with the events mapped to status entries, sorted using the timestamp', async () => {
     // Arrange
     const earlierEvent = {
       ...mockIAnalytics(NotificationStateEnum.RECEIVED),
