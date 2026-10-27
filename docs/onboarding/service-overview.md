@@ -37,7 +37,23 @@ Here is how the chain is established:
 4. When DVLA wants to send a notification, they send the message and the LinkingID. UNS looks up the PushID via UDP and dispatches the push notification to OneSignal, which delivers it natively to the user's device.
 5. Each individual notification is assigned a **NotificationID** by UNS, which can be used by the PSO to track delivery and engagement.
 
-> **[Diagram placeholder — author to insert: simplified 5-box flow showing PSO → UNS → UDP → OneSignal → GOV.UK App, with the four identifiers annotated at each handoff]**
+```mermaid
+flowchart LR
+    PSO["PSO<br/>(e.g. DVLA)"]
+    UNS["UNS"]
+    UDP["UDP<br/>LinkingID ↔ UserID<br/>UserID → PushID"]
+    OS["OneSignal"]
+    APP["GOV.UK app<br/>(user's device)"]
+
+    PSO -- "Message + LinkingID" --> UNS
+    UNS -- "LinkingID" --> UDP
+    UDP -- "PushID" --> UNS
+    UNS -- "Message + PushID" --> OS
+    OS -- "Push notification" --> APP
+    UNS -. "NotificationID" .-> PSO
+```
+
+*The PSO only ever holds its own LinkingID and the NotificationID that UNS returns. The UserID and PushID stay inside UNS and UDP. In the `/send` request the LinkingID goes in the `UserID` field.*
 
 The same pattern applies to any PSO — DVLA is the initial example, but any organisation that establishes a linking step with their users can send notifications through this chain.
 
@@ -190,6 +206,17 @@ dvla           mot-reminders   london
 ```
 
 The Namespace typically corresponds to the organisation; the Group to a specific service or category of notification; the Subgroup to any further segmentation the PSO needs.
+
+```mermaid
+flowchart TD
+    N["<b>Namespace</b><br/>The organisation<br/><i>dvla</i>"]
+    G["<b>Group</b><br/>A service or category of notification<br/><i>mot-reminders</i>"]
+    S["<b>Subgroup</b> (optional)<br/>Further segmentation<br/><i>london</i>"]
+
+    N --> G --> S
+```
+
+*Full group address: `dvla / mot-reminders / london`. A send targets one address, and every user who has joined it receives the notification.*
 
 ---
 
