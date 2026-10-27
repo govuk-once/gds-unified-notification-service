@@ -328,6 +328,19 @@ export class UNSAPIGatewayGateway extends Construct {
     new wafv2.CfnLoggingConfiguration(this, config.utils.namingHelper(...props.name, 'waf-logging-configuration'), {
       resourceArn: webAcl.attrArn,
       logDestinationConfigs: [wafLogGroup.logGroupArn],
+      redactedFields: [
+        ...[
+          // Exclude any of the following headers - matching log redaction logic in ioc.ts
+          'clientCertPem',
+          `x-amz-security-token`,
+          `app_id`,
+          `Authorization`,
+          `x-api-key`,
+          `apiKey`,
+          'CloudFront-Viewer-Cert-PEM',
+          `x-origin-header`,
+        ].map((header) => ({ singleHeader: { Name: header.toLowerCase() } })),
+      ],
     });
 
     return webAcl;
