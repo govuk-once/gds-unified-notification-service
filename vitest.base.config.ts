@@ -6,6 +6,10 @@ export default defineConfig({
     alias: {
       '@common/*': path.resolve(__dirname, './packages/core/src/*'),
       '@common': path.resolve(__dirname, './packages/core/src'),
+      '@pso/*': path.resolve(__dirname, './packages/pso/src/*'),
+      '@pso': path.resolve(__dirname, './packages/pso/src'),
+      '@flex/*': path.resolve(__dirname, './packages/flex/src/*'),
+      '@flex': path.resolve(__dirname, './packages/flex/src'),
       '@project/*': path.resolve(__dirname, './src/*'),
       '@project': path.resolve(__dirname, './src'),
       '@shared/*': path.resolve(__dirname, './shared/*'),

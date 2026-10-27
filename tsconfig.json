@@ -31,6 +31,10 @@
     "paths": {
       "@common/*": ["./packages/core/src/*"],
       "@common": ["./packages/core/src"],
+      "@pso/*": ["./packages/pso/src/*"],
+      "@pso": ["./packages/pso/src"],
+      "@flex/*": ["./packages/flex/src/*"],
+      "@flex": ["./packages/flex/src"],
       "@project/*": ["./src/*"],
       "@project": ["./src"],
       "@shared/*": ["./shared/*"],
