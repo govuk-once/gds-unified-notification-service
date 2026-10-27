@@ -29,7 +29,7 @@ phases:
       - export ZAP_CONFIG="zap-${SCAN_MODE}.yaml"
       - docker pull $ZAP_IMAGE
       - chmod 644 client.p12
-      - chmod -R 777 $(pwd)/infrastructure/cdk/buildspecs/
+      - chmod -R 777 $(pwd)/packages/infrastructure/cdk/buildspecs/
 
   build:
     commands:
@@ -41,7 +41,7 @@ phases:
         -e ZAP_AUTH_HEADER="x-api-key"
         -e ZAP_AUTH_HEADER_VALUE="${X_API_KEY}"
         -t zaproxy/zap-stable
-        zap.sh -cmd -autorun /zap/wrk/infrastructure/cdk/buildspecs/${ZAP_CONFIG};
+        zap.sh -cmd -autorun /zap/wrk/packages/infrastructure/cdk/buildspecs/${ZAP_CONFIG};
         ZAP_EXIT=$?;
         echo "******** ZAP EXIT STATUS $ZAP_EXIT ********";
         if [ "$ZAP_EXIT" -eq 0 ]; then
@@ -56,7 +56,7 @@ phases:
 
   post_build:
     commands:
-      - cd infrastructure/cdk/buildspecs/
+      - cd packages/infrastructure/cdk/buildspecs/
       - >-
         for f in *.md; do
           [ -f "$f" ] || continue;

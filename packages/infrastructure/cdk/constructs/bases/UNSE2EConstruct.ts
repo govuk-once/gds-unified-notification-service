@@ -68,7 +68,7 @@ export class UNSE2EConstruct extends Construct {
         bucket: this.sourceBucket.bucket,
         path: '',
       }),
-      buildSpec: BuildSpec.fromSourceFilename('@infra/cdk/buildspecs/e2e-runner.buildspec.yml'),
+      buildSpec: BuildSpec.fromSourceFilename('packages/infrastructure/cdk/buildspecs/e2e-runner.buildspec.yml'),
       environmentVariables: {
         UNS_E2E_RUNNER: { value: 'true' },
         UNS_REPORT_BUCKET: { value: this.sourceBucket.bucket.bucketName },

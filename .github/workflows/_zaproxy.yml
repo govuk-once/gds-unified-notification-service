@@ -116,7 +116,7 @@ jobs:
           BATCH_ID=$(aws codebuild start-build-batch \
             --project-name "$PROJECT_NAME" \
             --source-location-override "${SOURCE_BUCKET}/${SOURCE_KEY}" \
-            --buildspec-override "infrastructure/cdk/buildspecs/zaproxy.buildspec.yml" \
+            --buildspec-override "packages/infrastructure/cdk/buildspecs/zaproxy.buildspec.yml" \
             --environment-variables-override \
               "name=BUILD_DATE,value=${DATE},type=PLAINTEXT" \
               "name=GITHUB_REF_NAME,value=${REF},type=PLAINTEXT" \
