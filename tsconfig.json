@@ -40,7 +40,9 @@
       "@shared/*": ["./shared/*"],
       "@shared": ["./shared"],
       "@test/*": ["./test/*"],
-      "@test": ["./test"]
+      "@test": ["./test"],
+      "@infra/*": ["./packages/infrastructure/*"],
+      "@infra": ["./packages/infrastructure"]
     }
   },
   "exclude": ["node_modules", "eslint.config.ts"]
