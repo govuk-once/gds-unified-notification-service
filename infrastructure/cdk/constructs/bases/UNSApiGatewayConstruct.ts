@@ -598,11 +598,11 @@ export class UNSAPIGatewayGateway extends Construct {
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [
       ['CKV_AWS_59', 'Other authorizations are in place'],
-      ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
+      ['CKV_AWS_120', 'Disabled for now and will re-enable when caching strategy is defined'],
     ]);
     applyCheckovSkips(this.restApi.deploymentStage, [
       ['CKV_AWS_59', 'Other authorizations are in place'],
-      ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
+      ['CKV_AWS_120', 'Disabled for now and will re-enable when caching strategy is defined'],
     ]);
   }
 }

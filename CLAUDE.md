@@ -55,7 +55,7 @@ env=dev pnpm run test:e2e                     # e2e against dev environment
 - `src/lambdas/pso/` — PSO API Lambda handlers (HTTP and SQS-triggered)
 - `src/lambdas/flex/` — Flex API Lambda handlers
 - `src/common/services/` — Business logic (notification, processing, validation, analytics, cache, circuit breaker, configuration)
-- `src/common/services/adapters/` — Notification adapters (OneSignal, Void) and processing adapters (UDP, Prefixbased, Void)
+- `src/common/services/adapters/` — Notification adapters (OneSignal, Void) and processing adapters (UDP, PrefixBased, Void)
 - `src/common/repositories/` — DynamoDB repositories
 - `src/common/middlewares/` — Middy middleware (request/response validation, auth, error handling)
 - `src/common/operations/` — Lambda handler wrappers by trigger type (HTTP, SQS, schedule)

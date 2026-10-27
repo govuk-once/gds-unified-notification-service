@@ -26,7 +26,7 @@ export class UNSE2EConstruct extends Construct {
     const { constructNamingHelper, namingHelper } = config.utils;
     super(scope, constructNamingHelper(...props.name));
 
-    // Creates a bukcet to store the zip build
+    // Creates a bucket to store the zip build
     this.sourceBucket = new UNSS3Bucket(this, config, {
       name: [...props.name, 'builds'],
       lifecycleRules: [
