@@ -1,6 +1,6 @@
 import { domainName, fetchApiKeys, fetchMtlsCertificates } from '@shared/credentials';
 import type { TestProject } from 'vitest/node';
-import { config } from '../../../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 
 export default async function setup(project: TestProject) {
   // Ensure AWS env vars are available (ignore for codebuild)

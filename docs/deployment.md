@@ -140,7 +140,7 @@ sequenceDiagram
 2. **`codeQualityReview`** ([`_quality.review.yml`](/.github/workflows/_quality.review.yml)) downloads `dist` and `coverage.report`, then:
    - starts the SonarQube scan in the background
    - runs `cdk:synth` against a mock `cicd` environment, with AWS credentials blanked so nothing is assumed or deployed
-   - runs Checkov over `infrastructure/cdk/cdk.out/` (`soft_fail: true`) and uploads SARIF to GitHub code scanning
+   - runs Checkov over `packages/infrastructure/cdk/cdk.out/` (`soft_fail: true`) and uploads SARIF to GitHub code scanning
    - waits for Sonar, then runs the **SonarQube Quality Gate** check, which fails the job if the gate fails, and posts the gate status as a PR comment
 
 3. **`ephemeralTesting`**: deploys a PR environment and runs e2e against it; see [Ephemeral PR environments](#ephemeral-pr-environments).

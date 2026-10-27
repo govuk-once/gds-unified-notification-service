@@ -1,0 +1,70 @@
+import SSMParameters from '@shared/ssmParameter';
+import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
+import { Construct } from 'constructs';
+
+import { EnvVars } from '@infra/cdk/config';
+import { UNSDynamoDb } from '@infra/cdk/constructs/bases/UNSDynamoDBConstruct';
+import { UNSDynamoDBWriterConstruct } from '@infra/cdk/constructs/customResourceFnsConstructors/UNSDynamoDBWriterConstruct';
+import { UNSCommon } from '@infra/cdk/constructs/UNSCommon';
+import { getConsumersMetadata } from '@infra/cdk/consumers/consumersMetadata';
+import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
+import { applyPiiTag } from '@infra/cdk/utils/applyPiiTag';
+import { SSMFromObject } from '@infra/cdk/utils/SSMFromObject';
+
+export class UNSOrganisationsCommon extends Construct {
+  public readonly organisationsTable: UNSDynamoDb;
+
+  constructor(scope: Construct, config: EnvVars, common: UNSCommon) {
+    super(scope, 'organisations');
+
+    //// =====================================================
+    // DynamoDB Tables
+    //// =====================================================
+    this.organisationsTable = new UNSDynamoDb(this, config, {
+      name: ['organisations'],
+      partitionKey: 'OrganisationID',
+      partitionKeyType: AttributeType.STRING,
+
+      pointInTimeRecovery: true,
+      resources: {
+        kms: common.kms,
+      },
+      globalSecondaryIndexes: [],
+    });
+
+    applyExposureTag(this.organisationsTable, 'Isolated');
+    applyPiiTag(this.organisationsTable, 'false');
+
+    //// =====================================================
+    // Add organisation per entry in org metadata
+    //// =====================================================
+    const dynamoDBWriterProvider = new UNSDynamoDBWriterConstruct(this, config, this.organisationsTable, {
+      kms: common.kms,
+      codeSigningConfig: common.codeSigning,
+    });
+    common.kms.grantEncryptDecrypt(dynamoDBWriterProvider.fn);
+
+    const orgMetadata = getConsumersMetadata(config);
+    for (const [OrganisationID, { DisplayName, OrganisationConfig }] of Object.entries(orgMetadata)) {
+      // Create an organisation record
+      dynamoDBWriterProvider.createRecord(
+        this,
+        'OrganisationID',
+        {
+          OrganisationID: OrganisationID,
+          DisplayName: DisplayName,
+          OrganisationConfig: OrganisationConfig,
+        },
+        OrganisationID
+      );
+    }
+
+    //// =====================================================
+    // SSM
+    //// =====================================================
+    SSMFromObject(this, config, {
+      // DynamoDB Tables
+      [SSMParameters.Table.Organisations.Attributes.Path]: this.organisationsTable.attributes,
+    });
+  }
+}

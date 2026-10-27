@@ -5,7 +5,7 @@ import { CampaignStatus } from '@project/lambdas';
 import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { test as baseTest, inject } from 'vitest';
-import { config } from '../../../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {

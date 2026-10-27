@@ -104,7 +104,7 @@ jobs:
           output_file_path: console,results.sarif
           soft_fail: true
           framework: cloudformation
-          directory: infrastructure/cdk/cdk.out/
+          directory: packages/infrastructure/cdk/cdk.out/
           config_file: .checkov.yaml
           quiet: true
 

@@ -13,9 +13,8 @@ if (existsSync(OUT_DIR)) {
   });
 }
 
-const buildHandlers = async (dir: string) => {
+const buildHandlers = async (dir: string, namespace: string) => {
   try {
-    const namespace = basename(dir);
     const entryPoints = [
       ...globSync('**/*.ts', {
         cwd: dir,
@@ -65,7 +64,7 @@ const buildHandlers = async (dir: string) => {
 
 void (async () => {
   await Promise.allSettled([
-    buildHandlers(resolve(ROOT, 'src', 'lambdas', 'pso')),
-    buildHandlers(resolve(ROOT, 'src', 'lambdas', 'flex')),
+    buildHandlers(resolve(ROOT, 'packages', 'pso', 'src'), 'pso'),
+    buildHandlers(resolve(ROOT, 'packages', 'flex', 'src'), 'flex'),
   ]);
 })();

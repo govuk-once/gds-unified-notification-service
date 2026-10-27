@@ -1,0 +1,608 @@
+import { RemovalPolicy } from 'aws-cdk-lib';
+import {
+  AccessLogField,
+  AccessLogFormat,
+  AuthorizationType,
+  DomainNameOptions,
+  EndpointAccessMode,
+  EndpointType,
+  IAuthorizer,
+  Integration,
+  LogGroupLogDestination,
+  Period,
+  RestApi,
+  SecurityPolicy,
+} from 'aws-cdk-lib/aws-apigateway';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import {
+  AllowedMethods,
+  CachePolicy,
+  CfnDistribution,
+  CfnTrustStore,
+  Distribution,
+  OriginRequestHeaderBehavior,
+  OriginRequestPolicy,
+  OriginRequestQueryStringBehavior,
+  PriceClass,
+  ViewerProtocolPolicy,
+} from 'aws-cdk-lib/aws-cloudfront';
+import { HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
+import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
+import { IKey } from 'aws-cdk-lib/aws-kms';
+import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import * as shield from 'aws-cdk-lib/aws-shield';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
+import { Construct } from 'constructs';
+
+import { EnvVars } from '@infra/cdk/config';
+import { applyCheckovSkips } from '@infra/cdk/utils/applyCheckovSkip';
+import { managedWafRule } from '@infra/cdk/utils/waf';
+
+type UsageAllowance = {
+  // Values are per second
+  throttle: {
+    rateLimit: number;
+    burstLimit: number;
+  };
+  // Values per month
+  quota: {
+    limit: number;
+  };
+};
+
+export interface UNSAPIGatewayGatewayProps {
+  readonly name: string[];
+  readonly description: string;
+  readonly type: 'MTLS' | 'PRIVATE' | 'PUBLIC';
+  readonly domain?: string;
+  readonly authorizer?: IAuthorizer;
+  readonly usagePlanDefaults?: UsageAllowance;
+  readonly usagePlans?: Record<string, { allowance?: Partial<UsageAllowance> }>;
+
+  readonly mtls?: {
+    readonly truststore: string;
+  };
+
+  readonly waf?: {
+    // ARN of a CLOUDFRONT scoped WAFv2 Web ACL (must come from a us-east-1 stack) to
+    // associate with this gateway's CloudFront distribution, if one is created.
+    readonly cloudfrontWebAclArn?: string;
+  };
+
+  readonly resources: {
+    readonly mtlsTruststoreUrl?: string;
+    readonly vpce?: string[];
+    readonly kms: IKey;
+  };
+
+  readonly integrations?: Record<
+    string,
+    {
+      readonly path: string;
+      readonly method: HttpMethod;
+      readonly integration: Integration;
+      readonly authorizer?: IAuthorizer;
+    }
+  >;
+
+  readonly iam?: {
+    readonly allowOnlyFromKnownSources?:
+      | {
+          readonly crossAccount: true;
+          readonly awsAccountID: string;
+          readonly vpceIDs: string[];
+          readonly vpceEndpoints: IVpcEndpoint[];
+        }
+      | {
+          readonly crossAccount?: false;
+          readonly vpceIDs: string[];
+          readonly vpceEndpoints: IVpcEndpoint[];
+        };
+  };
+}
+
+export class UNSAPIGatewayGateway extends Construct {
+  public readonly restApi: RestApi;
+  public readonly props: UNSAPIGatewayGatewayProps;
+  public readonly waf: wafv2.CfnWebACL;
+  public readonly shieldProtection?: shield.CfnProtection;
+
+  //// =====================================================
+  // Domain
+  //// =====================================================
+  protected domainConfig(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+    const { namingHelper } = config.utils;
+    // Setup custom domain parameters via SSM configurations
+    const rootDomain = config.ssm.hostedZoneName;
+    const certificateArn = config.ssm.certificateArnRegional;
+    const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
+    const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
+
+    let hostedZone: route53.IHostedZone | null = null;
+
+    if (rootDomain !== null) {
+      hostedZone = route53.HostedZone.fromLookup(this, namingHelper(`restapi`, ...props.name, 'hostedZone'), {
+        domainName: rootDomain,
+        privateZone: false,
+      });
+    }
+
+    let certificate: acm.ICertificate | null = null;
+    if (certificateArn !== null) {
+      certificate = acm.Certificate.fromCertificateArn(
+        this,
+        namingHelper(`restapi`, ...props.name, 'certificate'),
+        certificateArn
+      );
+    }
+
+    // Infer mtls bucket
+    const mtlsTruststoreBucket = props.mtls
+      ? s3.Bucket.fromBucketName(
+          this,
+          namingHelper(`restapi`, ...props.name, 'truststoreBucket'),
+          props.mtls.truststore.replace(`s3://`, ``).split(`/`).shift()!
+        )
+      : null;
+
+    // Prepare domain config
+    const domainConfig: { domainName?: DomainNameOptions; disableExecuteApiEndpoint: boolean } = {
+      domainName:
+        fullDomain && certificate && rootDomain
+          ? {
+              domainName: fullDomain,
+              certificate: certificate,
+              securityPolicy: SecurityPolicy.TLS13_1_2_PQ_2025_09,
+              endpointType: props.type === 'PRIVATE' ? EndpointType.PRIVATE : EndpointType.REGIONAL,
+              endpointAccessMode: EndpointAccessMode.STRICT,
+            }
+          : undefined,
+      disableExecuteApiEndpoint: fullDomain && certificate && rootDomain ? true : false,
+    };
+
+    return {
+      rootDomain,
+      certificateArn,
+      fullDomain,
+      subdomain,
+      hostedZone,
+      certificate,
+      mtlsTruststoreBucket,
+      domainConfig,
+    };
+  }
+
+  constructRoute53Entries(
+    config: EnvVars,
+    props: UNSAPIGatewayGatewayProps,
+    fullDomain: string | null,
+    hostedZone: route53.IHostedZone | null,
+    distribution?: Distribution
+  ) {
+    // Provision Route 53 A-Record for Custom Domain mappings
+    if (fullDomain && hostedZone) {
+      new route53.ARecord(this, config.utils.namingHelper(...props.name, 'domain'), {
+        zone: hostedZone,
+        recordName: fullDomain,
+        target: distribution
+          ? route53.RecordTarget.fromAlias(new route53targets.CloudFrontTarget(distribution))
+          : route53.RecordTarget.fromAlias(new route53targets.ApiGateway(this.restApi)),
+      });
+    }
+  }
+
+  //// =====================================================
+  // Rest API utilities
+  //// =====================================================
+
+  addIntegration(
+    operationId: string,
+    path: string,
+    method: HttpMethod,
+    integration: Integration,
+    authorizer?: IAuthorizer
+  ) {
+    const registeredEndpoints = this.restApi.root.resourceForPath(path).addMethod(method, integration, {
+      operationName: operationId,
+      // Use custom authorizer if one is set
+      authorizer: authorizer ?? this.props.authorizer,
+      // Otherwise: Use IAM authorization if we are a private API gateway
+      authorizationType: this.props.iam?.allowOnlyFromKnownSources
+        ? AuthorizationType.IAM
+        : this.props.mtls
+          ? AuthorizationType.CUSTOM
+          : undefined,
+      // If usage plan defaults are in place - all endpoints require an API key
+      apiKeyRequired: this.props.usagePlanDefaults !== undefined,
+    });
+
+    applyCheckovSkips(registeredEndpoints, [
+      ['CKV_AWS_59', '"Ensure there is no open access to back-end resources through API"'],
+    ]);
+
+    return this;
+  }
+
+  GET(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.GET, integration, authorizer);
+  }
+  POST(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.POST, integration, authorizer);
+  }
+  PATCH(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.PATCH, integration, authorizer);
+  }
+  DELETE(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.DELETE, integration, authorizer);
+  }
+  PUT(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.PUT, integration, authorizer);
+  }
+  HEAD(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.HEAD, integration, authorizer);
+  }
+  OPTIONS(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.OPTIONS, integration, authorizer);
+  }
+  ALL(operationId: string, path: string, integration: Integration, authorizer?: IAuthorizer) {
+    return this.addIntegration(operationId, path, HttpMethod.ALL, integration, authorizer);
+  }
+
+  //// =====================================================
+  // Waf
+  //// =====================================================
+  constructWAF(config: EnvVars, props: UNSAPIGatewayGatewayProps, secret: Secret | null) {
+    // WAFv2 Protection configuration builder - this was protects the API Gateway itself
+    const webAcl = new wafv2.CfnWebACL(this, config.utils.namingHelper(...props.name, 'waf'), {
+      name: config.utils.namingHelper(...props.name, 'waf'),
+      scope: 'REGIONAL',
+      // If secret is defined - default to BLOCK - only allow requests With secret to pass through
+      defaultAction: secret == null ? { allow: {} } : { block: {} },
+      visibilityConfig: {
+        metricName: config.utils.namingHelper(...props.name, 'main-metric'),
+        cloudWatchMetricsEnabled: true,
+        sampledRequestsEnabled: true,
+      },
+      rules: [
+        // When integrating with CloudFront - use shared token value between the instances to limit traffic
+        ...(secret !== null
+          ? [
+              {
+                name: 'RequireOriginSecret',
+                priority: 15,
+                visibilityConfig: {
+                  cloudWatchMetricsEnabled: true,
+                  sampledRequestsEnabled: false,
+                  metricName: 'RequireOriginSecret',
+                },
+                action: {
+                  allow: {},
+                },
+                statement: {
+                  byteMatchStatement: {
+                    fieldToMatch: {
+                      singleHeader: { Name: 'x-origin-header' },
+                    },
+                    positionalConstraint: 'EXACTLY',
+                    searchString: secret.secretValueFromJson('token').unsafeUnwrap(),
+                    textTransformations: [{ priority: 0, type: 'NONE' }],
+                  },
+                },
+              },
+            ]
+          : []),
+        managedWafRule({
+          priority: 5,
+          managedRuleName: 'AWSManagedRulesCommonRuleSet',
+          metricName: `${config.prefix}-aws-common-rule-set`,
+          name: config.utils.namingHelper(...props.name, 'aws-common-rule-set'),
+        }),
+        managedWafRule({
+          priority: 10,
+          managedRuleName: 'AWSManagedRulesKnownBadInputsRuleSet',
+          metricName: `${config.prefix}-aws-bad-input-rule-metric`,
+          name: config.utils.namingHelper(...props.name, 'aws-bad-input-rule-metric'),
+        }),
+      ],
+    });
+
+    // Associate WAF with API Stage Deployment
+    new wafv2.CfnWebACLAssociation(this, config.utils.namingHelper(...props.name, 'waf-association'), {
+      resourceArn: this.restApi.deploymentStage.stageArn,
+      webAclArn: webAcl.attrArn,
+    });
+
+    const wafLogGroup = new LogGroup(this, config.utils.namingHelper(...props.name, 'waf-log-group'), {
+      logGroupName: `aws-waf-logs-api-gateway-${config.utils.namingHelper(...props.name)}`,
+      retention: RetentionDays.ONE_YEAR,
+      removalPolicy: config.removalPolicy,
+      encryptionKey: props.resources.kms,
+    });
+
+    new wafv2.CfnLoggingConfiguration(this, config.utils.namingHelper(...props.name, 'waf-logging-configuration'), {
+      resourceArn: webAcl.attrArn,
+      logDestinationConfigs: [wafLogGroup.logGroupArn],
+      redactedFields: [
+        ...[
+          // Exclude any of the following headers - matching log redaction logic in ioc.ts
+          'clientCertPem',
+          `x-amz-security-token`,
+          `app_id`,
+          `Authorization`,
+          `x-api-key`,
+          `apiKey`,
+          'CloudFront-Viewer-Cert-PEM',
+          `x-origin-header`,
+        ].map((header) => ({ singleHeader: { Name: header.toLowerCase() } })),
+      ],
+    });
+
+    return webAcl;
+  }
+
+  //// =====================================================
+  // Shield Advanced - Enabled only on Staging/Prod
+  //// =====================================================
+  constructShieldProtection(config: EnvVars, props: UNSAPIGatewayGatewayProps, distribution: Distribution) {
+    const protection = new shield.CfnProtection(this, config.utils.namingHelper(...props.name, 'shield-protection'), {
+      name: config.utils.namingHelper(...props.name, 'shield-protection'),
+      resourceArn: distribution.distributionArn,
+      applicationLayerAutomaticResponseConfiguration: props.waf?.cloudfrontWebAclArn
+        ? {
+            action: { block: {} },
+            status: 'ENABLED',
+          }
+        : undefined,
+    });
+
+    return protection;
+  }
+
+  //// =====================================================
+  // VPCe Policies
+  //// =====================================================
+  constructPrivatePolicies(config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+    // Add VPC endpoint resource policy if configuration is provided
+    if (props.iam?.allowOnlyFromKnownSources) {
+      this.restApi.addToResourcePolicy(
+        new PolicyStatement({
+          effect: Effect.DENY,
+          principals: [new AnyPrincipal()],
+          actions: ['execute-api:Invoke'],
+          resources: ['execute-api:/*'], // This is part of API Gateway policy - it's ok for it to be *
+          conditions: {
+            'ForAllValues:StringNotEquals': {
+              'aws:SourceVpce': props.iam.allowOnlyFromKnownSources.vpceIDs,
+            },
+          },
+        })
+      );
+
+      if (props.iam.allowOnlyFromKnownSources.crossAccount) {
+        // Create external execution invoker IAM role
+        const role = new Role(this, config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`), {
+          roleName: config.utils.namingHelper(`iamr-api-gateway`, ...props.name, `private-invoker`),
+          assumedBy: new AccountPrincipal(props.iam.allowOnlyFromKnownSources.awsAccountID),
+        });
+        role.node.addDependency(this.restApi);
+
+        role.attachInlinePolicy(
+          new Policy(this, config.utils.namingHelper(`iamr`, ...props.name, `gateway-invoker`), {
+            statements: [
+              new PolicyStatement({
+                actions: ['execute-api:Invoke'],
+                resources: [this.restApi.arnForExecuteApi()],
+              }),
+            ],
+          })
+        );
+      }
+    }
+  }
+  constructor(scope: Construct, config: EnvVars, props: UNSAPIGatewayGatewayProps) {
+    const { namingHelper, constructNamingHelper } = config.utils;
+    super(scope, constructNamingHelper(`apigw`, ...props.name));
+    this.props = props;
+
+    // Extract preconfigured values
+    const { fullDomain, hostedZone, domainConfig } = this.domainConfig(config, props);
+
+    // Initialize API Gateway RestApi
+    const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
+      logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
+      retention: RetentionDays.ONE_YEAR,
+      encryptionKey: props.resources.kms,
+      removalPolicy: config.removalPolicy,
+    });
+
+    this.restApi = new RestApi(this, namingHelper(`restapi`, ...props.name, `restapi`), {
+      restApiName: namingHelper(`apigw`, ...props.name),
+      description: props.description,
+      cloudWatchRole: true,
+      cloudWatchRoleRemovalPolicy: RemovalPolicy.RETAIN,
+
+      deployOptions: {
+        tracingEnabled: true,
+        metricsEnabled: true,
+        dataTraceEnabled: false,
+        stageName: 'api',
+
+        cachingEnabled: false,
+        cacheDataEncrypted: false,
+        cacheClusterEnabled: false,
+
+        accessLogDestination: new LogGroupLogDestination(loggroup),
+        accessLogFormat: AccessLogFormat.custom(
+          JSON.stringify({
+            requestId: AccessLogField.contextRequestId(),
+            extendedRequestId: AccessLogField.contextExtendedRequestId(),
+            ip: AccessLogField.contextIdentitySourceIp(),
+            caller: AccessLogField.contextIdentityCaller(),
+            user: AccessLogField.contextIdentityUser(),
+            requestTime: AccessLogField.contextRequestTime(),
+            httpMethod: AccessLogField.contextHttpMethod(),
+            resourcePath: AccessLogField.contextResourcePath(),
+            status: AccessLogField.contextStatus(),
+            protocol: AccessLogField.contextProtocol(),
+            responseLength: AccessLogField.contextResponseLength(),
+          })
+        ),
+      },
+
+      ...(props.iam?.allowOnlyFromKnownSources?.vpceIDs
+        ? {
+            endpointConfiguration: {
+              types: [EndpointType.PRIVATE],
+              vpcEndpoints: props.iam.allowOnlyFromKnownSources.vpceEndpoints,
+            },
+          }
+        : {}),
+
+      // Conditional custom domain name setup
+      ...domainConfig,
+
+      // Enforce disabled execute api endpoints when using mtls
+      ...(props.mtls ? { disableExecuteApiEndpoint: true } : {}),
+    });
+
+    this.restApi.deploymentStage.node.addDependency(loggroup);
+    this.restApi.node.addDependency(loggroup);
+
+    // Register all HTTP methods & integrations that have been added as props
+    for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
+      this.addIntegration(operationId, path, method, integration, authorizer);
+    }
+
+    if (props.usagePlanDefaults) {
+      // Create usage plans & API Keys
+      for (const [id, { allowance }] of Object.entries(this.props.usagePlans ?? {})) {
+        const usagePlan = this.restApi.addUsagePlan(
+          config.utils.constructNamingHelper(...this.props.name, 'usage-plan', id),
+          {
+            name: config.utils.namingHelper(...this.props.name, 'usage-plan', id),
+            throttle: {
+              rateLimit: allowance?.throttle?.rateLimit ?? props.usagePlanDefaults.throttle.rateLimit,
+              burstLimit: allowance?.throttle?.burstLimit ?? props.usagePlanDefaults.throttle.rateLimit,
+            },
+            quota: {
+              limit: allowance?.quota?.limit ?? props.usagePlanDefaults.quota.limit,
+              period: Period.DAY,
+            },
+          }
+        );
+
+        const apiKey = this.restApi.addApiKey(
+          config.utils.constructNamingHelper(...this.props.name, 'api-key', id).replace('-', ''),
+          {
+            apiKeyName: config.utils.namingHelper(...this.props.name, 'api-key', id),
+          }
+        );
+        usagePlan.addApiKey(apiKey);
+
+        // Link the Usage Plan to the API Stage and API Key
+        usagePlan.addApiStage({
+          stage: this.restApi.deploymentStage,
+        });
+      }
+    }
+
+    // Cloudfront definition for mtls
+    let distribution: Distribution | undefined = undefined;
+
+    // Templated secret with username and password fields
+    let originHeaderSecret: Secret | null = null;
+
+    if (props.mtls && this.restApi.domainName?.domainNameAliasDomainName) {
+      originHeaderSecret = new Secret(this, 'originHeaderSecret', {
+        secretName: `${config.prefix}/apigw/${props.name.join('-')}/private-key`,
+        generateSecretString: {
+          secretStringTemplate: JSON.stringify({}),
+          generateStringKey: 'token',
+          passwordLength: 64,
+          excludeCharacters: '/@"',
+        },
+      });
+      distribution = new Distribution(this, 'ApiDistribution', {
+        priceClass: PriceClass.PRICE_CLASS_100,
+        defaultBehavior: {
+          origin: new HttpOrigin(this.restApi.domainName?.domainNameAliasDomainName, {
+            customHeaders: {
+              'x-origin-header': originHeaderSecret.secretValueFromJson('token').unsafeUnwrap(),
+            },
+          }),
+          viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: AllowedMethods.ALLOW_ALL,
+          cachePolicy: CachePolicy.CACHING_DISABLED,
+          compress: false,
+          smoothStreaming: false,
+
+          originRequestPolicy: new OriginRequestPolicy(this, 'mtlsHeaderPolicy', {
+            originRequestPolicyName: namingHelper('mtls-cert-headers'),
+            headerBehavior: OriginRequestHeaderBehavior.all(
+              'CloudFront-Viewer-Cert-Subject',
+              'CloudFront-Viewer-Cert-Pem',
+              'CloudFront-Viewer-Cert-Validity'
+            ),
+            queryStringBehavior: OriginRequestQueryStringBehavior.all(),
+          }),
+        },
+        certificate: config.ssm.certificateArnCloudfront
+          ? acm.Certificate.fromCertificateArn(
+              this,
+              namingHelper(`restapi`, ...props.name, `global-cert`),
+              config.ssm.certificateArnCloudfront
+            )
+          : undefined,
+        domainNames: fullDomain ? [fullDomain] : [],
+        webAclId: props.waf?.cloudfrontWebAclArn,
+      });
+
+      // Configure trust store & Viewer mTLS config in CloudFront
+      const trustStore = new CfnTrustStore(this, 'ClientTrustStore', {
+        name: namingHelper('api-client-trust-store'),
+        caCertificatesBundleSource: {
+          caCertificatesBundleS3Location: {
+            bucket: props.mtls.truststore.replace(`s3://`, ``).split(`/`).shift()!,
+            key: props.mtls.truststore.replace(`s3://`, ``).split(`/`).pop()!,
+            region: 'eu-west-2',
+          },
+        },
+      });
+      const cfnDistribution = distribution.node.defaultChild as CfnDistribution;
+      cfnDistribution.addPropertyOverride('DistributionConfig.ViewerMtlsConfig', {
+        Mode: 'required',
+        TrustStoreConfig: {
+          TrustStoreId: trustStore.attrId,
+          AdvertiseTrustStoreCaNames: true, // Solicits trusted CAs during TLS handshake
+          IgnoreCertificateExpiry: false, // Set to true only during CA rotation transitions
+        },
+      });
+    }
+
+    // Construct relevant sub resources
+    this.constructPrivatePolicies(config, props);
+    this.waf = this.constructWAF(config, props, originHeaderSecret);
+    this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
+
+    // Shield Advanced protection for the CloudFront distribution - staging & production only
+    if (distribution && config.isNonDevEnv && config.isMainEnv) {
+      this.shieldProtection = this.constructShieldProtection(config, props, distribution);
+    }
+
+    // Apply security checkov exceptions
+    applyCheckovSkips(this.restApi, [
+      ['CKV_AWS_59', 'Other authorizations are in place'],
+      ['CKV_AWS_120', 'Disabled for now and will re-enable when caching strategy is defined'],
+    ]);
+    applyCheckovSkips(this.restApi.deploymentStage, [
+      ['CKV_AWS_59', 'Other authorizations are in place'],
+      ['CKV_AWS_120', 'Disabled for now and will re-enable when caching strategy is defined'],
+    ]);
+  }
+}

@@ -37,11 +37,11 @@
     "sonar-project.properties",
     "docs/swagger-ui.css",
     "docs/swagger-ui-bundle.js",
-    "infrastructure/cdk/cdk.json",
-    "infrastructure/cdk/cdk.out/*",
-    "infrastructure/cdk/cdk.context.json",
-    "infrastructure/cdk/buildspecs/zap-*",
-    "infrastructure/cdk/constructs/dashboards/UNSPSOUtilization.ts",
-    "src/common/services/contentValidationService.test.unit.ts"
+    "packages/infrastructure/cdk/cdk.json",
+    "packages/infrastructure/cdk/cdk.out/*",
+    "packages/infrastructure/cdk/cdk.context.json",
+    "packages/infrastructure/cdk/buildspecs/zap-*",
+    "packages/cdk/constructs/dashboards/UNSPSOUtilization.ts",
+    "packages/core/src/services/contentValidationService.test.unit.ts"
   ]
 }

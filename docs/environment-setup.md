@@ -46,7 +46,7 @@ brew install checkov   # macOS
 pipx install checkov   # other platforms
 ```
 
-Checkov scans the synthesised CDK output (`infrastructure/cdk/cdk.out/`) against [`.checkov.yaml`](/.checkov.yaml) — see [`pnpm run checkov`](/package.json) and the [Deployment Guide](./deployment.md#pr-pipeline-pryml).
+Checkov scans the synthesised CDK output (`packages/infrastructure/cdk/cdk.out/`) against [`.checkov.yaml`](/.checkov.yaml) — see [`pnpm run checkov`](/package.json) and the [Deployment Guide](./deployment.md#pr-pipeline-pryml).
 
 ---
 
