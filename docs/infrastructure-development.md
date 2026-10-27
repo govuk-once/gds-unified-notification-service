@@ -50,7 +50,7 @@ All naming flows from [`infrastructure/cdk/config.ts`](/infrastructure/cdk/confi
 - `namespace` follows the same `-prod`-stripping rule, and is the root of the SSM parameter path (see below).
 - `config.utils.namingHelper(...args)` → `[project, env, ...args].join('-').toLowerCase().replace('-prod', '')` — the canonical **AWS resource name** builder, e.g. `namingHelper('lmdb', 'pso', 'postMessage')` → `uns-dev-lmdb-pso-postmessage`.
 - `config.utils.constructNamingHelper(...args)` → `camelCase(...args)` — used only for **CDK construct IDs** in the synthesized template's scope hierarchy, distinct from the AWS-visible resource name above.
-- `unremoveableEnvironments = ['dev', 'stg', 'prod']` drives `isMainEnv`. Main environments get `RemovalPolicy.RETAIN`, one-year log/parameter retention, deletion protection on DynamoDB tables, and their own generated mTLS CA. Any other `env` value is treated as an ephemeral developer sandbox: `RemovalPolicy.DESTROY`, one-month retention, and shared VPC/mTLS/CA imported from `dev` via SSM rather than provisioned fresh (see [Sandbox environments](#sandbox-environments)).
+- `unremovableEnvironments = ['dev', 'stg', 'prod']` drives `isMainEnv`. Main environments get `RemovalPolicy.RETAIN`, one-year log/parameter retention, deletion protection on DynamoDB tables, and their own generated mTLS CA. Any other `env` value is treated as an ephemeral developer sandbox: `RemovalPolicy.DESTROY`, one-month retention, and shared VPC/mTLS/CA imported from `dev` via SSM rather than provisioned fresh (see [Sandbox environments](#sandbox-environments)).
 - `nonDevelopmentEnvironments = ['stg', 'prod']` drives `isNonDevEnv` (controls e.g. VPC Flow Logs, SSM parameter expiry duration).
 
 ---

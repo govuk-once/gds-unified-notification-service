@@ -26,42 +26,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: ⚙️ Configure AWS credentials (For package registry pulling)
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+      - name: ⚙️ Setup
+        uses: ./.github/actions/setup
         with:
-          audience: sts.amazonaws.com
           role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
-          aws-region: eu-west-2
+          codeartifact-account-id: ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }}
 
-      - name: ⚙️ Configure Codeartifact
-        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
-
-      - name: ⚙️ Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-
-      - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: ⚙️ Restore TypeScript build cache
+        uses: actions/cache@v4
         with:
-          node-version-file: '.node-version'
-          cache: 'pnpm'
-
-      - parallel:
-          - name: ⚙️ Restore TypeScript build cache
-            uses: actions/cache@v4
-            with:
-              path: tsconfig.tsbuildinfo
-              key: tsbuildinfo-${{ runner.os }}-${{ hashFiles('src/**/*.ts', 'tsconfig.json') }}
-              restore-keys: tsbuildinfo-${{ runner.os }}-
-
-          - name: ⚙️ Restore ESLint cache
-            uses: actions/cache@v4
-            with:
-              path: .eslintcache
-              key: eslintcache-${{ runner.os }}-${{ hashFiles('src/**/*.ts', 'eslint.config.ts') }}
-              restore-keys: eslintcache-${{ runner.os }}-
-
-      - name: ⚙️ Install Dependencies
-        run: pnpm ci
+          path: tsconfig.tsbuildinfo
+          key: tsbuildinfo-${{ runner.os }}-${{ hashFiles('src/**/*.ts', 'tsconfig.json') }}
+          restore-keys: tsbuildinfo-${{ runner.os }}-
 
       - parallel:
           - name: ⚙️ Validate Typescript
@@ -70,15 +46,9 @@ jobs:
           - name: 🔨 Build bundles
             run: pnpm run build
 
-          # Formatting
-          - name: 📝 Run Lint
-            run: pnpm run lint
-
-          # Testing
           - name: 🧪 Run Unit tests & report coverage
             id: unittests
             run: |
-              # Generate coverage (single pass — validates tests pass and collects coverage)
               echo "Test results:" > coverage.md
               echo '```' >> coverage.md
               VITEST_TREE_REPORT=true pnpm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md
@@ -95,17 +65,17 @@ jobs:
               exit $TEST_EXIT
 
       - parallel:
-          - name: Upload Report Coverage Output
-            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
-            with:
-              name: coverage.report
-              path: ./coverage
-
           - name: ⬆️ Upload dist artifact
             uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
             with:
               name: dist
               path: ./dist
+
+          - name: ⬆️ Upload coverage artifact
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+            with:
+              name: coverage.report
+              path: ./coverage
 
           - name: 🧪 Create Comment with Test results
             uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
@@ -114,11 +84,11 @@ jobs:
               repository: 'govuk-once/gds-unified-notification-service'
               number: ${{ github.event.number }}
               id: unittestscomment
-              message: '${{steps.unittests.outputs.report}}'
+              message: '${{ steps.unittests.outputs.report }}'
               recreate: true
 
-  codeQualityReview:
-    name: PR / Code Quality Review
+  qualityReview:
+    name: PR / Quality Review
     uses: ./.github/workflows/_quality.review.yml
     needs: [pr]
     secrets: inherit

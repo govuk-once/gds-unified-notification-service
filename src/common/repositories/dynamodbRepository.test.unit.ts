@@ -11,7 +11,7 @@ import {
 } from '@test/mocks';
 
 // The base class is abstract which makes it hard to test it alone.
-// Creates two classes that implementes this abstract class:
+// Creates two classes that implements this abstract class:
 // 1. NotificationDynamoRepository (no sort key)
 // 2. GroupStoreDynamoRepository (with sort key)
 
@@ -103,20 +103,20 @@ describe('DynamodbRepository', async () => {
   });
 
   describe('deleteRecord', () => {
-    const notificaionID = messageRecord.NotificationID;
+    const notificationID = messageRecord.NotificationID;
     const groupID = 'groupID';
 
-    it('should call deleteItem with just the parition key when no sort key is configured', async () => {
+    it('should call deleteItem with just the partition key when no sort key is configured', async () => {
       // Arrange
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
-      await notificationsInstance.deleteRecord(notificaionID);
+      await notificationsInstance.deleteRecord(notificationID);
 
       // Assert
       expect(awsClientMocks.dynamoDBClientMock.deleteItem).toHaveBeenCalledExactlyOnceWith({
         TableName: 'mockNotificationsDynamoRepositoryName',
-        Key: marshall({ NotificationID: notificaionID }),
+        Key: marshall({ NotificationID: notificationID }),
         ReturnConsumedCapacity: 'TOTAL',
       });
     });
@@ -126,7 +126,7 @@ describe('DynamodbRepository', async () => {
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
-      const result = notificationsInstance.deleteRecord(notificaionID, 'unexpected-sort-key');
+      const result = notificationsInstance.deleteRecord(notificationID, 'unexpected-sort-key');
 
       // Assert
       await expect(result).rejects.toThrow(
@@ -140,7 +140,7 @@ describe('DynamodbRepository', async () => {
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
-      const result = groupStoreInstance.deleteRecord(notificaionID);
+      const result = groupStoreInstance.deleteRecord(notificationID);
 
       // Assert
       await expect(result).rejects.toThrow(
@@ -149,17 +149,17 @@ describe('DynamodbRepository', async () => {
       expect(awsClientMocks.dynamoDBClientMock.deleteItem).not.toHaveBeenCalledOnce();
     });
 
-    it('should include the partition key and sort key when thable has a sort key', async () => {
+    it('should include the partition key and sort key when the table has a sort key', async () => {
       // Arrange
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockResolvedValueOnce({});
 
       // Act
-      await groupStoreInstance.deleteRecord(notificaionID, groupID);
+      await groupStoreInstance.deleteRecord(notificationID, groupID);
 
       // Assert
       expect(awsClientMocks.dynamoDBClientMock.deleteItem).toHaveBeenCalledExactlyOnceWith({
         TableName: 'mockGroupStoreDynamoRepositoryName',
-        Key: marshall({ GroupID: notificaionID, PushID: groupID }),
+        Key: marshall({ GroupID: notificationID, PushID: groupID }),
         ReturnConsumedCapacity: 'TOTAL',
       });
     });
@@ -170,7 +170,7 @@ describe('DynamodbRepository', async () => {
       awsClientMocks.dynamoDBClientMock.deleteItem = vi.fn().mockRejectedValueOnce(error);
 
       // Act
-      const result = notificationsInstance.deleteRecord(notificaionID);
+      const result = notificationsInstance.deleteRecord(notificationID);
 
       // Assert
       await expect(result).rejects.toThrow(error);

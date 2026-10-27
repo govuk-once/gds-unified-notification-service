@@ -70,9 +70,9 @@ If you're using mise, the following aliases are already available (see [`mise.to
 
 ```sh
 alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
-alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
+alias "aws:sandbox:web"='gds-cli aws once-notifications-development-admin -l'
 alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
-alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
+alias "aws:staging:web"='gds-cli aws once-notifications-staging-admin -l'
 alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
 ```
 

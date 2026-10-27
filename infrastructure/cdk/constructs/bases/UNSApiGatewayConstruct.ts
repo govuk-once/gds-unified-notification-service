@@ -328,6 +328,19 @@ export class UNSAPIGatewayGateway extends Construct {
     new wafv2.CfnLoggingConfiguration(this, config.utils.namingHelper(...props.name, 'waf-logging-configuration'), {
       resourceArn: webAcl.attrArn,
       logDestinationConfigs: [wafLogGroup.logGroupArn],
+      redactedFields: [
+        ...[
+          // Exclude any of the following headers - matching log redaction logic in ioc.ts
+          'clientCertPem',
+          `x-amz-security-token`,
+          `app_id`,
+          `Authorization`,
+          `x-api-key`,
+          `apiKey`,
+          'CloudFront-Viewer-Cert-PEM',
+          `x-origin-header`,
+        ].map((header) => ({ singleHeader: { Name: header.toLowerCase() } })),
+      ],
     });
 
     return webAcl;
@@ -585,11 +598,11 @@ export class UNSAPIGatewayGateway extends Construct {
     // Apply security checkov exceptions
     applyCheckovSkips(this.restApi, [
       ['CKV_AWS_59', 'Other authorizations are in place'],
-      ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
+      ['CKV_AWS_120', 'Disabled for now and will re-enable when caching strategy is defined'],
     ]);
     applyCheckovSkips(this.restApi.deploymentStage, [
       ['CKV_AWS_59', 'Other authorizations are in place'],
-      ['CKV_AWS_120', 'Disabled for now and will renable when caching strategy is defined'],
+      ['CKV_AWS_120', 'Disabled for now and will re-enable when caching strategy is defined'],
     ]);
   }
 }

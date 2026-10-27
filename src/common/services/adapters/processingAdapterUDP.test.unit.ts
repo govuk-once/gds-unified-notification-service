@@ -15,7 +15,7 @@ describe('ProcessingAdapterUDP', async () => {
   let instance: ProcessingAdapterUDP;
   const getMock = vi.fn();
 
-  // Initalise mock services, clients, and repositories
+  // Initialise mock services, clients, and repositories
   const { observabilityMocks, serviceMocks } = await iocSpies();
 
   const request = mockProcessingAdapterRequest();
@@ -106,7 +106,7 @@ describe('ProcessingAdapterUDP', async () => {
       );
     });
 
-    it('should throw ProcessingAdapterError wehn the fetch call fails with a non-404 error', async () => {
+    it('should throw ProcessingAdapterError when the fetch call fails with a non-404 error', async () => {
       // Arrange
       const fetchError = new FetchErrorResponse({
         path: '/v1/notifications',
