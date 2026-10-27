@@ -9,7 +9,7 @@ import { UNSOperationalAlarmsConstruct } from 'infrastructure/cdk/constructs/ala
 import { UNSPerformanceAlarmsConstructs } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
 import { UNSWAFAlarmsConstruct } from 'infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSResourceContract } from 'infrastructure/cdk/constructs/UNSResourceContract';
-import { ProviderDimension } from '../../../src/common/services/observabilityService';
+import { ProviderDimension } from '@common/services';
 
 export class UNSAlarmsStack extends Stack {
   public readonly apiGatewayAlarmsFLEXConstruct: UNSApiGatewayAlarmsConstruct;

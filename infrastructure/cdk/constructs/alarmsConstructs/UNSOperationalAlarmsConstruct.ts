@@ -1,7 +1,7 @@
 import { Alarm, ComparisonOperator, Metric, Stats } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from 'infrastructure/cdk/config';
-import { MetricsLabels } from '../../../../src/common/services/observabilityService';
+import { MetricsLabels } from '@common/services';
 import {
   AlarmPeriod,
   alarmPriority,

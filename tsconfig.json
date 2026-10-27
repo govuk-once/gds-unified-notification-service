@@ -29,8 +29,8 @@
     "baseUrl": "./",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@common/*": ["./src/common/*"],
-      "@common": ["./src/common"],
+      "@common/*": ["./packages/core/src/*"],
+      "@common": ["./packages/core/src"],
       "@project/*": ["./src/*"],
       "@project": ["./src"],
       "@shared/*": ["./shared/*"],
