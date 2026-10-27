@@ -13,7 +13,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       globals: true,
-      projects: ['src/vitest.unit.config.ts', 'test/e2e/vitest.e2e.config.ts'],
+      projects: ['test/unit/vitest.unit.config.ts', 'test/e2e/vitest.e2e.config.ts'],
       sequence: {
         sequencer: SortedSequencer,
       },
