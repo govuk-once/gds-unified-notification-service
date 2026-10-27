@@ -37,7 +37,7 @@ export interface UNSLambdaConstructProps {
     readonly schedule?: Schedule[];
   };
   readonly iam?: {
-    readonly assumeableRolesArns?: string[];
+    readonly assumableRolesArns?: string[];
     readonly sqsSend?: string[];
     readonly ssmNamespaces?: string[];
     readonly sm?: string[];
@@ -105,7 +105,7 @@ export class UNSLambdaConstruct extends Construct {
     this.addPermissionsToRole(['logs:CreateExportTask'], this.props.iam?.cloudwatchExport ?? []);
 
     // Allow use of STS Assume Role
-    this.addPermissionsToRole(['sts:AssumeRole'], props.iam?.assumeableRolesArns);
+    this.addPermissionsToRole(['sts:AssumeRole'], props.iam?.assumableRolesArns);
 
     // Allow use of SQS Target Queues & DLQ
     this.addPermissionsToRole(

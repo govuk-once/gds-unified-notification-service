@@ -659,7 +659,7 @@ describe('PostGroupMessage Handler', async () => {
 
     it('should fall back to defaults and return 202 when authorizer contains unsupported Channels', async () => {
       // Arrange
-      const eventWithUnsupportChannel = {
+      const eventWithUnsupportedChannel = {
         ...event,
         requestContext: {
           ...event.requestContext,
@@ -673,7 +673,7 @@ describe('PostGroupMessage Handler', async () => {
       } as unknown as EventType;
 
       // Act
-      const result = await handler(eventWithUnsupportChannel, context);
+      const result = await handler(eventWithUnsupportedChannel, context);
 
       // Assert
       expect(result.statusCode).toEqual(202);

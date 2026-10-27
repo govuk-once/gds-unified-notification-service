@@ -9,78 +9,95 @@ permissions:
 on: workflow_call
 
 jobs:
-  codeQualityReview:
-    name: Code Quality Review
+  lintAndSpellCheck:
+    name: 🧪 Lint & Spell Check
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
-      # Setup
       - name: ⚙️ Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: ⚙️ Configure AWS credentials (For package registry pulling)
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+      - name: ⚙️ Setup
+        uses: ./.github/actions/setup
         with:
-          audience: sts.amazonaws.com
           role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
-          aws-region: eu-west-2
+          codeartifact-account-id: ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }}
 
-      - name: ⚙️ Configure Codeartifact
-        run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
-
-      - name: ⚙️ Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-
-      - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: ⚙️ Restore ESLint cache
+        uses: actions/cache@v4
         with:
-          node-version-file: '.node-version'
-          cache: 'pnpm'
+          path: .eslintcache
+          key: eslintcache-${{ runner.os }}-${{ hashFiles('src/**/*.ts', 'eslint.config.ts') }}
+          restore-keys: eslintcache-${{ runner.os }}-
 
-      - name: ⚙️ Install Dependencies
-        run: pnpm ci
-
-      # Download both artifacts in parallel — they are independent of each other
       - parallel:
-          - name: ⬇️ Download dist artifact
-            id: download-dist
-            continue-on-error: true
-            uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-            with:
-              name: dist
-              path: ./dist
+          - name: 🧪 Run Lint
+            run: pnpm run lint
 
-          - name: ⬇️ Download coverage
-            uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-            with:
-              name: coverage.report
-              path: ./coverage
+          - name: 🧪 Spell Check
+            run: pnpm run spellcheck
 
-      - name: 🔨 Build bundles
-        if: steps.download-dist.outcome == 'failure'
-        run: pnpm run build
+  sonarReview:
+    name: 🧪 Sonar Quality Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: ⚙️ Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
-      # SonarQube scan starts in background while the CDK chain runs in the foreground.
-      # Coverage is already in ./coverage from the parallel download above.
+      - name: ⬇️ Download coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage.report
+          path: ./coverage
+
       - name: 🕵🏻 Run SonarQube Scan
         id: sonar-scan
-        background: true
         continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+      - name: 🧪 SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
+        if: success() || failure()
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
-      # CDK Validation runs in the foreground while the SonarQube scan runs in the background
-      - name: 🏗️ CDK Synth (mock env)
+  checkovCheck:
+    name: 🧪 Checkov Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⚙️ Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: ⚙️ Setup
+        uses: ./.github/actions/setup
+        with:
+          role-to-assume: ${{ secrets.AWS_CODEARTIFACT_ROLE_ARN }}
+          codeartifact-account-id: ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }}
+
+      - name: ⬇️ Download dist artifact
+        id: download-dist
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: ./dist
+
+      - name: 🧪 CDK Synth (mock env)
         run: |
           env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
-        if: success()
         uses: bridgecrewio/checkov-action@f967808197a8d784d3e72919f38c3ff0cda7884e # v12
         with:
           output_format: cli,sarif
@@ -96,28 +113,3 @@ jobs:
         if: success() || failure()
         with:
           sarif_file: results.sarif
-
-      # Wait for the SonarQube scan (background) before running the quality gate
-      - wait: sonar-scan
-
-      - name: 🕵🏻 SonarQube Quality Gate check
-        id: sonarqube-quality-gate-check
-        uses: sonarsource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
-        if: success() || failure()
-        with:
-          pollingTimeoutSec: 600
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
-
-      - name: 🕵🏻 Create Comment with SonarQube's Quality Gate
-        continue-on-error: true
-        uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
-        if: success() || failure()
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: 'govuk-once/gds-unified-notification-service'
-          number: ${{ github.event.number }}
-          id: qualitygatecomment
-          message: 'SonarQube Quality Gate Status: ${{steps.sonarqube-quality-gate-check.outputs.quality-gate-status}} [LINK](https://sonarcloud.io/summary/new_code?id=govuk-once_gds-unified-notification-service&pullRequest=${{github.event.number}})'
-          recreate: true

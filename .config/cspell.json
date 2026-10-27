@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en-GB",
+  "dictionaryDefinitions": [
+    {
+      "name": "dictionary",
+      "path": "dictionary.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["dictionary"],
+  "reporter": ["default"],
+  "ignoreRegExpList": [
+    "sqs\\w*",
+    "uns\\w*",
+    "Middyfied\\w*",
+    "group\\w*",
+    "/deeplinks/i",
+    "elc\\w*",
+    "chann\\w*",
+    "code\\w*",
+    "[Aa][Ww][Ss]\\w*",
+    "uni\\w*",
+    "/redrive\\w*/i"
+  ],
+  "ignorePaths": [
+    "html",
+    "dist",
+    "coverage",
+    "mise.toml",
+    "node_modules",
+    ".eslintcache",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "sonar-project.properties",
+    "docs/swagger-ui.css",
+    "docs/swagger-ui-bundle.js",
+    "packages/infrastructure/cdk/cdk.json",
+    "packages/infrastructure/cdk/cdk.out/*",
+    "packages/infrastructure/cdk/cdk.context.json",
+    "packages/infrastructure/cdk/buildspecs/zap-*",
+    "packages/cdk/constructs/dashboards/UNSPSOUtilization.ts",
+    "packages/core/src/services/contentValidationService.test.unit.ts"
+  ]
+}

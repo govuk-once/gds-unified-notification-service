@@ -2,7 +2,7 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { handlers } from '../../test/mocks/https';
 
-// Surpresses unnecessary console.logs from the OTEL metrics/tracers
+// Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {
   process.env.POWERTOOLS_DEV = 'true';
   process.env.POWERTOOLS_METRICS_DISABLED = 'false';

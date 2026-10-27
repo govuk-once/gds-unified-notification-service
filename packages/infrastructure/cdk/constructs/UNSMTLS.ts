@@ -170,7 +170,7 @@ export class UNSMTLSCommon extends Construct {
       }
     }
 
-    // Create truststore entry regardless - for main environments, this uploads created certificate directly, for dev environemnts it pulls shared value from SSM
+    // Create truststore entry regardless - for main environments, this uploads created certificate directly, for dev environments it pulls shared value from SSM
 
     // ApiGateway tends to 'reserve' truststore file forever, and cannot share it with other api gateways
     // In order to support future mTLS cert sharing between dev & sandbox environment

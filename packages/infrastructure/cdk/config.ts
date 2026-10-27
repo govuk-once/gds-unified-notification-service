@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { camelCase } from './utils/camelCase';
 
-// If there's a '.env' in this dir - load the file - this is use in conjuection with dev scripts
+// If there's a '.env' in this dir - load the file - this is use in conjunction with dev scripts
 if (existsSync('./.env')) {
   dotenv.config({ path: join('./.env'), quiet: true });
 }
@@ -19,7 +19,7 @@ if (existsSync('packages/infrastructure/cdk/.env')) {
   dotenv.config({ path: join('packages/infrastructure/cdk/.env'), quiet: true });
 }
 
-export const unremoveableEnvironments = ['dev', 'stg', 'prod'];
+export const unremovableEnvironments = ['dev', 'stg', 'prod'];
 export const nonDevelopmentEnvironments = ['stg', 'prod'];
 export const environmentLabels: Record<string, string> = {
   dev: 'development',
@@ -66,10 +66,10 @@ const prNumber = process.env.pr_number;
 const isEphemeral = prNumber !== undefined;
 const env = isEphemeral ? prNumber : (process.env.env ?? 'dev');
 const region = process.env.region ?? 'eu-west-2';
-const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources dont have env prefix
+const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources does not have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
 const namespace = [project, env].join(`-`).replace(`-prod`, ``);
-const isMainEnv = unremoveableEnvironments.includes(env);
+const isMainEnv = unremovableEnvironments.includes(env);
 const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
 const debugMode = env !== 'prod';
 const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;

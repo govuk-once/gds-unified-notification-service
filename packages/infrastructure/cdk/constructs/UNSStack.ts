@@ -114,7 +114,7 @@ export class UNSStack extends Stack {
       `AWS::ElastiCache::ServerlessCache`,
     ];
 
-    // Apply all tags to all rescources - except the problematic ones
+    // Apply all tags to all resources - except the problematic ones
     for (const [key, value] of Object.entries({
       ...config.defaultTags(),
     })) {
