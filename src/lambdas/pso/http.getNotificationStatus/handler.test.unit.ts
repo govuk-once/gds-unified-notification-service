@@ -78,7 +78,7 @@ describe('GetNotificationStatus Handler', async () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(notificationID);
   });
 
-  it('should return 200 with the events mapped to status entires, sorted using the timestamp', async () => {
+  it('should return 200 with the events mapped to status entries, sorted using the timestamp', async () => {
     // Arrange
     const earlierEvent = {
       ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),

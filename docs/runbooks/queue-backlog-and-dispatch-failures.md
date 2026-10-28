@@ -8,32 +8,39 @@ This runbook is for the on-call engineer. Work through it in order: identify whi
 
 ## The pipeline
 
-A notification submitted via PSO's `POST /send` flows through four SQS-triggered stages, each its own Lambda, plus an analytics queue fed from every stage:
+A notification sent with PSO's `POST /send` is validated in the HTTP handler and then goes through SQS-triggered stages, each its own Lambda, plus an analytics queue fed from every stage. Group messages (`POST /v1/send-to-group`, not in `prod`) join at dispatch through the group worker:
 
 ```text
-incoming queue → validation → processing → dispatch → (notification provider, e.g. OneSignal)
-                      │             │            │
-                      └─────────────┴────────────┴──→ analytics queue → analytics stage
+POST /send ─────────────────► processing queue → processing → dispatch queue → dispatch → (OneSignal)
+POST /v1/send-to-group ─► groupprocessing queue → groupProcessingWorker ─┘ (re-queues until done)
+incoming queue → validation → processing queue        (no producer in this repository)
+
+                      every stage ──→ analytics queue → analytics stage
 ```
 
-Every stage is a `BatchQueueOperation` handler — see [Developer Reference: SQS handler example](../developer-reference.md). A failure on one record fails only that record (a partial batch item failure); it does not fail the whole batch or block other messages behind it in the same invocation — but a large, sustained failure rate still drains capacity and grows the backlog.
+Every stage is a `BatchQueueOperation` handler; see [Developer Reference: Notification pipeline](../developer-reference.md#notification-pipeline-pso). Each queue has a DLQ that receives a message after 3 failed receives. Because API traffic skips the `validation` stage, a validation problem on `POST /send` shows up as 400s (`Api4xxErrorRateElevated`), not as `ValidationFailureRateHigh`. A failure on one record fails only that record (a partial batch item failure); it does not fail the whole batch or block other messages behind it in the same invocation — but a large, sustained failure rate still drains capacity and grows the backlog.
 
 ---
 
 ## Step 1: identify the affected stage
+
+Thresholds below are as configured. See [Alarms](../alarms.md#known-discrepancies-) for how the rate alarms actually evaluate.
 
 | Alarm | Threshold | Points at |
 | -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------ |
 | `SqsQueueDepthHigh-${name}` (P2), per queue | > 1000, 5/5 datapoints over 1 min | Messages are arriving faster than the stage can process them |
 | `{Validation,Processing,Dispatch}FailureRateHigh` (P2) | > 5% over 5 min | That stage's `recordHandler` is throwing for a meaningful share of records |
 | `{Validation,Processing,Dispatch}DurationP95High` (P2) | 2000ms / 3000ms / 5000ms respectively | That stage is running slow, which precedes both a backlog and Lambda timeouts |
-| `{Validation,Processing,Dispatch}BatchItemFailures` (P3) | > 0, 2/2 datapoints over 1 min | Early signal — individual records are failing before the failure-rate alarm would fire |
-| `{Processing,Dispatch,Analytics}QueuePublishFailed` (P3) | > 0, 1/1 datapoint over 1 min | A stage succeeded but **failed to hand off** to the next queue — messages may be silently lost, not just delayed |
+| `GroupProcessingDurationP95PerMessageHigh` (P2) | 3000 ms per message | The group worker is running slow |
+| `{Validation,Processing,Dispatch,GroupProcessing}BatchItemFailures` (P3) | > 0, 2/2 datapoints over 1 min | Early signal: individual records are failing before the failure-rate alarm would fire |
+| `{Processing,GroupProcessing,Dispatch,Analytics}QueuePublishFailed` (P3) | > 0, 1/1 datapoint over 1 min | A stage succeeded but **failed to hand off** to the next queue. Messages may be lost, not just delayed |
+| `dlqMessageCountMedium-${queue}` (P3) / `MessageCountHigh-${queue}` (P2) | > 10 / > 1000 DLQ messages | Messages have exhausted their retries |
+| `OldestMessageHigh-${queue}` (P2) | DLQ message older than 3 days | DLQ messages are sitting un-redriven |
 | `CircuitBreakerOpen` (P1) | >= 1, 1/1 datapoint over 1 min | The dispatch stage has stopped calling the notification provider entirely — see [Step 3](#step-3-circuit-breaker-and-rate-limiting) |
 | `DispatchRateLimitingEnforced` (P2) | >= 1, 2/2 datapoints over 1 min | The dispatch stage is deliberately slowing itself down — see [Step 3](#step-3-circuit-breaker-and-rate-limiting) |
-| `${provider}Offline` (P1), e.g. `OneSignalOffline` | > 40% HTTP error rate over 1 min | The notification provider itself is failing |
+| `${provider}Offline` (P1): `OneSignalOffline`, `UDPOffline` | > 40% HTTP error rate (evaluated over 5 min) | The provider itself is failing: OneSignal (dispatch) or UDP (processing) |
 
-Identify which named alarm(s) fired — the alarm name encodes the stage (`Validation`/`Processing`/`Dispatch`/`Analytics`), which tells you which Lambda's logs to read next.
+Identify which named alarm(s) fired. The alarm name encodes the stage (`Validation`/`Processing`/`GroupProcessing`/`Dispatch`/`Analytics`), which tells you which Lambda's logs to read next. In the console, names are lower-cased and prefixed, e.g. `uns-dev-p2-pso-dispatchfailureratehigh`.
 
 > `{Processing,Dispatch,Analytics}QueuePublishFailed` deserves particular attention: this means a stage completed its own work successfully but couldn't enqueue the result for the next stage. Unlike a `recordHandler` failure (which is retried/DLQ'd by SQS), a failed publish inside a stage's own code may not automatically retry depending on where in the handler it occurred — check whether the record was acknowledged (removed from the source queue) before treating this as "will retry itself".
 
@@ -55,7 +62,7 @@ The dispatch stage has two independent self-protection mechanisms — knowing wh
 - **Circuit breaker** (`CircuitBreakerService`, backed by `CacheService`/ElastiCache): once open, the dispatch stage stops calling the notification provider entirely rather than continuing to fail against it. `CircuitBreakerOpen` firing is expected, protective behaviour during a provider outage — the fix is the provider recovering (or a code change to widen/narrow the breaker's own thresholds), not retrying harder.
 - **Rate limiting** (`CacheService.rateLimit`, throws `TooManyRequestsError`/`RateLimitingError`): the dispatch stage is deliberately throttling itself against a configured limit. `DispatchRateLimitingEnforced` firing usually means genuine load, not a fault — confirm against actual traffic volume before treating it as an incident.
 
-Both read their configuration from SSM (see [Developer Reference: services and adapters](../developer-reference.md#services-and-adapters)) — a threshold that's clearly miscalibrated (opening too eagerly, or not eagerly enough) is a config change via [`cdk.predeploy.ssm.ts`](/infrastructure/cdk/cdk.predeploy.ssm.ts)-managed parameters, not necessarily a code deploy.
+Both read their configuration from SSM (see [Configuration: Circuit breaker and rate limiting](../configuration.md#circuit-breaker-and-rate-limiting-dispatch)). A threshold that's clearly miscalibrated (opening too eagerly, or not eagerly enough) can be changed in SSM directly and takes effect within about a minute; no code deploy is needed.
 
 ---
 
@@ -79,7 +86,8 @@ Anything shipped as code follows the [Fix Forward Runbook](./fix-forward.md).
 - **Do not** manually retry harder against a provider that's confirmed down — the circuit breaker exists precisely to stop this; fighting it adds load without helping.
 - If the provider has a status page or known incident, that confirms the diagnosis — this is their outage, not a platform defect, but the platform's job is still to protect the queue from unbounded backlog while it's down (the circuit breaker and rate limiter should already be doing this automatically).
 - If the circuit breaker or rate limiter is misconfigured for the actual failure mode you're seeing (too slow to open, or blocking legitimate traffic), that's a fix-forward SSM/code change — see [Step 3](#step-3-circuit-breaker-and-rate-limiting).
-- Once the provider recovers, expect a backlog drain, not an instant return to a flat queue depth graph — SQS visibility timeout and the batch size configured on each Lambda trigger determine the drain rate.
+- **Pausing a stage is not free.** A stage's kill switch (`config/<stage>/enabled = false`) makes every batch fail, and after 3 receives the messages land in the DLQ. Only use it when sending to the DLQ is better than the alternative, and plan a DLQ redrive afterwards; see [Configuration: Kill switches](../configuration.md#kill-switches).
+- Once the provider recovers, expect a backlog drain, not an instant return to a flat queue depth graph. SQS visibility timeout and the batch size configured on each Lambda trigger determine the drain rate.
 
 ---
 
@@ -88,7 +96,8 @@ Anything shipped as code follows the [Fix Forward Runbook](./fix-forward.md).
 1. Confirm queue depth alarms have returned to baseline for every stage, not just the one that first alarmed — a cascading backlog clears from the front, so check the last stage in the chain too.
 2. Confirm `CircuitBreakerOpen` has cleared (the breaker closes again) if it was open.
 3. Check for any `QueuePublishFailed` incidents during the window and confirm no notifications were silently lost — reconcile against `NotificationsDynamoRepository` state if there's any doubt.
-4. Raise follow-up work for anything the incident exposed (a threshold that fired too late, a missing DLQ alarm, a provider integration that needs a better fallback).
+4. Redrive any DLQ that collected messages during the incident (SQS console → the `-dlq` queue → *Start DLQ redrive*), once the cause is fixed.
+5. Raise follow-up work for anything the incident exposed (a threshold that fired too late, a provider integration that needs a better fallback).
 
 ---
 
@@ -99,7 +108,8 @@ Anything shipped as code follows the [Fix Forward Runbook](./fix-forward.md).
 - [Fix Forward Runbook](./fix-forward.md)
 - [API Gateway Errors Runbook](./api-gateway-errors.md)
 - [Developer Reference: notification pipeline](../developer-reference.md#notification-pipeline-pso)
-- [Infrastructure Development Guide: CloudWatch alarms](../infrastructure-development.md#cloudwatch-alarms)
+- [Alarms](../alarms.md)
+- [Configuration](../configuration.md)
 
 **Code:**
 

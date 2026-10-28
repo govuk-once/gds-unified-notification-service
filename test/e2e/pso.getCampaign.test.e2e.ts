@@ -9,7 +9,7 @@ describe('[GET] {{PSO}}/status/campaign/{campaignID}', () => {
   const campaignID = 'testCampaignID';
   const departmentID = 'UNS';
 
-  describe(`Unahppy paths`, () => {
+  describe(`Unhappy paths`, () => {
     test('transport error when - attempting to use insecure protocol (http instead of https)', async ({
       psoAPIUsingInsecureProtocol: api,
     }) => {

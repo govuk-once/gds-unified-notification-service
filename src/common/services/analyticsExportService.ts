@@ -115,7 +115,7 @@ export class AnalyticsExportService {
       throw new ParsingFailedError();
     }
 
-    // Log stream for the hour before (e.g runtime 11:30 gets logstream at 10:00)
+    // Log stream for the hour before (e.g runtime 11:30 gets log stream at 10:00)
     const previousHourDate = new Date(time - 60 * 60 * 1000);
 
     // Determines the log stream name off the previous hour of the timestamp from event bridge

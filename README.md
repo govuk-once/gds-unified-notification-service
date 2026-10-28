@@ -39,7 +39,7 @@ pnpm install
 
 1. Initialize CDK - relies on gds-cli being already configured
 
-This guided wizard will create a tfstate bucket within AWS based on your developer email, and initialize CDK on your behalf.
+This guided wizard derives a personal sandbox environment name from your git email and writes it to `infrastructure/cdk/.env`, ready for CDK.
 
 ```sh
 eval $(gds-cli aws once-notifications-development-admin -e)
@@ -56,7 +56,7 @@ pnpm run checkov
 
 Note: If you are using mise-en-place, you can skip brew install step.
 
-## Setting up dev / sandbox environmnent
+## Setting up dev / sandbox environment
 
 There's a set of utility scripts allows easy setting up of brand new developers within developer account.
 
@@ -67,9 +67,9 @@ If you are using mise-en-place, those aliases are [already setup](https://mise.j
 
 ```sh
 alias "aws:sandbox"='eval $(gds-cli aws once-notifications-development-admin -e)'
-alias "aws:sandboxweb"='gds-cli aws once-notifications-development-admin -l'
+alias "aws:sandbox:web"='gds-cli aws once-notifications-development-admin -l'
 alias "aws:staging"='eval $(gds-cli aws once-notifications-staging-admin -e)'
-alias "aws:stagingweb"='gds-cli aws once-notifications-staging-admin -l'
+alias "aws:staging:web"='gds-cli aws once-notifications-staging-admin -l'
 alias 'aws:reauthnpm'='aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner 904690835784 --region eu-west-2'
 ```
 
@@ -79,8 +79,14 @@ First one authenticates your shell session with the sandbox aws account, second 
 pnpm run development:sandbox:setup
 ```
 
-This executes a guided wizard which should generate a tfstate bucket, set up contents versioning and generates `./infrastructure/cdk/.env` based on email configured within git. This prevents developers from running into conflicts while sharing sandbox environment.
-Also, if mTLS is enables, it pulls mTLS certificates and domain name into the repository for end to end testing locally.
+This runs a guided wizard that generates `./infrastructure/cdk/.env` from the email configured in git, giving every developer their own uniquely named sandbox so you don't conflict when sharing the development account. It can also copy selected SSM parameters (e.g. dispatch and processing config) from `dev` into your sandbox.
+
+To fetch mTLS client certificates for local end-to-end testing or manual calls, run:
+
+```sh
+pnpm run download:certificates            # pick a certificate interactively
+pnpm run download:certificates <certId>   # or name it
+```
 
 After the initial setup is completed, another 2 commands can be used to release to sandbox
 
@@ -97,7 +103,10 @@ Plan will only output the expected changes, release will allow deploying to AWS 
 Within this project there are multiple ways of triggering tests, there are also various flags that can adjust certain configurations to provide additional flexibility during development:
 
 ```sh
-# Standard unit tests
+# All suites in watch mode (development)
+pnpm test
+
+# Standard unit tests, run once
 pnpm run test:unit
 
 # Unit tests reporting coverage
@@ -116,11 +125,11 @@ VITEST_DETAILED_COVERAGE=true
 ## Sample usage
 VITEST_DETAILED_COVERAGE=true pnpm run test:coverage
 
-## E2E tests against dev environemt
+## E2E tests against dev environment
 env=dev pnpm run test:e2e
 ```
 
-End to end testing require mTLS authentication to be setup locally, to test both PSO and FLEX endpoints. To setup the correct authentication, run the developer setup script to setup this authentication.
+End to end testing requires an authenticated AWS session. The suite fetches mTLS certificates and API keys at startup; `pnpm run download:certificates` saves a certificate pair locally if you need one for manual calls.
 Make sure these credentials are not added to git.
 
 If you use Zscaler, Node needs to rust the Zscaler root CA before all the E2E tests can pass - see [Zscaler certificate setup](./test/e2e/README.md#zscaler-certificate-setup)
@@ -138,8 +147,8 @@ Read more in : [./.husky/README.md](./.husky/README.md)
 
 ## Github Actions
 
-This repository is using Github Actions to support pull request review process and releasing to non production environments.
-Read more [./.github/README-Pipelines.md](./.github/README-Pipelines.md)
+This repository uses GitHub Actions for the pull request pipeline (build, tests, quality gate, an ephemeral environment per PR with e2e and a ZAP security scan), releases and deployments.
+Read more in the [Deployment Guide](./docs/deployment.md#cicd-workflows).
 
 ## Github Pages
 
@@ -155,9 +164,11 @@ Deeper guides live in [`docs/`](./docs):
 
 - [Environment Setup](./docs/environment-setup.md)
 - [Developer Reference](./docs/developer-reference.md) - handler patterns, middleware, errors, repositories, services
-- [Infrastructure Development Guide](./docs/infrastructure-development.md) - CDK stack, constructs, naming, mTLS, alarms
-- [Deployment Guide](./docs/deployment.md)
-- [Releases and Versioning](./docs/releases.md)
+- [Infrastructure Development Guide](./docs/infrastructure-development.md) - CDK stacks, constructs, naming, mTLS, alerting, tagging
+- [Configuration](./docs/configuration.md) - SSM parameters, feature flags, organisation config, message expiry
+- [Deployment Guide](./docs/deployment.md) - environments and every CI/CD workflow
+- [Releases and Versioning](./docs/releases.md) - versioning, changelog, release announcements
+- [Alarms](./docs/alarms.md) - the CloudWatch alarm catalogue
 - [Runbooks](./docs/runbooks/README.md)
 - [Documentation Guide](./docs/documentation-guide.md) - conventions for writing documentation in this repo
 

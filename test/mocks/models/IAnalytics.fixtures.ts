@@ -34,7 +34,7 @@ export const mockAnalyticsEvents = (): AnalyticsEventFromIMessage[] => [
   {
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80g',
     DepartmentID: 'Dev',
-    APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+    APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8134f349',
     OrganisationID: 'ORD01',
   },
 ];
@@ -51,7 +51,7 @@ export const mockAnalyticsWithCampaignEvents = (): AnalyticsEventFromIMessage[] 
     NotificationID: '7351e7c8-7314-4d2b-a590-4f053c6ef80i',
     DepartmentID: 'Dev',
     CampaignID: 'CAMP01',
-    APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeg',
+    APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8134f349',
     OrganisationID: 'ORD01',
   },
 ];

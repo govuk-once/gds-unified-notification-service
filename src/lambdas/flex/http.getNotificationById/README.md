@@ -21,6 +21,7 @@ Returns a single notification by ID, scoped to the requesting user, in the Flex 
 
 - **DynamoDB** - `NotificationsDynamoRepository` (the Messages table), read-only by ID; `OrganisationsDynamoRepository` (the Organisations table), read-only.
 - No SQS, no outbound HTTP calls.
+- "Expired" means `ExpirationDateTime` (Unix epoch seconds, the table's TTL attribute) is in the past. DynamoDB can take up to 48h to delete expired items, so the handler filters them itself; see [Configuration: Message expiry](../../../../docs/configuration.md#message-expiry-ttl).
 
 ### Logic
 

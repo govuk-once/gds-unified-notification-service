@@ -1,10 +1,17 @@
+import { execSync } from 'child_process';
 import { Colors, execute } from 'scripts/helpers';
+
+const stagedFiles = execSync('git diff --name-only --cached', { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
 
 // Pre commit tasks with labels
 const tasks = {
   [Colors.yellow('TS Check')]: 'pnpm run build:validate',
-  [Colors.cyan('Unit Tests')]: 'pnpm run test:unit',
+  [Colors.cyan('Unit Tests')]: 'pnpm run test:unit --reporter=minimal',
   [Colors.green('Linting')]: 'pnpm run lint',
+  ...(stagedFiles.length > 0 && {
+    [Colors.magenta('Spellcheck (Staged)')]:
+      `pnpm exec cspell --no-progress --config .cspell.json ${stagedFiles.join(' ')}`,
+  }),
 };
 
 // Execute all tasks in parallel then add extra logs
