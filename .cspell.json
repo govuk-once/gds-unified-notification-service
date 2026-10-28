@@ -5,7 +5,7 @@
   "dictionaryDefinitions": [
     {
       "name": "dictionary",
-      "path": "dictionary.txt",
+      "path": ".cspell.dictionary.txt",
       "addWords": true
     }
   ],
