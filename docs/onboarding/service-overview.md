@@ -21,7 +21,7 @@ Three parties interact with UNS:
 | **Rich message content** | Message centre notifications support Markdown, enabling PSOs to deliver structured, long-form content alongside a short push alert in a single send. |
 | **Groups** | Users opt in to named groups via the GOV.UK app. PSOs can broadcast to a whole group with a single request, rather than sending per-user. |
 | **Analytics** | Every notification has a queryable status trail. Aggregate campaign statistics and a BigQuery export give PSOs visibility at any granularity. |
-| **Reliability** | Circuit breaking, rate limiting, automatic retries, and 25 named operational alarms with on-call coverage. |
+| **Reliability** | Circuit breaking, rate limiting, automatic retries, and 25 named operational alarms. |
 
 ---
 

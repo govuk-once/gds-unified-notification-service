@@ -21,7 +21,7 @@
     "lint:fix": "eslint . --fix && prettier . --write",
     "lint": "eslint . --cache --cache-location .eslintcache --concurrency=auto --stats && prettier . --check --cache --cache-location",
     "pre-commit": "tsx scripts/pre-commit.ts",
-    "spellcheck": "cspell --no-progress --config .config/cspell.json '**'",
+    "spellcheck": "cspell --no-progress --config .cspell.json '**'",
     "prepare": "husky",
     "changelog": "tsx scripts/generate-changelog.ts",
     "release:announcement": "tsx scripts/release-announcement.ts",
