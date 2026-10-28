@@ -65,6 +65,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
       });
       return usersGroups;
     }
+    // TODO - Simplify this logic to match LEAVE approach
     const record: IGroupStoreRecord[] = groupsToJoin
       .map((g) => {
         const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
@@ -90,11 +91,16 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
       })
       .filter(filters.isDefined);
 
-    const joinKeys = new Set(groupsToJoin.map((g) => this.buildCompositeId(g.Namespace, g.Group, g.Subgroup)));
     await this.createRecordBatch(record);
     this.observability.logger.info('Joining groups', {
       pushID,
-      groupsToJoin: usersGroups.filter((u) => joinKeys.has(u.CompositeID)),
+      groupsToJoin: record.map((r) => ({
+        GroupID: r.GroupID,
+        CompositeID: r.CompositeID,
+        Namespace: r.Namespace,
+        Group: r.Group,
+        Subgroup: r.Subgroup,
+      })),
     });
 
     return [
