@@ -74,6 +74,9 @@ export const mockDefaultConfig = (): Record<string, string | boolean | number | 
       hashKey: 'GroupID',
       rangeKey: 'PushID',
     },
+    [SSMParameters.Config.ExternalSender.Role.Path]: {
+      mockSender: 'mockSenderId',
+    },
   }).reduce((entries, [key, value]) => ({ ...entries, [key]: value }), {});
 
 export const mockDefaultSecrets = (): Record<string, string | Error> =>

@@ -65,6 +65,9 @@ const SSMParameters = {
       KMS: staticParam('udp/config/kms', 'string', 'null'),
       Role: staticParam('udp/config/role', 'string', 'null'),
     },
+    ExternalSender: {
+      Role: infraParam('config/externalSender/role', 'json'),
+    },
   },
   Api: {
     Flex: {

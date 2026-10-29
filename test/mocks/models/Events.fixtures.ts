@@ -21,7 +21,7 @@ export const mockQueueEvent = <T>(body: T): QueueEvent<T> => ({
       attributes: {
         ApproximateReceiveCount: '2',
         SentTimestamp: '202601021513',
-        SenderId: 'mockSenderId',
+        SenderId: 'mockSenderId:session-name',
         ApproximateFirstReceiveTimestamp: '202601021513',
       },
       messageAttributes: {},
