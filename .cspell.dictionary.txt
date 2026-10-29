@@ -78,6 +78,10 @@ dispatchfailureratehigh
 incl
 PIPESTATUS
 SARIF
+DVSA
+Predeployment
+autonumber
+screencap
 mtlscertificaterevocationauthorizer
 eslintcache
 sonarsource
