@@ -146,10 +146,12 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
   };
 
   protected async onStart(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    // Need to find a way to pull organisationID into analytics functions
     await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATING);
   }
 
   protected async onError(identifiableRecord: IIdentifiableMessage, error: unknown): Promise<void> {
+    // Need to find a way to pull organisationID into analytics functions
     await this.analyticsService.publishEvent(
       identifiableRecord,
       NotificationStateEnum.VALIDATION_FAILED,
@@ -158,6 +160,7 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
   }
 
   protected async onSuccess(identifiableRecord: IIdentifiableMessage): Promise<void> {
+    // Need to find a way to pull organisationID into analytics functions
     await this.analyticsService.publishEvent(identifiableRecord, NotificationStateEnum.VALIDATED);
   }
 

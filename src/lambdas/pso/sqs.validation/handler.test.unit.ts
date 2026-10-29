@@ -38,10 +38,17 @@ describe('Validation QueueHandler', async () => {
 
   // Test fixtures
   let context: Context;
-  let event: QueueEvent<IMessage>;
+  let event: QueueEvent<Omit<IMessage, 'OrganisationID'>>;
 
-  const message = mockIMessage(undefined);
-  const failedMessage = mockFailedIMessage();
+  const message = {
+    ...mockIMessage(),
+    OrganisationID: undefined,
+  };
+  const organisationID = 'mockSender';
+  const failedMessage = {
+    ...mockFailedIMessage(),
+    OrganisationID: undefined,
+  };
   const unidentifiableMessage = mockUnidentifiableIMessage();
 
   beforeEach(() => {
@@ -59,11 +66,22 @@ describe('Validation QueueHandler', async () => {
 
     instance = new Validation(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      contentValidationService: Promise.resolve(serviceMocks.contentValidationServiceMock),
       notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      organisationsRepository: Promise.resolve(serviceMocks.organisationsDynamoRepositoryMock),
       processingQueue: Promise.resolve(serviceMocks.processingQueueServiceMock),
+      validationService: Promise.resolve(serviceMocks.validationServiceMock),
     }));
     handler = instance.handler();
+
+    serviceMocks.organisationsDynamoRepositoryMock.getRecord.mockResolvedValueOnce({
+      DisplayName: 'TestOrganisation',
+      OrganisationID: 'mockSender',
+      OrganisationConfig: {
+        MessageRetention: {
+          Allowed: false,
+        },
+      },
+    });
   });
 
   it('should have the correct operationId', () => {
@@ -96,12 +114,13 @@ describe('Validation QueueHandler', async () => {
     await handler(event, context);
 
     // Assert
-    expect(serviceMocks.processingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([
-      { ...message, OrganisationID: 'mockSender' },
-    ]);
-    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledWith([
-      expect.objectContaining({ OrganisationID: 'ORG01' }),
-    ]);
+    expect(serviceMocks.processingQueueServiceMock.publishMessage).toHaveBeenCalledWith({
+      ...message,
+      OrganisationID: 'mockSender',
+    });
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ OrganisationID: organisationID })
+    );
   });
 
   it('should send an analytics event when the message is validated', async () => {
@@ -115,7 +134,7 @@ describe('Validation QueueHandler', async () => {
         NotificationID: message.NotificationID,
         UserID: message.UserID,
         CampaignID: message.CampaignID,
-        OrganisationID: 'mockSender',
+        //OrganisationID: organisationID,
       },
       NotificationStateEnum.VALIDATING
     );
@@ -125,7 +144,7 @@ describe('Validation QueueHandler', async () => {
         NotificationID: message.NotificationID,
         UserID: message.UserID,
         CampaignID: message.CampaignID,
-        OrganisationID: 'mockSender',
+        //OrganisationID: organisationID,
       },
       NotificationStateEnum.VALIDATED
     );
@@ -175,7 +194,7 @@ describe('Validation QueueHandler', async () => {
     await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
   });
 
-  it('should validate messages with valid markdown.', async () => {
+  it('should validate messages with valid markdown', async () => {
     // Arrange
     const messageWithMarkdown = {
       ...message,
@@ -191,20 +210,16 @@ describe('Validation QueueHandler', async () => {
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: messageWithMarkdown.DepartmentID,
-        MessageBody: messageWithMarkdown.MessageBody,
-        MessageTitle: messageWithMarkdown.MessageTitle,
-        NotificationBody: messageWithMarkdown.NotificationBody,
         NotificationID: messageWithMarkdown.NotificationID,
-        NotificationTitle: messageWithMarkdown.NotificationTitle,
         UserID: messageWithMarkdown.UserID,
         CampaignID: messageWithMarkdown.CampaignID,
-        OrganisationID: messageWithMarkdown.OrganisationID,
+        //OrganisationID: organisationID,
       },
       NotificationStateEnum.VALIDATED
     );
   });
 
-  it('should reject messages that contain invalid markdown.', async () => {
+  it('should reject messages that contain invalid markdown', async () => {
     // Arrange
     const invalidMarkdownBody = {
       ...message,
@@ -223,10 +238,10 @@ describe('Validation QueueHandler', async () => {
         NotificationID: message.NotificationID,
         UserID: message.UserID,
         CampaignID: message.CampaignID,
-        OrganisationID: message.OrganisationID,
+        //OrganisationID: organisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
-      ['https://example.com is using example.com hostname which is not on the allow list → at MessageBody.']
+      ['https://example.com is using example.com hostname which is not on the allow list']
     );
   });
 
@@ -277,7 +292,7 @@ describe('Validation QueueHandler', async () => {
         DepartmentID: failedMessage.DepartmentID,
         CampaignID: failedMessage.CampaignID,
         UserID: failedMessage.UserID,
-        OrganisationID: failedMessage.OrganisationID,
+        //OrganisationID: failedMessage.OrganisationID,
       },
       NotificationStateEnum.VALIDATING
     );
@@ -287,7 +302,7 @@ describe('Validation QueueHandler', async () => {
         DepartmentID: failedMessage.DepartmentID,
         UserID: failedMessage.UserID,
         CampaignID: failedMessage.CampaignID,
-        OrganisationID: failedMessage.OrganisationID,
+        //OrganisationID: failedMessage.OrganisationID,
       },
       NotificationStateEnum.VALIDATION_FAILED,
       [
@@ -331,10 +346,10 @@ describe('Validation QueueHandler', async () => {
         DepartmentID: message.DepartmentID,
         CampaignID: message.CampaignID,
         UserID: message.UserID,
-        OrganisationID: message.OrganisationID,
+        //OrganisationID: organisationID,
       },
       'VALIDATION_FAILED',
-      [`https://example.com is using example.com hostname which is not on the allow list → at MessageBody.`]
+      [`https://example.com is using example.com hostname which is not on the allow list`]
     );
   });
 });
