@@ -41,6 +41,7 @@ export default defineConfig([
       'no-undef': 'off',
       'no-unused-vars': 'off',
       'prefer-rest-params': 'off',
+      '@typescript-eslint/quotes': ['warn', 'single'],
     },
   },
   {
@@ -60,6 +61,7 @@ export default defineConfig([
       'vitest/no-standalone-expect': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/quotes': ['warn', 'single'],
     },
   },
   {
