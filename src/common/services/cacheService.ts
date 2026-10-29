@@ -65,8 +65,16 @@ export class CacheService {
   }
 
   // Store any value by serializing it
-  async store<T>(key: string, value: T) {
-    await this.cache.set(key, JSON.stringify(value));
+  async store<T>(key: string, value: T, expiration?: number) {
+    await this.cache.set(
+      key,
+      JSON.stringify(value),
+      expiration
+        ? {
+            expiration: { type: 'EX', value: expiration },
+          }
+        : undefined
+    );
     return value;
   }
 
@@ -139,5 +147,23 @@ export class CacheService {
       this.observability.metrics.addMetric(MetricsLabels.RATE_LIMITING_ENFORCED, MetricUnit.NoUnit, 0);
     }
     return state;
+  }
+
+  public analyticsEventKey(notificationID: string): string {
+    return `analytics_${notificationID}`;
+  }
+
+  public async getList<T>(key: string): Promise<T[]> {
+    const values = await this.cache.lRange(key, 0, -1);
+    return values.map((v) => JSON.parse(v) as T);
+  }
+
+  public async appendToList<T>(key: string, value: T, expiration?: number) {
+    await this.cache.rPush(key, JSON.stringify(value));
+
+    if (expiration) {
+      // Sets expiration in seconds
+      await this.cache.expire(key, expiration);
+    }
   }
 }
