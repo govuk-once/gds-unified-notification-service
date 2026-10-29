@@ -365,12 +365,14 @@ export class UNSPSOResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 
@@ -393,6 +395,7 @@ export class UNSPSOResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -400,6 +403,7 @@ export class UNSPSOResource extends Construct {
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readAndWrite,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 
@@ -455,7 +459,7 @@ export class UNSPSOResource extends Construct {
         ssmNamespaces: [config.namespace],
         sm: config.ssm.udp.sm ? [config.ssm.udp.sm] : [],
         kms: config.ssm.udp.kms ? [config.ssm.udp.kms] : [],
-        assumeableRolesArns: config.ssm.udp.role ? [config.ssm.udp.role] : [],
+        assumableRolesArns: config.ssm.udp.role ? [config.ssm.udp.role] : [],
         sqsSend: [this.queues.dispatch.queue.queueArn, this.queues.analytics.queue.queueArn],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readAndWrite,
@@ -640,7 +644,7 @@ export class UNSPSOResource extends Construct {
       .GET(`getCampaignStatus`, `/status/campaign/{campaignID}`, this.lambdas.http.getCampaignStatus.integration)
       .POST(`postMessage`, `/send`, this.lambdas.http.postMessage.integration);
 
-    // PSO API Gateway & WAF only accept mTLS filtered internetl traffic
+    // PSO API Gateway & WAF only accept mTLS filtered internet traffic
     applyExposureTag(this.gateway, 'Perimeter');
     applyExposureTag(this.gateway.waf, 'Perimeter');
 

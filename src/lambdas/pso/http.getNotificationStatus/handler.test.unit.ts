@@ -1,7 +1,14 @@
 import { IRequestEvent } from '@common/middlewares';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { GetNotificationStatus } from '@project/lambdas/pso/http.getNotificationStatus/handler';
-import { iocSpies, mockEventContext, mockIAnalytics, mockIMessageRecord, mockIProcessedMessage } from '@test/mocks';
+import {
+  iocSpies,
+  mockEventContext,
+  mockIAnalytics,
+  mockIMessageRecord,
+  mockIProcessedMessage,
+  mockServicesExpectedBehaviour,
+} from '@test/mocks';
 import { Context } from 'aws-lambda';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -31,8 +38,12 @@ describe('GetNotificationStatus Handler', async () => {
     context = mockEventContext('getNotificationStatus');
     event = { pathParameters: { notificationID } } as unknown as IRequestEvent;
 
+    // Mock SSM store and services responses
+    mockServicesExpectedBehaviour(serviceMocks);
+
     instance = new GetNotificationStatus(observabilityMocks, () => ({
       notificationsDynamoRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
+      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
     }));
     handler = instance.handler();
   });
@@ -54,7 +65,7 @@ describe('GetNotificationStatus Handler', async () => {
     expect(JSON.parse(result.body)).toEqual({ Status: 404, HttpError: 'NotFound', Errors: [] });
   });
 
-  it('should fetch the record uisng the notificationID path parameter', async () => {
+  it('should fetch the record using the notificationID path parameter', async () => {
     // Arrange
     serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue({
       ...messageRecord,
@@ -67,17 +78,17 @@ describe('GetNotificationStatus Handler', async () => {
     expect(serviceMocks.notificationsDynamoRepositoryMock.getRecord).toHaveBeenCalledWith(notificationID);
   });
 
-  it('should return 200 with the events mapped to status entires, sorted using the timestamp', async () => {
+  it('should return 200 with the events mapped to status entries, sorted using the timestamp', async () => {
     // Arrange
     const earlierEvent = {
-      ...mockIAnalytics(NotificationStateEnum.RECEIVED),
+      ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
       EventDateTime: new Date('2026-01-01T00:00:00.000Z').toISOString(),
     };
     const laterEvent = {
-      ...mockIAnalytics(NotificationStateEnum.READ),
+      ...mockIAnalytics('5a2145b8-5b6b-4136-8e3b-ad02662b0e9e', NotificationStateEnum.READ),
       EventDateTime: new Date('2026-01-02T00:00:00.000Z').toISOString(),
     };
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue({
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValueOnce({
       ...messageRecord,
       Events: [laterEvent, earlierEvent],
     });
@@ -103,7 +114,7 @@ describe('GetNotificationStatus Handler', async () => {
 
   it('should return 200 with an empty array if there are no events', async () => {
     // Arrange
-    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValue({
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValueOnce({
       ...messageRecord,
       Events: [],
     });
@@ -114,5 +125,47 @@ describe('GetNotificationStatus Handler', async () => {
     // Assert
     expect(result.statusCode).toEqual(200);
     expect(JSON.parse(result.body)).toEqual([]);
+  });
+
+  it('should return 200 and use events from cache if not present in dynamodb record', async () => {
+    // Arrange
+    const cachedEvents = [
+      {
+        ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.VALIDATED_API_CALL),
+        EventDateTime: new Date('2026-01-02T00:00:00.000Z').toISOString(),
+      },
+      {
+        ...mockIAnalytics('5a2145b8-5b6b-4136-8e3b-ad02662b0e9e', NotificationStateEnum.PROCESSING),
+        EventDateTime: new Date('2026-01-02T00:00:00.000Z').toISOString(),
+      },
+    ];
+    serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce(cachedEvents);
+
+    const notificationEvent = {
+      ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.VALIDATED_API_CALL),
+      EventDateTime: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+    };
+    serviceMocks.notificationsDynamoRepositoryMock.getRecord = vi.fn().mockResolvedValueOnce({
+      ...messageRecord,
+      Events: [notificationEvent],
+    });
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(200);
+    expect(JSON.parse(result.body)).toEqual([
+      {
+        EventTimestamp: notificationEvent.EventDateTime,
+        NotificationID: notificationEvent.NotificationID,
+        Status: notificationEvent.Event,
+      },
+      {
+        EventTimestamp: cachedEvents[1].EventDateTime,
+        NotificationID: cachedEvents[1].NotificationID,
+        Status: cachedEvents[1].Event,
+      },
+    ]);
   });
 });

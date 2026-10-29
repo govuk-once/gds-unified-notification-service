@@ -17,7 +17,10 @@ Configuration lives in [`vitest.unit.config.ts`](./vitest.unit.config.ts) (exten
 ### File naming & location
 
 - Test files sit next to the file under test and are named `<subject>.test.unit.ts` (e.g. `handler.ts` / `handler.test.unit.ts`, `campaignsDynamoRepository.ts` / `campaignsDynamoRepository.test.unit.ts`).
-- Shared test helpers (factories, mock builders) are named `<name>.test.util.ts` and live under [`src/common/utils`](./common/utils) (e.g. `mockConfigurationImplementation.test.util.ts`, `mockInstanceFactory.test.util.ts`) so they can be imported via the `@common/utils` alias from any test.
+- Shared test helpers live outside `src`, under [`test/mocks`](../test/mocks), and are imported through the `@test/mocks` barrel from any test:
+  - [`test/mocks/services`](../test/mocks/services): service and AWS-client mock factories (`mockInstanceFactory.test.util.ts`, `mockConfigurationImplementation.test.util.ts`). Helpers are named `<name>.test.util.ts`.
+  - [`test/mocks/models`](../test/mocks/models): typed fixtures for request bodies, records and events (`<Model>.fixtures.ts`, e.g. `IMessage.fixtures.ts`, `Events.fixtures.ts`). Prefer these to hand-written objects so a schema change only needs updating in one place.
+  - [`test/mocks/https`](../test/mocks/https): MSW handlers (see below).
 - Files matching `*.{test,test.unit}.ts` are excluded from coverage instrumentation (see `coverage.exclude` in [`vitest.config.ts`](../vitest.config.ts)).
 
 ### Structure
@@ -39,14 +42,14 @@ Configuration lives in [`vitest.unit.config.ts`](./vitest.unit.config.ts) (exten
   vi.mock('@common/repositories', { spy: true });
   ```
 
-- Use the shared factories in `mockInstanceFactory.test.util.ts` instead of hand-rolling mocks:
+- Use the shared factories in `mockInstanceFactory.test.util.ts` (via `@test/mocks`) instead of hand-rolling mocks:
   - `observabilitySpies()` - a mocked `ObservabilityService` (logger/metrics/tracer).
   - `ServiceSpies(observabilityMock)` - mocked instances of every service/repository, wired to share the same observability mock, returned as a keyed object (e.g. `notificationsDynamoRepositoryMock`, `processingQueueServiceMock`).
 - Use `mockDefaultConfig()` + `mockGetParameterImplementation(...)` from `mockConfigurationImplementation.test.util.ts` to stub SSM parameter/secret lookups on `configurationServiceMock.getParameter`, rather than hardcoding config values per test.
 - Construct the handler under test by instantiating it directly with the mocked dependencies (see any `http.*/handler.test.unit.ts`), then call `instance.handler()` to obtain the actual Lambda handler function.
-- Third-party HTTP calls (e.g. OneSignal, UDP) are intercepted with [MSW](https://mswjs.io/) rather than mocked at the module level. Handlers live in [`src/_unittesthttpmocks`](./_unittesthttpmocks) (one file per provider, aggregated in `index.ts`) and are wired up automatically by `setup.unit.vitest.ts`. Unhandled requests throw by design (`onUnhandledRequest: 'error'`) - add a handler rather than suppressing the error.
+- Third-party HTTP calls (e.g. OneSignal, UDP) are intercepted with [MSW](https://mswjs.io/) rather than mocked at the module level. Handlers live in [`test/mocks/https`](../test/mocks/https) (one file per provider, aggregated in `index.ts`) and are wired up automatically by `setup.unit.vitest.ts`. Unhandled requests throw by design (`onUnhandledRequest: 'error'`) - add a handler rather than suppressing the error.
   - Set `VITEST_DISABLE_MSW=true` to bypass MSW entirely and let requests hit the real network (useful for one-off debugging, not for CI).
 
 ### Coverage requirements
 
-Coverage is measured with the `v8` provider and gated at **80%** for statements, branches, functions and lines (see `coverage.thresholds` in [`vitest.config.ts`](../vitest.config.ts)). This is enforced in the PR pipeline - see [`.github/README-Pipelines.md`](../.github/README-Pipelines.md).
+Coverage is measured with the `v8` provider and gated at **80%** for statements, branches, functions and lines (see `coverage.thresholds` in [`vitest.config.ts`](../vitest.config.ts)). Coverage is reported on every PR as a comment and fed to the SonarQube quality gate, which is what blocks a PR; the PR job's own test step doesn't fail on a missed threshold. See [Deployment Guide: PR pipeline](../docs/deployment.md#pr-pipeline-pryml).

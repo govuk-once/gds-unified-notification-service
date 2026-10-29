@@ -101,7 +101,7 @@ export abstract class APIHandler<
   }
 
   /**
-   * Adds layers of structure enforcement for incoming and outcoming data
+   * Adds layers of structure enforcement for incoming and outgoing data
    */
   protected validationMiddlewares(middy: IMiddleware): IMiddleware {
     return middy

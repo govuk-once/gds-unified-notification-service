@@ -1,5 +1,6 @@
 import {
   HandlerDependencies,
+  iocGetCacheService,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
@@ -11,9 +12,10 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { CacheService, ConfigurationService, ObservabilityService } from '@common/services';
 import { filters } from '@common/utils/array';
 import DateInSeconds from '@common/utils/dateInSeconds';
+import { IAnalytics } from '@project/lambdas/interfaces';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
@@ -31,6 +33,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
   public organisationsDynamoRepository!: OrganisationsDynamoRepository;
+  public cacheService!: CacheService;
 
   constructor(
     protected config: ConfigurationService,
@@ -67,6 +70,16 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations(notifications);
 
+    this.observability.logger.info('Found notifications - returning 200', { length: notifications.length });
+
+    // Retrieving cache events to compare with dynamo record
+    const cachedEvents: Record<string, IAnalytics[]> = {};
+    for (const notification of notifications) {
+      cachedEvents[notification.NotificationID] = await this.cacheService.getList<IAnalytics>(
+        this.cacheService.analyticsEventKey(notification.NotificationID)
+      );
+    }
+
     const responseBody = notifications
       .filter((notification) => {
         // Handle notifications that are past TTL expiration - DynamoDB can take up to 48h to remove these, so we can filter these out here
@@ -75,7 +88,9 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         }
         return true;
       })
-      .map((n) => IMessageRecordToIFlexNotification(n, organisations, this.observability))
+      .map((n) =>
+        IMessageRecordToIFlexNotification(n, organisations, this.observability, cachedEvents[n.NotificationID] ?? [])
+      )
       .filter(filters.isDefined)
       .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
       .sort((a, b) => {
@@ -98,4 +113,5 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 export const handler = new GetNotifications(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
+  cacheService: iocGetCacheService().connect(),
 })).handler();

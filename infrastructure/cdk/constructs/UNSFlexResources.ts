@@ -52,6 +52,11 @@ export class UNSFlexResource extends Construct {
     // Helper definitions
     const serviceName = 'flex';
     const baseHTTP = UNSLambdaConstruct.baseHTTPFactory(serviceName, refs.codeSigning);
+    const basePrivateVPC = {
+      ref: refs.vpc.vpc,
+      securityGroups: [refs.vpc.securityGroups.privateEgress],
+      subnets: refs.vpc.vpc.privateSubnets,
+    };
 
     // /notifications
     const getNotifications = new UNSLambdaConstruct(this, config, {
@@ -59,6 +64,7 @@ export class UNSFlexResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -66,6 +72,7 @@ export class UNSFlexResource extends Construct {
           messages: refs.dynamodb.messages.permissions.readOnly,
           organisations: orgs.organisationsTable.permissions.readOnly,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 
@@ -75,6 +82,7 @@ export class UNSFlexResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -82,6 +90,7 @@ export class UNSFlexResource extends Construct {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
           organisations: orgs.organisationsTable.permissions.readOnly,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 
@@ -91,6 +100,7 @@ export class UNSFlexResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -98,6 +108,7 @@ export class UNSFlexResource extends Construct {
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 
@@ -107,6 +118,7 @@ export class UNSFlexResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -114,6 +126,7 @@ export class UNSFlexResource extends Construct {
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 

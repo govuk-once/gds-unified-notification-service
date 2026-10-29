@@ -94,7 +94,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     // No certificate found
     if (certificateRecord == undefined) {
-      this.observability.logger.error('Request denied as the certificate has no record in DynamoDB', { certificateId });
+      this.observability.logger.error(`Request denied as the certificate has no record in DynamoDB`, { certificateId });
       this.observability.metrics.addMetric(
         MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_UNKNOWN_CERTIFICATE_COUNT,
         MetricUnit.Count,
@@ -107,7 +107,7 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
 
     // Certificate has been revoked
     if (certificateRecord.Revoked) {
-      this.observability.logger.error('Request denied as the certificate has been revoked', { certificateId });
+      this.observability.logger.error(`Request denied as the certificate has been revoked`, { certificateId });
       this.observability.metrics.addMetric(
         MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_REVOKED_CERTIFICATE_COUNT,
         MetricUnit.Count,

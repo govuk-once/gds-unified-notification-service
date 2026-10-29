@@ -50,7 +50,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
     };
 
     try {
-      // If namespace does not contain value - fetch namepsace
+      // If namespace does not contain value - fetch namespace
       if (!this.inMemoryCache.has(param.Name)) {
         // Persist promise into the class prevent parallel refresh cache calls when cache is empty & lambda has been initialized
         if (this.refreshCachePromise == null) {

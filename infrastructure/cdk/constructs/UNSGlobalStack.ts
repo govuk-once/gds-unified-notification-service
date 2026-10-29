@@ -73,6 +73,19 @@ export class UNSGlobalStack extends Stack {
     new wafv2.CfnLoggingConfiguration(this, config.utils.namingHelper('cloudfront-waf-logging-configuration'), {
       resourceArn: this.cloudfrontWaf.attrArn,
       logDestinationConfigs: [wafLogGroup.logGroupArn],
+      redactedFields: [
+        ...[
+          // Exclude any of the following headers - matching log redaction logic in ioc.ts
+          'clientCertPem',
+          `x-amz-security-token`,
+          `app_id`,
+          `Authorization`,
+          `x-api-key`,
+          `apiKey`,
+          'CloudFront-Viewer-Cert-PEM',
+          `x-origin-header`,
+        ].map((header) => ({ singleHeader: { Name: header.toLowerCase() } })),
+      ],
     });
 
     for (const [key, value] of Object.entries(config.defaultTags())) {

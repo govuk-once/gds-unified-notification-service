@@ -162,7 +162,7 @@ export class UNSVpcConstruct<
     if (cloudFormationVpcStruct?.handler) {
       applyCheckovSkips(cloudFormationVpcStruct.handler, [
         ['CKV_AWS_117', 'Not all lambdas need to be in VPCs by design'],
-        ['CKV_AWS_116', 'Lambda is not used for asyncronous processing'],
+        ['CKV_AWS_116', 'Lambda is not used for asynchronous processing'],
         ['CKV_AWS_115', 'Default concurrency limit is sufficient'],
       ]);
     }

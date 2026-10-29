@@ -47,7 +47,7 @@ jobs:
       # Generate coverage
       - name: 🧪 Run Unit tests
         id: unittests
-        run: pnpm run test:coverage || echo "Failed to meet the criteria"
+        run: pnpm run test:coverage
 
       # Perform scan
       - name: 🕵🏻 Run SonarQube Scan

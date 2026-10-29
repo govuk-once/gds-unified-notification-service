@@ -1,7 +1,8 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { NotificationStateEnum } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { iocSpies, mockServicesExpectedBehaviour } from '@test/mocks';
+import { iocSpies, mockIAnalytics, mockServicesExpectedBehaviour } from '@test/mocks';
 import redis from 'redis';
 
 vi.mock('@aws-lambda-powertools/logger', { spy: true });
@@ -23,6 +24,8 @@ describe('CacheService', async () => {
   const getMock = vi.fn();
   const incrByMock = vi.fn();
   const expireMock = vi.fn();
+  const rPushMock = vi.fn();
+  const lRangeMock = vi.fn();
 
   beforeEach(() => {
     // Reset all mock
@@ -41,6 +44,8 @@ describe('CacheService', async () => {
           get: getMock,
           expire: expireMock,
           incrBy: incrByMock,
+          rPush: rPushMock,
+          lRange: lRangeMock,
         }) as unknown as ReturnType<typeof redis.createClient>
     );
   });
@@ -67,7 +72,24 @@ describe('CacheService', async () => {
 
       // Assert
       expect(setMock).toHaveBeenCalledTimes(1);
-      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(value));
+      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(value), undefined);
+    });
+
+    it('should trigger SET command with expiration when provided', async () => {
+      // Arrange
+      const key = 'a';
+      const value = 'example';
+      const expiration = 10 * 60;
+
+      // Act
+      await instance.connect();
+      await instance.store(key, value, expiration);
+
+      // Assert
+      expect(setMock).toHaveBeenCalledTimes(1);
+      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(value), {
+        expiration: { type: 'EX', value: expiration },
+      });
     });
   });
 
@@ -100,7 +122,7 @@ describe('CacheService', async () => {
       expect(getMock).toHaveBeenCalledTimes(2);
       expect(getMock).toHaveBeenCalledWith(key);
       expect(setMock).toHaveBeenCalledTimes(1);
-      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(7));
+      expect(setMock).toHaveBeenCalledWith(key, JSON.stringify(7), undefined);
       expect(factory).toHaveBeenCalledTimes(1);
     });
   });
@@ -170,7 +192,7 @@ describe('CacheService', async () => {
       });
     });
 
-    it('should increment the key and set an expiry on the cache when increment is proivded, and return the correct state', async () => {
+    it('should increment the key and set an expiry on the cache when increment is provided, and return the correct state', async () => {
       // Arrange
       const counter = 3;
       const increment = 1;
@@ -272,6 +294,57 @@ describe('CacheService', async () => {
         MetricUnit.NoUnit,
         1
       );
+    });
+  });
+
+  describe('appendToList', () => {
+    it('should trigger RPUSH command on redis connection using serialized value', async () => {
+      // Arrange
+      const key = 'a';
+      const value = 'example';
+      await instance.connect();
+
+      // Act
+      await instance.appendToList(key, value);
+
+      // Assert
+      expect(rPushMock).toHaveBeenCalledTimes(1);
+      expect(rPushMock).toHaveBeenCalledWith(key, JSON.stringify(value));
+    });
+
+    it('should trigger EXPIRE command on redis connection when an expiration is provided', async () => {
+      // Arrange
+      const key = 'a';
+      const value = 'example';
+      const expiration = 600;
+      await instance.connect();
+
+      // Act
+      await instance.appendToList(key, value, expiration);
+
+      // Assert
+      expect(expireMock).toHaveBeenCalledTimes(1);
+      expect(expireMock).toHaveBeenCalledWith(key, expiration);
+    });
+  });
+
+  describe('getList', () => {
+    it('should trigger LRANGE command on redis connection and returned deserialized values', async () => {
+      // Arrange
+      const key = 'a';
+      const event = mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.VALIDATED_API_CALL);
+      const returnValue = [JSON.stringify(event)];
+      lRangeMock.mockResolvedValueOnce(returnValue);
+
+      await instance.connect();
+
+      // Act
+      const result = await instance.getList(key);
+
+      // Assert
+      expect(lRangeMock).toHaveBeenCalledTimes(1);
+      expect(lRangeMock).toHaveBeenCalledWith(key, 0, -1);
+      expect(result).toEqual([event]);
     });
   });
 });

@@ -40,13 +40,17 @@ Feature-flagged (`config.featureFlag.groups` — infrastructure-level deployment
 - **ElastiCache (Redis)** - `CacheService` stores chunked push-ID lists for each worker under `Worker/GroupProcessingWorker/{GroupNotificationID}/{workerID}`.
 - **SQS** - publishes batch metadata to the `groupprocessing` queue via `GroupProcessingQueueService.publishMessageBatch`.
 - **SSM** - reads `SSMParameters.Group.Dispatch.WorkerCount` to determine how many worker chunks to create.
-- Content is validated in-process by `ValidationService.messageValidation`, same as `postMessage`.
+- The request schema rejects the whole request with `400` if two items share a `GroupNotificationID` (`Duplicate GroupNotificationIDs are not allowed`).
+- Content is validated in-process by `ValidationService.messageValidation`, same as `postMessage` (see [Configuration: Feature flags](../../../../docs/configuration.md#feature-flags)).
+- The cached chunks are consumed by [`sqs.groupProcessingWorker`](../sqs.groupProcessingWorker/README.md).
 
 ### Logic
 
 ```mermaid
 flowchart TD
-    A["POST /v1/send-to-group"] --> B{Organization resolved?}
+    A["POST /v1/send-to-group"] --> A1{"Schema valid & GroupNotificationIDs unique?"}
+    A1 -- No --> C
+    A1 -- Yes --> B{Organization resolved?}
     B -- No --> C[400 Bad Request]
     B -- Yes --> D[Stamp OrganisationID from authorizer context]
     D --> E["ValidationService.messageValidation per item"]

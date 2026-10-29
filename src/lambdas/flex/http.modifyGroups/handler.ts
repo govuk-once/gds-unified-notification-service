@@ -56,18 +56,10 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
 
     // Leave groups
     const groupsToLeave = event.body.filter((g) => g.Action === GroupActionEnum.LEAVE);
-    this.observability.logger.info('Leaving groups', {
-      pushID,
-      groupsToLeave,
-    });
     usersGroups = await this.groupStoreDynamoRepository.leaveGroups(pushID, groupsToLeave, usersGroups);
 
     // Join Groups
     const groupsToJoin = event.body.filter((g) => g.Action === GroupActionEnum.JOIN);
-    this.observability.logger.info('Joining groups', {
-      pushID,
-      groupsToJoin,
-    });
     usersGroups = await this.groupStoreDynamoRepository.joinGroups(pushID, groupsToJoin, usersGroups);
 
     this.observability.logger.info('Successful request - returning 200', {
