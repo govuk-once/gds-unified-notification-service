@@ -112,7 +112,9 @@ export class PostGroupMessage extends APIHandler<
     }));
 
     // Validates all messages & reject request when contents or configurations are unsupported
-    this.validationService.messageValidation(messages, organisationConfig);
+    for (const message of messages) {
+      this.validationService.messageValidation(message, organisationConfig);
+    }
 
     // Get the number of workers to be used to process the group message
     const numberOfWorkers = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerCount);

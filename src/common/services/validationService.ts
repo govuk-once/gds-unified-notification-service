@@ -41,41 +41,39 @@ export class ValidationService {
     }
   }
 
-  public messageValidation(messages: IMessageFields[], organisationConfig: IOrganisationConfig): void {
-    for (const message of messages) {
-      // Validates for unsupported markdown and urls in message body
-      this.contentValidationService.validate(message.MessageBody);
+  public messageValidation(message: IMessageFields, organisationConfig: IOrganisationConfig): void {
+    // Validates for unsupported markdown and urls in message body
+    this.contentValidationService.validate(message.MessageBody);
 
-      if (this.featureFlags.deeplinkUrl) {
-        // Validates for unsupported urls in deeplinks - explicitly setting overrides rather than falling back on default validation provided by SSM, values in SSM are for content
-        this.contentValidationService.validateUrls(message.DeeplinkURL, {
-          protocols: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('protocol')).filter(filters.isDefined),
-          hostnames: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('hostname')).filter(filters.isDefined),
-        });
-      } else if (message.DeeplinkURL) {
-        throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
-      }
+    if (this.featureFlags.deeplinkUrl) {
+      // Validates for unsupported urls in deeplinks - explicitly setting overrides rather than falling back on default validation provided by SSM, values in SSM are for content
+      this.contentValidationService.validateUrls(message.DeeplinkURL, {
+        protocols: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('protocol')).filter(filters.isDefined),
+        hostnames: (organisationConfig.DeeplinkAllowList ?? []).map(maps.pick('hostname')).filter(filters.isDefined),
+      });
+    } else if (message.DeeplinkURL) {
+      throw new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']);
+    }
 
-      if (message.Channel) {
-        // Validates message channel against channel controls
-        if (this.featureFlags.channelControls) {
-          if (!organisationConfig.Channels?.includes(message.Channel)) {
-            throw new BadRequestError([
-              'Invalid input: invalid Channel, this channel is unsupported for this organisation',
-            ]);
-          }
-        } else {
-          throw new BadRequestError(['Invalid input: unexpected Channel at .']);
+    if (message.Channel) {
+      // Validates message channel against channel controls
+      if (this.featureFlags.channelControls) {
+        if (!organisationConfig.Channels?.includes(message.Channel)) {
+          throw new BadRequestError([
+            'Invalid input: invalid Channel, this channel is unsupported for this organisation',
+          ]);
         }
+      } else {
+        throw new BadRequestError(['Invalid input: unexpected Channel at .']);
       }
+    }
 
-      if (message.ExpiresInDays) {
-        // Validates expirations in days against message retention
-        if (this.featureFlags.messageRetention) {
-          this.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
-        } else {
-          throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
-        }
+    if (message.ExpiresInDays) {
+      // Validates expirations in days against message retention
+      if (this.featureFlags.messageRetention) {
+        this.validateExpirationForOrganisation(message.ExpiresInDays, organisationConfig);
+      } else {
+        throw new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']);
       }
     }
   }

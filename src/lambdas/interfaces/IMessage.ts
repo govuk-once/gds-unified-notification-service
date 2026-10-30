@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const IIdentifiableMessageSchema = z.object({
   // Generate NotificationIDs if not provided
   NotificationID: z.uuid({ version: 'v4' }).default(() => uuid()),
-  OrganisationID: z.string(),
+  OrganisationID: z.string().optional(),
   DepartmentID: z.string().optional(),
   GroupNotificationID: z.string().optional(),
   UserID: z.string().optional(),

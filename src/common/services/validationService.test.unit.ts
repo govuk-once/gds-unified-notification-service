@@ -184,7 +184,7 @@ describe('ValidationService', async () => {
         MessageBody: 'https://readme.gov.uk/hello-world?q=1',
       };
       // Act
-      const result = instance.messageValidation([messageWithDeeplink], organisationConfig);
+      const result = instance.messageValidation(messageWithDeeplink, organisationConfig);
 
       // Assert
       expect(result).toBe(undefined);
@@ -198,7 +198,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfig);
+      const result = () => instance.messageValidation(messageWithDeeplink, organisationConfig);
 
       // Assert
       expect(result).toThrow(
@@ -215,7 +215,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = instance.messageValidation([markdownMessageBody], organisationConfig);
+      const result = instance.messageValidation(markdownMessageBody, organisationConfig);
 
       // Assert
       expect(result).toBe(undefined);
@@ -229,7 +229,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([markdownMessageBody], organisationConfig);
+      const result = () => instance.messageValidation(markdownMessageBody, organisationConfig);
 
       // Assert
       expect(result).toThrow(
@@ -251,7 +251,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfig);
+      const result = () => instance.messageValidation(messageWithDeeplink, organisationConfig);
 
       // Assert
       expect(result).toThrow(new BadRequestError(['Invalid input: unexpected DeeplinkURL at .']));
@@ -271,7 +271,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithExpiresInDays], organisationConfig);
+      const result = () => instance.messageValidation(messageWithExpiresInDays, organisationConfig);
 
       // Assert
       expect(result).toThrow(new BadRequestError(['Invalid input: unexpected ExpiresInDays at .']));
@@ -291,7 +291,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithChannel], organisationConfig);
+      const result = () => instance.messageValidation(messageWithChannel, organisationConfig);
 
       // Assert
       expect(result).toThrow(new BadRequestError(['Invalid input: unexpected Channel at .']));
@@ -308,7 +308,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = instance.messageValidation([messageWithPushChannel], organisationConfigWithAllowedChannel);
+      const result = instance.messageValidation(messageWithPushChannel, organisationConfigWithAllowedChannel);
 
       // Assert
       expect(result).toBe(undefined);
@@ -322,7 +322,7 @@ describe('ValidationService', async () => {
       const messageWithMessageChannel = { ...message, Channel: ChannelsEnum.MESSAGE_CENTRE_ONLY };
 
       // Act
-      const result = instance.messageValidation([messageWithMessageChannel], organisationConfigWithAllowedChannel);
+      const result = instance.messageValidation(messageWithMessageChannel, organisationConfigWithAllowedChannel);
 
       // Assert
       expect(result).toBe(undefined);
@@ -339,7 +339,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithPushChannel], organisationConfigWithAllowedChannel);
+      const result = () => instance.messageValidation(messageWithPushChannel, organisationConfigWithAllowedChannel);
 
       // Assert
       expect(result).toThrow(
@@ -356,7 +356,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithPushChannel], organisationConfigWithNoChannel);
+      const result = () => instance.messageValidation(messageWithPushChannel, organisationConfigWithNoChannel);
 
       // Assert
       expect(result).toThrow(
@@ -369,7 +369,7 @@ describe('ValidationService', async () => {
       const organisationConfigWithNoChannel = {};
 
       // Act
-      const result = instance.messageValidation([message], organisationConfigWithNoChannel);
+      const result = instance.messageValidation(message, organisationConfigWithNoChannel);
 
       // Assert
       expect(result).toBe(undefined);
@@ -386,7 +386,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithPushChannel], organisationConfigWithNoChannel);
+      const result = () => instance.messageValidation(messageWithPushChannel, organisationConfigWithNoChannel);
 
       // Assert
       expect(result).toThrow(
@@ -405,7 +405,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = instance.messageValidation(messageWithDeeplink, organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toBe(undefined);
@@ -421,7 +421,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = () => instance.messageValidation(messageWithDeeplink, organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toThrow(
@@ -442,7 +442,7 @@ describe('ValidationService', async () => {
       };
 
       // Act
-      const result = () => instance.messageValidation([messageWithDeeplink], organisationConfigWithDeeplinkURL);
+      const result = () => instance.messageValidation(messageWithDeeplink, organisationConfigWithDeeplinkURL);
 
       // Assert
       expect(result).toThrow(

@@ -108,6 +108,7 @@ export class PostMessage extends APIHandler<
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', { event });
 
+    this.observability.logger.debug(`Fetch OrganisationID and Organisation config from authorizer headers`);
     const organisationID = event.requestContext.authorizer.Organization;
     const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
@@ -117,7 +118,9 @@ export class PostMessage extends APIHandler<
     }));
 
     // Validates all messages & reject request when contents or configurations are unsupported
-    this.validationService.messageValidation(messages, organisationConfig);
+    for (const message of messages) {
+      this.validationService.messageValidation(message, organisationConfig);
+    }
 
     // Publish analytics & push items to the processing queue
     this.observability.logger.info('Publishing analytics events for validated messages.');

@@ -1,8 +1,8 @@
 import { BatchProcessor, EventType, processPartialResponse } from '@aws-lambda-powertools/batch';
 import { PartialItemFailureResponse } from '@aws-lambda-powertools/batch/types';
-import { ContentValidationError, UnidentifiableRecordError } from '@common/models/Errors/BadRequestError';
+import { BadRequestError, UnidentifiableRecordError } from '@common/models/Errors/BadRequestError';
 import { QueueEvent, QueueHandler } from '@common/operations/queueOperation';
-import { ConfigurationService, ContentValidationService, ObservabilityService } from '@common/services';
+import { ConfigurationService, ObservabilityService } from '@common/services';
 import { zodErrorFormatter } from '@common/utils';
 import SSMParameters, { ParameterConfig } from '@shared/ssmParameter';
 import { Context, SQSRecord } from 'aws-lambda';
@@ -22,8 +22,6 @@ export abstract class BatchQueueOperation<
 
   protected requestBodySchema!: InputSchema;
   protected identifiableRecordSchema!: IdentifiableRecordSchema;
-
-  public contentValidationService: ContentValidationService | undefined;
 
   constructor(
     protected config: ConfigurationService,
@@ -73,7 +71,7 @@ export abstract class BatchQueueOperation<
   protected validateRequiredFields(record: SQSRecord): z.infer<IdentifiableRecordSchema> {
     const { data, error } = this.identifiableRecordSchema.safeParse(record.body);
     if (error) {
-      this.observability.logger.error(`Supplied message does not contain required record fields, rejecting record`, {
+      this.observability.logger.error('Supplied message does not contain required record fields, rejecting record', {
         raw: record.body,
         error: error ? z.prettifyError(error) : {},
       });
@@ -91,19 +89,13 @@ export abstract class BatchQueueOperation<
    * @returns The SQS record containing the strongly-typed, parsed body.
    */
   protected async validateRecord(record: SQSRecord): Promise<Omit<SQSRecord, 'body'> & { body: z.infer<InputSchema> }> {
-    // Added strict validation and contents validation to schema if content validation service is provided
-    const contentValidationService = this.contentValidationService;
-    const schema = contentValidationService
-      ? this.requestBodySchema.superRefine((data, ctx) => contentValidationService.validateRecords(data, ctx))
-      : this.requestBodySchema;
-
-    const { data, error } = await schema.safeParseAsync(record.body);
+    const { data, error } = await this.requestBodySchema.safeParseAsync(record.body);
     if (error) {
-      this.observability.logger.error(`The message in the record failed validation`, {
+      this.observability.logger.error('The message in the record failed validation and parsing against schema', {
         raw: record.body,
         error: error ? z.prettifyError(error) : {},
       });
-      throw new ContentValidationError(zodErrorFormatter(error));
+      throw new BadRequestError(zodErrorFormatter(error));
     }
 
     return { ...record, body: data };
@@ -123,7 +115,7 @@ export abstract class BatchQueueOperation<
       await this.onSuccess(identifiableRecord);
     } catch (error) {
       await this.onError(identifiableRecord, error);
-      this.observability.logger.error(`Error during record handling`, {
+      this.observability.logger.error('Error during record handling', {
         operationId: this.operationId,
         error: this.observability.formatError(error),
         identifiableRecord,
@@ -148,6 +140,7 @@ export abstract class BatchQueueOperation<
     }
 
     const processor = new BatchProcessor(EventType.SQS);
+
     const failures = await processPartialResponse(event, this.recordHandlerWrapper, processor, {
       context,
     });

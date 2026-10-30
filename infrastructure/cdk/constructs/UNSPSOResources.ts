@@ -3,7 +3,16 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
 import { Schedule } from 'aws-cdk-lib/aws-events';
-import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
+import {
+  AccountPrincipal,
+  CfnAccessKey,
+  Effect,
+  Policy,
+  PolicyStatement,
+  Role,
+  ServicePrincipal,
+  User,
+} from 'aws-cdk-lib/aws-iam';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
@@ -87,7 +96,7 @@ export class UNSPSOResource extends Construct {
     super(scope, 'pso');
 
     const stack = Stack.of(this);
-    const { refs } = props;
+    const { refs, orgs } = props;
 
     //// =====================================================
     // SQS Queues
@@ -153,6 +162,32 @@ export class UNSPSOResource extends Construct {
     });
     applyPiiTag(this.queues.analytics.queue, 'false');
     applyPiiTag(this.queues.analytics.dlq, 'false');
+
+    const externalSenderRole: Record<string, string> = {};
+    for (const [consumer, account] of Object.entries(config.ssm.certificateConsumers)) {
+      // Create external execution invoker IAM role
+      const role = new Role(this, config.utils.namingHelper(`iamr-sqs`, `external-sender`, consumer), {
+        roleName: config.utils.namingHelper(`iamr-sqs`, `external-sender`, consumer),
+        assumedBy: new AccountPrincipal(account),
+      });
+
+      role.attachInlinePolicy(
+        new Policy(this, config.utils.namingHelper(`iamr`, `external-sender`, consumer), {
+          statements: [
+            new PolicyStatement({
+              actions: ['sqs:SendMessage'],
+              resources: [this.queues.incoming.queue.queueArn],
+            }),
+            new PolicyStatement({
+              actions: ['kms:GenerateDataKey', 'kms:Decrypt'],
+              resources: [refs.kms.keyArn],
+            }),
+          ],
+        })
+      );
+
+      externalSenderRole[consumer] = role.roleId;
+    }
 
     // //// =====================================================
     // // Log Groups
@@ -440,6 +475,7 @@ export class UNSPSOResource extends Construct {
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readAndWrite,
           campaigns: refs.dynamodb.campaigns.permissions.readAndWrite,
+          organisations: props.orgs.organisationsTable.permissions.readOnly,
         },
       },
       triggers: {
@@ -712,6 +748,9 @@ export class UNSPSOResource extends Construct {
           }
         : {}),
       [SSMParameters.Queue.Dispatch.Url.Path]: this.queues.dispatch.queue.queueUrl,
+
+      // SQS External Queue Role
+      [SSMParameters.Config.ExternalSender.Role.Path]: externalSenderRole,
 
       // BigQuery Analytics export
       [SSMParameters.AnalyticsExport.LogGroup.Name.Path]: analyticsExportLogGroup.logGroupName,
