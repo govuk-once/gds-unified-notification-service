@@ -1,6 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
+import { CacheService } from '@common/services/cacheService';
 import { MetricsLabels, ObservabilityService, prefixEvent } from '@common/services/observabilityService';
 import { IIdentifiableMessage } from '@project/lambdas';
 
@@ -13,8 +14,21 @@ export type AnalyticsEventFromIMessage = Pick<
   APIGWExtendedID?: string;
 };
 
+type AnalyticsEvent = {
+  EventID: string;
+  NotificationID: string;
+  DepartmentID?: string;
+  OrganisationID: string;
+  CampaignID?: string;
+  APIGWExtendedID?: string;
+  EventDateTime: string;
+  Event: string;
+  EventReason?: string;
+};
+
 export class AnalyticsService {
   constructor(
+    public cache: CacheService,
     public observability: ObservabilityService,
     public queue: AnalyticsQueueService
   ) {}
@@ -31,7 +45,11 @@ export class AnalyticsService {
     }
   }
 
-  public createEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
+  public createEvent<T>(
+    message: AnalyticsEventFromIMessage,
+    status: NotificationStateEnum,
+    reason?: T
+  ): AnalyticsEvent {
     return {
       EventID: uuid(),
       NotificationID: message.NotificationID,
@@ -46,26 +64,37 @@ export class AnalyticsService {
   }
 
   public async publishMultipleEvents<T>(
-    events: AnalyticsEventFromIMessage[],
+    messages: AnalyticsEventFromIMessage[],
     status: NotificationStateEnum,
     reasons?: T[]
   ) {
     // Ignore empty arrays
-    if (events.length == 0) {
+    if (messages.length == 0) {
       return;
     }
 
     // Map events & reasons together based on index (expecting two arrays of same length)
-    this.observability.logger.info(`Events`, { events });
-    await this.queue.publishMessageBatch(
-      events.map((event, index) => this.createEvent<T>(event, status, reasons ? reasons[index] : undefined))
+    this.observability.logger.info(`Events`, { events: messages });
+
+    const events = messages.map((event, index) =>
+      this.createEvent<T>(event, status, reasons ? reasons[index] : undefined)
     );
+    for (const event of events) {
+      await this.cacheAnalyticsEvent(event);
+    }
+    await this.queue.publishMessageBatch(events);
 
     this.addAnalyticsEventMetricCount(status, events.length);
   }
 
   public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
-    await this.queue.publishMessage(this.createEvent(message, status, reason));
+    const event = this.createEvent(message, status, reason);
+    await this.cacheAnalyticsEvent(event);
+    await this.queue.publishMessage(event);
     this.addAnalyticsEventMetricCount(status, 1);
+  }
+
+  private async cacheAnalyticsEvent(event: AnalyticsEvent) {
+    await this.cache.appendToList(this.cache.analyticsEventKey(event.NotificationID), event, 10 * 60);
   }
 }
