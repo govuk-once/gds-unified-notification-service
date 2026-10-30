@@ -90,16 +90,16 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema, ty
     const message = data.body;
 
     // Process messages -
-    this.observability.logger.debug('UDP Call:');
+    this.observability.logger.info('UDP Call:');
     const result = await this.processingService.send({
       userID: message.UserID,
     });
 
-    this.observability.logger.debug('UDP Result:', { result });
+    this.observability.logger.info('UDP Result:', { result });
     const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
 
     // Update stored rows in notifications message
-    this.observability.logger.debug('Updating entry with timestamp', extractIdentifiers(processedMessages));
+    this.observability.logger.info('Updating entry with timestamp', extractIdentifiers(processedMessages));
 
     // Store External User ID and mark record as processed
     await this.notificationsRepository.updateRecord({
