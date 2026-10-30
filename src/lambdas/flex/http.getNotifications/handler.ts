@@ -50,7 +50,6 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', {
       path: event.path,
-      notificationID: event.pathParameters?.notificationID,
       externalUserID: event.queryStringParameters?.externalUserID,
       pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
@@ -61,8 +60,8 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.info('pushID has not been provided - returning 400');
-      throw new BadRequestError(['pushID has not been provided.']);
+      this.observability.logger.warn('pushID has not been provided - returning 400');
+      throw new BadRequestError(['pushID has not been provided']);
     }
 
     // Get notifications of user from dynamoDB
@@ -102,6 +101,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         // If one of the records doesn't have a dispatch time - move it to the back
         return a.DispatchedDateTime ? -1 : 1;
       });
+    this.observability.logger.info('Successful request - returning 200', { length: responseBody.length });
 
     return {
       body: responseBody,

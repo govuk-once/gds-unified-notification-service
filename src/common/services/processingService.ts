@@ -31,7 +31,7 @@ export class ProcessingService {
   }
 
   async send(request: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> {
-    this.observability.logger.info(`Looking up user id`, { userID: request.userID });
+    this.observability.logger.info('Looking up user id', { userID: request.userID });
     this.observability.metrics.addMetric(MetricsLabels.PROCESSING_ATTEMPTS, MetricUnit.Count, 1);
     const start = performance.now();
     const result = await this.adapter.send(request);

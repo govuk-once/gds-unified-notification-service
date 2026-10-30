@@ -38,6 +38,7 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
     this.observability.logger.info('Received request', {
+      path: event.path,
       pushID: event.queryStringParameters?.pushID,
       requestId: context.awsRequestId,
       groups: event.body,
@@ -46,7 +47,7 @@ export class ModifyGroups extends FlexAPIHandler<typeof requestBodySchema, typeo
     // Validate
     const pushID = event.queryStringParameters?.pushID;
     if (!pushID) {
-      this.observability.logger.info('pushID has not been provided - returning 400');
+      this.observability.logger.warn('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 

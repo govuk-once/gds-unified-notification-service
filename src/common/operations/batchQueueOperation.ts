@@ -73,7 +73,7 @@ export abstract class BatchQueueOperation<
   protected validateRequiredFields(record: SQSRecord): z.infer<IdentifiableRecordSchema> {
     const { data, error } = this.identifiableRecordSchema.safeParse(record.body);
     if (error) {
-      this.observability.logger.error(`Supplied message does not contain required record fields, rejecting record`, {
+      this.observability.logger.error('Supplied message does not contain required record fields, rejecting record', {
         raw: record.body,
         error: error ? z.prettifyError(error) : {},
       });
@@ -99,7 +99,7 @@ export abstract class BatchQueueOperation<
 
     const { data, error } = await schema.safeParseAsync(record.body);
     if (error) {
-      this.observability.logger.error(`The message in the record failed validation`, {
+      this.observability.logger.error('The message in the record failed validation', {
         raw: record.body,
         error: error ? z.prettifyError(error) : {},
       });
@@ -123,7 +123,7 @@ export abstract class BatchQueueOperation<
       await this.onSuccess(identifiableRecord);
     } catch (error) {
       await this.onError(identifiableRecord, error);
-      this.observability.logger.error(`Error during record handling`, {
+      this.observability.logger.error('Error during record handling', {
         operationId: this.operationId,
         error: this.observability.formatError(error),
         identifiableRecord,
@@ -148,6 +148,7 @@ export abstract class BatchQueueOperation<
     }
 
     const processor = new BatchProcessor(EventType.SQS);
+
     const failures = await processPartialResponse(event, this.recordHandlerWrapper, processor, {
       context,
     });

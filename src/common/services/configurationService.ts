@@ -18,7 +18,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
     this.observability.tracer.captureAWSv3Client(this.client);
   }
   public async refreshCache(nextToken?: string): Promise<void> {
-    this.observability.logger.info(`Refreshing namespace ${nextToken}`);
+    this.observability.logger.info('Refreshing namespace', { nextToken });
     const params = await this.client.send(
       new GetParametersByPathCommand({
         Path: `/${this.prefix}/`,
@@ -42,7 +42,7 @@ export class ConfigurationService extends BaseConfigurableValueService {
   private refreshCachePromise: Promise<void> | null = null;
 
   protected async getParameterRawValue(namespace: string): Promise<string> {
-    this.observability.logger.info(`Retrieving parameter /${this.prefix}/${namespace}`);
+    this.observability.logger.info('Retrieving parameter', { parameter: `/${this.prefix}/${namespace}` });
 
     const param = {
       Name: `/${this.prefix}/${namespace}`,
@@ -58,18 +58,20 @@ export class ConfigurationService extends BaseConfigurableValueService {
           await this.refreshCachePromise;
           this.refreshCachePromise = null;
         } else {
-          this.observability.logger.info(`Preventing parallel config fetching`);
+          this.observability.logger.info('Preventing parallel config fetching');
           await this.refreshCachePromise;
         }
       }
 
       // Confirm value in cache
       if (this.inMemoryCache.has(param.Name)) {
-        this.observability.logger.info(`Successfully retrieved parameter /${this.prefix}/${namespace}`);
+        this.observability.logger.info('Successfully retrieved parameter', {
+          parameter: `/${this.prefix}/${namespace}`,
+        });
         return this.inMemoryCache.get(param.Name)!;
       }
 
-      this.observability.logger.error(`Retrieve parameter /${this.prefix}/${namespace} has no value`);
+      this.observability.logger.error('Retrieve parameter has no value', { parameter: `/${this.prefix}/${namespace}` });
       throw new ServiceMisconfigurationError();
     } catch (error) {
       this.observability.logger.error('Failed fetching value', {
@@ -86,7 +88,9 @@ export class ConfigurationService extends BaseConfigurableValueService {
   ) {
     for (const config of [commonConfig, stageConfig]) {
       if ((await this.getParameter(config)) !== true) {
-        this.observability.logger.error(`Service is disabled due to parameter ${config.Path} being set to false`);
+        this.observability.logger.error('Service is disabled due to parameter being set to false', {
+          parameter: config.Path,
+        });
         throw new ServiceMisconfigurationError();
       }
     }

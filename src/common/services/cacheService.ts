@@ -133,7 +133,7 @@ export class CacheService {
     this.observability.metrics.addMetric(MetricsLabels.CURRENT_RATE, MetricUnit.Count, counter);
     this.observability.metrics.addMetric(MetricsLabels.CURRENT_RATE_LIMIT, MetricUnit.Count, maxPerMinute);
 
-    this.observability.logger.info(`Rate limiting status`, {
+    this.observability.logger.info('Rate limiting status', {
       key,
       counter,
       maxPerMinute,

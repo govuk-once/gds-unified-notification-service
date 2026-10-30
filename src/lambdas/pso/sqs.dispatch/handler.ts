@@ -80,6 +80,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
         )
       ).exceeded
     ) {
+      this.observability.logger.warn('Stopping processing from continuing as rate limit has been exceeded');
       throw new RateLimitingError([`Stopping processing from continuing as rate limit has been exceeded`]);
     }
 
@@ -95,7 +96,7 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
           Channel: featureEnabledChannelControls ? message.Channel : undefined,
         })
     );
-    this.observability.logger.info(`Notification dispatched`, {
+    this.observability.logger.info('Notification dispatched', {
       ...extractIdentifiers(message),
       ProviderRequestID: result.requestId,
     });
