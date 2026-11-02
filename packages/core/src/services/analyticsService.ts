@@ -2,7 +2,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum } from '@common/models';
 import { AnalyticsQueueService } from '@common/services/analyticsQueueService';
 import { MetricsLabels, ObservabilityService, prefixEvent } from '@common/services/observabilityService';
-import { IIdentifiableMessage } from '@project/lambdas';
+import { IIdentifiableMessage } from '@common/models/interfaces';
 
 import { v4 as uuid } from 'uuid';
 

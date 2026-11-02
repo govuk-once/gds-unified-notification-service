@@ -1,5 +1,5 @@
 import { NotificationStateEnum } from '@common/models';
-import { IFlexNotification } from '@project/lambdas';
+import { IFlexNotification } from '@common/models/interfaces';
 
 export const mockIFlexNotification = (): IFlexNotification => ({
   DispatchedDateTime: '2026-01-01T12:00:03.000Z',

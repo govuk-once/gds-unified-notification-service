@@ -1,5 +1,5 @@
 import { ChannelsEnum } from '@common/models';
-import { mockIGroupMessage } from '@project/lambdas/interfaces';
+import { mockIGroupMessage } from '@common/models/interfaces';
 import { PostGroupMessage } from '@pso/handlers/http.postGroupMessage/handler';
 import {
   iocSpies,

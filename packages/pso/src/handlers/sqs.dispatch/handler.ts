@@ -22,12 +22,12 @@ import {
   NotificationService,
   ObservabilityService,
 } from '@common/services';
-import { IProcessedMessageSchema } from '@project/lambdas/interfaces';
+import { IProcessedMessageSchema } from '@common/models/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
-} from '@project/lambdas/interfaces/IMessage';
+} from '@common/models/interfaces/IMessage';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';

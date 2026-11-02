@@ -1,4 +1,4 @@
-import { IGroupMessage } from '@project/lambdas';
+import { IGroupMessage } from '@common/models/interfaces';
 import { createHash } from 'node:crypto';
 
 export function hashToUuidV4<T extends object>(input: T): string {

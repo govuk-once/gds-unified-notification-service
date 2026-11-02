@@ -1,4 +1,4 @@
-import { IMessageFieldsSchema } from '@project/lambdas/interfaces/IMessage';
+import { IMessageFieldsSchema } from './IMessage';
 import { v4 as uuid } from 'uuid';
 import z from 'zod';
 

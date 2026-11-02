@@ -10,7 +10,7 @@ import {
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { GroupActionEnum, IModifyGroupsSchema } from '@project/lambdas/interfaces';
+import { GroupActionEnum, IModifyGroupsSchema } from '@common/models/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 

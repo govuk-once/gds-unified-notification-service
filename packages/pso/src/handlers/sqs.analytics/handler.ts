@@ -12,8 +12,7 @@ import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { CampaignsDynamoRepository, NotificationsDynamoRepository } from '@common/repositories';
 import { AnalyticsExportService, CacheService, MetricsLabels, ObservabilityService } from '@common/services';
 import { ConfigurationService } from '@common/services/configurationService';
-import { IIdentifiableMessageSchema } from '@project/lambdas/interfaces';
-import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalyticsSchema, IIdentifiableMessageSchema } from '@common/models/interfaces';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
 

@@ -1,6 +1,6 @@
 import { hashToUuidV4 } from '@common/utils';
-import { IGroupMessageSchema } from '@project/lambdas/interfaces/IGroupMessage';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IMessage';
+import { IGroupMessageSchema } from './IGroupMessage';
+import { IProcessedMessage } from './IMessage';
 import z from 'zod';
 
 export const IGroupMessageMetadataSchema = z.object({

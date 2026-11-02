@@ -1,5 +1,5 @@
 import { GetGroups } from '@flex/handlers/http.getGroups/handler';
-import { IGroups } from '@project/lambdas/interfaces';
+import { IGroups } from '@common/models/interfaces';
 import {
   iocSpies,
   mockEventContext,

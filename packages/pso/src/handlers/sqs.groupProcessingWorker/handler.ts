@@ -27,7 +27,7 @@ import {
   IGroupMessageMetadataSchema,
   IIdentifiableGroupMessageSchema,
   IProcessedMessage,
-} from '@project/lambdas/interfaces';
+} from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';

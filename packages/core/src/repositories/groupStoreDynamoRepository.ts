@@ -8,7 +8,7 @@ import {
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
 import { filters } from '@common/utils/array';
-import { IGroups, IModifyGroups } from '@project/lambdas';
+import { IGroups, IModifyGroups } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import { v4 as uuid } from 'uuid';
 

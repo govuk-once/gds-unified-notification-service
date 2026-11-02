@@ -1,4 +1,4 @@
-import { IGroupMessage } from '@project/lambdas';
+import { IGroupMessage } from '@common/models/interfaces';
 import { describe, expect, it } from 'vitest';
 import { generateNotificationIDForGroupMessage, hashToUuidV4 } from './checksumString';
 

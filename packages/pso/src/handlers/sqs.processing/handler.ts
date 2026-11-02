@@ -19,13 +19,13 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { IProcessedMessage } from '@project/lambdas/interfaces';
+import { IProcessedMessage } from '@common/models/interfaces';
 import {
   extractIdentifiers,
   IIdentifiableMessage,
   IIdentifiableMessageSchema,
   IMessageSchema,
-} from '@project/lambdas/interfaces/IMessage';
+} from '@common/models/interfaces/IMessage';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';

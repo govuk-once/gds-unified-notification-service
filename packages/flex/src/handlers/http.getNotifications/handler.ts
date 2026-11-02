@@ -17,7 +17,7 @@ import DateInSeconds from '@common/utils/dateInSeconds';
 import {
   IFlexNotificationSchema,
   IMessageRecordToIFlexNotification,
-} from '@project/lambdas/interfaces/IFlexNotification';
+} from '@common/models/interfaces/IFlexNotification';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 

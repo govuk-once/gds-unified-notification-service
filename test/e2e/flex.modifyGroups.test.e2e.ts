@@ -1,4 +1,4 @@
-import { GroupActionEnum } from '@project/lambdas';
+import { GroupActionEnum } from '@common/models/interfaces';
 import { isCI, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';

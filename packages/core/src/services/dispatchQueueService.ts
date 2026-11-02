@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { IProcessedMessage } from '@project/lambdas';
+import { IProcessedMessage } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 
 export class DispatchQueueService extends QueueService<IProcessedMessage> {

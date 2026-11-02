@@ -9,7 +9,7 @@ import {
   IProcessedMessageRecordSchema,
 } from '@common/repositories/interfaces';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IAnalytics } from '@project/lambdas';
+import { IAnalytics } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 
 const recordSchema = IMessageRecordSchema;

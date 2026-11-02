@@ -1,6 +1,6 @@
 import { ChannelsEnum } from '@common/models';
 import DateInSeconds from '@common/utils/dateInSeconds';
-import { IAnalyticsSchema } from '@project/lambdas/interfaces/IAnalyticsSchema';
+import { IAnalyticsSchema } from '@common/models/interfaces/IAnalyticsSchema';
 import * as z from 'zod';
 
 export const IMessageRecordSchema = z.object({

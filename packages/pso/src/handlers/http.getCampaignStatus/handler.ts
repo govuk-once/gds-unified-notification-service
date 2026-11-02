@@ -11,7 +11,7 @@ import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { CampaignsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
-import { campaignStatusSchema } from '@project/lambdas/interfaces';
+import { campaignStatusSchema } from '@common/models/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 

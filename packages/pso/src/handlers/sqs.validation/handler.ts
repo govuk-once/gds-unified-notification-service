@@ -18,7 +18,7 @@ import {
   ObservabilityService,
   ProcessingQueueService,
 } from '@common/services';
-import { IIdentifiableMessage, IIdentifiableMessageSchema, IMessageSchema } from '@project/lambdas/interfaces/IMessage';
+import { IIdentifiableMessage, IIdentifiableMessageSchema, IMessageSchema } from '@common/models/interfaces/IMessage';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';

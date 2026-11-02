@@ -11,7 +11,7 @@ import { InvalidCharacterError, ParsingFailedError } from '@common/models';
 import { CacheService } from '@common/services/cacheService';
 import { ConfigurationService } from '@common/services/configurationService';
 import { ObservabilityService } from '@common/services/observabilityService';
-import { IAnalytics } from '@project/lambdas';
+import { IAnalytics } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 
 export interface AnalyticsLog {

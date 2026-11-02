@@ -2,7 +2,7 @@ import { BadRequestError, ContentValidationError } from '@common/models';
 import { IOrganisationConfig } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ContentValidationService, FeatureFlags } from '@common/services';
 import { filters, maps } from '@common/utils/array';
-import { IMessageFields } from '@project/lambdas';
+import { IMessageFields } from '@common/models/interfaces';
 
 export class ValidationService {
   constructor(

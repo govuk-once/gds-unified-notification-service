@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { ConfigurationService } from '@common/services/configurationService';
 import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
 import { QueueService } from '@common/services/queueService';
-import { IGroupMessageMetadata } from '@project/lambdas';
+import { IGroupMessageMetadata } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 
 export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {

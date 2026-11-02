@@ -1,7 +1,7 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { NotificationStateEnum } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
-import { IAnalytics } from '@project/lambdas/interfaces';
+import { IAnalytics } from '@common/models/interfaces';
 import { Analytics } from '@pso/handlers/sqs.analytics/handler';
 import {
   iocSpies,

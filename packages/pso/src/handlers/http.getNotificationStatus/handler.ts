@@ -9,7 +9,7 @@ import {
 import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { ObservabilityService } from '@common/services';
-import { INotificationStatusSchema } from '@project/lambdas/interfaces/INotificationStatus';
+import { INotificationStatusSchema } from '@common/models/interfaces/INotificationStatus';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 

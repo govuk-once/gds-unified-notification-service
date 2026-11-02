@@ -3,7 +3,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
-import { IProcessedMessage } from '@project/lambdas/interfaces';
+import { IProcessedMessage } from '@common/models/interfaces';
 import { Dispatch } from '@pso/handlers/sqs.dispatch/handler';
 import SSMParameters from '@shared/ssmParameter';
 import {

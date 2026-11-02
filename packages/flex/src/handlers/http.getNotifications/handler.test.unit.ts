@@ -1,6 +1,6 @@
 import { NotificationStateEnum } from '@common/models';
 import { GetNotifications } from '@flex/handlers/http.getNotifications/handler';
-import { mockIFlexNotification } from '@project/lambdas/interfaces';
+import { mockIFlexNotification } from '@common/models/interfaces';
 import {
   iocSpies,
   mockEventContext,

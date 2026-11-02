@@ -3,7 +3,7 @@ import { DynamodbRepository } from '@common/repositories/dynamodbRepository';
 import { IDynamoAttributes, IDynamoAttributesSchema } from '@common/repositories/interfaces';
 import { IOrganisationRecord, IOrganisationRecordSchema } from '@common/repositories/interfaces/IOrganisationRecord';
 import { ConfigurationService, ObservabilityService } from '@common/services';
-import { IProcessedMessage } from '@project/lambdas';
+import { IProcessedMessage } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 
 export class OrganisationsDynamoRepository extends DynamodbRepository<typeof IOrganisationRecordSchema> {

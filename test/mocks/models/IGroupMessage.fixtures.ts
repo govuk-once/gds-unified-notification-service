@@ -1,4 +1,4 @@
-import { IGroupMessage } from '@project/lambdas/interfaces/IGroupMessage';
+import { IGroupMessage } from '@common/models/interfaces';
 
 export const mockIGroupMessage = (): Omit<IGroupMessage, 'OrganisationID'> => ({
   Namespace: 'travel',

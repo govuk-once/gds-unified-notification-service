@@ -1,5 +1,5 @@
 import { ModifyGroups } from '@flex/handlers/http.modifyGroups/handler';
-import { GroupActionEnum } from '@project/lambdas/interfaces';
+import { GroupActionEnum } from '@common/models/interfaces';
 import {
   iocSpies,
   mockEventContext,

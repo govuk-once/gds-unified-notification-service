@@ -1,7 +1,7 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { MetricsLabels } from '@common/services/observabilityService';
-import { mockIGroupMessageMetadata } from '@project/lambdas';
+import { mockIGroupMessageMetadata } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import { iocSpies, mockDefaultConfig, mockServicesExpectedBehaviour } from '@test/mocks';
 

@@ -18,7 +18,7 @@ import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer'
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
-import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@project/lambdas/interfaces';
+import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
 import z from 'zod';

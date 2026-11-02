@@ -1,6 +1,6 @@
 import { GroupStoreDynamoRepository } from '@common/repositories/groupStoreDynamoRepository';
 import { IDynamoAttributesSchema, IGroupStoreRecord } from '@common/repositories/interfaces';
-import { GroupActionEnum, IGroups, IModifyGroups } from '@project/lambdas';
+import { GroupActionEnum, IGroups, IModifyGroups } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,

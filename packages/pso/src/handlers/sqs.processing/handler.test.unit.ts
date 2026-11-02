@@ -3,7 +3,7 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ProcessingAdapterError, ServiceMisconfigurationError } from '@common/models';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services';
-import { IMessage } from '@project/lambdas/interfaces';
+import { IMessage } from '@common/models/interfaces';
 import { Processing } from '@pso/handlers/sqs.processing/handler';
 import SSMParameters from '@shared/ssmParameter';
 import {
