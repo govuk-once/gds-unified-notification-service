@@ -86,8 +86,10 @@ Lambda directories follow `{trigger}.{operationName}/` naming. Each contains `ha
 ### Path Aliases
 
 ```text
-@common/*  → src/common/*
-@project/* → src/*
+@common/*  → packages/core/src/*
+@pso/*     → packages/pso/src/*
+@flex/*    → packages/flex/src/*
+@infra/*   → packages/infrastructure/*
 @shared/*  → shared/*
 @test/*    → test/*
 ```

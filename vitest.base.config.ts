@@ -10,8 +10,6 @@ export default defineConfig({
       '@pso': path.resolve(__dirname, './packages/pso/src'),
       '@flex/*': path.resolve(__dirname, './packages/flex/src/*'),
       '@flex': path.resolve(__dirname, './packages/flex/src'),
-      '@project/*': path.resolve(__dirname, './src/*'),
-      '@project': path.resolve(__dirname, './src'),
       '@shared/*': path.resolve(__dirname, './shared/*'),
       '@shared': path.resolve(__dirname, './shared'),
       '@test/*': path.resolve(__dirname, 'test/*'),
