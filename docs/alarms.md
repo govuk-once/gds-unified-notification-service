@@ -6,18 +6,18 @@ The catalogue of CloudWatch alarms deployed by `UNSAlarmsStack`. It is for on-ca
 
 ## Overview
 
-All alarms live in a dedicated stack, [`UNSAlarmsStack`](/infrastructure/cdk/constructs/UNSAlarmsStack.ts) (`uns-<env>-alarms-stack`). It deploys after the main stack and reads resource names (API names, queue names, Lambda function names, WAF names) from `UNSStack.resourceNames()` via [`UNSResourceContract`](/infrastructure/cdk/constructs/UNSResourceContract.ts). It is split out so alarms can change without touching the main stack.
+All alarms live in a dedicated stack, [`UNSAlarmsStack`](/packages/infrastructure/cdk/constructs/UNSAlarmsStack.ts) (`uns-<env>-alarms-stack`). It deploys after the main stack and reads resource names (API names, queue names, Lambda function names, WAF names) from `UNSStack.resourceNames()` via [`UNSResourceContract`](/packages/infrastructure/cdk/constructs/UNSResourceContract.ts). It is split out so alarms can change without touching the main stack.
 
 | Construct | File | Covers |
 | --- | --- | --- |
-| `UNSApiGatewayAlarmsConstruct` | [`UNSApiGatewayAlarmsConstruct.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct.ts) | 4xx/5xx rates, PSO and Flex |
-| `UNSAuthenticationAlarmsConstruct` | [`UNSAuthenticationAlarmsConstruct.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct.ts) | mTLS authorizer denials, PSO only |
-| `UNSWAFAlarmsConstruct` | [`UNSWAFAlarmsConstructs.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs.ts) | WAF blocked-request anomalies, PSO and Flex |
-| `UNSOperationalAlarmsConstruct` | [`UNSOperationalAlarmsConstruct.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct.ts) | Queue depth, DLQs, per-stage failure rates and durations, publish failures, PSO only |
-| `UNSPerformanceAlarmsConstructs` | [`UNSPerformanceAlarmsConstructs.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs.ts) | Lambda cold starts, PSO only |
-| `UNSIntegrationAlarmsConstruct` | [`UNSIntegrationAlarmsConstruct.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct.ts) | Provider HTTP error rates, circuit breaker, per-Lambda error rates, PSO and Flex |
+| `UNSApiGatewayAlarmsConstruct` | [`UNSApiGatewayAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSApiGatewayAlarmsConstruct.ts) | 4xx/5xx rates, PSO and Flex |
+| `UNSAuthenticationAlarmsConstruct` | [`UNSAuthenticationAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSAuthenticationAlarmsConstruct.ts) | mTLS authorizer denials, PSO only |
+| `UNSWAFAlarmsConstruct` | [`UNSWAFAlarmsConstructs.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs.ts) | WAF blocked-request anomalies, PSO and Flex |
+| `UNSOperationalAlarmsConstruct` | [`UNSOperationalAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct.ts) | Queue depth, DLQs, per-stage failure rates and durations, publish failures, PSO only |
+| `UNSPerformanceAlarmsConstructs` | [`UNSPerformanceAlarmsConstructs.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs.ts) | Lambda cold starts, PSO only |
+| `UNSIntegrationAlarmsConstruct` | [`UNSIntegrationAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct.ts) | Provider HTTP error rates, circuit breaker, per-Lambda error rates, PSO and Flex |
 
-Shared helpers (priorities, periods, rate and anomaly alarm builders) live in [`UNSAlarmConstructs.ts`](/infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs.ts).
+Shared helpers (priorities, periods, rate and anomaly alarm builders) live in [`UNSAlarmConstructs.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs.ts).
 
 ### Naming
 
@@ -137,6 +137,6 @@ Rows marked ⚠️ behave differently from what the threshold or description sug
 
 **Code:**
 
-- [`infrastructure/cdk/constructs/UNSAlarmsStack.ts`](/infrastructure/cdk/constructs/UNSAlarmsStack.ts)
-- [`infrastructure/cdk/constructs/alarmsConstructs`](/infrastructure/cdk/constructs/alarmsConstructs)
-- [`infrastructure/cdk/constructs/dashboards`](/infrastructure/cdk/constructs/dashboards)
+- [`infrastructure/cdk/constructs/UNSAlarmsStack.ts`](/packages/infrastructure/cdk/constructs/UNSAlarmsStack.ts)
+- [`infrastructure/cdk/constructs/alarmsConstructs`](/packages/infrastructure/cdk/constructs/alarmsConstructs)
+- [`infrastructure/cdk/constructs/dashboards`](/packages/infrastructure/cdk/constructs/dashboards)

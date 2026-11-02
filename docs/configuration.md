@@ -8,16 +8,16 @@ The runtime configuration that changes how the service behaves without a code ch
 
 | Layer | Where it lives | Changed by | Takes effect |
 | --- | --- | --- | --- |
-| Deploy-time flags | `config.featureFlag` in [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts) | Code change + deploy | Next deploy |
+| Deploy-time flags | `config.featureFlag` in [`packages/infrastructure/cdk/config.ts`](/packages/infrastructure/cdk/config.ts) | Code change + deploy | Next deploy |
 | Runtime SSM parameters | `/<namespace>/config/...` etc., declared in [`shared/ssmParameter.ts`](/shared/ssmParameter.ts) | Editing the parameter in SSM, or `SSM_PARAMETERS_TO_UPDATE` on deploy | Within about 60 s |
 | Secrets | Secrets Manager, declared in [`shared/secretParameters.ts`](/shared/secretParameters.ts) | Editing the secret | When the next dependency rebuild re-reads it (about 60 s) |
-| Organisation config | The `organisations` DynamoDB table, seeded from [`consumersMetadata.ts`](/infrastructure/cdk/consumers/consumersMetadata.ts) | Code change + deploy | Next deploy (read on every request by the mTLS authorizer) |
+| Organisation config | The `organisations` DynamoDB table, seeded from [`consumersMetadata.ts`](/packages/infrastructure/cdk/consumers/consumersMetadata.ts) | Code change + deploy | Next deploy (read on every request by the mTLS authorizer) |
 
 `<namespace>` is `uns-<env>` (`uns` in production, see [Infrastructure Development Guide: Naming conventions](./infrastructure-development.md#naming-conventions)).
 
 ### Why changes take about 60 seconds
 
-`ConfigurationService` loads every parameter under the namespace into an in-memory cache with a 60 s TTL. Config-dependent services are `TIMEBOUND_SINGLETON`s in [`ioc.ts`](/src/common/ioc.ts), rebuilt after 60 s. A parameter edit is therefore picked up by warm Lambdas within about a minute, with no redeploy or cold start.
+`ConfigurationService` loads every parameter under the namespace into an in-memory cache with a 60 s TTL. Config-dependent services are `TIMEBOUND_SINGLETON`s in [`ioc.ts`](/packages/core/src/ioc.ts), rebuilt after 60 s. A parameter edit is therefore picked up by warm Lambdas within about a minute, with no redeploy or cold start.
 
 ---
 
@@ -25,7 +25,7 @@ The runtime configuration that changes how the service behaves without a code ch
 
 Every entry in `shared/ssmParameter.ts` is either:
 
-- **`staticParam(path, type, default)`**: operator-configurable. [`cdk.predeploy.ssm.ts`](/infrastructure/cdk/cdk.predeploy.ssm.ts) creates it as a `SecureString` with its default **only if it doesn't already exist**. CDK never owns it, so a manual edit survives deploys.
+- **`staticParam(path, type, default)`**: operator-configurable. [`cdk.predeploy.ssm.ts`](/packages/infrastructure/cdk/cdk.predeploy.ssm.ts) creates it as a `SecureString` with its default **only if it doesn't already exist**. CDK never owns it, so a manual edit survives deploys.
 - **`infraParam(path, type)`**: written by CDK itself (queue URLs, table attributes, cache endpoints). Don't edit these by hand; the next deploy overwrites them.
 
 To force a value on deploy, set the GitHub Environment variable `SSM_PARAMETERS_TO_UPDATE` to a JSON object of `{ "<path>": "<value>" }`. `_deploy.yml` passes it into `cdk:predeploy:ssm`, which overwrites the listed parameters. Keys listed in `parametersForDeletion` are removed on deploy.
@@ -120,7 +120,7 @@ The newer message fields are gated twice:
 | `channelControls` | A request with `Channel` is rejected (400 `unexpected Channel`). Dispatch drops `Channel` | `Channel` must be in the organisation's [allowed channels](#channels) |
 | `messageRetention` | A request with `ExpiresInDays` is rejected (400 `unexpected ExpiresInDays`) | `ExpiresInDays` is validated against the organisation's [retention window](#message-retention) |
 
-Request-side enforcement is in [`ValidationService.messageValidation`](/src/common/services/validationService.ts), used by `postMessage` and `postGroupMessage`. Dispatch-side stripping is in [`sqs.dispatch`](/src/lambdas/pso/sqs.dispatch/handler.ts).
+Request-side enforcement is in [`ValidationService.messageValidation`](/packages/core/src/services/validationService.ts), used by `postMessage` and `postGroupMessage`. Dispatch-side stripping is in [`sqs.dispatch`](/packages/pso/src/handlers/sqs.dispatch/handler.ts).
 
 > Flipping a flag off while messages are in flight is safe: dispatch strips the gated fields rather than failing.
 
@@ -130,7 +130,7 @@ Request-side enforcement is in [`ValidationService.messageValidation`](/src/comm
 
 Each PSO organisation has an `OrganisationConfig` record in the `organisations` table. The mTLS authorizer reads it on every request and passes it to handlers as a JSON string in `requestContext.authorizer.OrganisationConfig` (see [Developer Reference: The mTLS authorizer](./developer-reference.md#the-mtls-authorizer)).
 
-Records are defined in code, in [`consumersMetadata.ts`](/infrastructure/cdk/consumers/consumersMetadata.ts), using presets from [`OrganisationMetadata.ts`](/src/common/models/OrganisationMetadata.ts). On deploy, `UNSOrganisations` seeds them into DynamoDB through the `UNSDynamoDBWriterConstruct` custom resource:
+Records are defined in code, in [`consumersMetadata.ts`](/packages/infrastructure/cdk/consumers/consumersMetadata.ts), using presets from [`OrganisationMetadata.ts`](/packages/core/src/models/OrganisationMetadata.ts). On deploy, `UNSOrganisations` seeds them into DynamoDB through the `UNSDynamoDBWriterConstruct` custom resource:
 
 ```typescript
 DVLA: IOrganisationRecordBuilder('DVLA', {
@@ -140,7 +140,7 @@ DVLA: IOrganisationRecordBuilder('DVLA', {
 }),
 ```
 
-Any field left out falls back to the most restrictive preset. Config that fails validation also falls back to the restrictive preset (`.catch(...)` in [`IOrganisationRecord.ts`](/src/common/repositories/interfaces/IOrganisationRecord.ts)) rather than failing the request.
+Any field left out falls back to the most restrictive preset. Config that fails validation also falls back to the restrictive preset (`.catch(...)` in [`IOrganisationRecord.ts`](/packages/core/src/repositories/interfaces/IOrganisationRecord.ts)) rather than failing the request.
 
 ### Channels
 
@@ -197,6 +197,6 @@ DynamoDB can take up to 48 hours to delete an expired item. Flex `getNotificatio
 **Code:**
 
 - [`shared/ssmParameter.ts`](/shared/ssmParameter.ts)
-- [`infrastructure/cdk/cdk.predeploy.ssm.ts`](/infrastructure/cdk/cdk.predeploy.ssm.ts)
-- [`src/common/services/validationService.ts`](/src/common/services/validationService.ts)
-- [`infrastructure/cdk/consumers/consumersMetadata.ts`](/infrastructure/cdk/consumers/consumersMetadata.ts)
+- [`packages/infrastructure/cdk/cdk.predeploy.ssm.ts`](/packages/infrastructure/cdk/cdk.predeploy.ssm.ts)
+- [`packages/core/src/services/validationService.ts`](/packages/core/src/services/validationService.ts)
+- [`packages/infrastructure/cdk/consumers/consumersMetadata.ts`](/packages/infrastructure/cdk/consumers/consumersMetadata.ts)

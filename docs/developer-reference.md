@@ -8,15 +8,15 @@ Common patterns, shared code and conventions for developing Lambda handlers in t
 
 | Area | Location | Purpose |
 | ------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Handlers | [`src/lambdas/flex`](/src/lambdas/flex), [`src/lambdas/pso`](/src/lambdas/pso) | Business logic, one directory per Lambda |
-| Base operation classes | [`src/common/operations`](/src/common/operations) | Middleware wiring, DI hookup, per-trigger request lifecycle |
-| Middlewares | [`src/common/middlewares`](/src/common/middlewares) | Middy middleware used by the base operation classes |
-| Errors | [`src/common/models/Errors`](/src/common/models/Errors) | Typed errors that map to HTTP status codes / SQS partial batch failures |
-| Repositories | [`src/common/repositories`](/src/common/repositories) | DynamoDB access, one class per table |
-| Services & adapters | [`src/common/services`](/src/common/services) | Business services and external-integration adapters (OneSignal, UDP, Redis) |
-| IoC container | [`src/common/ioc.ts`](/src/common/ioc.ts) | Dependency wiring and lifetime management |
+| Handlers | [`packages/flex/src/handlers`](/packages/flex/src/handlers), [`packages/pso/src/handlers`](/packages/pso/src/handlers) | Business logic, one directory per Lambda |
+| Base operation classes | [`packages/core/src/operations`](/packages/core/src/operations) | Middleware wiring, DI hookup, per-trigger request lifecycle |
+| Middlewares | [`packages/core/src/middlewares`](/packages/core/src/middlewares) | Middy middleware used by the base operation classes |
+| Errors | [`packages/core/src/models/Errors`](/packages/core/src/models/Errors) | Typed errors that map to HTTP status codes / SQS partial batch failures |
+| Repositories | [`packages/core/src/repositories`](/packages/core/src/repositories) | DynamoDB access, one class per table |
+| Services & adapters | [`packages/core/src/services`](/packages/core/src/services) | Business services and external-integration adapters (OneSignal, UDP, Redis) |
+| IoC container | [`packages/core/src/ioc.ts`](/packages/core/src/ioc.ts) | Dependency wiring and lifetime management |
 
-There are two Lambda "surfaces": **PSO** (`src/lambdas/pso`, mTLS-protected public API for external departments to send notifications) and **Flex** (`src/lambdas/flex`, the internal API the GOV.UK app backend uses to read/manage a user's notifications). Both are deployed from one CDK stack — see the [Infrastructure Development Guide](./infrastructure-development.md).
+There are two Lambda "surfaces": **PSO** (`packages/pso/src/handlers`, mTLS-protected public API for external departments to send notifications) and **Flex** (`packages/flex/src/handlers`, the internal API the GOV.UK app backend uses to read/manage a user's notifications). Both are deployed from one CDK stack — see the [Infrastructure Development Guide](./infrastructure-development.md).
 
 ---
 
@@ -28,22 +28,22 @@ Complete [Environment Setup](./environment-setup.md) before writing handler code
 
 ## Lambda directory and naming conventions
 
-See [`src/lambdas/README.md`](/src/lambdas/README.md) for the full convention. In short: a Lambda lives at `src/lambdas/<pso|flex>/{trigger}.{operationName}/handler.ts`, where `trigger` is `http`, `sqs` or `schedule`, and `operationName` matches the OpenAPI `operationId` for HTTP handlers.
+A Lambda lives at `packages/<pso|flex>/src/handlers/{trigger}.{operationName}/handler.ts`, where `trigger` is `http`, `sqs` or `schedule`, and `operationName` matches the OpenAPI `operationId` for HTTP handlers.
 
 ---
 
 ## Handler patterns
 
-Every handler is a class extending one of four base operation classes from [`src/common/operations`](/src/common/operations), each wrapping the trigger-appropriate Middy pipeline so individual handler files never touch Middy directly.
+Every handler is a class extending one of four base operation classes from [`packages/core/src/operations`](/packages/core/src/operations), each wrapping the trigger-appropriate Middy pipeline so individual handler files never touch Middy directly.
 
 | Base class | File | Trigger | Used by |
 | --------------------- | ------------------------------------------------------------------------ | --------------------------------- | ----------------------------------------------------------- |
-| `APIHandler` | [`httpOperation.ts`](/src/common/operations/httpOperation.ts) | API Gateway / ALB | All `pso/http.*` handlers |
-| `FlexAPIHandler` | [`flexApiHandler.ts`](/src/common/operations/flexApiHandler.ts) | API Gateway (extends `APIHandler`) | All `flex/http.*` handlers |
-| `BatchQueueOperation` | [`batchQueueOperation.ts`](/src/common/operations/batchQueueOperation.ts) | SQS, batch item failure aware | All `pso/sqs.*` handlers |
-| `ScheduleOperation` | [`scheduleOperation.ts`](/src/common/operations/scheduleOperation.ts) | EventBridge Scheduler | `pso/schedule.analyticsExport` |
+| `APIHandler` | [`httpOperation.ts`](/packages/core/src/operations/httpOperation.ts) | API Gateway / ALB | All `pso/http.*` handlers |
+| `FlexAPIHandler` | [`flexApiHandler.ts`](/packages/core/src/operations/flexApiHandler.ts) | API Gateway (extends `APIHandler`) | All `flex/http.*` handlers |
+| `BatchQueueOperation` | [`batchQueueOperation.ts`](/packages/core/src/operations/batchQueueOperation.ts) | SQS, batch item failure aware | All `pso/sqs.*` handlers |
+| `ScheduleOperation` | [`scheduleOperation.ts`](/packages/core/src/operations/scheduleOperation.ts) | EventBridge Scheduler | `pso/schedule.analyticsExport` |
 
-The middleware order, the dependency-injection lifecycle and the batch-processing internals are covered in [`src/common/operations/README.md`](/src/common/operations/README.md).
+The middleware order, the dependency-injection lifecycle and the batch-processing internals are covered in [`packages/core/src/operations/README.md`](/packages/core/src/operations/README.md).
 
 ---
 
@@ -67,13 +67,13 @@ every stage ─► analytics queue ─► sqs.analytics ─► Messages table ev
 
 | Stage | Reads | Writes | Analytics states |
 | --- | --- | --- | --- |
-| [`http.postMessage`](/src/lambdas/pso/http.postMessage/README.md) | Request + authorizer context | Messages table, `processing` queue | `VALIDATED_API_CALL` |
-| [`sqs.validation`](/src/lambdas/pso/sqs.validation/README.md) | `incoming` queue | Messages table, `processing` queue | `VALIDATING`, `VALIDATED`, `VALIDATION_FAILED` |
-| [`sqs.processing`](/src/lambdas/pso/sqs.processing/README.md) | `processing` queue | `dispatch` queue | `PROCESSING`, `PROCESSED`, `PROCESSING_FAILED` |
-| [`http.postGroupMessage`](/src/lambdas/pso/http.postGroupMessage/README.md) | GroupStore table | ElastiCache chunks, `groupprocessing` queue | |
-| [`sqs.groupProcessingWorker`](/src/lambdas/pso/sqs.groupProcessingWorker/README.md) | `groupprocessing` queue, ElastiCache | Messages table, `dispatch` queue | `PROCESSED` |
-| [`sqs.dispatch`](/src/lambdas/pso/sqs.dispatch/README.md) | `dispatch` queue | Messages table, provider | `DISPATCHING`, `DISPATCHED`, `DISPATCHING_FAILED` |
-| [`sqs.analytics`](/src/lambdas/pso/sqs.analytics/README.md) | `analytics` queue | Messages table `Events`, Campaigns table, CloudWatch Logs | |
+| [`http.postMessage`](/packages/pso/src/handlers/http.postMessage/README.md) | Request + authorizer context | Messages table, `processing` queue | `VALIDATED_API_CALL` |
+| [`sqs.validation`](/packages/pso/src/handlers/sqs.validation/README.md) | `incoming` queue | Messages table, `processing` queue | `VALIDATING`, `VALIDATED`, `VALIDATION_FAILED` |
+| [`sqs.processing`](/packages/pso/src/handlers/sqs.processing/README.md) | `processing` queue | `dispatch` queue | `PROCESSING`, `PROCESSED`, `PROCESSING_FAILED` |
+| [`http.postGroupMessage`](/packages/pso/src/handlers/http.postGroupMessage/README.md) | GroupStore table | ElastiCache chunks, `groupprocessing` queue | |
+| [`sqs.groupProcessingWorker`](/packages/pso/src/handlers/sqs.groupProcessingWorker/README.md) | `groupprocessing` queue, ElastiCache | Messages table, `dispatch` queue | `PROCESSED` |
+| [`sqs.dispatch`](/packages/pso/src/handlers/sqs.dispatch/README.md) | `dispatch` queue | Messages table, provider | `DISPATCHING`, `DISPATCHED`, `DISPATCHING_FAILED` |
+| [`sqs.analytics`](/packages/pso/src/handlers/sqs.analytics/README.md) | `analytics` queue | Messages table `Events`, Campaigns table, CloudWatch Logs | |
 
 > `POST /send` validates in the HTTP handler and publishes directly to `processing`. It does **not** go through the `incoming` queue or `sqs.validation`, and nothing in this repository publishes to `incoming`. As a result, the `ValidationFailureRateHigh` and `ValidationBatchItemFailures` alarms say nothing about API traffic: a rejected `POST /send` is a 400 response, which shows up in `Api4xxErrorRateElevated`.
 
@@ -83,7 +83,7 @@ Every SQS stage is a `BatchQueueOperation`. A failing record is reported as a pa
 
 ## Errors
 
-Every application error extends `BaseError` ([`src/common/models/Errors`](/src/common/models/Errors)). In HTTP handlers, `httpErrorHandlerMiddleware` turns it into `{ Status, HttpError, Errors }` with the class's status code; anything that isn't a `BaseError` becomes a generic 500. In SQS handlers, any thrown error fails that record (partial batch item failure).
+Every application error extends `BaseError` ([`packages/core/src/models/Errors`](/packages/core/src/models/Errors)). In HTTP handlers, `httpErrorHandlerMiddleware` turns it into `{ Status, HttpError, Errors }` with the class's status code; anything that isn't a `BaseError` becomes a generic 500. In SQS handlers, any thrown error fails that record (partial batch item failure).
 
 | Base class | Status | Subclasses | Typically means |
 | --- | --- | --- | --- |
@@ -101,7 +101,7 @@ Throw the most specific subclass that fits, and pass human-readable messages in 
 
 ## Services and adapters
 
-Handlers stay thin and delegate to services in [`src/common/services`](/src/common/services), resolved through the IoC container in [`src/common/ioc.ts`](/src/common/ioc.ts). The full catalogue of service classes, the three IoC lifetimes and the tracing conventions are in [`src/common/services/README.md`](/src/common/services/README.md). The rules worth knowing before you add one:
+Handlers stay thin and delegate to services in [`packages/core/src/services`](/packages/core/src/services), resolved through the IoC container in [`packages/core/src/ioc.ts`](/packages/core/src/ioc.ts). The full catalogue of service classes, the three IoC lifetimes and the tracing conventions are in [`packages/core/src/services/README.md`](/packages/core/src/services/README.md). The rules worth knowing before you add one:
 
 - Construct a service through a `static async create(...)` factory, not a constructor followed by `initialize()`. Register it as an `iocGetXxx` function and use `TIMEBOUND_SINGLETON` if it depends on configuration.
 - Read configuration through `ConfigurationService.getParameter(SSMParameters...)`, declaring new parameters in [`shared/ssmParameter.ts`](/shared/ssmParameter.ts) (see [Configuration](./configuration.md)).
@@ -113,8 +113,8 @@ Handlers stay thin and delegate to services in [`src/common/services`](/src/comm
 
 | Service | SSM parameter | Values | Adapter |
 | --- | --- | --- | --- |
-| `NotificationService` | `config/dispatch/adapter` | `OneSignal`, `VOID` (default) | [`NotificationAdapterOneSignal`](/src/common/services/adapters/notificationAdapterOneSignal.ts), [`NotificationAdapterVoid`](/src/common/services/adapters/notificationAdapterVoid.ts) |
-| `ProcessingService` | `config/processing/adapter` | `UDP`, `VOID` (default) | [`ProcessingAdapterUDP`](/src/common/services/adapters/processingAdapterUDP.ts), [`ProcessingAdapterVoid`](/src/common/services/adapters/processingAdapterVoid.ts) |
+| `NotificationService` | `config/dispatch/adapter` | `OneSignal`, `VOID` (default) | [`NotificationAdapterOneSignal`](/packages/core/src/services/adapters/notificationAdapterOneSignal.ts), [`NotificationAdapterVoid`](/packages/core/src/services/adapters/notificationAdapterVoid.ts) |
+| `ProcessingService` | `config/processing/adapter` | `UDP`, `VOID` (default) | [`ProcessingAdapterUDP`](/packages/core/src/services/adapters/processingAdapterUDP.ts), [`ProcessingAdapterVoid`](/packages/core/src/services/adapters/processingAdapterVoid.ts) |
 
 - **OneSignal**: sends the push with `idempotency_key = NotificationID`. It skips the push for `MESSAGE_CENTRE_ONLY`, builds the deeplink from `notification/deeplinkTemplate` unless an explicit `DeeplinkURL` is set, and appends `notificationID` to `govuk://` deeplinks.
 - **UDP**: resolves `UserID` → `ExternalUserID` through a SigV4-signed, cross-account API Gateway call (`FetchSigV4Service`).
@@ -122,13 +122,13 @@ Handlers stay thin and delegate to services in [`src/common/services`](/src/comm
 
 Setting an adapter to `VOID` is a quick way to stop calls to a failing provider during an incident without stopping the pipeline. Messages are marked dispatched but **no push is sent**, so only do this with agreement.
 
-To add a provider, implement `NotificationAdapter` / `ProcessingAdapter` from [`interfaces/`](/src/common/services/interfaces), add a value to the SSM enum, and add a branch to the service's `create()`. Record provider calls with `observability.recordProviderHttpMetric(...)` so the `<Provider>Offline` alarm can be added (see [Alarms](./alarms.md)).
+To add a provider, implement `NotificationAdapter` / `ProcessingAdapter` from [`interfaces/`](/packages/core/src/services/interfaces), add a value to the SSM enum, and add a branch to the service's `create()`. Record provider calls with `observability.recordProviderHttpMetric(...)` so the `<Provider>Offline` alarm can be added (see [Alarms](./alarms.md)).
 
 ---
 
 ## The mTLS authorizer
 
-[`http.mtlsCertificateRevocationAuthorizer`](/src/lambdas/pso/http.mtlsCertificateRevocationAuthorizer/README.md) is a REQUEST authorizer on every PSO route. It runs with `resultsCacheTtl: 0`, so on every request it:
+[`http.mtlsCertificateRevocationAuthorizer`](/packages/pso/src/handlers/http.mtlsCertificateRevocationAuthorizer/README.md) is a REQUEST authorizer on every PSO route. It runs with `resultsCacheTtl: 0`, so on every request it:
 
 1. Reads the client certificate PEM that CloudFront forwards in `CloudFront-Viewer-Cert-PEM`. CloudFront has already checked the certificate chain and expiry against the truststore (see [Infrastructure Development Guide: mTLS](./infrastructure-development.md#mtls-certificate-infrastructure)).
 2. Looks up the SHA-256 of the PEM in the MTLS revocation table, and denies the request if there is no record, the record is `Revoked`, or it has no `Organization`.
@@ -161,7 +161,7 @@ Conventions:
 
 - Pass context as the second argument (`logger.info('...', { NotificationID })`) instead of interpolating it into the message, so it can be queried in Logs Insights.
 - Include `NotificationID` (and `GroupNotificationID` / `CacheKey` for group work) on every log line about a specific notification.
-- Never log message content, credentials or certificates. The logger's `jsonReplacerFn` in [`ioc.ts`](/src/common/ioc.ts) masks `NotificationTitle`, `NotificationBody`, `MessageTitle`, `MessageBody`, `clientCertPem`, `CloudFront-Viewer-Cert-PEM`, `Authorization`, `x-api-key`, `apiKey`, `app_id` and `x-amz-security-token`. It matches on **exact key name**, so if you log an object containing a new sensitive field, add the key to that list in the same change.
+- Never log message content, credentials or certificates. The logger's `jsonReplacerFn` in [`ioc.ts`](/packages/core/src/ioc.ts) masks `NotificationTitle`, `NotificationBody`, `MessageTitle`, `MessageBody`, `clientCertPem`, `CloudFront-Viewer-Cert-PEM`, `Authorization`, `x-api-key`, `apiKey`, `app_id` and `x-amz-security-token`. It matches on **exact key name**, so if you log an object containing a new sensitive field, add the key to that list in the same change.
 
 ---
 
@@ -175,6 +175,6 @@ Conventions:
 
 **Code:**
 
-- [`src/README.md`](/src/README.md) — unit testing conventions
-- [`src/lambdas/README.md`](/src/lambdas/README.md) — Lambda naming conventions
+- [`packages/pso/src/handlers/README.md`](/packages/pso/src/handlers/README.md) — Lambda naming conventions (PSO)
+- [`packages/flex/src/handlers/README.md`](/packages/flex/src/handlers/README.md) — Lambda naming conventions (Flex)
 - [`test/e2e/README.md`](/test/e2e/README.md) — end-to-end testing conventions
