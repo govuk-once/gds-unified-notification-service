@@ -10,7 +10,7 @@ export const serializeRecordBodyToJson = <InputType>(body: InputType, observabil
     return JSON.stringify(body);
   } catch {
     const errorMsg = 'Failed parsing record body to JSON';
-    observability.logger.info(errorMsg, { raw: body });
+    observability.logger.error(errorMsg, { raw: body });
     throw new SerializationError([errorMsg]);
   }
 };
@@ -35,9 +35,8 @@ export abstract class QueueService<InputType> {
   public abstract addPublishingFailedMetric(count: number): void;
 
   public async publishMessage(messageBody: InputType, delaySeconds = 0) {
-    this.observability.logger.info(`Publishing message to queue'`, {
+    this.observability.logger.info('Publishing message to queue', {
       queueName: this.getQueueName(),
-      sqsMessageBody: messageBody,
     });
 
     try {

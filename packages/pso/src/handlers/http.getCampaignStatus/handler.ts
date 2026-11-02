@@ -58,14 +58,21 @@ export class GetCampaignStatus extends APIHandler<
 
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.info('Received request', {
+      path: event.path,
+      campaignID: event.pathParameters?.campaignID,
+      requestId: context.awsRequestId,
+    });
+
     const campaignID = event.pathParameters?.campaignID;
 
     const organisationID = event.requestContext.authorizer.Organization;
     if (!organisationID) {
-      throw new BadRequestError(['OrganisationID is missing from request authorizer']);
+      this.observability.logger.warn('OrganisationID has not been provided in request authorizer - returning 400');
+      throw new BadRequestError(['OrganisationID has not been provided in request authorizer']);
     }
 
     const departmentID = event.queryStringParameters?.departmentID;
@@ -74,11 +81,16 @@ export class GetCampaignStatus extends APIHandler<
 
     // If it doesn't exist - 404
     if (campaign == null) {
+      this.observability.logger.info('Campaign does not exists - returning 404');
       throw new NotFoundError();
     }
 
     const compositeSegments = campaign.CompositeID.split('/');
     const campaignId = compositeSegments.at(-1)!;
+
+    this.observability.logger.info('Successful request - returning 200', {
+      campaignID,
+    });
 
     return {
       body: {

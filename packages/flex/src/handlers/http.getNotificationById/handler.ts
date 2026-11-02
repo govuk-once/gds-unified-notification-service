@@ -1,5 +1,6 @@
 import {
   HandlerDependencies,
+  iocGetCacheService,
   iocGetConfigurationService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
@@ -12,12 +13,9 @@ import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationDispatchedStateEnum } from '@common/models/NotificationStateEnum';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
-import { ConfigurationService, ObservabilityService } from '@common/services';
+import { CacheService, ConfigurationService, ObservabilityService } from '@common/services';
 import DateInSeconds from '@common/utils/dateInSeconds';
-import {
-  IFlexNotificationSchema,
-  IMessageRecordToIFlexNotification,
-} from '@common/models/interfaces/IFlexNotification';
+import { IFlexNotificationSchema, IMessageRecordToIFlexNotification, IAnalytics } from '@common/models/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
@@ -30,6 +28,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
   public organisationsDynamoRepository!: OrganisationsDynamoRepository;
+  public cacheService!: CacheService;
 
   constructor(
     protected config: ConfigurationService,
@@ -58,13 +57,13 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle missing path param
     if (notificationID == undefined) {
-      this.observability.logger.info('notificationID has not been provided - returning 400');
+      this.observability.logger.warn('notificationID has not been provided - returning 400');
       throw new BadRequestError(['notificationID has not been provided']);
     }
 
     // Handle missing query param
     if (externalUserID == undefined || externalUserID === '') {
-      this.observability.logger.info('pushID has not been provided - returning 400');
+      this.observability.logger.warn('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 
@@ -84,7 +83,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Handle user not being the owner of the notification
     if (notification.ExternalUserID !== externalUserID) {
-      this.observability.logger.info('Notification belongs to another user - returning 404', {
+      this.observability.logger.warn('Notification belongs to another user - returning 404', {
         userOnNotification: notification.ExternalUserID,
         queryingUser: externalUserID,
       });
@@ -93,11 +92,20 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 
     // Get display name for organisations from the organisation ID
     const organisations = await this.organisationsDynamoRepository.getOrganisations([notification]);
-    const notificationResponse = IMessageRecordToIFlexNotification(notification, organisations, this.observability);
+
+    const cachedEvents = await this.cacheService.getList<IAnalytics>(
+      this.cacheService.analyticsEventKey(notification.NotificationID)
+    );
+    const notificationResponse = IMessageRecordToIFlexNotification(
+      notification,
+      organisations,
+      this.observability,
+      cachedEvents
+    );
 
     // If no organisation record matches the organisation - return 404
     if (!notificationResponse) {
-      this.observability.logger.info('Notification failed parsing to flex notification - returning 404');
+      this.observability.logger.warn('Notification failed parsing to flex notification - returning 404');
       throw new NotFoundError();
     }
 
@@ -119,4 +127,5 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
 export const handler = new GetFlexNotificationById(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   notificationsDynamoRepository: iocGetNotificationDynamoRepository(),
   organisationsDynamoRepository: iocGetOrganisationsDynamoRepository(),
+  cacheService: iocGetCacheService().connect(),
 })).handler();

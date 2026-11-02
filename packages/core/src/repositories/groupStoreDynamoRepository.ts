@@ -65,7 +65,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
       });
       return usersGroups;
     }
-
+    // TODO - Simplify this logic to match LEAVE approach
     const record: IGroupStoreRecord[] = groupsToJoin
       .map((g) => {
         const compositeID = this.buildCompositeId(g.Namespace, g.Group, g.Subgroup);
@@ -92,6 +92,16 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
       .filter(filters.isDefined);
 
     await this.createRecordBatch(record);
+    this.observability.logger.info('Joining groups', {
+      pushID,
+      groupsToJoin: record.map((r) => ({
+        GroupID: r.GroupID,
+        CompositeID: r.CompositeID,
+        Namespace: r.Namespace,
+        Group: r.Group,
+        Subgroup: r.Subgroup,
+      })),
+    });
 
     return [
       ...usersGroups,
@@ -126,6 +136,10 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
     const leaveKeys = new Set(groupsToLeave.map((g) => this.buildCompositeId(g.Namespace, g.Group, g.Subgroup)));
     const groupIDsToDelete = usersGroups.filter((u) => leaveKeys.has(u.CompositeID)).map((u) => u.GroupID);
 
+    this.observability.logger.info('Leaving groups', {
+      pushID,
+      groupsToLeave: usersGroups.filter((u) => leaveKeys.has(u.CompositeID)),
+    });
     await Promise.allSettled(
       groupIDsToDelete.map(async (id) => {
         await this.deleteRecord(id, pushID);

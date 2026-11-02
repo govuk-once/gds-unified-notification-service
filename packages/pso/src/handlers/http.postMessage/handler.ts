@@ -106,7 +106,11 @@ export class PostMessage extends APIHandler<
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
   ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
-    this.observability.logger.info('Received request', { event });
+    this.observability.logger.info('Received request', {
+      path: event.path,
+      organisationID: event.requestContext.authorizer.Organization,
+      requestId: context.awsRequestId,
+    });
 
     const organisationID = event.requestContext.authorizer.Organization;
     const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
@@ -120,7 +124,7 @@ export class PostMessage extends APIHandler<
     this.validationService.messageValidation(messages, organisationConfig);
 
     // Publish analytics & push items to the processing queue
-    this.observability.logger.info('Publishing analytics events for validated messages.');
+    this.observability.logger.debug('Publishing analytics events for validated messages.');
     await this.analyticsService.publishMultipleEvents(
       messages.map((body): AnalyticsEventFromIMessage => ({
         ...body,
@@ -130,11 +134,11 @@ export class PostMessage extends APIHandler<
     );
 
     // Requeue messages which passed validation to next stage
-    this.observability.logger.info('Requeuing validated message to process queue.');
+    this.observability.logger.debug('Requeuing validated message to process queue.');
     await this.processingQueue.publishMessageBatch(messages);
 
     // Create a record of message in Dynamodb
-    this.observability.logger.info('Creating record of validated messages that have been passed to queue.');
+    this.observability.logger.debug('Creating record of validated messages that have been passed to queue.');
     await this.notificationsDynamoRepository.createRecordBatch(
       messages.map(({ ExpiresInDays, ...body }): IMessageRecord => ({
         ...body,
@@ -146,6 +150,7 @@ export class PostMessage extends APIHandler<
       }))
     );
 
+    this.observability.logger.info('Successful request - returning 202');
     // Return placeholder status
     return {
       body: event.body.map((x) => {

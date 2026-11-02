@@ -40,7 +40,7 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
   }
 
   public async getProcessedMessageByID(NotificationID: string): Promise<IProcessedMessageRecord | undefined> {
-    this.observability.logger.debug('Retrieving message by notificationID and validating it has been processed', {
+    this.observability.logger.info('Retrieving message by notificationID and validating it has been processed', {
       NotificationID,
     });
     const messageRecords = await this.getRecord(NotificationID);
@@ -48,11 +48,12 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
     this.observability.logger.debug('Parsing all message records against processed message schema');
     const { data } = IProcessedMessageRecordSchema.safeParse(messageRecords);
 
+    this.observability.logger.info('Retrieved message record and validated schema');
     return data;
   }
 
   public async getProcessedMessages(externalUserID: string): Promise<IProcessedMessageRecord[]> {
-    this.observability.logger.debug('Retrieving all messages that have been processed for user');
+    this.observability.logger.info('Retrieving all messages that have been processed for user');
     const messageRecords = await this.getRecordsQuery(
       {
         field: 'ExternalUserID',
@@ -64,6 +65,7 @@ export class NotificationsDynamoRepository extends DynamodbRepository<typeof rec
     this.observability.logger.debug('Parsing all message records against processed message schema');
     const { data } = IProcessedMessageRecordSchema.array().safeParse(messageRecords);
 
+    this.observability.logger.info('Retrieved all message records and validated schema');
     return data ?? [];
   }
 

@@ -365,12 +365,14 @@ export class UNSPSOResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readOnlyById,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 
@@ -393,6 +395,7 @@ export class UNSPSOResource extends Construct {
       environment: {},
       resources: {
         kms: refs.kms,
+        vpc: basePrivateVPC,
       },
       iam: {
         ssmNamespaces: [config.namespace],
@@ -400,6 +403,7 @@ export class UNSPSOResource extends Construct {
         dynamodb: {
           messages: refs.dynamodb.messages.permissions.readAndWrite,
         },
+        elasticache: refs.elasticache.arns,
       },
     });
 

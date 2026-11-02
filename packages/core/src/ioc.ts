@@ -268,7 +268,12 @@ export const iocGetAnalyticsExportService = ioc(
 export const iocGetAnalyticsService = ioc(
   'AnalyticsService',
   Mode.SINGLETON,
-  async () => new AnalyticsService(iocGetObservabilityService(), await iocGetAnalyticsQueue())
+  async () =>
+    new AnalyticsService(
+      await iocGetCacheService().connect(),
+      iocGetObservabilityService(),
+      await iocGetAnalyticsQueue()
+    )
 );
 
 // Services - Circuit Breaker (one instance per platform)

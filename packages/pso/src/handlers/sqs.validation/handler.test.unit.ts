@@ -84,7 +84,7 @@ describe('Validation QueueHandler', async () => {
     await handler(event, context);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
+    expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
       raw: event.Records[0].body,
     });
   });
@@ -105,11 +105,21 @@ describe('Validation QueueHandler', async () => {
   });
 
   it.each([
-    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [true, false, `Service is disabled due to parameter config/validation/enabled being set to false`],
+    [false, true, 'Service is disabled due to parameter being set to false', { parameter: 'config/common/enabled' }],
+    [
+      true,
+      false,
+      'Service is disabled due to parameter being set to false',
+      { parameter: 'config/validation/enabled' },
+    ],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: boolean, validationEnabled: boolean, expectErrorMessage: string) => {
+    async (
+      commonEnabled: boolean,
+      validationEnabled: boolean,
+      expectErrorMessage: string,
+      parameter: { parameter: string }
+    ) => {
       // Arrange
       const event = mockQueueEvent(message);
       mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
@@ -120,7 +130,7 @@ describe('Validation QueueHandler', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage, parameter);
     }
   );
 

@@ -51,7 +51,7 @@ export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof r
     // Validate
     const pushID = event.queryStringParameters?.pushID;
     if (!pushID) {
-      this.observability.logger.info('pushID has not been provided - returning 400');
+      this.observability.logger.warn('pushID has not been provided - returning 400');
       throw new BadRequestError(['pushID has not been provided']);
     }
 

@@ -30,7 +30,7 @@ describe('PatchNotification Handler', async () => {
   let context: Context;
 
   const message = mockIProcessedMessage();
-  const analyticEvent = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const analyticEvent = mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED);
   const messageRecord = mockIProcessedMessageRecord(message, {
     DispatchedDateTime: true,
     Events: [analyticEvent],
@@ -118,7 +118,7 @@ describe('PatchNotification Handler', async () => {
     await handler(event, context);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request - returning 200', {
+    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('Successful request - returning 202', {
       notificationID: messageRecord.NotificationID,
       status: 'READ',
     });
@@ -140,7 +140,7 @@ describe('PatchNotification Handler', async () => {
     const result = await handler(event, context);
 
     // Assert
-    expect(observabilityMocks.logger.info).toHaveBeenCalledWith('notificationID has not been provided - returning 400');
+    expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('notificationID has not been provided - returning 400');
     expect(result.statusCode).toEqual(400);
     expect(JSON.parse(result.body)).toEqual({
       Status: 400,

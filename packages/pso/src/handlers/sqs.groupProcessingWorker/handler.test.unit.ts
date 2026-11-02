@@ -80,11 +80,21 @@ describe('GroupProcessingWorker QueueHandler', async () => {
   });
 
   it.each([
-    [false, true, `Service is disabled due to parameter config/common/enabled being set to false`],
-    [true, false, `Service is disabled due to parameter config/groupProcessingWorker/enabled being set to false`],
+    [false, true, 'Service is disabled due to parameter being set to false', { parameter: 'config/common/enabled' }],
+    [
+      true,
+      false,
+      'Service is disabled due to parameter being set to false',
+      { parameter: 'config/groupProcessingWorker/enabled' },
+    ],
   ])(
     'should obey SSM Enabled flags Common: %s Processing: %s with expect errorMsg: %s',
-    async (commonEnabled: boolean, processingEnabled: boolean, expectErrorMessage: string) => {
+    async (
+      commonEnabled: boolean,
+      processingEnabled: boolean,
+      expectErrorMessage: string,
+      parameter: { parameter: string }
+    ) => {
       // Arrange
       const event = mockQueueEvent(message);
       mockParameterStore[SSMParameters.Config.Common.Enabled.Path] = commonEnabled;
@@ -95,7 +105,7 @@ describe('GroupProcessingWorker QueueHandler', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(new ServiceMisconfigurationError());
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage);
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(expectErrorMessage, parameter);
     }
   );
 

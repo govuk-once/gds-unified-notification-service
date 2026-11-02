@@ -231,7 +231,7 @@ describe('NotificationsDynamoRepository', async () => {
       );
       expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'An item in array to create a batch of records does not match the record schema',
-        records[1]
+        { record: records[1] }
       );
     });
 
@@ -347,7 +347,7 @@ describe('NotificationsDynamoRepository', async () => {
       );
       expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Fields used to update record in table do not match the record schema',
-        record
+        { recordFields: record }
       );
     });
   });

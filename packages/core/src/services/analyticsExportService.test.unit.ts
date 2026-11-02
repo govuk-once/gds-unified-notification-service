@@ -28,7 +28,7 @@ describe('AnalyticsExportService', async () => {
   let mockParameterStore = mockDefaultConfig();
 
   // Test Fixtures
-  const analytics = mockIAnalytics(NotificationStateEnum.RECEIVED);
+  const analytics = mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED);
   const analyticsLog = mockAnalyticsLog(NotificationStateEnum.RECEIVED);
 
   beforeEach(async () => {
@@ -77,7 +77,7 @@ describe('AnalyticsExportService', async () => {
                 timestamp: date.getTime(),
                 message: [
                   '',
-                  '123',
+                  'eb456589-f3e2-4384-9344-853ad05147e5',
                   '2026-01-22T00:00:01Z',
                   'ORG01',
                   'DEP1',
@@ -97,7 +97,7 @@ describe('AnalyticsExportService', async () => {
       const analyticsNoDepID = { ...analytics, DepartmentID: undefined };
       const mockCsvNoDepID = [
         '',
-        '123',
+        'eb456589-f3e2-4384-9344-853ad05147e5',
         '2026-01-22T00:00:01Z',
         'ORG01',
         undefined,

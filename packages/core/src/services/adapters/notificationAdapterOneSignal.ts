@@ -66,7 +66,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'call');
 
     if (request.Channel === ChannelsEnum.MESSAGE_CENTRE_ONLY) {
-      this.observability.logger.info(`Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal`, metadata);
+      this.observability.logger.info('Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal', metadata);
       return {
         notification: request,
       };
@@ -85,7 +85,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
         }
       }
 
-      this.observability.logger.info(`Sending notification using OneSignal adapter`, metadata);
+      this.observability.logger.info('Sending notification using OneSignal adapter', metadata);
       const result = await this.client.post<OneSignalPushNotificationResponse>({
         path: `/notifications?c=push`,
         body: {
@@ -101,11 +101,11 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
         },
       });
 
-      this.observability.logger.info(`Successfully sent notification using OneSignal adapter`, metadata);
+      this.observability.logger.info('Successfully sent notification using OneSignal adapter', metadata);
 
       // Detect hidden failures
       if ((Array.isArray(result.body.errors) && result.body.errors.length > 0) || result.body.id == '') {
-        this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter - received 200 code`, {
+        this.observability.logger.error('Failed to dispatch notification using OneSignal adapter - received 200 code', {
           ...metadata,
           status: result.status,
           response: result.body,
@@ -134,7 +134,7 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'error');
 
     if (isFetchResponseError(error)) {
-      this.observability.logger.error(`Failed to dispatch notification using OneSignal adapter`, {
+      this.observability.logger.error('Failed to dispatch notification using OneSignal adapter', {
         NotificationID: request.NotificationID,
         error: {
           name: error.name,

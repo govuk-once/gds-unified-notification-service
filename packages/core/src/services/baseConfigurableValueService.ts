@@ -23,8 +23,9 @@ export abstract class BaseConfigurableValueService {
 
       // If schema processing failed
       if (result.error) {
-        this.observability.logger.error(`Could not parse parameter ${parameter.Path} to type`, {
+        this.observability.logger.error('Could not parse parameter to type', {
           method: 'getParameterAsType',
+          parameter: parameter.Path,
           error: z.prettifyError(result.error),
         });
         throw new ServiceMisconfigurationError();
@@ -37,8 +38,9 @@ export abstract class BaseConfigurableValueService {
         throw error;
       }
 
-      this.observability.logger.error(`Could not parse parameter ${parameter.Path} to type`, {
+      this.observability.logger.error('Could not parse parameter to type', {
         method: 'getParameterAsType',
+        parameter: parameter.Path,
       });
       throw new ServiceMisconfigurationError();
     }

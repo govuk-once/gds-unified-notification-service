@@ -54,7 +54,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
           MetricUnit.Count,
           wcu
         );
-        this.observability.logger.info(`Dynamodb Usage`, { label, table, cu, rcu, wcu, gsi, lsi });
+        this.observability.logger.info('Dynamodb Usage', { label, table, cu, rcu, wcu, gsi, lsi });
       }
     }
     return result;
@@ -100,7 +100,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       if (error) {
         this.observability.logger.error(
           'An item in array to create a batch of records does not match the record schema',
-          record
+          { record }
         );
         throw new ParsingFailedError([
           'An item in array to create a batch of records does not match the record schema',
@@ -112,7 +112,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
 
     try {
       if (batchRecords.length === 0) {
-        this.observability.logger.warn(`Triggered createRecordBatch with an empty array`);
+        this.observability.logger.warn('Triggered createRecordBatch with an empty array');
         return;
       }
       if (batchRecords.length > 25) {
@@ -154,10 +154,9 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
 
     const { data, error } = this.recordSchema.partial().safeParse(recordFields);
     if (error) {
-      this.observability.logger.error(
-        'Fields used to update record in table do not match the record schema',
-        recordFields
-      );
+      this.observability.logger.error('Fields used to update record in table do not match the record schema', {
+        recordFields,
+      });
       throw new ParsingFailedError(['Fields used to update record in table do not match the record schema']);
     }
 
@@ -199,7 +198,7 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
         recordFields,
       });
     } catch (error) {
-      this.observability.logger.error(`Failure in updating record table`, {
+      this.observability.logger.error('Failure in updating record table', {
         tableName: this.tableAttributes.name,
         error: this.observability.formatError(error),
         params,
@@ -305,11 +304,15 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     });
 
     if (sortKeyValue && !this.tableAttributes.rangeKey) {
-      throw new ServiceMisconfigurationError(['A sort key value has been used for a table with no sort key']);
+      const errMsg = 'A sort key value has been used for a table with no sort key';
+      this.observability.logger.error(errMsg);
+      throw new ServiceMisconfigurationError([errMsg]);
     }
 
     if (this.tableAttributes.rangeKey && !sortKeyValue) {
-      throw new ServiceMisconfigurationError(['Table requires a sort key to delete record, but none was provided']);
+      const errMsg = 'Table requires a sort key to delete record, but none was provided';
+      this.observability.logger.error(errMsg);
+      throw new ServiceMisconfigurationError([errMsg]);
     }
 
     const params: DeleteItemCommandInput = {
@@ -404,9 +407,13 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     try {
       const keyValue = record[this.tableAttributes.hashKey as keyof z.infer<RecordSchema>];
       if (!keyValue) {
-        throw new Error(
-          `No key value was found in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`
-        );
+        this.observability.logger.error('No key value was found in table', {
+          tableName: this.tableAttributes.name,
+          key: this.tableAttributes.hashKey,
+        });
+        throw new ServiceMisconfigurationError([
+          `No key value was found in table: ${this.tableAttributes.name}, with key ${this.tableAttributes.hashKey}`,
+        ]);
       }
 
       // Will increment the item if the key exists, or create an item with value 1 if not
@@ -430,6 +437,9 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       };
 
       await this.observeCapacity(this.incrementRecord.name, this.client.updateItem(params));
+      this.observability.logger.info('Successfully incremented record in table', {
+        tableName: this.tableAttributes.name,
+      });
     } catch (error) {
       this.observability.logger.error('Failure in adding record or incrementing in table', {
         error: this.observability.formatError(error),

@@ -21,7 +21,7 @@ export class NotificationAdapterVoid implements NotificationAdapter {
     const metadata = {
       NotificationID: request.NotificationID,
     };
-    this.observability.logger.info(`Sending notification using Void adapter`, metadata);
+    this.observability.logger.info('Sending notification using Void adapter', metadata);
 
     return {
       notification: request,
