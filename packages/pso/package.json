@@ -5,5 +5,8 @@
   "private": true,
   "scripts": {
     "build": "tsx ../../scripts/build.ts --handler pso"
+  },
+  "dependencies": {
+    "@gds-uns/core": "workspace:*"
   }
 }

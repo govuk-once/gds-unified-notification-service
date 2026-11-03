@@ -241,11 +241,19 @@ importers:
 
   packages/core: {}
 
-  packages/flex: {}
+  packages/flex:
+    dependencies:
+      '@gds-uns/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/infrastructure: {}
 
-  packages/pso: {}
+  packages/pso:
+    dependencies:
+      '@gds-uns/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 
