@@ -2,15 +2,26 @@ import esbuild from 'esbuild';
 import { existsSync, globSync, rmSync } from 'fs';
 import { basename, dirname, join, relative, resolve } from 'path';
 import { Colors, execute } from 'scripts/helpers';
+import { parseArgs } from 'node:util';
+import { mkdirSync } from 'node:fs';
 
+const ALLOWED_HANDLERS = ['pso', 'flex'];
 const ROOT = dirname(import.meta.dirname);
 const OUT_DIR = resolve(ROOT, 'dist');
 
-// Remove previous build artifacts
-if (existsSync(OUT_DIR)) {
-  rmSync(OUT_DIR, {
-    recursive: true,
-  });
+// Parse command line arguments for --handler option
+const { values } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    handler: {
+      type: 'string',
+      multiple: true,
+    },
+  },
+});
+if (!values.handler || values.handler.some((h) => !ALLOWED_HANDLERS.includes(h))) {
+  console.error(`Invalid handler specified. Allowed values are: ${ALLOWED_HANDLERS.join(', ')}`);
+  process.exit(1);
 }
 
 const buildHandlers = async (dir: string, namespace: string) => {
@@ -55,16 +66,27 @@ const buildHandlers = async (dir: string, namespace: string) => {
         })
         .then(() => console.log(` ${Colors.green(`Finished...`)} ${id} ${Colors.green(`✔`)}`));
     });
-    await Promise.allSettled(fns);
+    await Promise.all(fns);
   } catch (error) {
     console.log(Colors.red('Esbuild failure'), error);
     process.exit(1);
   }
 };
 
-void (async () => {
-  await Promise.allSettled([
-    buildHandlers(resolve(ROOT, 'packages', 'pso', 'src'), 'pso'),
-    buildHandlers(resolve(ROOT, 'packages', 'flex', 'src'), 'flex'),
-  ]);
-})();
+const main = async () => {
+  mkdirSync(OUT_DIR, { recursive: true });
+
+  // Removes the existing build output for each handler and rebuilds them
+  const promises: Promise<void>[] = [];
+  for (const handler of values.handler!) {
+    const handlerDir = join(OUT_DIR, handler);
+    if (existsSync(handlerDir)) {
+      rmSync(handlerDir, { recursive: true });
+    }
+    promises.push(buildHandlers(resolve(ROOT, 'packages', handler, 'src'), handler));
+  }
+  // Wait for all build processes to finish
+  await Promise.allSettled(promises);
+};
+
+await main();
