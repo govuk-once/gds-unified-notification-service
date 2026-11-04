@@ -1,6 +1,6 @@
 import { hashToUuidV4 } from '@common/utils';
-import { IGroupMessageMetadata } from '@project/lambdas';
-import { IProcessedMessage } from '@project/lambdas/interfaces/IMessage';
+import { IGroupMessageMetadata } from '@common/models/interfaces';
+import { IProcessedMessage } from '@common/models/interfaces/IMessage';
 
 export const mockIGroupMessageMetadata = (): IGroupMessageMetadata => ({
   GroupMessage: {

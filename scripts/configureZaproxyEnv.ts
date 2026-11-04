@@ -1,6 +1,6 @@
 import { domainName, fetchApiKeys, fetchMtlsCertificates } from '@shared/credentials';
 import { parseArgs } from 'node:util';
-import { config } from '../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 import * as fs from 'node:fs';
 import { execSync } from 'node:child_process';
 

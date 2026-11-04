@@ -1,6 +1,6 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { AnalyticsEventFromIMessage, AnalyticsLog } from '@common/services';
-import { IAnalytics } from '@project/lambdas';
+import { IAnalytics } from '@common/models/interfaces';
 
 export const mockIAnalytics = (id: string, event: NotificationStateEnum): IAnalytics => ({
   EventID: id,

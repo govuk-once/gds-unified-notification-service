@@ -278,7 +278,7 @@ Group membership store. One item per (group, user) pair. Only created when the `
 
 ### `organisations`
 
-Configuration store for PSO organisations. Seeded at deploy time from `infrastructure/cdk/consumers/consumersMetadata.ts` via a custom CDK resource. One item per organisation.
+Configuration store for PSO organisations. Seeded at deploy time from `packages/infrastructure/cdk/consumers/consumersMetadata.ts` via a custom CDK resource. One item per organisation.
 
 #### Keys & Indexes
 

@@ -1,5 +1,5 @@
 import { ChannelsEnum } from '@common/models';
-import { IGroupMessage } from '@project/lambdas';
+import { IGroupMessage } from '@common/models/interfaces';
 import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkCampaignStatus, test, testFixtures } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';

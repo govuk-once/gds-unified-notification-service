@@ -1,0 +1,12 @@
+{
+  "name": "@gds-uns/pso",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsx ../../scripts/build.ts --handler pso"
+  },
+  "dependencies": {
+    "@gds-uns/core": "workspace:*"
+  }
+}

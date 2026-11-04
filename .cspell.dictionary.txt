@@ -91,3 +91,4 @@ vitest
 hasura
 RPUSH
 LRANGE
+sparkline

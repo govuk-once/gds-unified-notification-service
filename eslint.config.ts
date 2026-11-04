@@ -16,7 +16,7 @@ export default defineConfig([
     'coverage.md',
     'dist',
     'node_modules',
-    'infrastructure/cdk/cdk.out',
+    'packages/infrastructure/cdk/cdk.out',
     'docs/swagger-ui-bundle.js',
   ]),
   tseslint.configs.recommendedTypeChecked,

@@ -29,7 +29,7 @@ Standards for writing documentation in this repository.
 
 ## Where documentation lives
 
-This is a single-package repository (one `package.json`, one CDK app), not a monorepo, so there is no `libs/*` or `domains/*` split to document per-package. Instead:
+This is a pnpm monorepo with packages under `packages/` (core, pso, flex, infrastructure):
 
 | Content type | Location |
 | --------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -46,11 +46,10 @@ Existing colocated READMEs worth knowing about before you add a new one:
 
 | File | Covers |
 | ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`src/README.md`](/src/README.md) | Unit testing conventions (file naming, mocking, coverage gate) |
-| [`src/lambdas/README.md`](/src/lambdas/README.md) | Lambda directory/naming conventions (`{trigger}.{operationName}`) |
-| `src/lambdas/**/README.md` | Per-Lambda documentation (sample event, infrastructure touched, request-flow diagram) — one per Lambda directory |
-| [`src/common/operations/README.md`](/src/common/operations/README.md) | The base operation classes handlers extend, in more depth than the [Developer Reference](./developer-reference.md#handler-patterns) covers |
-| [`src/common/services/README.md`](/src/common/services/README.md) | The IoC container and every service class, in more depth than the [Developer Reference](./developer-reference.md#services-and-adapters) covers |
+| `packages/pso/src/handlers/**/README.md` | Per-Lambda documentation (sample event, infrastructure touched, request-flow diagram) — one per Lambda directory |
+| `packages/flex/src/handlers/**/README.md` | Per-Lambda documentation (Flex handlers) |
+| [`packages/core/src/operations/README.md`](/packages/core/src/operations/README.md) | The base operation classes handlers extend, in more depth than the [Developer Reference](./developer-reference.md#handler-patterns) covers |
+| [`packages/core/src/services/README.md`](/packages/core/src/services/README.md) | The IoC container and every service class, in more depth than the [Developer Reference](./developer-reference.md#services-and-adapters) covers |
 | [`test/e2e/README.md`](/test/e2e/README.md) | End-to-end testing conventions against deployed environments |
 | [`.husky/README.md`](/.husky/README.md) | Pre-commit hooks and commit message format |
 

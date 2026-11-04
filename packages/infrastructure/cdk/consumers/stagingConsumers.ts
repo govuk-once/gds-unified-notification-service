@@ -1,0 +1,67 @@
+import { certificate, GroupedConsumerCertificates, rollingCertificate } from '@infra/cdk/consumers/consumers';
+
+export const stagingConsumers: () => GroupedConsumerCertificates = () => [
+  // Dev certificates
+  certificate({
+    commonName: 'dev.2026-Q2-Q3',
+    organization: 'UNS',
+    organizationalUnit: 'uns',
+    startDate: new Date('2026-05-27T23:59:59Z'),
+    expirationDate: new Date('2026-09-31T23:59:59Z'),
+    revoked: false,
+  }),
+  ...rollingCertificate({
+    commonName: 'dev',
+    organization: 'UNS',
+    organizationalUnit: 'uns',
+    startDate: new Date('2026-09-13T23:59:59Z'),
+    frequencyInMonths: 3,
+    migrationPeriodInWeeks: 4,
+  }),
+
+  // DVLA certificates
+  certificate({
+    commonName: 'dvla.2026-Q2-Q3',
+    organization: 'DVLA',
+    organizationalUnit: 'dvla',
+    startDate: new Date('2026-05-27T23:59:59Z'),
+    expirationDate: new Date('2026-09-31T23:59:59Z'),
+    revoked: false,
+  }),
+  ...rollingCertificate({
+    commonName: 'dvla',
+    organization: 'DVLA',
+    organizationalUnit: 'dvla',
+    startDate: new Date('2026-09-13T23:59:59Z'),
+    frequencyInMonths: 3,
+    migrationPeriodInWeeks: 4,
+  }),
+
+  // Pen testing - Running until 16th of June
+  certificate({
+    commonName: 'pentest.2026-Q2',
+    organization: 'pentest',
+    organizationalUnit: 'pentest',
+    startDate: new Date('2026-06-02T23:59:59Z'),
+    expirationDate: new Date('2026-06-16T23:59:59Z'),
+    revoked: false,
+  }),
+  certificate({
+    commonName: 'pentest.2026-Q3',
+    organization: 'pentest',
+    organizationalUnit: 'pentest',
+    startDate: new Date('2026-09-27T23:59:59Z'),
+    expirationDate: new Date('2026-11-08T23:59:59Z'),
+    revoked: false,
+  }),
+
+  // Events Aggregator
+  certificate({
+    commonName: 'ea.2026-Q2-Q4',
+    organization: 'EventsAggregator',
+    organizationalUnit: 'ea',
+    startDate: new Date('2026-08-24T23:59:59Z'),
+    expirationDate: new Date('2026-12-31T23:59:59Z'),
+    revoked: false,
+  }),
+];

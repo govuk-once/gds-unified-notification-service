@@ -1,11 +1,10 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FetchErrorResponse, FetchService } from '@common/services/FetchService';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
-import { CampaignStatus } from '@project/lambdas';
-import { INotificationStatus } from '@project/lambdas/interfaces/INotificationStatus';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { test as baseTest, inject } from 'vitest';
-import { config } from '../../../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
+import { CampaignStatus, INotificationStatus } from '@common/models/interfaces';
 
 // Suppresses unnecessary console.logs from the OTEL metrics/tracers
 vi.hoisted(() => {

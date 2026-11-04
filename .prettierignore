@@ -3,6 +3,6 @@ build
 coverage
 dist
 node_modules
-infrastructure/cdk/cdk.out
+packages/infrastructure/cdk/cdk.out
 docs/*
 pnpm-lock.yaml

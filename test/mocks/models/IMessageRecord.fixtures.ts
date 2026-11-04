@@ -1,6 +1,6 @@
 import { IMessageRecord, IProcessedMessageRecord } from '@common/repositories';
 import DateInSeconds from '@common/utils/dateInSeconds';
-import { IAnalytics, IProcessedMessage } from '@project/lambdas';
+import { IAnalytics, IProcessedMessage } from '@common/models/interfaces';
 
 export const mockIMessageRecord = (
   message: Omit<IProcessedMessage, 'UserID'>,

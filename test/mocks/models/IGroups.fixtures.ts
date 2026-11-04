@@ -1,4 +1,4 @@
-import { IGroups } from '@project/lambdas';
+import { IGroups } from '@common/models/interfaces';
 
 export const mockIGroups = (): IGroups[] => [
   {
