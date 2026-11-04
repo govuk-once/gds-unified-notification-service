@@ -9,6 +9,7 @@ import {
   IAuthorizer,
   Integration,
   LogGroupLogDestination,
+  MethodLoggingLevel,
   Period,
   RestApi,
   SecurityPolicy,
@@ -31,7 +32,7 @@ import { IVpcEndpoint } from 'aws-cdk-lib/aws-ec2';
 import { AccountPrincipal, AnyPrincipal, Effect, Policy, PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
 import { HttpMethod } from 'aws-cdk-lib/aws-lambda';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { LogGroup, LogRetention, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -431,6 +432,7 @@ export class UNSAPIGatewayGateway extends Construct {
         tracingEnabled: true,
         metricsEnabled: true,
         dataTraceEnabled: false,
+        loggingLevel: MethodLoggingLevel.ERROR,
         stageName: 'api',
 
         cachingEnabled: false,
@@ -473,6 +475,12 @@ export class UNSAPIGatewayGateway extends Construct {
 
     this.restApi.deploymentStage.node.addDependency(loggroup);
     this.restApi.node.addDependency(loggroup);
+
+    // Configure generated log retention group to match rest of platform configuration
+    new LogRetention(this, namingHelper(`restapi`, ...props.name, `execution-log-retention`), {
+      logGroupName: `API-Gateway-Execution-Logs_${this.restApi.restApiId}/api`,
+      retention: config.retention,
+    });
 
     // Register all HTTP methods & integrations that have been added as props
     for (const [operationId, { path, method, integration, authorizer }] of Object.entries(props.integrations ?? {})) {
