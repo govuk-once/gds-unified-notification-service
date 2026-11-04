@@ -19,6 +19,16 @@ export const devConsumers: () => GroupedConsumerCertificates = () => [
     migrationPeriodInWeeks: 4,
   }),
 
+  // QA certificates
+  certificate({
+    commonName: 'uns-qa.2026-Q4',
+    organization: 'UNS-QA',
+    organizationalUnit: 'qa',
+    startDate: new Date('2026-11-03T23:59:59Z'),
+    expirationDate: new Date('2026-12-13T23:59:59Z'),
+    revoked: false,
+  }),
+
   // DVLA certificates
   certificate({
     commonName: 'dvla.2026-Q2-Q3',
