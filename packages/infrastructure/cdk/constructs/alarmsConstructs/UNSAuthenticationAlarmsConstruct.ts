@@ -45,6 +45,18 @@ export class UNSAuthenticationAlarmsConstruct extends UNSAlarmsConstruct {
       datapointsToAlarm: 2,
     });
 
+    // Deleted Certificate Detected Alarm
+    this.addAlarm({
+      id: constructNamingHelper('deletedCertificateAlarm', group),
+      name: namingHelper(alarmPriority.MEDIUM, group, 'DeletedCertificateDetected'),
+      description: `Deleted Certificate Detected.`,
+      metric: this.customMetric(MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_DELETED_CERTIFICATE_COUNT, Stats.MAXIMUM),
+      threshold: numericThreshold.ZERO_THRESHOLD,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
+      evaluationPeriods: 2,
+      datapointsToAlarm: 2,
+    });
+
     // Unknown Certificate Spike
     this.addAlarm({
       id: constructNamingHelper('unknownCertificateSpikeAlarm', group),
