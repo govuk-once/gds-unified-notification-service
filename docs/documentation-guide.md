@@ -29,7 +29,7 @@ Standards for writing documentation in this repository.
 
 ## Where documentation lives
 
-This is a single-package repository (one `package.json`, one CDK app), not a monorepo, so there is no `libs/*` or `domains/*` split to document per-package. Instead:
+This is a pnpm monorepo with packages under `packages/` (core, pso, flex, infrastructure):
 
 | Content type | Location |
 | --------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -37,21 +37,21 @@ This is a single-package repository (one `package.json`, one CDK app), not a mon
 | Operational runbooks | [`docs/runbooks/*.md`](./runbooks/README.md) |
 | Conventions for a specific directory (naming, test setup) | `README.md` colocated in that directory |
 | Published OpenAPI reference (PSO and Flex) | [`docs/pso/openapi.yml`](./pso/openapi.yml), [`docs/flex/openapi.yml`](./flex/openapi.yml) — published to GitHub Pages by [`main.pages.yml`](/.github/workflows/main.pages.yml) |
-| CI/CD pipeline behaviour | [`.github/README-Pipelines.md`](/.github/README-Pipelines.md) |
+| CI/CD pipeline behaviour | [`docs/deployment.md`](./deployment.md#cicd-workflows) — every workflow is documented there |
+| Alarm catalogue | [`docs/alarms.md`](./alarms.md) |
+| Runtime configuration (SSM, feature flags, organisation config) | [`docs/configuration.md`](./configuration.md) |
 | Git hook / commit convention behaviour | [`.husky/README.md`](/.husky/README.md) |
 
 Existing colocated READMEs worth knowing about before you add a new one:
 
 | File | Covers |
 | ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`src/README.md`](/src/README.md) | Unit testing conventions (file naming, mocking, coverage gate) |
-| [`src/lambdas/README.md`](/src/lambdas/README.md) | Lambda directory/naming conventions (`{trigger}.{operationName}`) |
-| `src/lambdas/**/README.md` | Per-Lambda documentation (sample event, infrastructure touched, request-flow diagram) — one per Lambda directory |
-| [`src/common/operations/README.md`](/src/common/operations/README.md) | The base operation classes handlers extend, in more depth than the [Developer Reference](./developer-reference.md#handler-patterns) covers |
-| [`src/common/services/README.md`](/src/common/services/README.md) | The IoC container and every service class, in more depth than the [Developer Reference](./developer-reference.md#services-and-adapters) covers |
+| `packages/pso/src/handlers/**/README.md` | Per-Lambda documentation (sample event, infrastructure touched, request-flow diagram) — one per Lambda directory |
+| `packages/flex/src/handlers/**/README.md` | Per-Lambda documentation (Flex handlers) |
+| [`packages/core/src/operations/README.md`](/packages/core/src/operations/README.md) | The base operation classes handlers extend, in more depth than the [Developer Reference](./developer-reference.md#handler-patterns) covers |
+| [`packages/core/src/services/README.md`](/packages/core/src/services/README.md) | The IoC container and every service class, in more depth than the [Developer Reference](./developer-reference.md#services-and-adapters) covers |
 | [`test/e2e/README.md`](/test/e2e/README.md) | End-to-end testing conventions against deployed environments |
 | [`.husky/README.md`](/.husky/README.md) | Pre-commit hooks and commit message format |
-| [`.github/README-Pipelines.md`](/.github/README-Pipelines.md) | Step-by-step breakdown of every GitHub Actions workflow |
 
 Don't duplicate any of the above into a `docs/*.md` guide — link to it instead. A `docs/*.md` guide should explain the *why* and the *how it fits together*; a colocated `README.md` should explain the *conventions for files in this directory*. If you're deep in one directory's neighbourhood, check for a colocated `README.md` first; if you're trying to understand how the system fits together, start with `docs/`.
 

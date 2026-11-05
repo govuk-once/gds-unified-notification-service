@@ -1,0 +1,47 @@
+import { Key } from 'aws-cdk-lib/aws-kms';
+import { CodeSigningConfig } from 'aws-cdk-lib/aws-lambda';
+import { Construct } from 'constructs';
+import { EnvVars } from '@infra/cdk/config';
+import { UNSCustomResourceConstruct } from '@infra/cdk/constructs/bases/UNSCustomResourceConstruct';
+import { UNSDynamoDb } from '@infra/cdk/constructs/bases/UNSDynamoDBConstruct';
+import { UNSDynamoDbWriterProps } from '@infra/cdk/customResourceFns/unsDynamoDBWriter';
+
+export class UNSDynamoDBWriterConstruct extends UNSCustomResourceConstruct<UNSDynamoDbWriterProps> {
+  public readonly table: UNSDynamoDb;
+  constructor(
+    scope: Construct,
+    config: EnvVars,
+    table: UNSDynamoDb,
+    props: { kms: Key; codeSigningConfig: CodeSigningConfig }
+  ) {
+    super(scope, config, {
+      name: [`dynamodb-writer-${table.attributes.name}`],
+      tsFn: 'unsDynamoDBWriter',
+      modules: [],
+      kms: props.kms,
+      codeSigningConfig: props.codeSigningConfig,
+    });
+
+    this.table = table;
+    table.table.grantReadWriteData(this.fn);
+  }
+
+  public createRecord(
+    caller: Construct,
+    idAttribute: string,
+    data: UNSDynamoDbWriterProps['data'],
+    constructId: string
+  ) {
+    this.use(
+      caller,
+      {
+        table: this.table.attributes.name,
+        idAttribute,
+        data,
+      },
+      {
+        name: [constructId],
+      }
+    );
+  }
+}

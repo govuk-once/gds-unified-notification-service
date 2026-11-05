@@ -1,0 +1,117 @@
+import {
+  APIHandler,
+  HandlerDependencies,
+  iocGetCampaignsDynamoRepository,
+  iocGetObservabilityService,
+  type ITypedRequestEvent,
+  type ITypedRequestResponse,
+} from '@common';
+import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
+import { BadRequestError } from '@common/models/Errors/BadRequestError';
+import { NotFoundError } from '@common/models/Errors/NotFoundError';
+import { CampaignsDynamoRepository } from '@common/repositories';
+import { ObservabilityService } from '@common/services';
+import { campaignStatusSchema } from '@common/models/interfaces';
+import type { Context } from 'aws-lambda';
+import z from 'zod';
+
+const requestBodySchema = z.any();
+const responseBodySchema = campaignStatusSchema;
+const authorizerSchema = psoAuthorizerSchema;
+
+/**
+ * Sample event received by Lambda from API Gateway
+ {
+  "pathParameters": {
+    "campaignID": "CAM_ID"
+  },
+  "queryStringParameters": {
+    "departmentID": "DEP01"
+  },
+  "requestContext": {
+    "authorizer": {
+      "Organization": "ORG01"
+    },
+    "requestId": "requestID-test"
+  }
+ **/
+
+export class GetCampaignStatus extends APIHandler<
+  typeof requestBodySchema,
+  typeof responseBodySchema,
+  typeof authorizerSchema
+> {
+  public operationId: string = 'getCampaignStatus';
+  public requestBodySchema = requestBodySchema;
+  public responseBodySchema = responseBodySchema;
+  public authorizerSchema = authorizerSchema;
+
+  public campaignsDynamoRepository!: CampaignsDynamoRepository;
+
+  constructor(
+    protected observability: ObservabilityService,
+    asyncDependencies?: () => HandlerDependencies<GetCampaignStatus>
+  ) {
+    super(observability);
+    this.injectDependencies(asyncDependencies);
+  }
+
+  public async implementation(
+    event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
+
+    context: Context
+  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+    this.observability.logger.info('Received request', {
+      path: event.path,
+      campaignID: event.pathParameters?.campaignID,
+      requestId: context.awsRequestId,
+    });
+
+    const campaignID = event.pathParameters?.campaignID;
+
+    const organisationID = event.requestContext.authorizer.Organization;
+    if (!organisationID) {
+      this.observability.logger.warn('OrganisationID has not been provided in request authorizer - returning 400');
+      throw new BadRequestError(['OrganisationID has not been provided in request authorizer']);
+    }
+
+    const departmentID = event.queryStringParameters?.departmentID;
+    const compositeID = CampaignsDynamoRepository.buildCompositeID(organisationID, departmentID, campaignID);
+    const campaign = await this.campaignsDynamoRepository.getRecord(compositeID);
+
+    // If it doesn't exist - 404
+    if (campaign == null) {
+      this.observability.logger.info('Campaign does not exists - returning 404');
+      throw new NotFoundError();
+    }
+
+    const compositeSegments = campaign.CompositeID.split('/');
+    const campaignId = compositeSegments.at(-1)!;
+
+    this.observability.logger.info('Successful request - returning 200', {
+      campaignID,
+    });
+
+    return {
+      body: {
+        CampaignID: campaignId,
+        DepartmentID: compositeSegments.length >= 3 ? compositeSegments[1] : compositeSegments[0],
+        ProcessingSummary: {
+          RECEIVED: (campaign.VALIDATED ?? 0) + (campaign.VALIDATED_API_CALL ?? 0),
+          PROCESSED: campaign.PROCESSED ?? 0,
+          DISPATCHED: campaign.DISPATCHED ?? 0,
+        },
+        UsageSummary: {
+          READ: campaign.READ ?? 0,
+          MARKED_AS_UNREAD: campaign.MARKED_AS_UNREAD ?? 0,
+          HIDDEN: campaign.HIDDEN ?? 0,
+        },
+      },
+      statusCode: 200,
+    };
+  }
+}
+
+export const handler = new GetCampaignStatus(iocGetObservabilityService(), () => ({
+  campaignsDynamoRepository: iocGetCampaignsDynamoRepository(),
+})).handler();

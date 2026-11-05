@@ -45,7 +45,7 @@ One sentence: what this covers and who it's for.
 **Code:** ...
 ```
 
-Ground every runbook in real alarm names, real file paths and real thresholds pulled from the code — see [Infrastructure Development Guide: CloudWatch alarms](../infrastructure-development.md#cloudwatch-alarms) for the current alarm catalogue. A runbook that describes an alarm or threshold that doesn't exist in the code is worse than no runbook.
+Ground every runbook in real alarm names, real file paths and real thresholds pulled from the code — see [Alarms](../alarms.md) for the current alarm catalogue. A runbook that describes an alarm or threshold that doesn't exist in the code is worse than no runbook.
 
 ---
 
@@ -56,3 +56,4 @@ Ground every runbook in real alarm names, real file paths and real thresholds pu
 - [Documentation Guide](../documentation-guide.md)
 - [Deployment Guide](../deployment.md)
 - [Infrastructure Development Guide](../infrastructure-development.md)
+- [Alarms](../alarms.md)

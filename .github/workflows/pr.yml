@@ -74,9 +74,12 @@ jobs:
           (VITEST_TREE_REPORT=true pnpm run test:coverage 2>&1 | grep -A1000 "= Coverage summary =" | tee -a coverage.md) || echo "Failed to meet the criteria"
           echo '```' >> coverage.md
 
+          # Export — always runs so the PR comment is posted even on failure
           echo 'report<<EOF' >> $GITHUB_OUTPUT
           cat coverage.md >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
+
+          exit $TEST_EXIT
 
       - name: ⬆️ Upload coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1

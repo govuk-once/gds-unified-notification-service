@@ -11,13 +11,17 @@ jobs:
 
       - name: Validate PR title follows conventional commits
         if: github.actor != 'dependabot[bot]'
+        env:
+          # Passed via env rather than interpolated into the script to avoid shell injection from PR titles
+          TITLE: ${{ github.event.pull_request.title }}
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
           echo "Checking PR title: $TITLE"
 
-          if [[ ! $TITLE =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test){1}(\([A-Z]{2,6}-[0-9]{1,5}\))(!)?\:\ ([[:alnum:]])+([[:space:][:print:]]*) ]]; then
-            echo "::error ::PR title must follow conventional commits format: <type>(<TICKET-123>): <description>"
-            echo "::error ::Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
-            echo "::error ::Examples: 'feat(NOT-491): add login flow' or 'fix(NOT-123): resolve null pointer'"
+          # Must stay in sync with scripts/validate-commit-msg.ts (the source of truth)
+          PATTERN='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|BREAKING CHANGE|BREAKING)\([A-Z]{1,6}-[0-9]{1,5}\): .+'
+          if [[ ! $TITLE =~ $PATTERN ]]; then
+            echo "::error ::PR title must follow the format: <type>(<TICKET-123>): <description>"
+            echo "::error ::Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test, BREAKING CHANGE, BREAKING"
+            echo "::error ::Examples: 'feat(NOT-491): add login flow' or 'BREAKING CHANGE(NOT-123): remove legacy endpoint'"
             exit 1
           fi

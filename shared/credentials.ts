@@ -1,6 +1,6 @@
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand, GetRestApisCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { config } from '../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 
 export interface ApiKeys {
   psoApiKey: string;
