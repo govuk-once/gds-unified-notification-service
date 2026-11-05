@@ -22,7 +22,7 @@ export const devConsumers: () => GroupedConsumerCertificates = () => [
   // QA certificates
   certificate({
     commonName: 'uns-qa.2026-Q4',
-    organization: 'UNS-QA',
+    organization: 'QA',
     organizationalUnit: 'qa',
     startDate: new Date('2026-11-03T23:59:59Z'),
     expirationDate: new Date('2026-12-13T23:59:59Z'),

@@ -14,7 +14,7 @@ export const orgMetadata = {
     DeeplinkAllowList: DeeplinkPreset.AppAndWeb,
   }),
 
-  'UNS-QA': IOrganisationRecordBuilder('UNS-QA', {
+  QA: IOrganisationRecordBuilder('QA', {
     Channels: ChannelsControlPreset.All,
     MessageRetention: MessageRetentionPresent.OneMonth,
     DeeplinkAllowList: DeeplinkPreset.AppAndWeb,
