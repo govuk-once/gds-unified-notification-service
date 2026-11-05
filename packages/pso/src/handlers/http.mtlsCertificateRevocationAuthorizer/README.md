@@ -45,10 +45,12 @@ flowchart TD
     F -- No --> D2[Deny + ...DENIED_UNKNOWN_CERTIFICATE_COUNT]
     F -- Yes --> G{Revoked == true?}
     G -- Yes --> D3[Deny + ...DENIED_REVOKED_CERTIFICATE_COUNT]
-    G -- No --> H{Organization set on record?}
-    H -- No --> D4[Deny + ...DENIED_NO_ORGANIZATION_COUNT]
-    H -- Yes --> I[...ALLOWED_COUNT metric]
-    I --> K[OrganisationsDynamoRepository.getRecord]
+    G -- No --> H{Deleted == true?}
+    H -- Yes --> D4[Deny + ...DENIED_DELETED_CERTIFICATE_COUNT]
+    H -- No --> I{Organization set on record?}
+    I -- No --> D5[Deny + ...DENIED_NO_ORGANIZATION_COUNT]
+    I -- Yes --> J[...ALLOWED_COUNT metric]
+    J --> K[OrganisationsDynamoRepository.getRecord]
     K --> L{Organisation record found?}
     L -- No --> M[500 ServiceMisconfigurationError]
     L -- Yes --> N["Allow + Organization & JSON OrganisationConfig in context, usageIdentifierKey = x-api-key"]
