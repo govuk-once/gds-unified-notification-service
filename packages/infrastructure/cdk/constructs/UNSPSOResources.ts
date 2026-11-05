@@ -1,13 +1,3 @@
-import SSMParameters from '@shared/ssmParameter';
-import { Duration, Stack } from 'aws-cdk-lib';
-import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
-import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
-import { Schedule } from 'aws-cdk-lib/aws-events';
-import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
-import { LogGroup } from 'aws-cdk-lib/aws-logs';
-import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
-import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
-import { Construct } from 'constructs';
 import { EnvVars } from '@infra/cdk/config';
 import { UNSAPIGatewayGateway } from '@infra/cdk/constructs/bases/UNSApiGatewayConstruct';
 import { UNSDynamoDb } from '@infra/cdk/constructs/bases/UNSDynamoDBConstruct';
@@ -25,6 +15,16 @@ import { applyDataProtectionTag } from '@infra/cdk/utils/applyDataProtectionTag'
 import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
 import { applyPiiTag } from '@infra/cdk/utils/applyPiiTag';
 import { SSMFromObject } from '@infra/cdk/utils/SSMFromObject';
+import SSMParameters from '@shared/ssmParameter';
+import { Duration, Stack } from 'aws-cdk-lib';
+import { IdentitySource, RequestAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+import { Dashboard } from 'aws-cdk-lib/aws-cloudwatch';
+import { Schedule } from 'aws-cdk-lib/aws-events';
+import { CfnAccessKey, Effect, PolicyStatement, ServicePrincipal, User } from 'aws-cdk-lib/aws-iam';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
+import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { Construct } from 'constructs';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
 export class UNSPSOResource extends Construct {
@@ -176,11 +176,11 @@ export class UNSPSOResource extends Construct {
       enforceSSL: true,
       versioned: true,
       removalPolicy: config.removalPolicy,
-      autoDeleteObjects: !config.isMainEnv,
+      autoDeleteObjects: !config.isPersistentEnv,
       lifecycleRules: [
         {
           enabled: true,
-          expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+          expiration: config.isPersistentEnv ? Duration.days(7) : Duration.days(1),
         },
       ],
       serverAccessLogsBucket: refs.accessLogs.bucket,
@@ -345,7 +345,7 @@ export class UNSPSOResource extends Construct {
           organisations: props.orgs.organisationsTable.permissions.readOnly,
         },
         // Sandbox use case: Allow authorizer to use decrypt on mtls tables
-        kms: config.isMainEnv ? [] : [config.sandbox.shared.kms],
+        kms: config.isPersistentEnv ? [] : [config.sandbox.shared.kms],
       },
     });
 

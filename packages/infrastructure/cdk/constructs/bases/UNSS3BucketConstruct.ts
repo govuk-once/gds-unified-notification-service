@@ -1,3 +1,5 @@
+import { EnvVars } from '@infra/cdk/config';
+import { applyCheckovSkipsS3Bucket } from '@infra/cdk/utils/applyCheckovSkip';
 import {
   BlockPublicAccess,
   Bucket,
@@ -7,8 +9,6 @@ import {
   ObjectLockRetention,
 } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
-import { applyCheckovSkipsS3Bucket } from '@infra/cdk/utils/applyCheckovSkip';
 
 export interface BucketProps {
   name: string[];
@@ -44,7 +44,7 @@ export class UNSS3Bucket extends Construct {
 
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
-      autoDeleteObjects: !config.isMainEnv,
+      autoDeleteObjects: !config.isPersistentEnv,
 
       lifecycleRules: props.lifecycleRules,
 
