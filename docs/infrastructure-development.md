@@ -1,12 +1,12 @@
 # Infrastructure Development Guide
 
-Guide to the CDK application in [`infrastructure/cdk`](/infrastructure/cdk): stack composition, constructs, naming, SSM conventions, mTLS, networking, alerting, dashboards and tagging.
+Guide to the CDK application in [`packages/infrastructure/cdk`](/packages/infrastructure/cdk): stack composition, constructs, naming, SSM conventions, mTLS, networking, alerting, dashboards and tagging.
 
 ---
 
 ## Overview
 
-[`infrastructure/cdk/cdk.ts`](/infrastructure/cdk/cdk.ts) (the app entry point, `cdk.json`'s `"app": "tsx cdk.ts"`) defines up to four stacks:
+[`packages/infrastructure/cdk/cdk.ts`](/packages/infrastructure/cdk/cdk.ts) (the app entry point, `cdk.json`'s `"app": "tsx cdk.ts"`) defines up to four stacks:
 
 ```text
 uns-<env>-global-stack        UNSGlobalStack   us-east-1   CloudFront-scoped WAF Web ACL (+ KMS, WAF log group)
@@ -29,12 +29,12 @@ UNSStack
 └── UNSFlexResource         — the Flex service: HTTP Lambdas, public (dev/sandbox-only) + private API Gateway
 ```
 
-("PSO" is the public-facing, mTLS-protected send/status API used by external departments. "Flex" is the internal API the GOV.UK app backend uses to read and manage a user's notifications. They match `src/lambdas/pso` and `src/lambdas/flex`.)
+("PSO" is the public-facing, mTLS-protected send/status API used by external departments. "Flex" is the internal API the GOV.UK app backend uses to read and manage a user's notifications. They match `packages/pso/src/handlers` and `packages/flex/src/handlers`.)
 
 Within `UNSStack`, constructs are wired together with typed constructor props (`refs: common`, `mtls: {...}`). Between stacks:
 
 - **Global → main**: `UNSStack` receives the `UNSGlobalStack` instance and reads `cloudfrontWebAclArn`. Both stacks set `crossRegionReferences: true`, so CDK carries the ARN across regions.
-- **Main → alarms**: alarms never import constructs. `UNSStack.resourceNames()` returns a plain [`UNSResourceContract`](/infrastructure/cdk/constructs/UNSResourceContract.ts) of names (API names, queue/DLQ names, Lambda function names, WAF names, alert topic ARN), so alarms can change and redeploy without touching the main stack. To alarm on a new resource, add its name to the contract.
+- **Main → alarms**: alarms never import constructs. `UNSStack.resourceNames()` returns a plain [`UNSResourceContract`](/packages/infrastructure/cdk/constructs/UNSResourceContract.ts) of names (API names, queue/DLQ names, Lambda function names, WAF names, alert topic ARN), so alarms can change and redeploy without touching the main stack. To alarm on a new resource, add its name to the contract.
 - **Main → testing**: `UNSTestingStack` receives the VPC, security group, KMS key and Messages table.
 
 Values that need to survive outside the construct tree (read by scripts, Lambdas or other environments) go through **SSM Parameter Store**; see [SSM parameter conventions](#ssm-parameter-conventions).
@@ -43,7 +43,7 @@ Values that need to survive outside the construct tree (read by scripts, Lambdas
 
 ## Naming conventions
 
-All naming flows from [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts):
+All naming flows from [`packages/infrastructure/cdk/config.ts`](/packages/infrastructure/cdk/config.ts):
 
 - `project = 'uns'`; `env` comes from the `env` process environment variable (throws if unset).
 - `prefix = "${project}-${env}".replace('-prod', '')` — **production has no `-prod` suffix.** Prod prefix is `uns`; dev is `uns-dev`; a sandbox named `alice-a1b2` is `uns-alice-a1b2`.
@@ -61,23 +61,23 @@ Reusable wrappers around individual AWS resources, used throughout `UNSCommon`/`
 
 | Construct | Wraps | Notes |
 | ---------------------------------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [`UNSLambdaConstruct`](/infrastructure/cdk/constructs/bases/UNSLambdaConstruct.ts) | `NodejsFunction` + IAM role + log group | Declarative `iam` props (`dynamodb`, `sqsSend`, `ssmNamespaces`, `sm`, `kms`, `elasticache`, `s3`, …) turned into scoped policy statements. `NODEJS_22_X`, 512MB/30s defaults, `Tracing.ACTIVE`. Static factories `baseHTTPFactory`/`baseSQSFactory`/`baseScheduleFactory(serviceName, signingConfig)` resolve `bundlePath` to `dist/${serviceName}/${kind}.${operationId}` — see [Lambda entry-point resolution](#lambda-entry-point-resolution) |
-| [`UNSApiGatewayConstruct`](/infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct.ts) | `RestApi` (+ CloudFront `Distribution`) | Regional custom domain via Route53 + regional ACM cert, regional WAFv2 association + logging, usage plans/API keys, private-API resource policies, fluent `.GET()/.POST()/.PATCH()/.DELETE()` route registration. With `mtls` set, it also creates a CloudFront distribution with **viewer mTLS** (CloudFront trust store), an origin-header secret, the CloudFront WAF from the global stack, and Shield Advanced in `stg`/`prod`. See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
-| [`UNSDynamoDBConstruct`](/infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct.ts) | `Table` | Pay-per-request, KMS CMK encryption, PITR, optional TTL. Exposes `attributes` (published to SSM) and precomputed `permissions.{readOnlyById,readOnly,readAndWrite}` IAM shapes |
-| [`UNSQueueConstruct`](/infrastructure/cdk/constructs/bases/UNSQueueConstruct.ts) | `Queue` (+ optional DLQ) | KMS-encrypted, default `maxReceiveCount` 10 |
-| [`UNSVpcConstruct`](/infrastructure/cdk/constructs/bases/UNSVpcConstruct.ts) | `Vpc` | See [Networking](#networking) |
-| [`UNSKMSConstruct`](/infrastructure/cdk/constructs/bases/UNSKMSConstruct.ts) | `kms.Key` | Rotating key + alias, composable principal policy |
-| [`UNSS3BucketConstruct`](/infrastructure/cdk/constructs/bases/UNSS3BucketConstruct.ts) | `Bucket` | Private, SSE-S3, TLS-enforced, versioned |
-| [`UNSElasticacheConstruct`](/infrastructure/cdk/constructs/bases/UNSElasticacheConstruct.ts) | `CfnServerlessCache` (Valkey) | IAM-authenticated user/group, 10GB/5000 ECPU caps, daily snapshot |
-| [`UNSCertificateAuthorityConstruct`](/infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct.ts) | ACM Private CA Root CA | See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
-| [`UNSClientCertificateConstruct`](/infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct.ts) | Per-consumer client cert | See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
-| [`UNSCustomResourceConstruct`](/infrastructure/cdk/constructs/bases/UNSCustomResourceConstruct.ts) | `NodejsFunction` + `customResources.Provider` | Generic base for CloudFormation custom resources — see [Custom resources](#custom-resources) |
-| [`UNSSlackIntegration`](/infrastructure/cdk/constructs/bases/UNSSlackIntegration.ts) | `chatbot.SlackChannelConfiguration` | `UNSSlackAlert`: subscribes AWS Chatbot to one or more SNS topics, see [Alerting](#alerting) |
-| [`UNSE2EConstruct`](/infrastructure/cdk/constructs/bases/UNSE2EConstruct.ts) | CodeBuild `Project` + source bucket | VPC-attached runner (`uns-<env>-e2e-runner-project`, bucket `uns-<env>-e2e-runner-builds`) used by `_test_e2e.yml` and the ZAP scans, see [Deployment Guide](./deployment.md#e2e-in-codebuild-_test_e2eyml) |
+| [`UNSLambdaConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSLambdaConstruct.ts) | `NodejsFunction` + IAM role + log group | Declarative `iam` props (`dynamodb`, `sqsSend`, `ssmNamespaces`, `sm`, `kms`, `elasticache`, `s3`, …) turned into scoped policy statements. `NODEJS_22_X`, 512MB/30s defaults, `Tracing.ACTIVE`. Static factories `baseHTTPFactory`/`baseSQSFactory`/`baseScheduleFactory(serviceName, signingConfig)` resolve `bundlePath` to `dist/${serviceName}/${kind}.${operationId}` — see [Lambda entry-point resolution](#lambda-entry-point-resolution) |
+| [`UNSApiGatewayConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSApiGatewayConstruct.ts) | `RestApi` (+ CloudFront `Distribution`) | Regional custom domain via Route53 + regional ACM cert, regional WAFv2 association + logging, usage plans/API keys, private-API resource policies, fluent `.GET()/.POST()/.PATCH()/.DELETE()` route registration. With `mtls` set, it also creates a CloudFront distribution with **viewer mTLS** (CloudFront trust store), an origin-header secret, the CloudFront WAF from the global stack, and Shield Advanced in `stg`/`prod`. See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
+| [`UNSDynamoDBConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSDynamoDBConstruct.ts) | `Table` | Pay-per-request, KMS CMK encryption, PITR, optional TTL. Exposes `attributes` (published to SSM) and precomputed `permissions.{readOnlyById,readOnly,readAndWrite}` IAM shapes |
+| [`UNSQueueConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSQueueConstruct.ts) | `Queue` (+ optional DLQ) | KMS-encrypted, default `maxReceiveCount` 10 |
+| [`UNSVpcConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSVpcConstruct.ts) | `Vpc` | See [Networking](#networking) |
+| [`UNSKMSConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSKMSConstruct.ts) | `kms.Key` | Rotating key + alias, composable principal policy |
+| [`UNSS3BucketConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSS3BucketConstruct.ts) | `Bucket` | Private, SSE-S3, TLS-enforced, versioned |
+| [`UNSElasticacheConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSElasticacheConstruct.ts) | `CfnServerlessCache` (Valkey) | IAM-authenticated user/group, 10GB/5000 ECPU caps, daily snapshot |
+| [`UNSCertificateAuthorityConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSCertificateAuthorityConstruct.ts) | ACM Private CA Root CA | See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
+| [`UNSClientCertificateConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSClientCertificateConstruct.ts) | Per-consumer client cert | See [mTLS certificate infrastructure](#mtls-certificate-infrastructure) |
+| [`UNSCustomResourceConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSCustomResourceConstruct.ts) | `NodejsFunction` + `customResources.Provider` | Generic base for CloudFormation custom resources — see [Custom resources](#custom-resources) |
+| [`UNSSlackIntegration`](/packages/infrastructure/cdk/constructs/bases/UNSSlackIntegration.ts) | `chatbot.SlackChannelConfiguration` | `UNSSlackAlert`: subscribes AWS Chatbot to one or more SNS topics, see [Alerting](#alerting) |
+| [`UNSE2EConstruct`](/packages/infrastructure/cdk/constructs/bases/UNSE2EConstruct.ts) | CodeBuild `Project` + source bucket | VPC-attached runner (`uns-<env>-e2e-runner-project`, bucket `uns-<env>-e2e-runner-builds`) used by `_test_e2e.yml` and the ZAP scans, see [Deployment Guide](./deployment.md#e2e-in-codebuild-_test_e2eyml) |
 
 ### Lambda entry-point resolution
 
-The mechanism that ties a CDK Lambda definition to a built handler in `src/lambdas`:
+The mechanism that ties a CDK Lambda definition to a built handler in `packages/pso` and `packages/flex`:
 
 ```typescript
 static baseFactory(serviceName: string, kind: 'http' | 'sqs' | 'schedule', signingConfig: CodeSigningConfig) {
@@ -90,7 +90,7 @@ static baseFactory(serviceName: string, kind: 'http' | 'sqs' | 'schedule', signi
 }
 ```
 
-Since `cdk.json` runs `tsx cdk.ts` from `infrastructure/cdk`, this resolves to `dist/${serviceName}/${kind}.${operationId}` at the repo root — the built output of `src/lambdas/${serviceName}/${kind}.${operationId}/handler.ts`. The directory name under `src/lambdas` (e.g. `pso/http.postMessage`, `pso/sqs.dispatch`) must match the `{kind}.{operationId}` the CDK side requests — this is what [`src/lambdas/README.md`](/src/lambdas/README.md)'s naming convention is protecting.
+Since `cdk.json` runs `tsx cdk.ts` from `packages/infrastructure/cdk`, this resolves to `dist/${serviceName}/${kind}.${operationId}` at the repo root — the built output of `packages/${serviceName}/src/handlers/${kind}.${operationId}/handler.ts`. The directory name under `packages/<serviceName>/src/handlers` (e.g. `http.postMessage`, `sqs.dispatch`) must match the `{kind}.{operationId}` the CDK side requests.
 
 ---
 
@@ -110,20 +110,20 @@ Only the SQS-triggered `processing`, `dispatch`, `groupProcessingWorker` and `an
 
 The group resources (GroupStore table, `groupprocessing` queue, `postGroupMessage`, `groupProcessingWorker`, Flex `getGroups`/`modifyGroups`) are only created when `config.featureFlag.groups` is true, which means every environment except `prod`. See [Configuration: Feature flags](./configuration.md#feature-flags).
 
-CloudWatch dashboards are defined in CDK in [`constructs/dashboards`](/infrastructure/cdk/constructs/dashboards): `UNSPSOFlow` (pipeline throughput per stage), `UNSPSOGroupsFlow` (group worker lifecycle) and `UNSPSOUtilization` (incoming notification totals).
+CloudWatch dashboards are defined in CDK in [`constructs/dashboards`](/packages/infrastructure/cdk/constructs/dashboards): `UNSPSOFlow` (pipeline throughput per stage), `UNSPSOGroupsFlow` (group worker lifecycle) and `UNSPSOUtilization` (incoming notification totals).
 
 ---
 
 ## Custom resources
 
-[`constructs/customResourceFnsConstructors/`](/infrastructure/cdk/constructs/customResourceFnsConstructors) provides typed subclasses of `UNSCustomResourceConstruct`, each binding a handler in [`customResourceFns/`](/infrastructure/cdk/customResourceFns) (separately bundled from `src/lambdas`, inlined by CDK's `NodejsFunction`, not part of the main `pnpm build`):
+[`constructs/customResourceFnsConstructors/`](/packages/infrastructure/cdk/constructs/customResourceFnsConstructors) provides typed subclasses of `UNSCustomResourceConstruct`, each binding a handler in [`customResourceFns/`](/packages/infrastructure/cdk/customResourceFns) (separately bundled from Lambda handlers, inlined by CDK's `NodejsFunction`, not part of the main `pnpm build`):
 
 | Construct | Handler | Purpose |
 | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `UNSClientCertificateGeneratorConstruct` | [`unsClientCertificateCSRGenerator.ts`](/infrastructure/cdk/customResourceFns/unsClientCertificateCSRGenerator.ts) | Generates a 4096-bit RSA key + self-signed CSR (`node-forge`), stores the private key in Secrets Manager |
-| `UNSDynamoDBWriterConstruct` | [`unsDynamoDBWriter.ts`](/infrastructure/cdk/customResourceFns/unsDynamoDBWriter.ts) | Generic table row writer — seeds organisation rows and mTLS revocation rows. `Delete` is a soft delete (`Deleted: true`), not an actual row delete. Any property named `*ToSerializeToSha256` is hashed at execution time, working around CDK's inability to hash a CFN token at synth time |
-| `UNSs3ObjectConstruct` | [`unss3ObjectWriter.ts`](/infrastructure/cdk/customResourceFns/unss3ObjectWriter.ts) | Uploads the mTLS truststore PEM to S3 |
-| `UNSSMWriterConstruct` (`UNSSMWriterProvider`) | [`unsSMWriter.ts`](/infrastructure/cdk/customResourceFns/unsSMWriter.ts) | Writes a value to **Secrets Manager** — despite the "SM" name, this is Secrets Manager, not SSM Parameter Store. Used to store the signed client cert CRT and export access keys |
+| `UNSClientCertificateGeneratorConstruct` | [`unsClientCertificateCSRGenerator.ts`](/packages/infrastructure/cdk/customResourceFns/unsClientCertificateCSRGenerator.ts) | Generates a 4096-bit RSA key + self-signed CSR (`node-forge`), stores the private key in Secrets Manager |
+| `UNSDynamoDBWriterConstruct` | [`unsDynamoDBWriter.ts`](/packages/infrastructure/cdk/customResourceFns/unsDynamoDBWriter.ts) | Generic table row writer — seeds organisation rows and mTLS revocation rows. `Delete` is a soft delete (`Deleted: true`), not an actual row delete. Any property named `*ToSerializeToSha256` is hashed at execution time, working around CDK's inability to hash a CFN token at synth time |
+| `UNSs3ObjectConstruct` | [`unss3ObjectWriter.ts`](/packages/infrastructure/cdk/customResourceFns/unss3ObjectWriter.ts) | Uploads the mTLS truststore PEM to S3 |
+| `UNSSMWriterConstruct` (`UNSSMWriterProvider`) | [`unsSMWriter.ts`](/packages/infrastructure/cdk/customResourceFns/unsSMWriter.ts) | Writes a value to **Secrets Manager** — despite the "SM" name, this is Secrets Manager, not SSM Parameter Store. Used to store the signed client cert CRT and export access keys |
 
 ---
 
@@ -131,7 +131,7 @@ CloudWatch dashboards are defined in CDK in [`constructs/dashboards`](/infrastru
 
 Every parameter the application reads is declared once in [`shared/ssmParameter.ts`](/shared/ssmParameter.ts) (`SSMParameters`), and every secret in [`shared/secretParameters.ts`](/shared/secretParameters.ts). Lambdas, CDK and scripts all import the same registry, so a path is never spelled out twice. `staticParam` entries are operator-configurable with a default; `infraParam` entries are written by CDK. The full reference is in [Configuration](./configuration.md).
 
-Two distinct path roots are used, both written via [`utils/SSMFromObject.ts`](/infrastructure/cdk/utils/SSMFromObject.ts):
+Two distinct path roots are used, both written via [`utils/SSMFromObject.ts`](/packages/infrastructure/cdk/utils/SSMFromObject.ts):
 
 1. **Namespaced, per-environment** — `/${namespace}/...`, e.g. `/uns-dev/table/inbound/attributes`, `/uns-dev/queue/analytics/url`, `/uns/config/dispatch/onesignal/appId` in production. Written both from within CDK constructs (default `SSMFromObject` behaviour) and from a standalone script (`cdk.predeploy.ssm.ts`, see below) for values that need to change independently of a deploy.
 2. **Unnamespaced "shared" exports** — `/shared/...` (`SSMFromObject(..., { omitNamespace: true })`), written only by the `dev` environment when `config.exportResourcesForDevSandboxUse` is true: `/shared/vpc`, `/shared/mtls/truststore`, `/shared/mtls/revocation/tableArn`, `/shared/mtls/revocation/attributes`, `/shared/mtls/kmsArn`. Sandbox environments read these back at synth time (`config.sandbox.shared.*`) instead of provisioning their own VPC/CA — see [Sandbox environments](#sandbox-environments).
@@ -142,9 +142,9 @@ Pre-existing, infra-team-provided values this app consumes but doesn't own: `/in
 
 `pnpm run cdk:deploy` wraps `cdk deploy` with two standalone scripts, run **outside** CDK's synth/deploy lifecycle so it never owns or reverts these values:
 
-- [`cdk.predeploy.ssm.ts`](/infrastructure/cdk/cdk.predeploy.ssm.ts) (before deploy): idempotently creates every `staticParam` from `SSMParameters` that doesn't exist yet, as a `SecureString` under `/${namespace}/...` with its default. Feature flag defaults come from `config.featureFlag`. It applies `SSM_PARAMETERS_TO_UPDATE` overrides if set and deletes keys listed in `parametersForDeletion`.
-- [`cdk.ephemeral.cleanup.ssm.ts`](/infrastructure/cdk/cdk.ephemeral.cleanup.ssm.ts) (PR environments only, after destroy): deletes everything under `/${namespace}/`, since predeploy-created parameters aren't owned by any stack.
-- [`cdk.postdeploy.ssm.ts`](/infrastructure/cdk/cdk.postdeploy.ssm.ts) (after deploy) — looks up the just-deployed Flex private API Gateway and its freshly generated API key, then writes `{apiKey, apiUrl, privateApiUrl, roleArn, region}` into the `${prefix}/flex/consumer` Secrets Manager secret, since an API key value isn't safely obtainable as a CloudFormation token.
+- [`cdk.predeploy.ssm.ts`](/packages/infrastructure/cdk/cdk.predeploy.ssm.ts) (before deploy): idempotently creates every `staticParam` from `SSMParameters` that doesn't exist yet, as a `SecureString` under `/${namespace}/...` with its default. Feature flag defaults come from `config.featureFlag`. It applies `SSM_PARAMETERS_TO_UPDATE` overrides if set and deletes keys listed in `parametersForDeletion`.
+- [`cdk.ephemeral.cleanup.ssm.ts`](/packages/infrastructure/cdk/cdk.ephemeral.cleanup.ssm.ts) (PR environments only, after destroy): deletes everything under `/${namespace}/`, since predeploy-created parameters aren't owned by any stack.
+- [`cdk.postdeploy.ssm.ts`](/packages/infrastructure/cdk/cdk.postdeploy.ssm.ts) (after deploy) — looks up the just-deployed Flex private API Gateway and its freshly generated API key, then writes `{apiKey, apiUrl, privateApiUrl, roleArn, region}` into the `${prefix}/flex/consumer` Secrets Manager secret, since an API key value isn't safely obtainable as a CloudFormation token.
 
 If you need a value editable between deploys without CDK reverting it, add it to `cdk.predeploy.ssm.ts` rather than a CDK `StringParameter` resource.
 
@@ -191,7 +191,7 @@ PSO client ──mTLS──► CloudFront (viewer mTLS, trust store, CloudFront 
                   mtlsCertificateRevocationAuthorizer ──► revocation table, organisations table
 ```
 
-The chain, in [`UNSMTLS.ts`](/infrastructure/cdk/constructs/UNSMTLS.ts), the CA and client-cert base constructs, and `UNSApiGatewayConstruct`:
+The chain, in [`UNSMTLS.ts`](/packages/infrastructure/cdk/constructs/UNSMTLS.ts), the CA and client-cert base constructs, and `UNSApiGatewayConstruct`:
 
 1. **Truststore S3 bucket**: created in every environment (versioned, SSE-S3, TLS-enforced; tagged `DataProtection: Ephemeral` in PR environments).
 2. **Main environments only** (`config.isMainEnv`):
@@ -222,11 +222,11 @@ Engineers and test runners fetch issued certificates with `pnpm run download:cer
 
 ### Consumers (mTLS client registry)
 
-`infrastructure/cdk/consumers/` is a per-environment registry of external organisations issued mTLS client certificates to call the PSO public API — **not** related to SQS-triggered Lambdas, despite the directory name.
+`packages/infrastructure/cdk/consumers/` is a per-environment registry of external organisations issued mTLS client certificates to call the PSO public API — **not** related to SQS-triggered Lambdas, despite the directory name.
 
-- [`consumers.ts`](/infrastructure/cdk/consumers/consumers.ts): `certificate()` and `rollingCertificate()` helpers (see [Certificate rotation](#certificate-rotation)), and `getConsumers(env, config)`, which switches on environment. `dev`/`stg`/`prod` each have a list of real consumer organisations (e.g. `UNS`, `DVLA`, `EventsAggregator`); any other `env` gets a single short-lived `sandbox.dev.today` certificate rolling weekly.
+- [`consumers.ts`](/packages/infrastructure/cdk/consumers/consumers.ts): `certificate()` and `rollingCertificate()` helpers (see [Certificate rotation](#certificate-rotation)), and `getConsumers(env, config)`, which switches on environment. `dev`/`stg`/`prod` each have a list of real consumer organisations (e.g. `UNS`, `DVLA`, `EventsAggregator`); any other `env` gets a single short-lived `sandbox.dev.today` certificate rolling weekly.
 - `devConsumers.ts` / `stagingConsumers.ts` / `productionConsumers.ts`: the per-environment certificate lists.
-- [`consumersMetadata.ts`](/infrastructure/cdk/consumers/consumersMetadata.ts): each organisation's display name and `OrganisationConfig` (channels, message retention, deeplink allow-list), seeded into the `organisations` table. See [Configuration: Organisation config](./configuration.md#organisation-config).
+- [`consumersMetadata.ts`](/packages/infrastructure/cdk/consumers/consumersMetadata.ts): each organisation's display name and `OrganisationConfig` (channels, message retention, deeplink allow-list), seeded into the `organisations` table. See [Configuration: Organisation config](./configuration.md#organisation-config).
 
 `getConsumers()` output drives both the client-certificate provisioning in `UNSMTLS.ts` and the API Gateway usage-plan mapping in `UNSPSOResources.ts` (one usage plan per consumer organisation).
 
@@ -250,9 +250,9 @@ When `alerts/slack/workspaceId` and the topic's channel ID are both set in the e
 Tags follow the GOV.UK Once AWS Resource Tagging Standard and the Network-Level Exposure Classification Standard (links in `config.ts`).
 
 - **Default tags** (`config.defaultTags()`): `Product`, `BillingProject`, `Service`, `Component`, `Environment`, `Owner`, `Source`, `CostCentre`, `ManagedBy`, `Version` and `retain`. Applied to every resource in `UNSStack` and `UNSGlobalStack`, except ElastiCache users, user groups and serverless caches, which don't handle frequent tag updates reliably. They are also emitted as stack outputs, and applied to predeploy-created SSM parameters.
-- **`Exposure`** ([`applyExposureTag`](/infrastructure/cdk/utils/applyExposureTag.ts)): `Internet-Facing` | `Perimeter` | `Internal` | `Isolated`. For example, the PSO API Gateway and its WAF are `Perimeter`, and the SQS queues are `Isolated`.
-- **`PII`** ([`applyPiiTag`](/infrastructure/cdk/utils/applyPiiTag.ts)): `true` | `false` | `unknown`. The pipeline queues are `unknown`; the analytics queue is `false`.
-- **`DataProtection: Ephemeral`** ([`applyDataProtectionTag`](/infrastructure/cdk/utils/applyDataProtectionTag.ts)): applied to S3 buckets (access logs, mTLS truststore, analytics export, e2e runner source) **only in PR environments** (`config.isEphemeral`), so they're recognised as disposable.
+- **`Exposure`** ([`applyExposureTag`](/packages/infrastructure/cdk/utils/applyExposureTag.ts)): `Internet-Facing` | `Perimeter` | `Internal` | `Isolated`. For example, the PSO API Gateway and its WAF are `Perimeter`, and the SQS queues are `Isolated`.
+- **`PII`** ([`applyPiiTag`](/packages/infrastructure/cdk/utils/applyPiiTag.ts)): `true` | `false` | `unknown`. The pipeline queues are `unknown`; the analytics queue is `false`.
+- **`DataProtection: Ephemeral`** ([`applyDataProtectionTag`](/packages/infrastructure/cdk/utils/applyDataProtectionTag.ts)): applied to S3 buckets (access logs, mTLS truststore, analytics export, e2e runner source) **only in PR environments** (`config.isEphemeral`), so they're recognised as disposable.
 
 When adding a resource, apply `Exposure` and `PII` tags where the standard asks for them, and `DataProtection: Ephemeral` to any new bucket under `if (config.isEphemeral)`.
 
@@ -271,9 +271,9 @@ When adding a resource, apply `Exposure` and `PII` tags where the standard asks 
 
 **Code:**
 
-- [`infrastructure/cdk/cdk.ts`](/infrastructure/cdk/cdk.ts)
-- [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts)
-- [`infrastructure/cdk/constructs/UNSStack.ts`](/infrastructure/cdk/constructs/UNSStack.ts)
-- [`infrastructure/cdk/constructs/UNSGlobalStack.ts`](/infrastructure/cdk/constructs/UNSGlobalStack.ts)
-- [`infrastructure/cdk/constructs/UNSAlarmsStack.ts`](/infrastructure/cdk/constructs/UNSAlarmsStack.ts)
-- [`infrastructure/cdk/constructs/alarmsConstructs`](/infrastructure/cdk/constructs/alarmsConstructs)
+- [`packages/infrastructure/cdk/cdk.ts`](/packages/infrastructure/cdk/cdk.ts)
+- [`packages/infrastructure/cdk/config.ts`](/packages/infrastructure/cdk/config.ts)
+- [`packages/infrastructure/cdk/constructs/UNSStack.ts`](/packages/infrastructure/cdk/constructs/UNSStack.ts)
+- [`packages/infrastructure/cdk/constructs/UNSGlobalStack.ts`](/packages/infrastructure/cdk/constructs/UNSGlobalStack.ts)
+- [`packages/infrastructure/cdk/constructs/UNSAlarmsStack.ts`](/packages/infrastructure/cdk/constructs/UNSAlarmsStack.ts)
+- [`packages/infrastructure/cdk/constructs/alarmsConstructs`](/packages/infrastructure/cdk/constructs/alarmsConstructs)

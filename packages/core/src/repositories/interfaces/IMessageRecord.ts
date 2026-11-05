@@ -1,0 +1,63 @@
+import { ChannelsEnum } from '@common/models';
+import DateInSeconds from '@common/utils/dateInSeconds';
+import { IAnalyticsSchema } from '@common/models/interfaces/IAnalyticsSchema';
+import * as z from 'zod';
+
+export const IMessageRecordSchema = z.object({
+  // IDs
+  NotificationID: z.string(),
+  OrganisationID: z.string(), // Derived from the mTLS certificate
+  DepartmentID: z.string().optional(),
+  GroupNotificationID: z.string().optional(),
+  UserID: z.string().optional(), // ID Supplied by PSO's
+  ExternalUserID: z.string().optional(), // ID Resolved via UDP using PSO's UserID
+  CampaignID: z.string().optional(),
+
+  // Tracing IDs
+  ExternalResponseID: z.string().optional(),
+  APIGWExtendedID: z.string().optional(),
+
+  // Contents
+  NotificationTitle: z.string(),
+  NotificationBody: z.string(),
+  MessageTitle: z.string().optional(),
+  MessageBody: z.string().optional(),
+  DeeplinkURL: z.string().optional(),
+  Channel: z.enum(ChannelsEnum).optional(),
+
+  // Event timestamps - triggered during handler logic
+  ReceivedDateTime: z.string().optional(),
+  ValidatedDateTime: z.string().optional(),
+  ProcessedDateTime: z.string().optional(),
+  DispatchedDateTime: z.string().optional(),
+  // Fallback for pre migration
+  ExpirationDateTime: z.union([
+    z.number(),
+    z
+      .string()
+      .transform((val) => {
+        if (!isNaN(Date.parse(val))) {
+          return DateInSeconds.toUnix(val);
+        }
+        return undefined;
+      })
+      .optional(),
+  ]),
+
+  // Configurations
+  RequestedDaysToExpire: z.int().positive().optional(),
+
+  // Events - appended via analytics handler
+  Events: z.array(IAnalyticsSchema),
+});
+export type IMessageRecord = z.infer<typeof IMessageRecordSchema>;
+
+export const IProcessedMessageRecordSchema = IMessageRecordSchema.extend({
+  ExternalUserID: z.string(),
+  ReceivedDateTime: z.string(),
+  ValidatedDateTime: z.string(),
+  ProcessedDateTime: z.string(),
+  // Fallback for pre migration
+  ExpirationDateTime: z.number(),
+});
+export type IProcessedMessageRecord = z.infer<typeof IProcessedMessageRecordSchema>;

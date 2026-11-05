@@ -1,4 +1,4 @@
-import { IMessage, IMessageFields, IProcessedMessage } from '@project/lambdas';
+import { IMessage, IMessageFields, IProcessedMessage } from '@common/models/interfaces';
 
 export const mockIMessage = (OrganisationID?: string): IMessage => ({
   NotificationID: 'efe72235-d02a-45a9-b9d4-a04ff992fcc3',

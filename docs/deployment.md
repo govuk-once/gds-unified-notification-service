@@ -6,7 +6,7 @@ CI/CD pipelines, environments and deployment workflows for the GDS Unified Notif
 
 ## Overview
 
-One CDK app ([`infrastructure/cdk/cdk.ts`](/infrastructure/cdk/cdk.ts)) defines up to four stacks per environment, and `pnpm run cdk:deploy` deploys all of them (`cdk deploy --all`):
+One CDK app ([`infrastructure/cdk/cdk.ts`](/packages/infrastructure/cdk/cdk.ts)) defines up to four stacks per environment, and `pnpm run cdk:deploy` deploys all of them (`cdk deploy --all`):
 
 | Stack | Name | Region | Contents |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ See the [Infrastructure Development Guide](./infrastructure-development.md) for 
 | Staging | `stg` | `staging` | Persistent | CI/CD (`main.release.yml`, or manually) |
 | Production | `prod` | `production` | Persistent | CI/CD (`main.release.yml`, or manually) |
 
-The CDK `env` value and the GitHub Environment name differ (`stg`/`prod` vs `staging`/`production`). [`_deploy.yml`](/.github/workflows/_deploy.yml) bridges them with the GitHub Environment variable `ENVIRONMENT_SHORTHAND`, passed to CDK as the `env` process variable. For PR environments, setting `pr_number` makes [`config.ts`](/infrastructure/cdk/config.ts) use the PR number as `env` (so resources are named `uns-<PR>-...`) and sets `isEphemeral`. Only `dev`, `stg` and `prod` are persistent (`unremovableEnvironments`). Everything else, sandboxes and PR environments alike, gets `RemovalPolicy.DESTROY` and imports shared infrastructure (VPC, mTLS CA, revocation table) from `dev` via SSM; see [Infrastructure Development Guide: Sandbox environments](./infrastructure-development.md#sandbox-environments).
+The CDK `env` value and the GitHub Environment name differ (`stg`/`prod` vs `staging`/`production`). [`_deploy.yml`](/.github/workflows/_deploy.yml) bridges them with the GitHub Environment variable `ENVIRONMENT_SHORTHAND`, passed to CDK as the `env` process variable. For PR environments, setting `pr_number` makes [`config.ts`](/packages/infrastructure/cdk/config.ts) use the PR number as `env` (so resources are named `uns-<PR>-...`) and sets `isEphemeral`. Only `dev`, `stg` and `prod` are persistent (`unremovableEnvironments`). Everything else, sandboxes and PR environments alike, gets `RemovalPolicy.DESTROY` and imports shared infrastructure (VPC, mTLS CA, revocation table) from `dev` via SSM; see [Infrastructure Development Guide: Sandbox environments](./infrastructure-development.md#sandbox-environments).
 
 ---
 
@@ -140,7 +140,7 @@ sequenceDiagram
 2. **`codeQualityReview`** ([`_quality.review.yml`](/.github/workflows/_quality.review.yml)) downloads `dist` and `coverage.report`, then:
    - starts the SonarQube scan in the background
    - runs `cdk:synth` against a mock `cicd` environment, with AWS credentials blanked so nothing is assumed or deployed
-   - runs Checkov over `infrastructure/cdk/cdk.out/` (`soft_fail: true`) and uploads SARIF to GitHub code scanning
+   - runs Checkov over `packages/infrastructure/cdk/cdk.out/` (`soft_fail: true`) and uploads SARIF to GitHub code scanning
    - waits for Sonar, then runs the **SonarQube Quality Gate** check, which fails the job if the gate fails, and posts the gate status as a PR comment
 
 3. **`ephemeralTesting`**: deploys a PR environment and runs e2e against it; see [Ephemeral PR environments](#ephemeral-pr-environments).
@@ -173,7 +173,7 @@ sequenceDiagram
 2. Runs `cdk:predeploy:ssm`, then `cdk deploy --all` with `pr_number=<PR>`, creating `uns-<PR>-global-stack`, `uns-<PR>-stack`, `uns-<PR>-alarms-stack` and `uns-<PR>-e2e-testing-stack`.
 3. Runs `pnpm test:e2e` from the GitHub runner with `env=<PR>`.
 
-When the PR is closed or merged, [`pr.cleanup.yml`](/.github/workflows/pr.cleanup.yml) runs `cdk destroy uns-<PR>-stack --force` (CDK also destroys the stacks that depend on it: alarms and e2e testing), then `cdk:ephemeral:cleanup:ssm` ([`cdk.ephemeral.cleanup.ssm.ts`](/infrastructure/cdk/cdk.ephemeral.cleanup.ssm.ts)) to delete every SSM parameter under `/uns-<PR>/`. The predeploy script creates those parameters outside CloudFormation, so the stack destroy doesn't remove them.
+When the PR is closed or merged, [`pr.cleanup.yml`](/.github/workflows/pr.cleanup.yml) runs `cdk destroy uns-<PR>-stack --force` (CDK also destroys the stacks that depend on it: alarms and e2e testing), then `cdk:ephemeral:cleanup:ssm` ([`cdk.ephemeral.cleanup.ssm.ts`](/packages/infrastructure/cdk/cdk.ephemeral.cleanup.ssm.ts)) to delete every SSM parameter under `/uns-<PR>/`. The predeploy script creates those parameters outside CloudFormation, so the stack destroy doesn't remove them.
 
 > `uns-<PR>-global-stack` is a **dependency** of the main stack, not a dependent, so `cdk destroy uns-<PR>-stack` doesn't remove it. Check the us-east-1 CloudFormation console for leftover `uns-<number>-global-stack` stacks.
 
@@ -186,14 +186,14 @@ If cleanup fails (e.g. a resource stuck deleting), re-run the workflow from the 
 | | PR scan | Nightly scan |
 | --- | --- | --- |
 | Workflow | `pr.yml` → `_zaproxy.yml` | [`zaproxy.yml`](/.github/workflows/zaproxy.yml) → `_zaproxy.yml` |
-| Mode | `passive` ([`zap-passive.yaml`](/infrastructure/cdk/buildspecs/zap-passive.yaml)) | `active` ([`zap-active.yaml`](/infrastructure/cdk/buildspecs/zap-active.yaml)) |
+| Mode | `passive` ([`zap-passive.yaml`](/packages/infrastructure/cdk/buildspecs/zap-passive.yaml)) | `active` ([`zap-active.yaml`](/packages/infrastructure/cdk/buildspecs/zap-active.yaml)) |
 | Target | The PR environment | `dev` |
 | Reports | PR comment + job summary | Job summary |
 
 How a run works:
 
 1. [`scripts/configureZaproxyEnv.ts`](/scripts/configureZaproxyEnv.ts) resolves each API's target URL and API key, plus the client certificate (`client.p12`) and its password, for the target environment.
-2. The specs, buildspecs and certificate are zipped and uploaded to the environment's `uns-<env>-e2e-runner-builds` bucket, and a CodeBuild **batch** build of `uns-<env>-e2e-runner-project` runs [`zaproxy.buildspec.yml`](/infrastructure/cdk/buildspecs/zaproxy.buildspec.yml). The scan runs from inside the VPC, which is why it uses the e2e runner from `UNSTestingStack`.
+2. The specs, buildspecs and certificate are zipped and uploaded to the environment's `uns-<env>-e2e-runner-builds` bucket, and a CodeBuild **batch** build of `uns-<env>-e2e-runner-project` runs [`zaproxy.buildspec.yml`](/packages/infrastructure/cdk/buildspecs/zaproxy.buildspec.yml). The scan runs from inside the VPC, which is why it uses the e2e runner from `UNSTestingStack`.
 3. Markdown reports are copied back from `s3://uns-<env>-e2e-runner-builds/zaproxy/<date>/<ref>/<run>/reports/` and combined into the comment and summary. Full reports and logs stay in S3 under `private-reports/`, linked from the comment.
 
 **Gating:** the ZAP automation plan exits `1` for Medium or higher findings and `2` for Low. The buildspec fails the build on `1`, which fails the workflow, so **a Medium+ finding fails the PR check** (and the nightly run). Low findings only produce a warning annotation.
@@ -282,7 +282,7 @@ The deploy happens *before* testing. The tests are a post-deploy health check, n
 The Flex API's private API Gateway is only reachable from inside the VPC, so the e2e suite for `dev` and `staging` runs in CodeBuild. The job:
 
 1. Zips the repository and uploads it to `s3://uns-<env>-e2e-runner-builds/e2e/<ref>/`.
-2. Starts `uns-<env>-e2e-runner-project` (from `UNSTestingStack`, VPC-attached, running [`e2e-runner.buildspec.yml`](/infrastructure/cdk/buildspecs/e2e-runner.buildspec.yml), i.e. `pnpm run test:e2e`).
+2. Starts `uns-<env>-e2e-runner-project` (from `UNSTestingStack`, VPC-attached, running [`e2e-runner.buildspec.yml`](/packages/infrastructure/cdk/buildspecs/e2e-runner.buildspec.yml), i.e. `pnpm run test:e2e`).
 3. Polls until the build finishes, then tails the CodeBuild log group into the job output and fails the job if the build didn't succeed.
 
 ### Manual Deployment (`manual.deploy.yml`)
@@ -335,7 +335,7 @@ Sandbox and PR environments import these from `dev` via SSM (`/shared/vpc`, `/sh
 
 ### `cdk:predeploy:ssm` reports a parameter mismatch or the deploy doesn't pick up a config change
 
-Operator-configurable values live in SSM and are deliberately managed outside CDK by [`cdk.predeploy.ssm.ts`](/infrastructure/cdk/cdk.predeploy.ssm.ts), which only creates missing parameters. Set `SSM_PARAMETERS_TO_UPDATE` (as used by `_deploy.yml`) to overwrite one on deploy, or edit it directly; see [Configuration](./configuration.md).
+Operator-configurable values live in SSM and are deliberately managed outside CDK by [`cdk.predeploy.ssm.ts`](/packages/infrastructure/cdk/cdk.predeploy.ssm.ts), which only creates missing parameters. Set `SSM_PARAMETERS_TO_UPDATE` (as used by `_deploy.yml`) to overwrite one on deploy, or edit it directly; see [Configuration](./configuration.md).
 
 ### E2E tests fail after a deploy with connection or authentication errors
 
@@ -370,5 +370,5 @@ We fix forward: no pipeline step redeploys a previous commit. Once you understan
 **Code:**
 
 - [`.github/workflows`](/.github/workflows)
-- [`infrastructure/cdk/buildspecs`](/infrastructure/cdk/buildspecs)
-- [`infrastructure/cdk/config.ts`](/infrastructure/cdk/config.ts)
+- [`infrastructure/cdk/buildspecs`](/packages/infrastructure/cdk/buildspecs)
+- [`infrastructure/cdk/config.ts`](/packages/infrastructure/cdk/config.ts)

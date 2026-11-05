@@ -49,7 +49,7 @@ Identify which named alarm(s) fired. The alarm name encodes the stage (`Validati
 ## Step 2: read the logs and trace the record
 
 1. **CloudWatch Logs Insights over the affected stage's Lambda log group.** Application errors from this codebase carry a `BaseError` name (`ContentValidationError`, `DispatchAdapterError`, `ProcessingAdapterError`, `RateLimitingError` — see [Developer Reference: Errors](../developer-reference.md#errors)); anything else is an unhandled exception.
-2. **Correlate by `NotificationID`.** Every record carries this through the pipeline (see [`IIdentifiableMessage`](/src/lambdas/interfaces/IMessage.ts)) — search for it across stages to see how far a specific notification got before failing.
+2. **Correlate by `NotificationID`.** Every record carries this through the pipeline (see [`IIdentifiableMessage`](/packages/core/src/models/interfaces/IMessage.ts)) — search for it across stages to see how far a specific notification got before failing.
 3. **X-Ray** is active on every Lambda in the pipeline (`processing`, `dispatch` and `analytics` also run inside the VPC — see [Infrastructure Development Guide: Networking](../infrastructure-development.md#networking)) — the service map shows where time is being spent, including calls to ElastiCache and the notification provider.
 4. **Retry visibility.** `QueueHandler` logs a `QUEUE_MESSAGE_RETRY_ATTEMPT` metric whenever `ApproximateReceiveCount > 1` on a record — a rising count here is an early sign that records are failing and being redelivered, ahead of the queue depth alarm.
 
@@ -113,7 +113,7 @@ Anything shipped as code follows the [Fix Forward Runbook](./fix-forward.md).
 
 **Code:**
 
-- [`src/lambdas/pso/sqs.validation`](/src/lambdas/pso/sqs.validation), [`sqs.processing`](/src/lambdas/pso/sqs.processing), [`sqs.dispatch`](/src/lambdas/pso/sqs.dispatch), [`sqs.analytics`](/src/lambdas/pso/sqs.analytics)
-- [`src/common/services/circuitBreakerService.ts`](/src/common/services/circuitBreakerService.ts)
-- [`src/common/services/adapters/notificationAdapterOneSignal.ts`](/src/common/services/adapters/notificationAdapterOneSignal.ts)
-- [`infrastructure/cdk/constructs/alarmsConstructs`](/infrastructure/cdk/constructs/alarmsConstructs)
+- [`packages/pso/src/handlers/sqs.validation`](/packages/pso/src/handlers/sqs.validation), [`sqs.processing`](/packages/pso/src/handlers/sqs.processing), [`sqs.dispatch`](/packages/pso/src/handlers/sqs.dispatch), [`sqs.analytics`](/packages/pso/src/handlers/sqs.analytics)
+- [`packages/core/src/services/circuitBreakerService.ts`](/packages/core/src/services/circuitBreakerService.ts)
+- [`packages/core/src/services/adapters/notificationAdapterOneSignal.ts`](/packages/core/src/services/adapters/notificationAdapterOneSignal.ts)
+- [`packages/infrastructure/cdk/constructs/alarmsConstructs`](/packages/infrastructure/cdk/constructs/alarmsConstructs)

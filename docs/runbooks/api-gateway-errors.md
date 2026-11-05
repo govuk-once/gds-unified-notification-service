@@ -125,6 +125,6 @@ Anything shipped as code follows the [Fix Forward Runbook](./fix-forward.md).
 
 **Code:**
 
-- [`src/common/models/Errors`](/src/common/models/Errors)
-- [`src/common/middlewares/httpErrorHandlerMiddleware.ts`](/src/common/middlewares/httpErrorHandlerMiddleware.ts)
-- [`infrastructure/cdk/constructs/alarmsConstructs`](/infrastructure/cdk/constructs/alarmsConstructs)
+- [`packages/core/src/models/Errors`](/packages/core/src/models/Errors)
+- [`packages/core/src/middlewares/httpErrorHandlerMiddleware.ts`](/packages/core/src/middlewares/httpErrorHandlerMiddleware.ts)
+- [`packages/infrastructure/cdk/constructs/alarmsConstructs`](/packages/infrastructure/cdk/constructs/alarmsConstructs)

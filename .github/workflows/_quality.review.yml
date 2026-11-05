@@ -29,7 +29,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .eslintcache
-          key: eslintcache-${{ runner.os }}-${{ hashFiles('src/**/*.ts', 'eslint.config.ts') }}
+          key: eslintcache-${{ runner.os }}-${{ hashFiles('packages/**/*.ts', 'eslint.config.ts') }}
           restore-keys: eslintcache-${{ runner.os }}-
 
       - parallel:
@@ -104,7 +104,7 @@ jobs:
           output_file_path: console,results.sarif
           soft_fail: true
           framework: cloudformation
-          directory: infrastructure/cdk/cdk.out/
+          directory: packages/infrastructure/cdk/cdk.out/
           config_file: .checkov.yaml
           quiet: true
 

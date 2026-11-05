@@ -1,0 +1,43 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { SQSClient } from '@aws-sdk/client-sqs';
+import { ConfigurationService } from '@common/services/configurationService';
+import { MetricsLabels, ObservabilityService } from '@common/services/observabilityService';
+import { QueueService } from '@common/services/queueService';
+import { IGroupMessageMetadata } from '@common/models/interfaces';
+import SSMParameters from '@shared/ssmParameter';
+
+export class GroupProcessingQueueService extends QueueService<IGroupMessageMetadata> {
+  protected queueName: string = 'groupprocessing';
+
+  constructor(
+    protected observability: ObservabilityService,
+    protected client: SQSClient,
+    protected sqsQueueUrl: string
+  ) {
+    super(observability, client, sqsQueueUrl);
+  }
+
+  public static async create(config: ConfigurationService, observability: ObservabilityService, client: SQSClient) {
+    return new GroupProcessingQueueService(
+      observability,
+      client,
+      await config.getParameter(SSMParameters.Queue.GroupProcessing.Url)
+    );
+  }
+
+  public addPublishingSuccessMetric(count: number) {
+    this.observability.metrics.addMetric(
+      MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_SUCCESSFULLY,
+      MetricUnit.Count,
+      count
+    );
+  }
+
+  public addPublishingFailedMetric(count: number): void {
+    this.observability.metrics.addMetric(
+      MetricsLabels.QUEUE_GROUP_PROCESSING_PUBLISHED_FAILED,
+      MetricUnit.Count,
+      count
+    );
+  }
+}

@@ -239,6 +239,22 @@ importers:
         specifier: ^4.63.6
         version: 4.63.6
 
+  packages/core: {}
+
+  packages/flex:
+    dependencies:
+      '@gds-uns/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/infrastructure: {}
+
+  packages/pso:
+    dependencies:
+      '@gds-uns/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@actions/core@3.0.1':
