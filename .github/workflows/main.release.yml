@@ -51,7 +51,7 @@ jobs:
     secrets: inherit
 
   releaseStaging:
-    needs: [release, releaseToDev]
+    needs: release
     name: Deploy to staging
     uses: ./.github/workflows/_deploy.yml
     with:
@@ -60,7 +60,7 @@ jobs:
     secrets: inherit
 
   releaseProduction:
-    needs: [release, releaseToDev]
+    needs: release
     name: Deploy to production
     uses: ./.github/workflows/_deploy.yml
     with:
