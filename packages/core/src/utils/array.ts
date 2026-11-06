@@ -4,6 +4,13 @@ export const filters = {
   isDefined: <T>(x: T | null | undefined): x is T => filters.isNotUndefined(x) && filters.isNotNull(x),
 };
 
+export const partition = <T>(items: T[], predicate: (item: T) => boolean): [T[], T[]] => {
+  const matches: T[] = [];
+  const rest: T[] = [];
+  for (const item of items) (predicate(item) ? matches : rest).push(item);
+  return [matches, rest];
+};
+
 export const maps = {
   pick:
     <T extends object, U extends keyof T>(prop: U) =>
