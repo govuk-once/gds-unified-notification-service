@@ -82,21 +82,21 @@ jobs:
           exit $TEST_EXIT
 
       - parallel:
-        - name: ⬆️ Upload coverage artifact
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
-          with:
-            name: coverage.report
-            path: ./coverage
+          - name: ⬆️ Upload coverage artifact
+            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+            with:
+              name: coverage.report
+              path: ./coverage
 
-        - name: 🧪 Create Comment with Test results
-          uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
-          with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            repository: 'govuk-once/gds-unified-notification-service'
-            number: ${{ github.event.number }}
-            id: unittestscomment
-            message: '${{ steps.unittests.outputs.report }}'
-            recreate: true
+          - name: 🧪 Create Comment with Test results
+            uses: hasura/comment-progress@146c635f3e325d478025e29e5043ec1c07c0e36c # v2.3.0
+            with:
+              github-token: ${{ secrets.GITHUB_TOKEN }}
+              repository: 'govuk-once/gds-unified-notification-service'
+              number: ${{ github.event.number }}
+              id: unittestscomment
+              message: '${{ steps.unittests.outputs.report }}'
+              recreate: true
 
   qualityReview:
     name: Quality Review
