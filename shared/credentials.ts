@@ -24,7 +24,11 @@ export const domainName = async (name: string, usePrivateDomain: boolean = false
     return `${api.id}.execute-api.${config.region}.amazonaws.com/api`;
   }
   const rootDomain = config.ssm.hostedZoneName;
-  const subdomain = name ? (config.isMainEnv || config.isEphemeral ? name : config.utils.namingHelper(name)) : null;
+  const subdomain = name
+    ? config.isPersistentEnv || config.isEphemeral
+      ? name
+      : config.utils.namingHelper(name)
+    : null;
   return `${subdomain}.${rootDomain}`;
 };
 
@@ -66,7 +70,7 @@ export async function fetchApiKeys(flexKeyMarker: string): Promise<ApiKeys> {
 
 export async function fetchMtlsCertificates(): Promise<MtlsCertificates> {
   const smClient = new SecretsManagerClient({ region: config.region });
-  const secretPrefix = config.isMainEnv ? `uns-${config.env}/tls/UNS` : `uns-dev/tls/UNS`;
+  const secretPrefix = config.isPersistentEnv ? `uns-${config.env}/tls/UNS` : `uns-dev/tls/UNS`;
 
   const secrets = await smClient.send(
     new ListSecretsCommand({

@@ -116,6 +116,17 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
       return this.createPolicyResponse(_event.methodArn, 'Deny');
     }
 
+    // Certificate has been deleted
+    if (certificateRecord.Deleted) {
+      this.observability.logger.error(`Request denied as the certificate has been deleted`, { certificateId });
+      this.observability.metrics.addMetric(
+        MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_DELETED_CERTIFICATE_COUNT,
+        MetricUnit.Count,
+        1
+      );
+      return this.createPolicyResponse(_event.methodArn, 'Deny');
+    }
+
     // Certificate has no organization linked to it
     if (!certificateRecord.Organization) {
       this.observability.logger.error(

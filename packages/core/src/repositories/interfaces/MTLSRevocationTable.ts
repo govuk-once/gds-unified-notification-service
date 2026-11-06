@@ -9,6 +9,7 @@ export const mTLSRevocationRecordSchema = z.object({
   OrganizationalUnit: z.string(),
   CommonName: z.string(),
   Revoked: z.boolean(),
+  Deleted: z.boolean(),
   ChecksumCert: z.string().optional(),
 });
 

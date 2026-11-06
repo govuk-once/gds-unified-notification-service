@@ -186,7 +186,7 @@ export class UNSFlexResource extends Construct {
     // API Gateway
     //// =====================================================
 
-    if (config.debuggableFlexApiGateway) {
+    if (config.enableFlexPublicGateway) {
       // This API Gateway is only available in dev & sandbox environments
       this.publicGateway = new UNSAPIGatewayGateway(this, config, {
         name: [`flex`],

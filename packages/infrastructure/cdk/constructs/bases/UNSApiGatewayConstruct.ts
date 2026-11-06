@@ -122,7 +122,7 @@ export class UNSAPIGatewayGateway extends Construct {
     // Setup custom domain parameters via SSM configurations
     const rootDomain = config.ssm.hostedZoneName;
     const certificateArn = config.ssm.certificateArnRegional;
-    const subdomain = props.domain ? (config.isMainEnv ? props.domain : namingHelper(props.domain)) : null;
+    const subdomain = props.domain ? (config.isPersistentEnv ? props.domain : namingHelper(props.domain)) : null;
     const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
 
     let hostedZone: route53.IHostedZone | null = null;
@@ -599,7 +599,7 @@ export class UNSAPIGatewayGateway extends Construct {
     this.constructRoute53Entries(config, props, fullDomain, hostedZone, distribution);
 
     // Shield Advanced protection for the CloudFront distribution - staging & production only
-    if (distribution && config.isNonDevEnv && config.isMainEnv) {
+    if (distribution && config.isProductionGradeEnv) {
       this.shieldProtection = this.constructShieldProtection(config, props, distribution);
     }
 
