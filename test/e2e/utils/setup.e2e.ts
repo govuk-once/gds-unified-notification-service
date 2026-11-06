@@ -1,8 +1,8 @@
 import { NotificationStateEnum } from '@common/models';
 import { FetchService } from '@common/services/FetchService';
-import { INotificationStatus } from '@project/lambdas';
+import { INotificationStatus } from '@common/models/interfaces';
 import { fetchMtlsCertificates } from '@shared/credentials';
-import { config } from 'infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 import { Agent } from 'undici';
 
 export const prepareDispatchAgent = async (): Promise<Agent> => {

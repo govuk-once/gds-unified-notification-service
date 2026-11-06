@@ -1,0 +1,155 @@
+import { ChannelsEnum } from '@common/models';
+import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
+import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
+import {
+  ConfigurationService,
+  ObservabilityService,
+  ProviderDimension,
+  SMConfigurationService,
+} from '@common/services';
+import { FetchService, isFetchResponseError } from '@common/services/FetchService';
+import {
+  NotificationAdapter,
+  NotificationAdapterRequest,
+  NotificationAdapterResult,
+} from '@common/services/interfaces';
+import SecretParameters from '@shared/secretParameters';
+import SSMParameters from '@shared/ssmParameter';
+
+interface OneSignalPushNotificationResponse {
+  id: string;
+  external_id: string;
+  errors:
+    | {
+        invalid_aliases: {
+          external_id: string[];
+          one_signal_id: string[];
+        };
+        invalid_player_ids: string[];
+      }
+    | string[];
+}
+
+export class NotificationAdapterOneSignal implements NotificationAdapter {
+  constructor(
+    public readonly client: FetchService,
+    protected readonly observability: ObservabilityService,
+    protected readonly config: ConfigurationService,
+    protected readonly appId: string,
+    protected readonly deeplinkTemplate: string
+  ) {}
+
+  public static async create(
+    observability: ObservabilityService,
+    config: ConfigurationService,
+    smConfig: SMConfigurationService
+  ) {
+    const key = await smConfig.getNamespacedSecret(SecretParameters.Dispatch.OneSignal.ApiKey);
+    const appId = await config.getParameter(SSMParameters.Config.Dispatch.OneSignal.AppId);
+    const deeplinkTemplate = await config.getParameter(SSMParameters.Notification.DeeplinkTemplate);
+
+    const client = new FetchService({
+      baseUrl: `https://api.onesignal.com/`,
+      defaultHeaders: {
+        Authorization: `Key ${key}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return new NotificationAdapterOneSignal(client, observability, config, appId, deeplinkTemplate);
+  }
+
+  public async send(request: NotificationAdapterRequest): Promise<NotificationAdapterResult> {
+    const metadata = {
+      NotificationID: request.NotificationID,
+    };
+    this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'call');
+
+    if (request.Channel === ChannelsEnum.MESSAGE_CENTRE_ONLY) {
+      this.observability.logger.info('Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal', metadata);
+      return {
+        notification: request,
+      };
+    }
+
+    try {
+      // Always generate deeplinkURL from template, if an explicit deeplink URL is used - overwrite the default
+      // If explicit deeplinkURL points at the app - append notificationID query parameter
+      let deeplinkURL = this.deeplinkTemplate.replace('{id}', request.NotificationID);
+      if (request.DeeplinkURL) {
+        deeplinkURL = request.DeeplinkURL;
+        if (request.DeeplinkURL.startsWith(`govuk://`)) {
+          const url = new URL(request.DeeplinkURL);
+          url.searchParams.append(`notificationID`, request.NotificationID);
+          deeplinkURL = url.toString();
+        }
+      }
+
+      this.observability.logger.info('Sending notification using OneSignal adapter', metadata);
+      const result = await this.client.post<OneSignalPushNotificationResponse>({
+        path: `/notifications?c=push`,
+        body: {
+          app_id: this.appId,
+          headings: { en: request.NotificationTitle },
+          contents: { en: request.NotificationBody },
+          idempotency_key: request.NotificationID,
+          target_channel: 'push',
+          include_aliases: { external_id: [request.ExternalUserID] },
+          data: {
+            deeplink: deeplinkURL,
+          },
+        },
+      });
+
+      this.observability.logger.info('Successfully sent notification using OneSignal adapter', metadata);
+
+      // Detect hidden failures
+      if ((Array.isArray(result.body.errors) && result.body.errors.length > 0) || result.body.id == '') {
+        this.observability.logger.error('Failed to dispatch notification using OneSignal adapter - received 200 code', {
+          ...metadata,
+          status: result.status,
+          response: result.body,
+        });
+
+        if (result.status === 404) {
+          throw new NoDispatchIdFound([`User ${request.ExternalUserID} does not exist in OneSignal service`]);
+        }
+        const errors = result.body.errors;
+        const errorPayload = Array.isArray(errors)
+          ? errors
+          : ['Failed to dispatch notification using OneSignal adapter - received 200 code'];
+        throw new DispatchAdapterError(errorPayload);
+      }
+
+      return {
+        notification: request,
+        requestId: result.body.id,
+      };
+    } catch (e) {
+      return this.errorHandler(request, e);
+    }
+  }
+
+  private errorHandler(request: NotificationAdapterRequest, error: unknown): never {
+    this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'error');
+
+    if (isFetchResponseError(error)) {
+      this.observability.logger.error('Failed to dispatch notification using OneSignal adapter', {
+        NotificationID: request.NotificationID,
+        error: {
+          name: error.name,
+          status: error.status,
+          message: error.errorMessage ?? error.message,
+          response: error.body,
+        },
+      });
+
+      if (error.status === 404) {
+        throw new NoDispatchIdFound([`User ${request.ExternalUserID} not found in OneSignal`]);
+      }
+      throw new DispatchAdapterError([error.errorMessage]);
+    }
+
+    throw error;
+  }
+}

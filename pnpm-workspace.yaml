@@ -1,4 +1,6 @@
 ## PNPM Configuration
+packages:
+  - packages/*
 
 # Hoist all packages to root node_modules so TypeScript can resolve transitive dependencies
 nodeLinker: hoisted

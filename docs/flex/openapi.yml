@@ -348,14 +348,17 @@ components:
       properties:
         Namespace:
           type: string
-          description: Namespace of the group 
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: Namespace of the group. Letters, digits, `_` and `-` only
         Group:
           type: string
-          description: Name of the group
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: Name of the group. Letters, digits, `_` and `-` only
 
         Subgroup:
           type: string
-          description: (Optional) Name of the subgroup
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: (Optional) Name of the subgroup. Letters, digits, `_` and `-` only
           
     GroupModification:
       allOf:

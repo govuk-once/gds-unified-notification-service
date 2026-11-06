@@ -1,5 +1,5 @@
 import { ListTopicsCommand, PublishCommand, SNSClient } from '@aws-sdk/client-sns';
-import { config } from './../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 async function sendReleaseNotification() {
   const { version, env } = config;
   const serverUrl = process.env.SERVER_URL || '';

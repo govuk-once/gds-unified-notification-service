@@ -1,4 +1,4 @@
-import { test } from '@test/e2e/utils/setup.e2e.vitest';
+import { isCI, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { expect } from 'vitest';
 
 const url = (notificationID: string, pushID?: string) =>
@@ -6,26 +6,19 @@ const url = (notificationID: string, pushID?: string) =>
 
 describe('DELETE {{flex}}/notifications/{{notificationID}} - Delete notification', () => {
   describe(`Unhappy paths`, () => {
-    test('ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)', async ({
-      flexAPIUsingInsecureProtocol: api,
-      mockNotificationID,
-    }) => {
-      // Arrange
-      const path = url(mockNotificationID.valid);
+    test.runIf(isCI)(
+      'ECONNREFUSED/UND_ERR_CONNECT_TIMEOUT when - attempting to use insecure protocol (http instead of https)',
+      async ({ flexAPIUsingInsecureProtocol: api, mockNotificationID, insecureProtocolError }) => {
+        // Arrange
+        const path = url(mockNotificationID.valid);
 
-      // Act
-      const result = api.delete({ path });
+        // Act
+        const result = api.delete({ path });
 
-      // Assert
-      await expect(result).rejects.toMatchObject({
-        message: 'fetch failed',
-        cause: expect.objectContaining(
-          api.isPrivateGateway() // Handle private & public api gateway
-            ? { code: 'UND_ERR_CONNECT_TIMEOUT', name: 'ConnectTimeoutError' }
-            : { code: 'ECONNREFUSED' }
-        ),
-      });
-    });
+        // Assert
+        await expect(result).rejects.toMatchObject(insecureProtocolError);
+      }
+    );
 
     test('status 403 when - using invalid api key', async ({ flexAPIWithoutAPIKey: api, mockNotificationID }) => {
       // Arrange

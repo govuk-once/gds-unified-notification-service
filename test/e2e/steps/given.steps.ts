@@ -32,7 +32,9 @@ Given('a {string} API client {APIConfig}', function (this: CustomWorld, service:
       [APIConfigurations.CorrectConfig]: () => this.psoAPI,
     },
   };
-
+  if (apiConfig === APIConfigurations.InsecureHTTP && !this.isCI()) {
+    return 'skipped';
+  }
   if (!apiClients[service]) throw new Error(`Unknown API service: ${service}`);
   if (!apiClients[service][apiConfig]) throw new Error(`Unknown API configuration: ${apiConfig}`);
 

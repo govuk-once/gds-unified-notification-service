@@ -1,4 +1,4 @@
-import { GroupActionEnum, IModifyGroups } from '@project/lambdas/interfaces/IModifyGroups';
+import { GroupActionEnum, IModifyGroups } from '@common/models/interfaces';
 
 export const mockIModifyGroups = (Action: GroupActionEnum): IModifyGroups[] => [
   {

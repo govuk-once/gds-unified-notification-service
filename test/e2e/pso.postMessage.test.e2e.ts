@@ -1,6 +1,6 @@
 import { ChannelsEnum } from '@common/models';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
-import { IMessage } from '@project/lambdas/interfaces/IMessage';
+import { IMessage } from '@common/models/interfaces/IMessage';
 import { BadRequestAxiosError } from '@test/e2e/utils/FetchErrors';
 import { checkStatus, test } from '@test/e2e/utils/setup.e2e.vitest';
 import { v4 as uuid } from 'uuid';
@@ -282,7 +282,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {
@@ -306,7 +306,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed protocol list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed protocol list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {
@@ -332,7 +332,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {
@@ -356,7 +356,7 @@ describe('Post /send', () => {
       );
     });
 
-    test('status 400 when - the message has DeeplinkURL thats not on allowed protocol list', async ({ psoAPI }) => {
+    test('status 400 when - the message has DeeplinkURL that is not on allowed protocol list', async ({ psoAPI }) => {
       // Arrange
       const messageWithDisallowedURL = [
         {

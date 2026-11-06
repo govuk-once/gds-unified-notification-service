@@ -1,0 +1,12 @@
+{
+  "name": "@gds-uns/flex",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsx ../../scripts/build.ts --handler flex"
+  },
+  "dependencies": {
+    "@gds-uns/core": "workspace:*"
+  }
+}

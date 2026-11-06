@@ -1,6 +1,6 @@
 import { APIGatewayClient, GetApiKeyCommand, GetApiKeysCommand, GetRestApisCommand } from '@aws-sdk/client-api-gateway';
 import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { config } from '../infrastructure/cdk/config';
+import { config } from '@infra/cdk/config';
 
 export interface ApiKeys {
   psoApiKey: string;
@@ -35,9 +35,7 @@ export async function fetchApiKeys(flexKeyMarker: string): Promise<ApiKeys> {
     flexApiKey: '',
   };
 
-  const keys = ((await apiGwClient.send(new GetApiKeysCommand({ limit: 1000 }))).items ?? []).filter((key) =>
-    key.name?.includes(config.prefix)
-  );
+  const keys = (await apiGwClient.send(new GetApiKeysCommand({ nameQuery: config.prefix, limit: 1000 }))).items ?? [];
 
   for (const key of keys) {
     const value = await apiGwClient.send(

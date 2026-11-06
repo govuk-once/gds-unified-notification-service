@@ -16,8 +16,27 @@ Configuration lives in [`vitest.e2e.config.ts`](./vitest.e2e.config.ts) (extende
 
 ### Prerequisites
 
-- An authenticated AWS shell session against the target account, e.g. `eval $(gds-cli aws once-notifications-development-admin -e)` (see the root [README.md](../../README.md#setting-up-dev--sandbox-environmnent)) - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION` must be present.
-- mTLS certificates and API keys are fetched automatically at suite startup from Secrets Manager / API Gateway - run `pnpm run development:sandbox:setup` first if this fails, to provision the domain names these tests depend on.
+- An authenticated AWS shell session against the target account, e.g. `eval $(gds-cli aws once-notifications-development-admin -e)` (see the root [README.md](../../README.md#setting-up-dev--sandbox-environment)) - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION` must be present.
+- mTLS certificates and API keys are fetched automatically at suite startup from Secrets Manager / API Gateway (see [`shared/credentials.ts`](../../shared/credentials.ts)) - run `pnpm run development:sandbox:setup` first if this fails, to provision the domain names these tests depend on. To fetch a certificate pair to disk (e.g. for `curl` or another client), use `pnpm run download:certificates [certificateId]`.
+
+#### Zscaler certificate setup
+
+If you are using Zscaler, some of the e2e tests will fail as Zscaler intercepts the TLS traffic and Node rejects these request unless you trust the Zscaler root CA. On mac,
+
+```sh
+# Check the common Zscaler install directory and find certs
+find /Library/Application\ Support/Zscaler -name "*.pem" -o -name "*.crt" 2>/dev/null
+# Or in Keychain (most likely)
+security find-certificate -a -c "Zscaler" /Library/Keychains/System.keychain
+
+# Export the Zscaler cert to PEM format
+mkdir -p ~/.config/zscaler
+security find-certificate -a -p -c "Zscaler" /Library/Keychains/System.keychain > ~/.config/zscaler/zscaler-ca.pem
+
+# Then tell Node to trust this cert permanently (assuming zsh)
+echo "export NODE_EXTRA_CA_CERTS=~/.config/zscaler/zscaler-ca.pem" >> ~/.zshrc
+source ~/.zshrc
+```
 
 ### File naming & location
 
@@ -41,4 +60,5 @@ Configuration lives in [`vitest.e2e.config.ts`](./vitest.e2e.config.ts) (extende
 
 ### Scope
 
-- Production runs only the unit test suite as part of deployment (`pnpm run test:unit`); e2e tests run against dev/staging only, to avoid shipping test data into production analytics - see the "Environment deploy steps" section of [`.github/README-Pipelines.md`](../../.github/README-Pipelines.md).
+- E2E runs in CI against every PR environment (from the GitHub runner) and after each `dev`/`staging` deploy (inside the VPC, in CodeBuild, which is needed to reach the private Flex API). Production runs only the unit test suite as part of deployment (`pnpm run test:unit`), to avoid shipping test data into production analytics. See [Deployment Guide: Reusable deploy workflow](../../docs/deployment.md#reusable-deploy-workflow).
+- `UNS_E2E_RUNNER=true` is set when the suite runs inside the CodeBuild runner, switching API resolution to the private API Gateway.

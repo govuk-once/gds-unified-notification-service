@@ -1,0 +1,169 @@
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
+import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
+import { formatUrl } from '@aws-sdk/util-format-url';
+import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
+import SSMParameters from '@shared/ssmParameter';
+import { Hash } from '@smithy/hash-node';
+import { HttpRequest } from '@smithy/protocol-http';
+import { SignatureV4 } from '@smithy/signature-v4';
+import { createClient } from 'redis';
+
+export class CacheService {
+  public cache!: ReturnType<typeof createClient>;
+  constructor(
+    protected config: ConfigurationService,
+    public observability: ObservabilityService
+  ) {}
+
+  async generateSigV4(cacheName: string, username: string) {
+    const credentials = fromNodeProviderChain();
+    const protocol = 'https:';
+
+    return formatUrl(
+      await new SignatureV4({
+        service: 'elasticache',
+        region: 'eu-west-2',
+        credentials: credentials,
+        sha256: Hash.bind(null, 'sha256'),
+      }).presign(
+        new HttpRequest({
+          method: 'GET',
+          protocol: protocol,
+          hostname: cacheName,
+          query: {
+            Action: 'connect',
+            User: username,
+            ResourceType: 'ServerlessCache',
+          },
+          headers: {
+            host: cacheName,
+          },
+        }),
+        {
+          expiresIn: 900,
+        }
+      )
+    ).replace(`${protocol}//`, '');
+  }
+
+  async connect() {
+    const cacheName = await this.config.getParameter(SSMParameters.Config.Common.Cache.Name);
+    const cacheHost = await this.config.getParameter(SSMParameters.Config.Common.Cache.Host);
+    const cacheUser = await this.config.getParameter(SSMParameters.Config.Common.Cache.User);
+
+    this.cache = createClient({
+      password: await this.generateSigV4(cacheName, cacheUser),
+      username: cacheUser,
+      socket: {
+        host: cacheHost,
+        port: 6379,
+        tls: true,
+      },
+    });
+    await this.cache.connect();
+    return this;
+  }
+
+  // Store any value by serializing it
+  async store<T>(key: string, value: T, expiration?: number) {
+    await this.cache.set(
+      key,
+      JSON.stringify(value),
+      expiration
+        ? {
+            expiration: { type: 'EX', value: expiration },
+          }
+        : undefined
+    );
+    return value;
+  }
+
+  // Fetch, deserialize, and typecast
+  async get<T>(
+    key: string,
+    options?: {
+      factory?: () => Promise<T> | T;
+      ttlSeconds?: number;
+    }
+  ): Promise<T | undefined> {
+    const value = await this.cache.get(key);
+    // Parse value to the expected T
+    if (value) {
+      return JSON.parse(value) as T;
+    }
+
+    // Fallback on storage if
+    if (value == undefined && options?.factory !== undefined) {
+      await this.store(key, await options.factory());
+
+      if (options?.ttlSeconds) {
+        await this.cache.expire(key, options?.ttlSeconds);
+      }
+      return await this.get<T>(key);
+    }
+    return undefined;
+  }
+
+  async increment(key: string, ttlSeconds: number): Promise<number> {
+    const count = await this.cache.incrBy(key, 1);
+    await this.cache.expire(key, ttlSeconds);
+    return count;
+  }
+
+  async rateLimit(key: string, maxPerMinute: number, increment?: number) {
+    const unixEpoch = Date.now() / 1000;
+    const roundedUnixEpoch = unixEpoch - (unixEpoch % 60);
+    const rateLimitKey = `${key}:${roundedUnixEpoch}`;
+
+    let counter: number;
+    // If increment is not set - this function will just return
+    if (increment == undefined) {
+      counter = (await this.get(rateLimitKey, { factory: () => 0 })) ?? 0;
+    } else {
+      // Add to the counter - and ensure it expires in 60s
+      counter = await this.cache.incrBy(rateLimitKey, increment);
+      await this.cache.expire(rateLimitKey, 60);
+    }
+    const state = {
+      exceeded: counter >= maxPerMinute,
+      capacityRemaining: Math.max(0, maxPerMinute - counter),
+    };
+    const percentage = counter / maxPerMinute;
+
+    this.observability.metrics.addMetric(MetricsLabels.CURRENT_RATE, MetricUnit.Count, counter);
+    this.observability.metrics.addMetric(MetricsLabels.CURRENT_RATE_LIMIT, MetricUnit.Count, maxPerMinute);
+
+    this.observability.logger.info('Rate limiting status', {
+      key,
+      counter,
+      maxPerMinute,
+      percent: percentage,
+    });
+
+    // Return whether the counter has reached the limit
+    if (state.exceeded) {
+      this.observability.metrics.addMetric(MetricsLabels.RATE_LIMITING_ENFORCED, MetricUnit.NoUnit, 1);
+    } else {
+      this.observability.metrics.addMetric(MetricsLabels.RATE_LIMITING_ENFORCED, MetricUnit.NoUnit, 0);
+    }
+    return state;
+  }
+
+  public analyticsEventKey(notificationID: string): string {
+    return `analytics_${notificationID}`;
+  }
+
+  public async getList<T>(key: string): Promise<T[]> {
+    const values = await this.cache.lRange(key, 0, -1);
+    return values.map((v) => JSON.parse(v) as T);
+  }
+
+  public async appendToList<T>(key: string, value: T, expiration?: number) {
+    await this.cache.rPush(key, JSON.stringify(value));
+
+    if (expiration) {
+      // Sets expiration in seconds
+      await this.cache.expire(key, expiration);
+    }
+  }
+}

@@ -3,14 +3,14 @@
 
 // Using relative over alias path for now until solution found
 import { iocGetNotificationDynamoRepository } from '@common/ioc';
+import { IMessage } from '@common/models/interfaces';
+import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { World } from '@cucumber/cucumber';
-import { IMessage } from '@project/lambdas';
+import { config } from '@infra/cdk/config';
 import { domainName, fetchApiKeys } from '@shared/credentials';
 import { mockIMessageRecord_E2E } from '@test/mocks';
 import { Agent, fetch as undiciFetch } from 'undici';
-import { config } from '../../../infrastructure/cdk/config';
-import { FetchErrorResponse, FetchResponse, FetchService } from '../../../src/common/services/FetchService';
-import { FetchSigV4Service } from '../../../src/common/services/FetchSigV4Service';
+import { FetchErrorResponse, FetchResponse, FetchService } from '@common/services/FetchService';
 
 process.env.POWERTOOLS_DEV = 'true';
 process.env.POWERTOOLS_METRICS_DISABLED = 'false';
@@ -117,5 +117,9 @@ export default class CustomWorld extends World {
       const messageRecord = mockIMessageRecord_E2E(this.knownTestIDs.notificationID, this.knownTestIDs.pushID);
       await notificationsRepository.createRecord(messageRecord);
     }
+  }
+
+  public isCI() {
+    return config.isE2ERunner || process.env.GITHUB_ACTIONS === 'true';
   }
 }

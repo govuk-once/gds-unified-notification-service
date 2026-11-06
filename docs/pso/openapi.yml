@@ -42,6 +42,11 @@ paths:
   /send:
     post:
       summary: Sends notifications
+      description: |
+        Accepts 1–10 notifications. The whole request is rejected with 400 if any item is invalid, including when:
+        - two items share the same `NotificationID` (`Duplicate NotificationIDs are not allowed`)
+        - `DeeplinkURL`, `Channel` or `ExpiresInDays` is supplied while the matching feature is disabled, or the value isn't allowed for the calling organisation
+        - the message body contains unsupported markdown or URLs
       operationId: postMessage
       tags:
         - MVP
@@ -99,6 +104,10 @@ paths:
   /v1/send-to-group:
     post:
       summary: Sends notifications to target group
+      description: |
+        Accepts 1–10 group notifications. The whole request is rejected with 400 if any item is invalid, including when
+        two items share the same `GroupNotificationID` (`Duplicate GroupNotificationIDs are not allowed`), or for the
+        same content, channel, deeplink and retention rules as `POST /send`.
       operationId: postGroupMessage
       tags:
         - Groups
@@ -267,18 +276,18 @@ components:
         DeeplinkURL:
           type: string
           format: url
-          description: (Optional) Explicit deeplink url to define for push notification - (Subject to feature flag being enabled)
+          description: (Optional) Explicit deeplink url to define for push notification - (Subject to feature flag being enabled). Must match the calling organisation's deeplink allow-list. `govuk://` deeplinks have a `notificationID` query parameter appended
         Channel:
           type: string
           enum:
             - PUSH_NOTIFICATION_AND_MESSAGE_CENTRE
             - MESSAGE_CENTRE_ONLY
-          description: (Optional) Define which channel the notification is dispatched to
+          description: (Optional) Define which channel the notification is dispatched to. `MESSAGE_CENTRE_ONLY` stores the message without sending a push. Must be one of the calling organisation's allowed channels
         ExpiresInDays:
           type: integer
           format: int32
           minimum: 1
-          description: (Optional) Sets the number of days for a notification to be set to hidden, overriding the default amount
+          description: (Optional) Number of days before the notification expires and is removed from the user's notification centre, overriding the 30-day default. Must fall within the calling organisation's allowed range (e.g. 2–30)
     MessageRequest:
       allOf:
         - $ref: '#/components/schemas/MessageRequestProperties'
@@ -291,7 +300,7 @@ components:
               description: (Optional) ID of department sending notification
             NotificationID:
               type: string
-              description: ID of the notification to be used for idempotency & analytics, ID will be dynamically generated if one has not been supplied
+              description: ID of the notification to be used for idempotency & analytics, ID will be dynamically generated if one has not been supplied. Must be unique within a request
               format: uuid
             UserID:
               type: string
@@ -306,7 +315,7 @@ components:
           properties:
             GroupNotificationID:
               type: string
-              description: (Optional) - Group Notification ID can be supplied in UUID form to guaranteed idempotency
+              description: (Optional) - Group Notification ID can be supplied in UUID form to guaranteed idempotency. Must be unique within a request
               format: uuid
             Namespace:
               type: string
@@ -316,7 +325,7 @@ components:
               description: Group name of the recipients
             Subgroup:
               type: string
-              description: Group name of the recipients
+              description: (Optional) Subgroup name of the recipients
     GroupMessageRequestResponse:
       type: object
       properties:

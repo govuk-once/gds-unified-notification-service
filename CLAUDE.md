@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 GDS Unified Notification Service — a serverless notification system for GOV.UK built on AWS. Two API surfaces:
 
-- **PSO API** — Public Service Organisations send notifications (mTLS + API key auth). Messages flow through SQS queues: incoming → validation → processing → dispatch → analytics.
+- **PSO API** — Public Service Organisations send notifications (mTLS via CloudFront viewer mTLS + API key auth). `POST /send` validates inline and publishes to SQS: processing → dispatch, with analytics fed from every stage. Group sends go via groupprocessing → groupProcessingWorker → dispatch. (`incoming` → `sqs.validation` exists but has no producer in this repo.)
 - **Flex API** — End-user apps read/manage notifications and groups (API key auth via VPC endpoint).
 
 ## Commands
@@ -24,12 +24,14 @@ pnpm run test:coverage              # unit tests with coverage
 pnpm run cdk:synth                  # synthesize CloudFormation templates
 pnpm run cdk:diff                   # diff against deployed stack
 pnpm run checkov                    # IaC security scanning on CDK output
+pnpm run download:certificates      # fetch mTLS client cert pairs from Secrets Manager (read-only)
+pnpm run changelog                  # regenerate CHANGELOG.md locally (git-ignored, CI generates it on release)
 ```
 
 Run a single test file:
 
 ```sh
-pnpm vitest run src/lambdas/pso/http.postMessage/handler.test.unit.ts
+pnpm vitest run packages/pso/src/handlers/http.postMessage/handler.test.unit.ts
 ```
 
 Run tests matching a name:
@@ -50,29 +52,32 @@ env=dev pnpm run test:e2e                     # e2e against dev environment
 
 ### Source Layout
 
-- `src/lambdas/pso/` — PSO API Lambda handlers (HTTP and SQS-triggered)
-- `src/lambdas/flex/` — Flex API Lambda handlers
-- `src/common/services/` — Business logic (notification, processing, validation, analytics, cache, circuit breaker, configuration)
-- `src/common/services/adapters/` — Notification adapters (OneSignal, UDP, Void) and processing adapters
-- `src/common/repositories/` — DynamoDB repositories
-- `src/common/middlewares/` — Middy middleware (request/response validation, auth, error handling)
-- `src/common/operations/` — Lambda handler wrappers by trigger type (HTTP, SQS, schedule)
-- `src/common/models/` — Enums, error classes, organisation metadata
-- `src/common/ioc.ts` — Custom IoC container with singleton, time-bound singleton, and new-instance modes
+- `packages/pso/src/handlers/` — PSO API Lambda handlers (HTTP and SQS-triggered)
+- `packages/flex/src/handlers/` — Flex API Lambda handlers
+- `packages/core/src/services/` — Business logic (notification, processing, validation, analytics, cache, circuit breaker, configuration)
+- `packages/core/src/services/adapters/` — Notification adapters (OneSignal, Void) and processing adapters (UDP, PrefixBased, Void)
+- `packages/core/src/repositories/` — DynamoDB repositories
+- `packages/core/src/middlewares/` — Middy middleware (request/response validation, auth, error handling)
+- `packages/core/src/operations/` — Lambda handler wrappers by trigger type (HTTP, SQS, schedule)
+- `packages/core/src/models/` — Enums, error classes, organisation metadata
+- `packages/core/src/ioc.ts` — Custom IoC container with singleton, time-bound singleton, and new-instance modes
 
-Lambda directories follow `{trigger}.{operationName}/` naming. Each contains `handler.ts` and `handler.test.unit.ts`.
+Lambda directories follow `{trigger}.{operationName}/` naming under `packages/pso/src/handlers/` and `packages/flex/src/handlers/`. Each contains `handler.ts` and `handler.test.unit.ts`.
 
 ### Infrastructure Layout
 
-- `infrastructure/cdk/cdk.ts` — CDK app entrypoint
-- `infrastructure/cdk/config.ts` — Config loading from env vars + SSM Parameter Store
-- `infrastructure/cdk/constructs/` — Stack definitions (UNSStack, UNSAlarmsStack, UNSCommon, UNSPSOResources, UNSFlexResources, UNSMTLS, UNSOrganisations)
-- `infrastructure/cdk/constructs/bases/` — Reusable CDK constructs (API Gateway, Lambda, DynamoDB, SQS, S3, ElastiCache, VPC, KMS)
-- `infrastructure/cdk/consumers/` — Consumer definitions per environment
+- `packages/infrastructure/cdk/cdk.ts` — CDK app entrypoint
+- `packages/infrastructure/cdk/config.ts` — Config loading from env vars + SSM Parameter Store
+- `packages/infrastructure/cdk/constructs/` — Stacks (UNSGlobalStack in us-east-1, UNSStack, UNSAlarmsStack, UNSTestingStack) and UNSStack's constructs (UNSCommon, UNSMTLS, UNSOrganisations, UNSPSOResources, UNSFlexResources). `cdk:deploy` deploys `--all`
+- `packages/infrastructure/cdk/constructs/alarmsConstructs/`, `dashboards/` — CloudWatch alarms (catalogued in `docs/alarms.md`) and dashboards
+- `packages/infrastructure/cdk/buildspecs/` — CodeBuild buildspecs for the e2e runner and ZAP scans
+- `shared/ssmParameter.ts`, `shared/secretParameters.ts` — single registry of every SSM parameter and secret (see `docs/configuration.md`)
+- `packages/infrastructure/cdk/constructs/bases/` — Reusable CDK constructs (API Gateway, Lambda, DynamoDB, SQS, S3, ElastiCache, VPC, KMS)
+- `packages/infrastructure/cdk/consumers/` — mTLS client certificates per environment (incl. rolling rotation) and organisation config (`consumersMetadata.ts`)
 
 ### IoC Container
 
-`src/common/ioc.ts` provides dependency injection with three modes:
+`packages/core/src/ioc.ts` provides dependency injection with three modes:
 
 - **SINGLETON** — one instance for the lifetime of the Lambda container
 - **TIMEBOUND_SINGLETON** — recreated after TTL expires (used for config-dependent classes to pick up SSM parameter changes without cold starts)
@@ -81,14 +86,17 @@ Lambda directories follow `{trigger}.{operationName}/` naming. Each contains `ha
 ### Path Aliases
 
 ```text
-@common/*  → src/common/*
-@project/* → src/*
+@common/*  → packages/core/src/*
+@pso/*     → packages/pso/src/*
+@flex/*    → packages/flex/src/*
+@infra/*   → packages/infrastructure/*
+@shared/*  → shared/*
 @test/*    → test/*
 ```
 
 ## Testing
 
-- **Framework:** Vitest with two projects — `unit` (under `src/`) and `e2e` (under `test/e2e/`)
+- **Framework:** Vitest with two projects — `unit` (under `packages/`) and `e2e` (under `test/e2e/`)
 - **Unit tests:** co-located with handlers as `handler.test.unit.ts`. Use MSW for HTTP mocking and `aws-sdk-client-mock` for AWS SDK mocking
 - **E2E tests:** run against deployed environments with mTLS client certificates and API keys fetched from AWS at runtime
 - **Coverage thresholds:** 80% for statements, branches, functions, and lines

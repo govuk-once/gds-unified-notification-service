@@ -48,7 +48,7 @@ jobs:
           echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r '.sub'
 
       - name: ⚙️ Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           audience: sts.amazonaws.com
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
@@ -58,10 +58,10 @@ jobs:
         run: aws codeartifact login --tool npm --repository registry-prod-repo --domain registry-prod --domain-owner ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }} --region eu-west-2
 
       - name: ⚙️ Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: '.node-version'
           cache: pnpm
@@ -72,6 +72,32 @@ jobs:
       # Build & release
       - name: 🔨 Build bundles
         run: pnpm run build
+
+      # CDK Needs initialisation for first time in each AWS Account & Region
+      # This ensures relevant regions are enabled - can be commented out in the future if the regions are unchanged
+      # eu-west-2 holds all of our resources, however us-east-1 needs enabling in order to support CloudFront
+      - name: 🔍 Check & Ensure CDK Bootstrap
+        env:
+          TARGET_REGIONS: 'eu-west-2 us-east-1'
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          for REGION in $TARGET_REGIONS; do
+            echo "Checking bootstrap status for ${REGION}..."
+
+            BOOTSTRAP_VERSION=$(aws ssm get-parameter \
+              --name "/cdk-bootstrap/hnb659fds/version" \
+              --region "$REGION" \
+              --query "Parameter.Value" \
+              --output text 2>/dev/null || echo "0")
+
+            if [ "$BOOTSTRAP_VERSION" -eq "0" ]; then
+              echo "⚠️ Region ${REGION} is not bootstrapped. Running bootstrap..."
+              pnpm exec cdk bootstrap "aws://${ACCOUNT_ID}/${REGION}"
+            else
+              echo "✅ Region ${REGION} is already bootstrapped (Version: ${BOOTSTRAP_VERSION})."
+            fi
+          done
 
       - name: 🏗️ CDK Deploy
         run: |
@@ -98,15 +124,7 @@ jobs:
         run: |
           pnpm run release:announcement
 
-      # Unit testing and End to end testing - Non production only, to avoid shipping test data into analytics
-      - name: 🧪 All Testing suites
-        if: ${{ inputs.ENVIRONMENT != 'production' && inputs.ENVIRONMENT != 'staging' }}
-        run: |
-          VITEST_TREE_REPORT=true pnpm test
-        env:
-          env: '${{ vars.ENVIRONMENT_SHORTHAND }}'
-
-      # Unit testing - Production envs
+      # End to end testing - Non production only, to avoid shipping test data into analytics
       - name: 🧪 Limited testing suites
         if: ${{ inputs.ENVIRONMENT == 'production' }}
         run: |

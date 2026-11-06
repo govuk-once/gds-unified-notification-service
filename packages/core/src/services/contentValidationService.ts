@@ -1,0 +1,182 @@
+import { ContentValidationError } from '@common/models';
+import { ConfigurationService, ObservabilityService } from '@common/services';
+import MarkdownIt from 'markdown-it';
+import type { Token } from 'markdown-it';
+import z, { ZodType } from 'zod';
+
+const ALLOWED_TOKEN_TYPES_MARKDOWN: ReadonlySet<string> = new Set([
+  // Standard text containment
+  'paragraph_open',
+  'paragraph_close',
+  // Raw text content
+  'inline',
+  'text',
+  // Line breaks
+  'softbreak',
+  'hardbreak',
+
+  // Headers (h1, h2, h3)
+  'heading_open',
+  'heading_close',
+  // Bold
+  'strong_open',
+  'strong_close',
+  // Italics
+  'em_open',
+  'em_close',
+  // Bullet lists & Number lists
+  'bullet_list_open',
+  'bullet_list_close',
+  'ordered_list_open',
+  'ordered_list_close',
+  'list_item_open',
+  'list_item_close',
+  // Link text and styling
+  'link_open',
+  'link_close',
+]);
+
+const PROTOCOLS = new Set(['mailto:', 'tel:', 'sms:', 'https:', 'http:', 'file:', 'data:', 'blob:', 'geo:']);
+
+export class ContentValidationService {
+  private readonly parser = new MarkdownIt({
+    html: true,
+    linkify: false,
+    typographer: false,
+  });
+
+  constructor(
+    protected observability: ObservabilityService,
+    protected config: ConfigurationService,
+    private readonly protocols: string[],
+    private readonly hostnames: string[]
+  ) {}
+
+  private createError(content: string) {
+    return new ContentValidationError([content]);
+  }
+
+  public validateRecords(data: z.core.output<ZodType>, ctx: z.core.$RefinementCtx<z.core.output<ZodType>>) {
+    try {
+      const body = data as Record<string, unknown>;
+      if (typeof body.MessageBody === 'string') {
+        this.validate(body.MessageBody);
+      }
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        ctx.addIssue({ code: 'custom', message: e.errors[0], path: ['MessageBody'] });
+        return;
+      }
+      ctx.addIssue({
+        code: 'custom',
+        message: e instanceof Error ? e.message : 'Unknown error in content validation',
+        path: ['MessageBody'],
+      });
+    }
+  }
+
+  public validate(input: string | undefined): string {
+    // Does not validate if undefined or empty string
+    if (input === undefined || input.trim() === '') {
+      throw this.createError('Message body is undefined or empty string.');
+    }
+
+    const tokens = this.parser.parse(input, {});
+
+    this.observability.logger.info('Validating message body for allowed markdown.');
+    for (const token of tokens) {
+      this.validateMarkdown(token);
+    }
+
+    return input;
+  }
+
+  public validateUrls(
+    input: string | undefined,
+    overrides?: {
+      protocols: ContentValidationService['protocols'];
+      hostnames: ContentValidationService['hostnames'];
+    }
+  ) {
+    if (input == undefined || input == '') {
+      return input;
+    }
+
+    // Use overrides if available, otherwise fall on defaults
+    const protocols = overrides?.protocols ?? this.protocols;
+    const hostnames = overrides?.hostnames ?? this.hostnames;
+
+    // Split string by whitespace
+    const segments = input.split(/(\s+)/);
+
+    for (const segment of segments) {
+      // Attempt parsing string as a URL
+      let url: URL;
+      try {
+        url = new URL(segment);
+        if (!PROTOCOLS.has(url.protocol)) {
+          continue;
+        }
+      } catch {
+        // String segment is not a valid URL
+        continue;
+      }
+      // Validate protocol is on the list
+      if (!protocols.includes(url.protocol)) {
+        throw this.createError(
+          `${segment} is using ${url.protocol} protocol which is not allowed. Allowed protocols: ${this.protocols.join(',')}`
+        );
+      }
+
+      // Validate hostnames for https protocols
+      if (url.protocol == 'https:') {
+        const validHostname = hostnames
+          .map((hostname) => {
+            // If hostname starts with *, strip it - then check if URLs hostname ends with it
+            if (hostname.startsWith('*')) {
+              return url.hostname.endsWith(hostname.replace('*', ''));
+            }
+            // Otherwise check for exact match
+            return url.hostname == hostname;
+          })
+          .some(Boolean);
+
+        if (!validHostname) {
+          throw this.createError(`${segment} is using ${url.hostname} hostname which is not on the allow list`);
+        }
+      }
+    }
+    return input;
+  }
+
+  private validateMarkdown(token: Token) {
+    // Validate the token type against the allowed list
+    if (!ALLOWED_TOKEN_TYPES_MARKDOWN.has(token.type)) {
+      throw this.createError(`Message body contains markdown elements which are not valid: ${token.type}`);
+    }
+
+    // Handle Explicit Markdown Links
+    if (token.type === 'link_open') {
+      const urlAttr = token.attrs?.find((attr) => attr[0] === 'href');
+      const url = urlAttr ? String(urlAttr[1]) : undefined;
+
+      if (!url || url.trim() === '') {
+        throw this.createError('Failed markdown validation as url is empty.');
+      }
+
+      this.validateUrls(url);
+    }
+
+    // Handle raw URLs
+    if (token.type === 'text' && token.content) {
+      this.validateUrls(token.content);
+    }
+
+    // Recursively check children
+    if (token.children && token.children.length > 0) {
+      for (const child of token.children) {
+        this.validateMarkdown(child);
+      }
+    }
+  }
+}

@@ -1,54 +1,62 @@
 # Releases and Versioning
 
-How release versions are computed and how they flow into a deploy. Releases are fully automated with [semantic-release](https://github.com/semantic-release/semantic-release) — no manual tagging is expected or required.
+How release versions are computed, what a release produces, and how a release is announced. Releases are fully automated with [semantic-release](https://github.com/semantic-release/semantic-release); no manual tagging is needed.
 
 ---
 
 ## How versioning is determined
 
-On every push to `main`, the `release` job in [`main.release.yml`](/.github/workflows/main.release.yml) runs `pnpm run semantic:release` (`semantic-release`) before anything is deployed. It reads [`.releaserc`](/.releaserc) and analyses every commit since the last release tag using the Angular commit-analyzer preset, with these release rules:
+On every push to `main`, the `release` job in [`main.release.yml`](/.github/workflows/main.release.yml) runs `pnpm run semantic:release` before anything is deployed. It reads [`.releaserc`](/.releaserc) and analyses every commit since the last release tag using the Angular commit-analyzer preset, with these release rules:
 
 | Commit type in the squashed message | Version bump | Example |
-| ------------------------------------------------------- | ------------------ | ---------------------------------------- |
+| --- | --- | --- |
 | `BREAKING` or `BREAKING CHANGE` | Major (`2.0.0`) | `BREAKING CHANGE(NOT-789): drop legacy field` |
 | `feat` | Minor (`1.2.0`) | `feat(NOT-123): add preferences endpoint` |
 | Anything else (`fix`, `chore`, `docs`, `refactor`, `style`, `test`, `build`, `ci`, `revert`, …) | Patch (`1.1.1`) | `fix(NOT-456): handle empty payload` |
 
-> Every commit type other than `feat` and a breaking change bumps **patch** — the `.releaserc` rules are `{ type: '*', release: 'patch' }` and a `{ message: '*', release: 'patch' }` fallback, not just `fix`. A `chore` or `docs` commit still cuts a patch release.
+> Every type other than `feat` and the breaking types bumps **patch**. The `.releaserc` rules include `{ type: '*', release: 'patch' }` and a `{ message: '*', release: 'patch' }` fallback, so a `chore` or `docs` commit still cuts a release. In practice every merge to `main` produces a new version.
 
-When the analysed commits warrant a release, semantic-release:
-
-1. Computes the next version and creates and pushes the git tag `v<version>` — this is core semantic-release behaviour, done regardless of which plugins are configured, since it's how the next run knows where the last release left off.
-2. Writes the version to `$GITHUB_OUTPUT` (`semVer=<version>`), exposed as `steps.release.outputs.semVer` for the deploy jobs that follow.
-
-When no commit since the last tag warrants a release, no tag is created and the pipeline continues straight to deployment — a `main` push with no releasable commits (e.g. only a `docs:`-scoped… actually even `docs:` bumps patch per the table above, so in practice almost any commit releases; this only skips on commits the analyser can't parse at all).
-
-A git tag existing means the code is merged and versioned. It does **not** mean the code has reached production — see [Deployment Guide: deployment flow](./deployment.md#deployment-flow) for how `dev`, `staging` and `production` deploy after the release step.
+`feat!:`-style bang syntax is **not** a breaking-change trigger here. Only the `BREAKING` / `BREAKING CHANGE` types bump major, and the PR title check rejects `!` (see [Commit message format](#commit-message-format)).
 
 ---
 
-## What semantic-release does *not* do here
+## What a release produces
 
-[`.releaserc`](/.releaserc) configures exactly three plugins — `@semantic-release/commit-analyzer`, `@semantic-release/npm` (with `npmPublish: false`), `@semantic-release/exec` (only to write `$GITHUB_OUTPUT`). Worth knowing what's absent, since sibling projects sometimes configure more:
+[`.releaserc`](/.releaserc) configures four plugins:
 
-- **No `@semantic-release/changelog`** — no `CHANGELOG.md` is generated or committed. The git tags and (see below) squashed commit history are the record.
-- **No `@semantic-release/git`** — the version bump `@semantic-release/npm` writes to `package.json` during the CI run is never committed back to the repository. This is why [`package.json`](/package.json)'s `version` field reads `"0.0.0"` in the working tree — that's expected, not stale; the real version lives in the git tags, not the file.
-- **No `@semantic-release/github`** — semantic-release itself does not create a GitHub Release object (the entry that shows up on the repository's *Releases* page). Only the underlying git tag is created and pushed. If you're looking for release notes, use the tag list or the squashed commit history on `main`, not the Releases tab.
-- **No npm publish** — `npmPublish: false` means `@semantic-release/npm` is used purely for its version-computation side effect; nothing is published to any npm registry.
+| Plugin | What it does here |
+| --- | --- |
+| `@semantic-release/commit-analyzer` | Computes the next version using the rules above |
+| `@semantic-release/npm` (`npmPublish: false`) | Bumps `version` in `package.json` **in the CI workspace only**. Nothing is published |
+| `@semantic-release/exec` | `verifyReleaseCmd` writes `semVer=<version>` to `$GITHUB_OUTPUT` for the deploy jobs. `prepareCmd` runs `pnpm run changelog` |
+| `@semantic-release/github` | Creates a **GitHub Release** for tag `v<version>` with `CHANGELOG.md` attached as the "Full Changelog" asset. Success/failure comments on PRs and issues are disabled |
+
+In order, a release:
+
+1. Creates and pushes the git tag `v<version>`.
+2. Generates `CHANGELOG.md` with [`scripts/generate-changelog.ts`](/scripts/generate-changelog.ts). It walks every tag, groups commits by **ISO week**, then by type (Breaking Changes first) and Jira ticket, linking PRs and `NOT-` tickets (`NOT-000` is treated as untracked). Optional hand-written summaries for each week are read from [`scripts/changelog-summaries.json`](/scripts/changelog-summaries.json), keyed by `YYYY-Www`.
+3. Publishes the GitHub Release with the changelog attached.
+4. Exposes `steps.release.outputs.semVer`, which the deploy jobs pass on as `VERSION=<semver>@<sha>`.
+
+There is no `@semantic-release/git`, so neither the `package.json` version bump nor `CHANGELOG.md` is committed back. `package.json` reading `"version": "0.0.0"` in the working tree is expected. The real version lives in the git tags and GitHub Releases. To read release notes, use the repository's **Releases** page, or run `pnpm run changelog` locally to regenerate `CHANGELOG.md` (git-ignored; don't commit it).
+
+> To add context to a week's changelog entry, add or edit that week's key in `scripts/changelog-summaries.json` in a normal PR. The next release picks it up.
+
+A git tag means the code is merged and versioned. It does **not** mean the code has reached production. See [Deployment Guide: Release](./deployment.md#release-mainreleaseyml) for how `dev`, `staging` and `production` deploy after the release step.
 
 ---
 
 ## Commit message format
 
-PRs are squash-merged, so the PR title becomes the commit on `main` and is what the commit analyser reads. Commit messages are enforced locally by Husky's `commit-msg` hook via [`scripts/validate-commit-msg.ts`](/scripts/validate-commit-msg.ts):
+PRs are squash-merged, so the PR title becomes the commit on `main` and is what the commit analyser and changelog read. The format is:
 
 ```text
 <type>(<TICKET-REF>): <description>
 ```
 
-- **Type** must be one of: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`, or `BREAKING CHANGE`/`BREAKING`.
-- **Scope is mandatory**, must be **upper-case**, and must match a ticket reference pattern — 1–6 uppercase letters, a hyphen, 1–5 digits (`NOT-434`, `JIRA-1`, up to `ABCDEF-12345`).
-- **Subject** must not be empty; case is unrestricted.
+- **Type** must be one of: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`, `BREAKING CHANGE`, `BREAKING`.
+- **Scope is mandatory** and must be an upper-case ticket reference: 1–6 letters, a hyphen, 1–5 digits (`NOT-434`, `JIRA-1`, up to `ABCDEF-12345`).
+- **Subject** must not be empty; case is unrestricted. No `!` after the scope.
 
 ```text
 feat(NOT-111): added unit tests
@@ -57,30 +65,44 @@ chore(JIRA-456): added endpoint
 BREAKING CHANGE(JIRA-456): removed an endpoint
 ```
 
-Full detail (including how the pre-commit hooks interact with this) is in [`.husky/README.md`](/.husky/README.md). Dependabot PR titles (`fix(deps): bump the dependencies group` style) aren't ticket-scoped and are exempt in practice since Dependabot doesn't go through the local Husky hook — they're parsed by the commit analyser as ordinary conventional commits when they land on `main`.
+The same rule is enforced in two places:
+
+| Where | What | Source |
+| --- | --- | --- |
+| Local commits | Husky `commit-msg` hook | [`scripts/validate-commit-msg.ts`](/scripts/validate-commit-msg.ts), see [`.husky/README.md`](/.husky/README.md) |
+| PR titles (what lands on `main`) | `Validate PR Title` check | [`pr.title-validation.yml`](/.github/workflows/pr.title-validation.yml) |
+
+If you change the format, change both. `validate-commit-msg.ts` is the source of truth.
+
+Dependabot PRs skip the title check, and Dependabot commits don't go through the local hook. Their `fix(deps): ...` titles are parsed as ordinary conventional commits (a patch release) when they land on `main`.
 
 ---
 
 ## Deployment notifications
 
-Unlike some sibling GOV.UK Once projects, **this repository has no Slack or SNS release-notification step.** A repo-wide search of every workflow file for `sns`, `slack` and `chatbot` turns up nothing in the release or deploy pipeline. If you want to know a release has shipped, check:
+Every environment deploy announces itself. After `pnpm run cdk:deploy` succeeds, the **Announce release** step in [`_deploy.yml`](/.github/workflows/_deploy.yml) runs `pnpm run release:announcement` ([`scripts/release-announcement.ts`](/scripts/release-announcement.ts)), which:
 
-- The git tag on `main` (`git tag --sort=-creatordate | head`) or the pipeline run itself in the Actions tab.
-- `#govuk-once-flex-release`-style channels don't exist for this project — alarms do reach Slack (see [Infrastructure Development Guide: Alerting](./infrastructure-development.md#alerting)), but that's operational alerting via AWS Chatbot on CloudWatch alarms, not a "here's what just deployed" announcement.
+1. Finds the environment's release topic, `uns-<env>-sns-topic-releases` (created in `UNSCommon`).
+2. Publishes an AWS Chatbot custom notification: `:rocket: UNS deployed to <env>`, with the version and a link to the GitHub Release for `v<semver>`, or to the workflow run when there is no semantic version (manual deploys).
 
-If a deployment announcement is something the team wants, it doesn't exist yet — it would need to be built, not just enabled.
+The topic is forwarded to Slack by AWS Chatbot when `alerts/slack/workspaceId` and `alerts/slack/releaseChannelId` are set in that environment's SSM namespace (see [Configuration: Slack](./configuration.md#slack-alerts-and-release-announcements)). Expect one message per environment per release (`dev`, then `staging` and `production`).
+
+The step runs in the background with `continue-on-error: true`, so a failed announcement never fails a deploy. If the topic isn't found (e.g. a sandbox or ephemeral environment), the script logs that and exits successfully.
+
+Release announcements and alarms are separate. Alarms go to the alert topic and its own channel (`alerts/slack/channelId`); see [Alarms](./alarms.md#priorities-and-routing).
 
 ---
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Commit rejected locally by Husky | Message doesn't match `type(TICKET-REF): subject` — see [Commit message format](#commit-message-format) |
-| No tag appears after a merge to `main` | Extremely unusual given almost every type bumps at least a patch — check the `release` job log for a commit-analyzer parse failure |
-| `release` job fails | Check the semantic-release log in the job output; deployment to `dev`/`staging`/`production` is blocked until it's fixed |
-| Wrong bump for what you expected to be breaking | Ensure the type is exactly `BREAKING` or `BREAKING CHANGE` (case-sensitive, matching the `.releaserc` rule) — `feat!:`-style bang syntax is **not** configured as a breaking-change trigger here, unlike some Angular-preset setups |
-| Looking for a changelog or GitHub Release entry | Neither exists — see [What semantic-release does not do here](#what-semantic-release-does-not-do-here) |
+| --- | --- |
+| Commit rejected locally by Husky | Message doesn't match `type(TICKET-REF): subject`; see [Commit message format](#commit-message-format) |
+| PR blocked by `Validate PR Title` | Same rule, applied to the PR title. Edit the title; no new commit needed |
+| No tag appears after a merge to `main` | Check the `release` job log for a commit-analyzer parse failure |
+| `release` job fails | Check the semantic-release log. Deployment to every environment is blocked until it's fixed. `prepareCmd` (changelog generation) failing also fails the release |
+| Wrong bump for what you expected to be breaking | Use the type `BREAKING` or `BREAKING CHANGE` exactly; `!` is not supported |
+| No Slack message after a deploy | Check the `Announce release` step output, then that `alerts/slack/releaseChannelId` and `workspaceId` are set and the stack was redeployed after setting them |
 
 ---
 
@@ -89,11 +111,14 @@ If a deployment announcement is something the team wants, it doesn't exist yet �
 **Guides:**
 
 - [Deployment Guide](./deployment.md)
-- [Infrastructure Development Guide: Alerting](./infrastructure-development.md#alerting)
+- [Configuration](./configuration.md)
+- [Alarms](./alarms.md)
 
 **Code:**
 
 - [`.releaserc`](/.releaserc)
+- [`scripts/generate-changelog.ts`](/scripts/generate-changelog.ts)
+- [`scripts/release-announcement.ts`](/scripts/release-announcement.ts)
 - [`scripts/validate-commit-msg.ts`](/scripts/validate-commit-msg.ts)
-- [`.husky/README.md`](/.husky/README.md)
 - [`.github/workflows/main.release.yml`](/.github/workflows/main.release.yml)
+- [`.github/workflows/pr.title-validation.yml`](/.github/workflows/pr.title-validation.yml)
