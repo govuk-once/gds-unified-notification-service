@@ -33,7 +33,7 @@ jobs:
           codeartifact-account-id: ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }}
 
       - name: ⚙️ Restore TypeScript build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: tsconfig.tsbuildinfo
           key: tsbuildinfo-${{ runner.os }}-${{ hashFiles('src/**/*.ts', 'tsconfig.json') }}
