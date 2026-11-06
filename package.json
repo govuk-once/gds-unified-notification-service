@@ -117,5 +117,5 @@
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.66.0"
   },
-  "packageManager": "pnpm@11.9.0"
+  "packageManager": "pnpm@12.18.0"
 }
