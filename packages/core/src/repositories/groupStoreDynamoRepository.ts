@@ -36,15 +36,7 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
   public async getUsersGroups(pushID: string): Promise<IGroups[]> {
     const records = await this.getRecordsQuery({ field: 'PushID', value: pushID }, 'PushIDIndex');
 
-    return records
-      ? records.map((record) => ({
-          GroupID: record.GroupID,
-          CompositeID: record.CompositeID,
-          Namespace: record.Namespace,
-          Group: record.Group,
-          Subgroup: record.Subgroup,
-        }))
-      : [];
+    return records ? records.map((record) => this.toGroup(record)) : [];
   }
 
   public async getUsersInGroup(namespace: string, group: string, subgroup?: string): Promise<string[]> {
@@ -96,28 +88,12 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
       return usersGroups;
     }
 
-    await this.createRecordBatch(recordsToCreate);
-    this.observability.logger.info('Joining groups', {
-      pushID,
-      groupsToJoin: recordsToCreate.map((r) => ({
-        GroupID: r.GroupID,
-        CompositeID: r.CompositeID,
-        Namespace: r.Namespace,
-        Group: r.Group,
-        Subgroup: r.Subgroup,
-      })),
-    });
+    const joinedGroups = recordsToCreate.map((record) => this.toGroup(record));
 
-    return [
-      ...usersGroups,
-      ...recordsToCreate.map((r) => ({
-        GroupID: r.GroupID,
-        CompositeID: r.CompositeID,
-        Namespace: r.Namespace,
-        Group: r.Group,
-        Subgroup: r.Subgroup,
-      })),
-    ];
+    await this.createRecordBatch(recordsToCreate);
+    this.observability.logger.info('Joining groups', { pushID, groupsToJoin: joinedGroups });
+
+    return [...usersGroups, ...joinedGroups];
   }
 
   public async leaveGroups(
@@ -145,6 +121,16 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
     await Promise.allSettled(leaving.map((u) => this.deleteRecord(u.GroupID, pushID)));
 
     return remaining;
+  }
+
+  private toGroup(record: IGroupStoreRecord): IGroups {
+    return {
+      GroupID: record.GroupID,
+      CompositeID: record.CompositeID,
+      Namespace: record.Namespace,
+      Group: record.Group,
+      Subgroup: record.Subgroup,
+    };
   }
 
   private buildCompositeId(namespace: string, group: string, subgroup?: string) {
