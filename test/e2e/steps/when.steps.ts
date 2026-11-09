@@ -3,17 +3,19 @@ import { When } from '@cucumber/cucumber';
 import type CustomWorld from '@test/e2e/utils/world';
 import { v4 as uuid } from 'uuid';
 
-When('I send a {string} request to {string}', async function (this: CustomWorld, method: string, path: string) {
+When('I send a {word} request to {string}', async function (this: CustomWorld, method: string, path: string) {
   const substrings: Record<string, string> = {
-    $KNOWN_IDS_VALID_NOTIFICATION$: this.knownTestIDs.notificationID,
-    $KNOWN_IDS_VALID_PUSH_ID$: this.knownTestIDs.pushID,
-    $RANDOM_UUID$: uuid(),
-    $MISSING_ID$: '',
+    knownNotificationId: this.knownTestIDs.notificationID,
+    knownPushId: this.knownTestIDs.pushID,
+    unknownNotificationId: uuid(),
+    otherUserPushId: uuid(),
+    missing: '',
   };
 
-  this.path = path.replace(/\$[A-Z_]+\$/g, (match) => {
-    if (substrings[match] === undefined) throw new Error(`Unknown variable: ${match}`);
-    return substrings[match];
+  this.path = path.replace(/\{([^}]+)\}/g, (match) => {
+    const key = match.slice(1, -1); // Remove the curly braces
+    if (substrings[key] === undefined) throw new Error(`Unknown variable: ${match}`);
+    return substrings[key];
   });
 
   try {

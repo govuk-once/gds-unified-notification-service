@@ -118,8 +118,4 @@ export default class CustomWorld extends World {
       await notificationsRepository.createRecord(messageRecord);
     }
   }
-
-  public isCI() {
-    return config.isE2ERunner || process.env.GITHUB_ACTIONS === 'true';
-  }
 }

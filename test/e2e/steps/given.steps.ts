@@ -15,9 +15,9 @@ defineParameterType({
   transformer: (s) => s as APIConfigurations,
 });
 
-Given('a {string} API client {APIConfig}', function (this: CustomWorld, service: string, apiConfig: APIConfigurations) {
+Given('a {word} API client {APIConfig}', function (this: CustomWorld, service: string, apiConfig: APIConfigurations) {
   const apiClients: Record<string, Record<string, () => CustomWorld['api']>> = {
-    Flex: {
+    FLEX: {
       [APIConfigurations.InsecureHTTP]: () => this.flexAPIUsingInsecureProtocol,
       [APIConfigurations.InvalidAPIKey]: () => this.flexAPIWithoutAPIKey,
       [APIConfigurations.MissingMTLS]: () => {
@@ -25,16 +25,13 @@ Given('a {string} API client {APIConfig}', function (this: CustomWorld, service:
       },
       [APIConfigurations.CorrectConfig]: () => this.flexAPI,
     },
-    Pso: {
+    PSO: {
       [APIConfigurations.InsecureHTTP]: () => this.psoAPIUsingInsecureProtocol,
       [APIConfigurations.InvalidAPIKey]: () => this.psoAPIWithoutAPIKey,
       [APIConfigurations.MissingMTLS]: () => this.psoAPIWithoutMTLSCert,
       [APIConfigurations.CorrectConfig]: () => this.psoAPI,
     },
   };
-  if (apiConfig === APIConfigurations.InsecureHTTP && !this.isCI()) {
-    return 'skipped';
-  }
   if (!apiClients[service]) throw new Error(`Unknown API service: ${service}`);
   if (!apiClients[service][apiConfig]) throw new Error(`Unknown API configuration: ${apiConfig}`);
 

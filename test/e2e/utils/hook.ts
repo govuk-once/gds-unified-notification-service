@@ -1,4 +1,5 @@
 import { Before, setDefaultTimeout, setWorldConstructor } from '@cucumber/cucumber';
+import { config } from '@infra/cdk/config';
 import { prepareDispatchAgent } from '@test/e2e/utils/setup.e2e';
 import { Agent } from 'undici';
 import CustomWorld from './world';
@@ -14,6 +15,11 @@ Before(async function (this: CustomWorld) {
     dispatchAgent = await prepareDispatchAgent();
   }
   await this.applyDispatchConfig(dispatchAgent);
+});
+
+Before({ tags: '@CIOnly' }, function () {
+  const isCI = config.isE2ERunner || process.env.GITHUB_ACTIONS === 'true';
+  if (!isCI) return 'skipped';
 });
 
 let messageExists = false;
