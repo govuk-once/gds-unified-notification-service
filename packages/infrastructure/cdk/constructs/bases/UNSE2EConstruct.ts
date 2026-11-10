@@ -1,3 +1,8 @@
+import { EnvVars } from '@infra/cdk/config';
+import { UNSS3Bucket } from '@infra/cdk/constructs/bases/UNSS3BucketConstruct';
+import { applyDataProtectionTag } from '@infra/cdk/utils/applyDataProtectionTag';
+import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
+import { applyPiiTag } from '@infra/cdk/utils/applyPiiTag';
 import { Duration, Stack } from 'aws-cdk-lib';
 import { BuildSpec, ComputeType, LinuxBuildImage, Project, Source } from 'aws-cdk-lib/aws-codebuild';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
@@ -5,11 +10,6 @@ import { ISecurityGroup, IVpc, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey, Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
-import { UNSS3Bucket } from '@infra/cdk/constructs/bases/UNSS3BucketConstruct';
-import { applyDataProtectionTag } from '@infra/cdk/utils/applyDataProtectionTag';
-import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
-import { applyPiiTag } from '@infra/cdk/utils/applyPiiTag';
 export interface UNSCodeBuildConstructProps {
   name: string[];
   vpc: IVpc;
@@ -32,7 +32,7 @@ export class UNSE2EConstruct extends Construct {
       lifecycleRules: [
         {
           enabled: true,
-          expiration: config.isMainEnv ? Duration.days(7) : Duration.days(1),
+          expiration: config.isPersistentEnv ? Duration.days(7) : Duration.days(1),
         },
       ],
     });
@@ -112,7 +112,7 @@ export class UNSE2EConstruct extends Construct {
 
     const stack = Stack.of(this);
     // Access to kms
-    const tlsPrefix = config.isMainEnv ? `uns-${config.env}/tls/UNS` : `uns-dev`;
+    const tlsPrefix = config.isPersistentEnv ? `uns-${config.env}/tls/UNS` : `uns-dev`;
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -136,11 +136,11 @@ export class UNSE2EConstruct extends Construct {
       })
     );
 
-    if (!config.isMainEnv && !config.sandbox.shared.kms) {
+    if (!config.isPersistentEnv && !config.sandbox.shared.kms) {
       throw new Error('no /shared/mtls/kmsArn in ssm');
     }
     // Access to kms
-    const certificateKey = config.isMainEnv
+    const certificateKey = config.isPersistentEnv
       ? props.kms
       : Key.fromKeyArn(this, constructNamingHelper(...props.name, 'shared', 'kms'), config.sandbox.shared.kms);
     certificateKey.grantDecrypt(this.role);

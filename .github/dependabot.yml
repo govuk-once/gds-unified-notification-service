@@ -1,4 +1,5 @@
 version: 2
+
 registries:
   codeartifact-feed:
     type: npm-registry
@@ -10,7 +11,7 @@ registries:
     role-name: ${{ secrets.DEPENDABOT_CODEARTIFACT_ROLE_NAME }}
 
 updates:
-  # Enables version updates for pnpm
+  # Version updates for pnpm (npm ecosystem)
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
@@ -20,20 +21,103 @@ updates:
     commit-message:
       prefix: 'fix'
       include: 'scope'
-    cooldown:
-      default-days: 7
-    groups:
-      dependencies:
-        patterns:
-          - '*'
-        update-types:
-          - 'patch'
-          - 'minor'
-
     registries:
       - codeartifact-feed
 
-  # Enables version updates for github actions
+    # Must be strictly greater than pnpm's minimumReleaseAge (10080 min = 7 days
+    # in pnpm-workspace.yaml). Cooldown is counted in whole days, so with equal
+    # values a version can be "old enough" for Dependabot but minutes too young
+    # for pnpm. If minimumReleaseAge changes, keep this one day above it.
+    # Cooldown applies to version updates only. Security updates bypass it by design.
+    cooldown:
+      default-days: 8
+
+    # Splitting into groups means more PRs can be open at once (default limit is 5).
+    # Security update PRs have their own separate, fixed limit of 10.
+    open-pull-requests-limit: 10
+
+    # Narrow groups instead of a single '*' group, so one fresh package
+    # can't block (or be dragged into) a PR that bumps everything.
+    # Groups without `applies-to` default to version updates; it's explicit here
+    # so security updates stay as individual, single-package PRs.
+    # Major updates are excluded from every group and arrive as individual PRs.
+    groups:
+      aws-sdk:
+        applies-to: version-updates
+        patterns:
+          - '@aws-sdk/*'
+          - '@smithy/*'
+          - '@aws-crypto/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      aws-cdk:
+        applies-to: version-updates
+        patterns:
+          - 'aws-cdk'
+          - 'aws-cdk-lib'
+          - 'once-platform-constructs'
+        update-types:
+          - 'minor'
+          - 'patch'
+      lambda-powertools:
+        applies-to: version-updates
+        patterns:
+          - '@aws-lambda-powertools/*'
+          - 'aws-xray-sdk-core'
+        update-types:
+          - 'minor'
+          - 'patch'
+      middy:
+        applies-to: version-updates
+        patterns:
+          - '@middy/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      testing:
+        applies-to: version-updates
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - 'aws-sdk-client-mock*'
+          - 'msw'
+        update-types:
+          - 'minor'
+          - 'patch'
+      linting:
+        applies-to: version-updates
+        patterns:
+          - 'eslint*'
+          - '@eslint/*'
+          - 'typescript-eslint'
+          - '@typescript-eslint/*'
+          - 'prettier'
+          - 'cspell'
+          - 'globals'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Catch-alls for anything not matched above. A dependency goes into the
+      # first group it matches, so these must stay last.
+      other-production:
+        applies-to: version-updates
+        dependency-type: 'production'
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      other-development:
+        applies-to: version-updates
+        dependency-type: 'development'
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+  # Version updates for GitHub Actions (not affected by pnpm minimumReleaseAge)
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
@@ -46,9 +130,10 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      dependencies:
+      github-actions:
+        applies-to: version-updates
         patterns:
           - '*'
         update-types:
-          - 'patch'
           - 'minor'
+          - 'patch'

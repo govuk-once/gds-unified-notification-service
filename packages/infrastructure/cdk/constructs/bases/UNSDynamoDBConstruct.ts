@@ -1,7 +1,7 @@
+import { EnvVars } from '@infra/cdk/config';
 import { AttributeType, BillingMode, ProjectionType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
 
 export interface UNSDynamoDbProps {
   readonly name: string[];
@@ -73,7 +73,7 @@ export class UNSDynamoDb extends Construct {
         pointInTimeRecoveryEnabled: props.pointInTimeRecovery ?? true,
         recoveryPeriodInDays: 30,
       },
-      deletionProtection: config.isMainEnv,
+      deletionProtection: config.isPersistentEnv,
       removalPolicy: config.removalPolicy,
 
       // Expiration
