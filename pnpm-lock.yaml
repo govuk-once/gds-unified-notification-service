@@ -321,8 +321,8 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(vitest@5.0.5)
       aws-cdk:
-        specifier: ^2.1146.1
-        version: 2.1146.1
+        specifier: ^2.1147.0
+        version: 2.1147.0
       aws-cdk-lib:
         specifier: 2.272.0
         version: 2.272.0(constructs@10.8.1)
@@ -370,7 +370,7 @@ importers:
         version: 23.1.1
       once-platform-constructs:
         specifier: ^1.2.0
-        version: 1.2.0(aws-cdk-lib@2.272.0(constructs@10.8.1))(aws-cdk@2.1146.1)
+        version: 1.2.0(aws-cdk-lib@2.272.0(constructs@10.8.1))(aws-cdk@2.1147.0)
       prettier:
         specifier: 3.9.10
         version: 3.9.10
@@ -2073,8 +2073,8 @@ packages:
       - yaml
       - mime-types
 
-  aws-cdk@2.1146.1:
-    resolution: {integrity: sha512-Sb3RHuPt8yLP4BPFNl+D2li5wI9h4UL/+NYVq8FCxmDfUJwayzEOc/Tgb4wcixB8naOmPOLzhWkdbFx17tuhSg==}
+  aws-cdk@2.1147.0:
+    resolution: {integrity: sha512-2ON/W4jShXWS926bKO6Osgw3MDlxhco5cz3n7SS5GLzaEaYs6ebpAHRDZp6sirkGnMqWoUwxCmIOkvAHS9Rn2A==}
     engines: {node: '>= 18.0.0'}
     hasBin: true
 
@@ -5964,7 +5964,7 @@ snapshots:
       '@aws-cdk/cloud-assembly-schema': 54.26.0
       constructs: 10.8.1
 
-  aws-cdk@2.1146.1: {}
+  aws-cdk@2.1147.0: {}
 
   aws-sdk-client-mock-vitest@8.0.0(@smithy/types@4.19.0)(aws-sdk-client-mock@4.1.0)(vitest@5.0.5):
     dependencies:
@@ -7234,9 +7234,9 @@ snapshots:
 
   obug@3.0.0: {}
 
-  once-platform-constructs@1.2.0(aws-cdk-lib@2.272.0(constructs@10.8.1))(aws-cdk@2.1146.1):
+  once-platform-constructs@1.2.0(aws-cdk-lib@2.272.0(constructs@10.8.1))(aws-cdk@2.1147.0):
     dependencies:
-      aws-cdk: 2.1146.1
+      aws-cdk: 2.1147.0
       aws-cdk-lib: 2.272.0(constructs@10.8.1)
       constructs: 10.8.1
       lodash: 4.18.1
