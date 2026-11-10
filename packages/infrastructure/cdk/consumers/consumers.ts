@@ -76,8 +76,23 @@ export const rollingCertificate = (props: {
 export type GroupedConsumerCertificates = ReturnType<typeof certificate>[];
 
 export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCertificates => {
-  return config.isEphemeral ? getEphemeralCerts(config) : getEnvCerts(env);
+  return config.isPersistentEnv ? getEnvCerts(env) : getEphemeralCerts(config);
 };
+
+function getEnvCerts(env: string): GroupedConsumerCertificates {
+  switch (env) {
+    case 'dev':
+      return devConsumers();
+
+    case 'stg':
+      return stagingConsumers();
+
+    case 'prod':
+      return productionConsumers();
+  }
+
+  throw new Error(`No consumer certificates defined for environment: ${env}`);
+}
 
 function getEphemeralCerts(config: EnvVars): GroupedConsumerCertificates {
   return [createUnsSandboxCert(config)];
@@ -97,19 +112,4 @@ function createUnsSandboxCert(config: EnvVars): ReturnType<typeof certificate> {
     expirationDate: new Date(config.utils.nextSunday().getTime() - hour),
     revoked: false,
   });
-}
-
-function getEnvCerts(env: string): GroupedConsumerCertificates {
-  switch (env) {
-    case 'dev':
-      return devConsumers();
-
-    case 'stg':
-      return stagingConsumers();
-
-    case 'prod':
-      return productionConsumers();
-  }
-
-  throw new Error(`No consumer certificates defined for environment: ${env}`);
 }
