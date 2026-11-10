@@ -98,7 +98,7 @@ jobs:
           env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
-        uses: bridgecrewio/checkov-action@c10e2438743528f9e4549758fad8b7a62052541d # v12
+        uses: bridgecrewio/checkov-action@45edc9d8856b664db2ec251f5f8632361f0a67aa # v12
         with:
           output_format: cli,sarif
           output_file_path: console,results.sarif
