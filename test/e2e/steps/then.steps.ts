@@ -47,6 +47,10 @@ Then(
   }
 );
 
+Then('contain valid request body', function (this: CustomWorld) {
+  expect(this.result.body).toEqual(this.expectedBody);
+});
+
 defineParameterType({
   name: 'notificationStatusArray',
   regexp: /"([^"]+)"/,

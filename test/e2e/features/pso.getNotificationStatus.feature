@@ -1,31 +1,27 @@
+@Pso
 Feature: Get Notification Status
-  @Pso
-  Scenario: Insecure protocol
-    Given a PSO API client configured with an insecure HTTP
-    When I send a GET request to "/status/{knownNotificationId}"
-    Then the GET request should fail with a transport error
 
-  @Pso
-  Scenario: Missing MTLS Certificates
-    Given a PSO API client with missing MTLS certificate
-    When I send a GET request to "/status/{knownNotificationId}"
-    Then the GET request should fail with a transport error
+  Scenario Outline: Failed notification status retrieval
+    Given my PSO client is configured <Configuration>
+    When I attempt to get the status of an <NotificationState> notification
+    Then the GET request should fail <ExpectedError>
 
-  @Pso
-  Scenario: Invalid api key
-    Given a PSO API client configured with an invalid api key
-    When I send a GET request to "/status/{knownNotificationId}"
-    Then the GET request should fail with a 401
+    @CIOnly
+    Examples: Infrastructure test
+      | Configuration                  | NotificationState | ExpectedError           |
+      | insecurely                     | existing          | with a transport error  |
+      | with missing MTLS certificate  | existing          | with a transport error  |
 
-  @Pso
-  Scenario: Non existing notification
-    Given a PSO API client configured correctly
-    When I send a GET request to "/status/{unknownNotificationId}"
-    Then the GET request should fail with a 404
+    Examples: Authentication
+      | Configuration                  | NotificationState | ExpectedError           |
+      | with an invalid api key        | existing          | with a 401              |
 
-  @Pso
-  Scenario: Get a list of notifications statuses
-    Given a PSO API client configured correctly
-    When I send a GET request to "/status/{knownNotificationId}"
+    Examples: Resource Not Found
+      | Configuration                  | NotificationState | ExpectedError           |
+      | correctly                      | unknown           | with a 404              |
+
+  Scenario: Successfully get notification statuses
+    Given my PSO client is configured correctly
+    When I attempt to get the status of an existing notification
     Then the GET request should succeed with a 200
     And I expect response to contain "VALIDATED_API_CALL, PROCESSING, PROCESSED, DISPATCHING, DISPATCHED"

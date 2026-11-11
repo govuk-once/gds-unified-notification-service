@@ -1,33 +1,25 @@
-Feature: Delete Notification By Id
-  ##################
-  #  Unhappy path  #
-  ##################
-  @Flex @CIOnly
-  Scenario: Insecure protocol
-    Given a FLEX API client configured with an insecure HTTP
-    When I send a DELETE request to "/notifications/{knownNotificationId}"
-    Then the DELETE request should fail with a connection protocol error
+@Flex
+Feature: Delete Notification
 
-  @Flex
-  Scenario: Invalid api key
-    Given a FLEX API client configured with an invalid api key
-    When I send a DELETE request to "/notifications/{knownNotificationId}"
-    Then the DELETE request should fail with a 403
+  Scenario Outline: Failed notification deletions
+    Given my FLEX client is configured <Configuration>
+    When I attempt to delete an <NotificationState> notification with a "<PushIdState>" push ID
+    Then the DELETE request should fail with a <StatusCode>
 
-  @Flex
-  Scenario: Missing pushID
-    Given a FLEX API client configured correctly
-    When I send a DELETE request to "/notifications/{knownNotificationId}?pushID={missing}"
-    Then the DELETE request should fail with a 400
+    @CIOnly
+    Examples: Infrastructure test 
+      | Configuration           | NotificationState | PushIdState | StatusCode |
+      | insecurely              | existing          | valid       | 500        |
 
-  @Flex
-  Scenario: Non existing notification
-    Given a FLEX API client configured correctly
-    When I send a DELETE request to "/notifications/{unknownNotificationId}?pushID={knownPushId}"
-    Then the DELETE request should fail with a 404
+    Examples: Authentication
+      | Configuration           | NotificationState | PushIdState | StatusCode |
+      | with an invalid api key | existing          | valid       | 403        |
 
-  @Flex
-  Scenario: Not the owner
-    Given a FLEX API client configured correctly
-    When I send a DELETE request to "/notifications/{knownNotificationId}?pushID={otherUserPushId}"
-    Then the DELETE request should fail with a 404
+    Examples: Data Validation
+      | Configuration           | NotificationState | PushIdState | StatusCode |
+      | correctly               | existing          | missing     | 400        |
+
+    Examples: Resource Not Found or Unauthorized Ownership
+      | Configuration           | NotificationState | PushIdState  | StatusCode |
+      | correctly               | unknown           | valid        | 404        |
+      | correctly               | existing          | wrong user's | 404        |

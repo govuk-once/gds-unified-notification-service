@@ -11,6 +11,7 @@ import { domainName, fetchApiKeys } from '@shared/credentials';
 import { mockIMessageRecord_E2E } from '@test/mocks';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { FetchErrorResponse, FetchResponse, FetchService } from '@common/services/FetchService';
+import { v4 as uuid } from 'uuid';
 
 process.env.POWERTOOLS_DEV = 'true';
 process.env.POWERTOOLS_METRICS_DISABLED = 'false';
@@ -29,6 +30,7 @@ export default class CustomWorld extends World {
   public api!: FetchSigV4Service | FetchService;
   public path!: string;
   public result!: FetchResponse | FetchErrorResponse;
+  public expectedBody!: unknown;
 
   public messageRequest?: Omit<IMessage, 'OrganisationID'>[];
 
@@ -116,6 +118,48 @@ export default class CustomWorld extends World {
       console.log('No message record found, creating a new message in message table');
       const messageRecord = mockIMessageRecord_E2E(this.knownTestIDs.notificationID, this.knownTestIDs.pushID);
       await notificationsRepository.createRecord(messageRecord);
+    }
+  }
+
+  public resolvePushID(state: string): string {
+    const states: Record<string, string> = {
+      valid: this.knownTestIDs.pushID,
+      "wrong user's": uuid(),
+      missing: '',
+    };
+    const value = states[state];
+    if (value === undefined) throw new Error(`Invalid push ID state: ${state}`);
+    return value;
+  }
+
+  public resolveNotificationID(state: string): string {
+    const states: Record<string, string> = {
+      existing: this.knownTestIDs.notificationID,
+      unknown: uuid(),
+    };
+    const value = states[state];
+    if (value === undefined) throw new Error(`Invalid notification state: ${state}`);
+    return value;
+  }
+
+  public async sendRequest(method: string, body?: unknown) {
+    try {
+      switch (method) {
+        case 'POST':
+          this.result = await this.api.post({ path: this.path, body });
+          break;
+        case 'GET':
+          this.result = await this.api.get({ path: this.path });
+          break;
+        case 'DELETE':
+          this.result = await this.api.delete({ path: this.path });
+          break;
+        case 'PUT':
+          this.result = await this.api.put({ path: this.path, body });
+          break;
+      }
+    } catch (e) {
+      this.result = e as FetchErrorResponse;
     }
   }
 }
