@@ -4,6 +4,7 @@ import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
 import {
+  appendFunctionVersion,
   type IMiddleware,
   type IRequestEvent,
   type IRequestResponse,
@@ -91,6 +92,7 @@ export abstract class APIHandler<
           correlationIdPath: 'requestContext.requestId',
         })
       )
+      .use(appendFunctionVersion(this.observability.logger))
       .use(captureLambdaHandler(this.observability.tracer))
       .use(
         logMetrics(this.observability.metrics as Metrics, {
