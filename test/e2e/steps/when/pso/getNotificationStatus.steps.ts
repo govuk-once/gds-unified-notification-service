@@ -1,12 +1,10 @@
 import { When } from '@cucumber/cucumber';
 import type CustomWorld from '@test/e2e/utils/world';
 
-When(
-  'I attempt to get the status of an {word} notification',
-  async function (this: CustomWorld, notificationState: string) {
-    const notificationID = this.resolveNotificationID(notificationState);
+When('I attempt to get the status of a notification', async function (this: CustomWorld) {
+  const notificationID = this.resolveNotificationID();
 
-    this.path = `/status/${notificationID}`;
-    await this.sendRequest('GET');
-  }
-);
+  this.expectedStatusCode = 200;
+  this.path = `/status/${notificationID}`;
+  await this.sendRequest('GET');
+});

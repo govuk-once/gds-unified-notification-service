@@ -2,24 +2,25 @@
 Feature: Delete Notification
 
   Scenario Outline: Failed notification deletions
-    Given my FLEX client is configured <Configuration>
-    When I attempt to delete an <NotificationState> notification with a "<PushIdState>" push ID
-    Then the DELETE request should fail with a <StatusCode>
+    Given a correctly configured FLEX client
+    But <Condition>
+    When I attempt to delete a notification
+    Then it should fail with <ExpectedError>
 
     @CIOnly
-    Examples: Infrastructure test 
-      | Configuration           | NotificationState | PushIdState | StatusCode |
-      | insecurely              | existing          | valid       | 500        |
+    Examples: Infrastructure
+      | Condition                           | ExpectedError           |
+      | the connection is insecure          | a connection error      |
 
     Examples: Authentication
-      | Configuration           | NotificationState | PushIdState | StatusCode |
-      | with an invalid api key | existing          | valid       | 403        |
+      | Condition                           | ExpectedError           |
+      | my API key is invalid               | an authentication error |
 
     Examples: Data Validation
-      | Configuration           | NotificationState | PushIdState | StatusCode |
-      | correctly               | existing          | missing     | 400        |
+      | Condition                           | ExpectedError           |
+      | my push ID is missing               | a validation error      |
 
-    Examples: Resource Not Found or Unauthorized Ownership
-      | Configuration           | NotificationState | PushIdState  | StatusCode |
-      | correctly               | unknown           | valid        | 404        |
-      | correctly               | existing          | wrong user's | 404        |
+    Examples: Resource Not Found or Unauthorised Ownership
+      | Condition                           | ExpectedError           |
+      | the notification does not exist     | a not found error       |
+      | the push ID belongs to another user | a not found error       |

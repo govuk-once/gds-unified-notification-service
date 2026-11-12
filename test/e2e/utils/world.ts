@@ -28,9 +28,13 @@ export default class CustomWorld extends World {
   public flexAPIUsingInsecureProtocol!: FetchService;
 
   public api!: FetchSigV4Service | FetchService;
+  public pushIdState: string = 'valid';
+  public notificationState: string = 'existing';
+  public expectedStatusCode?: number;
+  public expectedResponseBody?: unknown;
+  public method!: string;
   public path!: string;
   public result!: FetchResponse | FetchErrorResponse;
-  public expectedBody!: unknown;
 
   public messageRequest?: Omit<IMessage, 'OrganisationID'>[];
 
@@ -121,28 +125,29 @@ export default class CustomWorld extends World {
     }
   }
 
-  public resolvePushID(state: string): string {
+  public resolvePushID(): string {
     const states: Record<string, string> = {
       valid: this.knownTestIDs.pushID,
       "wrong user's": uuid(),
       missing: '',
     };
-    const value = states[state];
-    if (value === undefined) throw new Error(`Invalid push ID state: ${state}`);
+    const value = states[this.pushIdState];
+    if (value === undefined) throw new Error(`Invalid push ID state: ${this.pushIdState}`);
     return value;
   }
 
-  public resolveNotificationID(state: string): string {
+  public resolveNotificationID(): string {
     const states: Record<string, string> = {
       existing: this.knownTestIDs.notificationID,
       unknown: uuid(),
     };
-    const value = states[state];
-    if (value === undefined) throw new Error(`Invalid notification state: ${state}`);
+    const value = states[this.notificationState];
+    if (value === undefined) throw new Error(`Invalid notification state: ${this.notificationState}`);
     return value;
   }
 
   public async sendRequest(method: string, body?: unknown) {
+    this.method = method;
     try {
       switch (method) {
         case 'POST':
