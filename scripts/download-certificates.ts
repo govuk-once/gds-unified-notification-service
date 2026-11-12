@@ -229,7 +229,9 @@ const script = async function () {
     const apiKeyValue = await fetchMatchingPsoApiKey(apiGwClient, selectedPair.prefix, selectedPair.certificateId);
 
     if (apiKeyValue) {
-      console.log(`  ${Colors.cyan('x-api-key')}: ${apiKeyValue}`);
+      const apiKeyPath = resolve(outputDir, `${selectedPair.certificateId}.api-key`);
+      writeFileSync(apiKeyPath, apiKeyValue, { encoding: 'utf-8', mode: 0o600 });
+      console.log(`  ${Colors.cyan('x-api-key')} -> ${apiKeyPath}`);
     } else {
       console.log(Colors.yellow('No matching PSO API key found for this certificate.'));
     }
