@@ -98,7 +98,7 @@ export abstract class QueueHandler<InputType, OutputType> {
       }
 
       // Triggers error based on operation id and notification title - to be removed from prod release!
-      // TODO: Move to Middy Middleware and trigger error on environment variable instead of notification title
+      // TODO: Move to Middy Middleware and only execute if environment is not production
       const eventToOperationMap: Record<string, string> = {
         FAIL_AT_VALIDATION: 'validation',
         FAIL_AT_PROCESSING: 'processing',
