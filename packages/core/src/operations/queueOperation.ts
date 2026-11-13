@@ -3,8 +3,8 @@ import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
-import { appendFunctionVersion } from '@common/middlewares';
-import { NotImplementedError, SimulatedError } from '@common/models/Errors/InternalServerError';
+import { appendFunctionVersion, simulateQueueError } from '@common/middlewares';
+import { NotImplementedError } from '@common/models/Errors/InternalServerError';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
@@ -73,9 +73,12 @@ export abstract class QueueHandler<InputType, OutputType> {
   }
 
   protected middlewares(middy: IQueueMiddleware<string, OutputType>): IQueueMiddleware<InputType, OutputType> {
-    return this.observabilityMiddlewares(middy).use(
-      deserializeRecordBodyFromJson(this.observability)
-    ) as unknown as IQueueMiddleware<InputType, OutputType>;
+    return this.observabilityMiddlewares(middy)
+      .use(deserializeRecordBodyFromJson(this.observability))
+      .use(simulateQueueError(this.observability, this.operationId)) as unknown as IQueueMiddleware<
+      InputType,
+      OutputType
+    >;
   }
 
   // Wrapper FN to consistently initialize operations
@@ -94,28 +97,6 @@ export abstract class QueueHandler<InputType, OutputType> {
             eventSourceARN: record.eventSourceARN,
           });
           this.observability.metrics.addMetric(MetricsLabels.QUEUE_MESSAGE_RETRY_ATTEMPT, MetricUnit.Count, 1);
-        }
-      }
-
-      // Triggers error based on operation id and notification title - to be removed from prod release!
-      // TODO: Move to Middy Middleware and only execute if environment is not production
-      const eventToOperationMap: Record<string, string> = {
-        FAIL_AT_VALIDATION: 'validation',
-        FAIL_AT_PROCESSING: 'processing',
-        FAIL_AT_DISPATCH: 'dispatch',
-        FAIL_AT_ANALYTICS: 'analytics',
-      };
-
-      for (const record of event.Records as SQSRecord[]) {
-        const object =
-          typeof record.body === 'string'
-            ? (JSON.parse(record.body) as Record<string, string>)
-            : (record.body as Record<string, string>);
-        const notificationTitle = object?.NotificationTitle;
-
-        if (eventToOperationMap[notificationTitle] === this.operationId) {
-          this.observability.logger.warn('Simulating an error for operation', { OperationId: this.operationId });
-          throw new SimulatedError([`Simulating an error!`]);
         }
       }
 
