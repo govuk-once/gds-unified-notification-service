@@ -21,10 +21,11 @@ jobs:
           echo "Checking PR title: $TITLE"
 
           # Must stay in sync with scripts/validate-commit-msg.ts (the source of truth)
-          PATTERN='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|BREAKING CHANGE|BREAKING)\([A-Z]{1,6}-[0-9]{1,5}\): .+'
+          PATTERN='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|BREAKING CHANGE|BREAKING)\(([A-Z]{1,6}-[0-9]{1,5}|deps(-dev)?)\): .+'
           if [[ ! $TITLE =~ $PATTERN ]]; then
             echo "::error ::PR title must follow the format: <type>(<TICKET-123>): <description>"
             echo "::error ::Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test, BREAKING CHANGE, BREAKING"
-            echo "::error ::Examples: 'feat(NOT-491): add login flow' or 'BREAKING CHANGE(NOT-123): remove legacy endpoint'"
+            echo "::error ::Valid scopes: uppercase ticket ref e.g. NOT-123, or deps / deps-dev for dependency updates"
+            echo "::error ::Examples: 'feat(NOT-491): add login flow' or 'fix(deps): bump lodash to 4.17.21'"
             exit 1
           fi
