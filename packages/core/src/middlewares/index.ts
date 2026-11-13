@@ -1,3 +1,4 @@
+export * from './appendFunctionVersion';
 export * from './interfaces/index';
 export * from './requestValidatorMiddleware';
 export * from './responseValidatorMiddleware';

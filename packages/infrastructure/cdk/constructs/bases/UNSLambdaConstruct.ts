@@ -194,6 +194,8 @@ export class UNSLambdaConstruct extends Construct {
         PREFIX: config.prefix,
         AWS_LAMBDA_NODEJS_DISABLE_CALLBACK_WARNING: `true`,
         LOG_LEVEL: config.debugMode ? `DEBUG` : `INFO`,
+        //
+        RELEASE_VERSION: config.version,
         ...props.environment,
       },
       ...(props.resources.dlq
