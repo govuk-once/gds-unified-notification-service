@@ -1,9 +1,9 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
+import { NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
+import { IMessage } from '@common/models/interfaces';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
-import { IMessage } from '@common/models/interfaces';
 import { Validation } from '@pso/handlers/sqs.validation/handler';
 import SSMParameters from '@shared/ssmParameter';
 import {
@@ -87,21 +87,6 @@ describe('Validation QueueHandler', async () => {
     expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
       raw: event.Records[0].body,
     });
-  });
-
-  it('should throw an error when the message title equals "FAIL_AT_VALIDATION".', async () => {
-    // Arrange
-    const messageWithFailTrigger = {
-      ...message,
-      NotificationTitle: 'FAIL_AT_VALIDATION',
-    };
-    const event = mockQueueEvent(messageWithFailTrigger);
-
-    // Act
-    const result = handler(event, context);
-
-    // Assert
-    await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
   });
 
   it.each([

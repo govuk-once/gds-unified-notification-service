@@ -23,6 +23,7 @@ export interface UNSClientCertificateConstructProps {
   readonly certificateId: string;
   readonly startDate: Date;
   readonly expirationDate: Date;
+  readonly revoked: boolean;
   readonly subject: {
     readonly commonName: string;
     readonly organization: string;
@@ -137,7 +138,7 @@ export class UNSClientCertificateConstruct extends Construct {
         Organization: props.subject.organization,
         OrganizationalUnit: props.subject.organizationalUnit,
         CommonName: props.subject.commonName,
-        Revoked: false,
+        Revoked: props.revoked,
       },
       'row'
     );

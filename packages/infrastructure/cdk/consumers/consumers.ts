@@ -76,7 +76,10 @@ export const rollingCertificate = (props: {
 export type GroupedConsumerCertificates = ReturnType<typeof certificate>[];
 
 export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCertificates => {
-  // TODO: Add filter here to skip / remove past certificates
+  return config.isPersistentEnv ? getEnvCerts(env) : getEphemeralCerts(config);
+};
+
+function getEnvCerts(env: string): GroupedConsumerCertificates {
   switch (env) {
     case 'dev':
       return devConsumers();
@@ -88,19 +91,25 @@ export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCerti
       return productionConsumers();
   }
 
+  throw new Error(`No consumer certificates defined for environment: ${env}`);
+}
+
+function getEphemeralCerts(config: EnvVars): GroupedConsumerCertificates {
+  return [createUnsSandboxCert(config)];
+}
+
+function createUnsSandboxCert(config: EnvVars): ReturnType<typeof certificate> {
   // Unmatched - sandbox certificate generation - rolling sunday to sunday
   const hour = 60 * 60 * 1000;
 
-  return [
+  return certificate({
     // Note: sandbox envs use short term certificates, which can be no longer than 24h
-    certificate({
-      commonName: 'sandbox.dev.today',
-      organization: 'UNS',
-      organizationalUnit: 'sandbox',
-      // Sandbox certs should start at 00:01 sunday, and roll into 23:58 (CA is 00:00 to 23:59)
-      startDate: new Date(config.utils.lastSunday().getTime() + hour),
-      expirationDate: new Date(config.utils.nextSunday().getTime() - hour),
-      revoked: false,
-    }),
-  ];
-};
+    commonName: 'sandbox.dev.today',
+    organization: 'UNS',
+    organizationalUnit: 'sandbox',
+    // Sandbox certs should start at 00:01 sunday, and roll into 23:58 (CA is 00:00 to 23:59)
+    startDate: new Date(config.utils.lastSunday().getTime() + hour),
+    expirationDate: new Date(config.utils.nextSunday().getTime() - hour),
+    revoked: false,
+  });
+}
