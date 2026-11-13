@@ -95,6 +95,28 @@ export abstract class QueueHandler<InputType, OutputType> {
         }
       }
 
+      // Triggers error based on operation id and notification title - to be removed from prod release!
+      // TODO: Move to Middy Middleware and trigger error on environment variable instead of notification title
+      const eventToOperationMap: Record<string, string> = {
+        FAIL_AT_VALIDATION: 'validation',
+        FAIL_AT_PROCESSING: 'processing',
+        FAIL_AT_DISPATCH: 'dispatch',
+        FAIL_AT_ANALYTICS: 'analytics',
+      };
+
+      for (const record of event.Records as SQSRecord[]) {
+        const object =
+          typeof record.body === 'string'
+            ? (JSON.parse(record.body) as Record<string, string>)
+            : (record.body as Record<string, string>);
+        const notificationTitle = object?.NotificationTitle;
+
+        if (eventToOperationMap[notificationTitle] === this.operationId) {
+          this.observability.logger.warn('Simulating an error for operation', { OperationId: this.operationId });
+          throw new SimulatedError([`Simulating an error!`]);
+        }
+      }
+
       // Trigger implementation
       this.observability.logger.info('Received request', { event });
       const result = await this.implementation(event, context);
