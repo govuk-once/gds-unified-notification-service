@@ -108,14 +108,14 @@
     "aws-xray-sdk-core": "^3.12.0",
     "http-errors": "^2.0.1",
     "markdown-it": "^15.0.3",
-    "node-forge": "^1.4.2",
+    "node-forge": "^1.4.3",
     "redis": "^6.3.1",
     "reflect-metadata": "^0.2.2",
     "uuid": "^14.0.3",
     "zod": "^4.6.7"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.67.4"
+    "@rollup/rollup-linux-x64-gnu": "^4.67.5"
   },
   "packageManager": "pnpm@12.18.0"
 }
