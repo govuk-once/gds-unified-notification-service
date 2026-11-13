@@ -3,7 +3,7 @@ import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
-import { NotImplementedError } from '@common/models/Errors/InternalServerError';
+import { NotImplementedError, SimulatedError } from '@common/models/Errors/InternalServerError';
 import { MetricsLabels, ObservabilityService } from '@common/services';
 import middy, { MiddlewareObj, MiddyfiedHandler } from '@middy/core';
 import type { Context, SQSEvent, SQSRecord } from 'aws-lambda';
