@@ -7,6 +7,15 @@
       "test/e2e/utils/world.ts",
       "test/e2e/utils/hook.ts"
     ],
-    "worldParameters": {}
+    "parallel": 5,
+    "worldParameters": {},
+    "format": ["pretty"],
+    "formatOptions": {
+      "pretty": {
+        "includeFeatureLine": false,
+        "includeRuleLine": false,
+        "useStatusIcon": true
+      }
+    }
   }
 }

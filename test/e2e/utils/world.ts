@@ -7,14 +7,14 @@ import { IMessage } from '@common/models/interfaces';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { World } from '@cucumber/cucumber';
 import { config } from '@infra/cdk/config';
-import { domainName, fetchApiKeys } from '@shared/credentials';
+import { ApiKeys, Domains } from '@shared/credentials';
 import { mockIMessageRecord_E2E } from '@test/mocks';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { FetchErrorResponse, FetchResponse, FetchService } from '@common/services/FetchService';
 import { v4 as uuid } from 'uuid';
 
-process.env.POWERTOOLS_DEV = 'true';
-process.env.POWERTOOLS_METRICS_DISABLED = 'false';
+process.env.POWERTOOLS_LOG_LEVEL = 'ERROR';
+process.env.LOG_LEVEL = 'error';
 
 export default class CustomWorld extends World {
   public flexKeyMarker!: string;
@@ -30,13 +30,16 @@ export default class CustomWorld extends World {
   public api!: FetchSigV4Service | FetchService;
   public pushIdState: string = 'valid';
   public notificationState: string = 'existing';
+
+  public pushId!: string;
   public expectedStatusCode?: number;
   public expectedResponseBody?: unknown;
   public method!: string;
   public path!: string;
-  public result!: FetchResponse | FetchErrorResponse;
+  public result!: FetchResponse | FetchErrorResponse | undefined;
 
   public messageRequest?: Omit<IMessage, 'OrganisationID'>[];
+  public cleanups: (() => Promise<void>)[] = [];
 
   constructor(options: any) {
     super(options);
@@ -50,19 +53,11 @@ export default class CustomWorld extends World {
       }[config.env] ?? 'uns123',
   };
 
-  public async applyDispatchConfig(httpsAgent: Agent) {
-    const usePrivateGateway = config.isE2ERunner;
-    this.flexKeyMarker = this.flexKeyMarker = usePrivateGateway ? 'private' : 'e2e';
-
-    const psoUrl = await domainName(`pso`);
-    const flexUrl = await domainName(`flex`, usePrivateGateway);
-
-    const { psoApiKey, flexApiKey } = await fetchApiKeys(this.flexKeyMarker);
-
+  public applyDispatchConfig(httpsAgent: Agent, apiKey: ApiKeys, domains: Domains) {
     this.psoAPI = new FetchService({
-      baseUrl: `https://${psoUrl}`,
+      baseUrl: `https://${domains.pso}`,
       defaultHeaders: {
-        'x-api-key': psoApiKey,
+        'x-api-key': apiKey.psoApiKey,
       },
       defaultTimeout: 60000,
       fetchOptions: {
@@ -71,7 +66,7 @@ export default class CustomWorld extends World {
       fetchImpl: undiciFetch,
     });
     this.psoAPIWithoutAPIKey = new FetchService({
-      baseUrl: `https://${psoUrl}`,
+      baseUrl: `https://${domains.pso}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
       fetchOptions: {
@@ -80,34 +75,34 @@ export default class CustomWorld extends World {
       fetchImpl: undiciFetch,
     });
     this.psoAPIWithoutMTLSCert = new FetchService({
-      baseUrl: `https://${psoUrl}`,
+      baseUrl: `https://${domains.pso}`,
       defaultHeaders: {
-        'x-api-key': psoApiKey,
+        'x-api-key': apiKey.psoApiKey,
       },
       defaultTimeout: 60000,
     });
     this.psoAPIUsingInsecureProtocol = new FetchService({
-      baseUrl: `http://${psoUrl}`,
+      baseUrl: `http://${domains.pso}`,
       defaultHeaders: {},
       defaultTimeout: 60000,
     });
     this.flexAPI = new FetchSigV4Service({
-      baseUrl: `https://${flexUrl}`,
+      baseUrl: `https://${domains.flex}`,
       credentials: { region: config.region },
       defaultHeaders: {
-        'x-api-key': flexApiKey,
+        'x-api-key': apiKey.flexApiKey,
       },
     });
     this.flexAPIWithoutAPIKey = new FetchSigV4Service({
-      baseUrl: `https://${flexUrl}`,
+      baseUrl: `https://${domains.flex}`,
       credentials: { region: config.region },
       defaultHeaders: {},
     });
     this.flexAPIUsingInsecureProtocol = new FetchService({
-      baseUrl: `http://${flexUrl}`,
+      baseUrl: `http://${domains.flex}`,
       defaultTimeout: 60000,
       defaultHeaders: {
-        'x-api-key': psoApiKey,
+        'x-api-key': apiKey.flexApiKey,
       },
     });
   }
