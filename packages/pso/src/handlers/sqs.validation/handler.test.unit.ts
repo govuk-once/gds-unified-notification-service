@@ -1,6 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { NotificationStateEnum, ServiceMisconfigurationError } from '@common/models';
+import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { IMessage } from '@common/models/interfaces';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
@@ -65,6 +65,10 @@ describe('Validation QueueHandler', async () => {
     handler = instance.handler();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('should have the correct operationId', () => {
     // Assert
     expect(instance.operationId).toBe('validation');
@@ -87,6 +91,22 @@ describe('Validation QueueHandler', async () => {
     expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Failed parsing JSON within SQS Body', {
       raw: event.Records[0].body,
     });
+  });
+
+  it('should throw an error when the message title equals "FAIL_AT_VALIDATION".', async () => {
+    // Arrange
+    vi.stubEnv('ENABLE_SIMULATED_ERRORS', 'true');
+    const messageWithFailTrigger = {
+      ...message,
+      NotificationTitle: 'FAIL_AT_VALIDATION',
+    };
+    const event = mockQueueEvent(messageWithFailTrigger);
+
+    // Act
+    const result = handler(event, context);
+
+    // Assert
+    await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
   });
 
   it.each([

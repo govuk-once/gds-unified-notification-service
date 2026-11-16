@@ -1,6 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { ServiceMisconfigurationError } from '@common/models';
+import { ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { IProcessedMessage } from '@common/models/interfaces';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
@@ -73,9 +73,28 @@ describe('Dispatch QueueHandler', async () => {
     handler = instance.handler();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('should have the correct operationId', () => {
     // Assert
     expect(instance.operationId).toBe('dispatch');
+  });
+
+  it('should throw an error when the message title equals "FAIL_AT_DISPATCH".', async () => {
+    // Arrange
+    vi.stubEnv('ENABLE_SIMULATED_ERRORS', 'true');
+    const failTriggerEvent = mockQueueEvent({
+      ...message,
+      NotificationTitle: 'FAIL_AT_DISPATCH',
+    });
+
+    // Act
+    const result = handler(failTriggerEvent, context);
+
+    // Assert
+    await expect(result).rejects.toThrow(new SimulatedError(['Simulating an error!']));
   });
 
   it.each([
