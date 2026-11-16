@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
 jobs:
   release:
     name: Semantic release
@@ -13,11 +19,6 @@ jobs:
     concurrency:
       group: release-semantic
       cancel-in-progress: false
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
     outputs:
       semVer: ${{ steps.release.outputs.semVer }}
 
