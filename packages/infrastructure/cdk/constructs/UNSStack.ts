@@ -36,7 +36,7 @@ export class UNSStack extends Stack {
         truststorePath: mtls.truststorePath,
         dependencies: [mtls.truststoreUpload],
         // Main environments generate their own CA cert, dev environments pull it via exported values
-        ...(config.isMainEnv
+        ...(config.isPersistentEnv
           ? {
               revocationTableArn: mtls.revocationTable!.table.tableArn,
               revocationTableAttributes: mtls.revocationTable!.attributes,

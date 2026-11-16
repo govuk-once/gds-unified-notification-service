@@ -1,3 +1,8 @@
+import { EnvVars } from '@infra/cdk/config';
+import { UNSS3Bucket } from '@infra/cdk/constructs/bases/UNSS3BucketConstruct';
+import { applyCheckovSkips } from '@infra/cdk/utils/applyCheckovSkip';
+import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
+import { SSMFromObject } from '@infra/cdk/utils/SSMFromObject';
 import { CfnResource, Stack } from 'aws-cdk-lib';
 import {
   AclCidr,
@@ -26,11 +31,6 @@ import {
 } from 'aws-cdk-lib/aws-ec2';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
-import { UNSS3Bucket } from '@infra/cdk/constructs/bases/UNSS3BucketConstruct';
-import { applyCheckovSkips } from '@infra/cdk/utils/applyCheckovSkip';
-import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
-import { SSMFromObject } from '@infra/cdk/utils/SSMFromObject';
 
 export interface UNSVpcConstructProps<InterfaceEndpoints, GatewayEndpoints> {
   readonly name: string[];
@@ -67,7 +67,7 @@ export class UNSVpcConstruct<
     const availabilityZones = props.zones.map((zone) => `${stack.env.region}${zone}`);
 
     // Use imports if we're in sandbox env instead of creating infrastructure
-    if (!config.isMainEnv && config.sandbox.shared.vpc !== null) {
+    if (!config.isPersistentEnv && config.sandbox.shared.vpc !== null) {
       const imported = this.imports(config.sandbox.shared.vpc);
       this.vpc = imported.vpc;
       this.securityGroups = imported.securityGroups;
@@ -214,7 +214,7 @@ export class UNSVpcConstruct<
     });
 
     // VPC Flow logs
-    if (config.isNonDevEnv) {
+    if (config.isProductionGradeEnv) {
       const flowLogBucket = new UNSS3Bucket(this, config, {
         name: [...props.name, 'flow-log'],
         lifecycleRules: [

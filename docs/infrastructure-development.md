@@ -50,8 +50,21 @@ All naming flows from [`packages/infrastructure/cdk/config.ts`](/packages/infras
 - `namespace` follows the same `-prod`-stripping rule, and is the root of the SSM parameter path (see below).
 - `config.utils.namingHelper(...args)` → `[project, env, ...args].join('-').toLowerCase().replace('-prod', '')` — the canonical **AWS resource name** builder, e.g. `namingHelper('lmdb', 'pso', 'postMessage')` → `uns-dev-lmdb-pso-postmessage`.
 - `config.utils.constructNamingHelper(...args)` → `camelCase(...args)` — used only for **CDK construct IDs** in the synthesized template's scope hierarchy, distinct from the AWS-visible resource name above.
-- `unremovableEnvironments = ['dev', 'stg', 'prod']` drives `isMainEnv`. Main environments get `RemovalPolicy.RETAIN`, one-year log/parameter retention, deletion protection on DynamoDB tables, and their own generated mTLS CA. Any other `env` value is treated as an ephemeral developer sandbox: `RemovalPolicy.DESTROY`, one-month retention, and shared VPC/mTLS/CA imported from `dev` via SSM rather than provisioned fresh (see [Sandbox environments](#sandbox-environments)).
-- `nonDevelopmentEnvironments = ['stg', 'prod']` drives `isNonDevEnv` (controls e.g. VPC Flow Logs, SSM parameter expiry duration).
+
+---
+
+### Environment flags
+
+| Flag | Environments | Controls |
+|------|-------------|----------|
+| `isPersistentEnv` | `dev`, `stg`, `prod` | `RemovalPolicy.RETAIN`, one-year log retention, DynamoDB deletion protection, own mTLS CA. All others are ephemeral sandboxes: `DESTROY`, one-month retention, shared VPC/mTLS/CA imported from `dev` via SSM (see [Sandbox environments](#sandbox-environments)). |
+| `isProductionGradeEnv` | `stg`, `prod` | VPC Flow Logs, SSM parameter expiry duration, Shield Advanced protection. |
+| `isEphemeral` | PR environments (`pr_number` set) | `env` becomes the PR number. Triggers sandbox cert generation, E2E runner deployment. |
+| `debugMode` | All except `prod` | Enables debug-level logging and diagnostics. |
+| `enableFlexPublicGateway` | `dev` and all sandboxes | Deploys a public Flex API Gateway for dev/testing. Disabled in `stg`/`prod`. |
+| `exportResourcesForDevSandboxUse` | `dev` only | Exports VPC, mTLS CA, and revocation table to SSM for sandbox environments to import. |
+| `isE2ERunner` | `UNS_E2E_RUNNER=true` (set via buildspecs) | Routes tests through the private API Gateway. |
+| `deployE2ERunner` | `dev`, `stg` and all PR environments | Deploys the CodeBuild E2E test runner and testing stack. |
 
 ---
 
@@ -168,12 +181,12 @@ this.vpc = new UNSVpcConstruct(this, config, {
 - `PUBLIC` + `PRIVATE_WITH_EGRESS` subnets (`/23`), one NAT gateway per AZ.
 - Two security groups: `privateEgress` (allow-all-outbound, plus explicit tcp/6379 for ElastiCache) and `privateIsolated` (deny-outbound except tcp/6379). Only `privateEgress` is actually attached to anything.
 - A restrictive Network ACL on the private subnet group (denies inbound SSH/RDP, allows everything else).
-- VPC Flow Logs to S3, enabled only for `stg`/`prod` (`isNonDevEnv`).
+- VPC Flow Logs to S3, enabled only for `stg`/`prod` (`isProductionGradeEnv`).
 - **Which Lambdas are VPC-attached**: only the SQS-triggered `processing`, `dispatch`, `groupProcessingWorker` and `analytics` Lambdas (they call ElastiCache and/or UDP), plus the CodeBuild e2e runner. Every HTTP-triggered Lambda, `validation`, custom-resource Lambdas, and all of Flex's Lambdas are **not** VPC-attached — Checkov's `CKV_AWS_117` is explicitly skipped with the justification "not all lambdas need to be in VPCs by design".
 
 ### Sandbox environments
 
-Non-main environments don't create their own VPC (or mTLS CA) at all. `UNSVpcConstruct` checks `!config.isMainEnv && config.sandbox.shared.vpc !== null` and instead **imports** `dev`'s VPC/subnets/security-groups via `Vpc.fromVpcAttributes`, reading the description back from the `/shared/vpc` SSM parameter `dev` exported. The equivalent applies to the mTLS CA and revocation table (see below). This avoids every developer sandbox paying for its own NAT Gateway.
+Non-main environments don't create their own VPC (or mTLS CA) at all. `UNSVpcConstruct` checks `!config.isPersistentEnv && config.sandbox.shared.vpc !== null` and instead **imports** `dev`'s VPC/subnets/security-groups via `Vpc.fromVpcAttributes`, reading the description back from the `/shared/vpc` SSM parameter `dev` exported. The equivalent applies to the mTLS CA and revocation table (see below). This avoids every developer sandbox paying for its own NAT Gateway.
 
 ---
 
@@ -194,7 +207,7 @@ PSO client ──mTLS──► CloudFront (viewer mTLS, trust store, CloudFront 
 The chain, in [`UNSMTLS.ts`](/packages/infrastructure/cdk/constructs/UNSMTLS.ts), the CA and client-cert base constructs, and `UNSApiGatewayConstruct`:
 
 1. **Truststore S3 bucket**: created in every environment (versioned, SSE-S3, TLS-enforced; tagged `DataProtection: Ephemeral` in PR environments).
-2. **Main environments only** (`config.isMainEnv`):
+2. **Main environments only** (`config.isPersistentEnv`):
    - `revocationTable`: a `UNSDynamoDb` (`certificates`, PK `Id` = SHA-256 of the certificate PEM) tracking issued and revoked certs, checked at request time by the [mTLS authorizer](./developer-reference.md#the-mtls-authorizer).
    - `certificateAuthority`: a `UNSCertificateAuthorityConstruct`, an ACM Private CA root. `dev`/`stg`/`prod` use `GENERAL_PURPOSE` mode, valid until 2036-01-01. Sandboxes import `dev`'s CA rather than creating their own.
    - Custom-resource providers for CSR generation, revocation-table writes and Secrets Manager writes (see [Custom resources](#custom-resources)).

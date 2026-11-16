@@ -19,8 +19,8 @@ if (existsSync('packages/infrastructure/cdk/.env')) {
   dotenv.config({ path: join('packages/infrastructure/cdk/.env'), quiet: true });
 }
 
-export const unremovableEnvironments = ['dev', 'stg', 'prod'];
-export const nonDevelopmentEnvironments = ['stg', 'prod'];
+export const persistentEnvironments = ['dev', 'stg', 'prod'];
+export const productionGradeEnvironments = ['stg', 'prod'];
 export const environmentLabels: Record<string, string> = {
   dev: 'development',
   stg: 'staging',
@@ -69,10 +69,10 @@ const region = process.env.region ?? 'eu-west-2';
 const prefix = `${project}-${env}`.replace(`-prod`, ``); // Prod environment resources does not have env prefix
 const version = process.env.code_version ?? `sandbox@${new Date().toISOString().split('T').shift()}`;
 const namespace = [project, env].join(`-`).replace(`-prod`, ``);
-const isMainEnv = unremovableEnvironments.includes(env);
-const isNonDevEnv = nonDevelopmentEnvironments.includes(env);
+const isPersistentEnv = persistentEnvironments.includes(env);
+const isProductionGradeEnv = productionGradeEnvironments.includes(env);
 const debugMode = env !== 'prod';
-const debuggableFlexApiGateway = env == 'dev' || !isMainEnv;
+const enableFlexPublicGateway = !isProductionGradeEnv;
 const exportResourcesForDevSandboxUse = env == 'dev';
 const isE2ERunner = process.env.UNS_E2E_RUNNER === 'true';
 const deployE2ERunner = e2eRunnerEnvironments.includes(env) || isEphemeral;
@@ -103,17 +103,17 @@ export const config = {
   }),
 
   // Delete / retain policy - main environment resources should avoid deletion
-  removalPolicy: isMainEnv ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
-  deletionPolicy: isMainEnv ? CfnDeletionPolicy.RETAIN : CfnDeletionPolicy.DELETE,
-  retention: isMainEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
-  expiration: isNonDevEnv ? Duration.days(365) : Duration.days(30),
-  objectLockDefaultRetention: isMainEnv ? ObjectLockRetention.compliance(Duration.days(30)) : undefined,
+  removalPolicy: isPersistentEnv ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+  deletionPolicy: isPersistentEnv ? CfnDeletionPolicy.RETAIN : CfnDeletionPolicy.DELETE,
+  retention: isPersistentEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
+  expiration: isProductionGradeEnv ? Duration.days(365) : Duration.days(30),
+  objectLockDefaultRetention: isPersistentEnv ? ObjectLockRetention.compliance(Duration.days(30)) : undefined,
 
   // Flags
-  isMainEnv,
-  isNonDevEnv,
+  isPersistentEnv,
+  isProductionGradeEnv,
   debugMode,
-  debuggableFlexApiGateway,
+  enableFlexPublicGateway,
   exportResourcesForDevSandboxUse,
   isEphemeral,
   isE2ERunner,

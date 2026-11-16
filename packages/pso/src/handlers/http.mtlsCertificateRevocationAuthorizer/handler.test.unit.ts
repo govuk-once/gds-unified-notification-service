@@ -130,6 +130,32 @@ describe('MTLSApiGatewayAuthorizer Handler', async () => {
     );
   });
 
+  it('should deny requests if the certificate has been deleted', async () => {
+    // Arrange
+    mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({
+      Revoked: false,
+      Deleted: true,
+      Organization: mockOrganisationID,
+    } as unknown as MTLSRevocation);
+    const event = mockEventWithCertificate() as unknown as IRequestEvent;
+
+    // Act
+    const result = await instance.handler()(event, context);
+
+    // Assert
+    expect(result).toEqual(expectedDenyPolicy);
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_COUNT,
+      MetricUnit.Count,
+      1
+    );
+    expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+      MetricsLabels.MTLS_AUTH_REQUESTS_DENIED_DELETED_CERTIFICATE_COUNT,
+      MetricUnit.Count,
+      1
+    );
+  });
+
   it('should deny request if organization is missing from certificate', async () => {
     // Arrange
     mtlsRevocationDynamoRepositoryMock.getRecord.mockResolvedValue({

@@ -65,7 +65,7 @@ export class UNSGlobalStack extends Stack {
 
     const wafLogGroup = new LogGroup(this, config.utils.namingHelper('cloudfront-waf-log-group'), {
       logGroupName: `aws-waf-logs-cloudfront-${config.prefix}`,
-      retention: config.isMainEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
+      retention: config.isPersistentEnv ? RetentionDays.ONE_YEAR : RetentionDays.ONE_MONTH,
       removalPolicy: config.removalPolicy,
       encryptionKey: kms.key,
     });

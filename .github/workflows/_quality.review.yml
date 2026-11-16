@@ -26,7 +26,7 @@ jobs:
           codeartifact-account-id: ${{ secrets.AWS_CODEARTIFACT_ACCOUNT_ID }}
 
       - name: ⚙️ Restore ESLint cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .eslintcache
           key: eslintcache-${{ runner.os }}-${{ hashFiles('packages/**/*.ts', 'eslint.config.ts') }}
@@ -59,7 +59,7 @@ jobs:
       - name: 🕵🏻 Run SonarQube Scan
         id: sonar-scan
         continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_UNS }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
@@ -98,7 +98,7 @@ jobs:
           env=cicd AWS_REGION=eu-west-2 AWS_DEFAULT_REGION=eu-west-2 AWS_ACCESS_KEY_ID="" AWS_SECRET_ACCESS_KEY="" AWS_SESSION_TOKEN="" pnpm run cdk:synth
 
       - name: 🔐 Checkov GitHub Action
-        uses: bridgecrewio/checkov-action@c10e2438743528f9e4549758fad8b7a62052541d # v12
+        uses: bridgecrewio/checkov-action@45edc9d8856b664db2ec251f5f8632361f0a67aa # v12
         with:
           output_format: cli,sarif
           output_file_path: console,results.sarif
@@ -109,7 +109,7 @@ jobs:
           quiet: true
 
       - name: ⚙️ Upload SARIF file
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         if: success() || failure()
         with:
           sarif_file: results.sarif

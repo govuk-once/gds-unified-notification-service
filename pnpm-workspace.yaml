@@ -27,6 +27,14 @@ allowBuilds:
 minimumReleaseAge: 10080 # 7 days in minutes
 # Minimum release age exclusions - only for recommendations raised via dependabot
 minimumReleaseAgeExclude:
-  - fast-uri@3.1.4
+  - '@aws-sdk/middleware-sdk-api-gateway@3.972.35'
+  - '@aws-sdk/middleware-sdk-sqs@3.972.48'
+  - '@cspell/dict-companies@3.2.14'
+  - '@cspell/dict-data-science@2.0.17'
+  - '@cspell/dict-en-common-misspellings@2.2.6'
+  - '@cspell/dict-npm@5.2.56'
+  - '@cspell/dict-python@4.5.3'
+  - '@cspell/dict-software-terms@5.4.9'
   - dotenv@18.0.6
-  - tinybench@6.2.1
+  - fast-uri@3.1.4
+  - tinybench@6.2.3

@@ -90,6 +90,8 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
         })
         .parse(result.body);
 
+      this.observability.logger.info('UDP Response', { data });
+
       return {
         request,
         externalUserID: data.data.notificationId ?? data.data.pushId,

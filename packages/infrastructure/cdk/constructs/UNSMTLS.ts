@@ -1,8 +1,6 @@
 import { AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
-import { CustomResource } from 'aws-cdk-lib';
-import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { EnvVars } from '@infra/cdk/config';
 import { UNSCertificateAuthorityConstruct } from '@infra/cdk/constructs/bases/UNSCertificateAuthorityConstruct';
 import { UNSClientCertificateConstruct } from '@infra/cdk/constructs/bases/UNSClientCertificateConstruct';
@@ -19,6 +17,8 @@ import { applyDataProtectionTag } from '@infra/cdk/utils/applyDataProtectionTag'
 import { applyExposureTag } from '@infra/cdk/utils/applyExposureTag';
 import { applyPiiTag } from '@infra/cdk/utils/applyPiiTag';
 import { SSMFromObject } from '@infra/cdk/utils/SSMFromObject';
+import { CustomResource } from 'aws-cdk-lib';
+import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { v4 } from 'uuid';
 
 export class UNSMTLSCommon extends Construct {
@@ -51,7 +51,7 @@ export class UNSMTLSCommon extends Construct {
 
       // Teardown lifecycle configuration (Change to RETAIN for production data)
       removalPolicy: config.removalPolicy,
-      autoDeleteObjects: !config.isMainEnv,
+      autoDeleteObjects: !config.isPersistentEnv,
 
       serverAccessLogsBucket: common.accessLogs.bucket,
       serverAccessLogsPrefix: namingHelper('mtls-certificates'),
@@ -64,7 +64,7 @@ export class UNSMTLSCommon extends Construct {
     applyPiiTag(truststoreBucket, 'false');
 
     // Note: only main environments create & manage certificates - sandbox environments
-    if (config.isMainEnv) {
+    if (config.isPersistentEnv) {
       //// =====================================================
       // DynamoDB Tables
       //// =====================================================
@@ -87,10 +87,10 @@ export class UNSMTLSCommon extends Construct {
       // Certificate authority
       //// =====================================================
       this.certificateAuthority = new UNSCertificateAuthorityConstruct(this, config, {
-        certificateUsageMode: config.isMainEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
+        certificateUsageMode: config.isPersistentEnv ? 'GENERAL_PURPOSE' : 'SHORT_LIVED_CERTIFICATE',
         // Main env certs are valid 10 years, sandbox roll sunday to sunday
-        certificateValidityEndDate: config.isMainEnv ? new Date('2036-01-01') : config.utils.nextSunday(),
-        certificateValidityStartDate: config.isMainEnv ? undefined : config.utils.lastSunday(),
+        certificateValidityEndDate: config.isPersistentEnv ? new Date('2036-01-01') : config.utils.nextSunday(),
+        certificateValidityStartDate: config.isPersistentEnv ? undefined : config.utils.lastSunday(),
       });
 
       //// =====================================================

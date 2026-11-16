@@ -111,6 +111,8 @@ coverage.md
 **/*.crt
 **/*.pem
 **/*.key
+*.api-key
+**/*.api-key
 **/*.p12
 
 # Local claude code settings

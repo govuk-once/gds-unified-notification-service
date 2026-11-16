@@ -3,6 +3,7 @@ import { Metrics } from '@aws-lambda-powertools/metrics';
 import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { HandlerDependencies, initializeDependencies } from '@common/ioc';
+import { appendFunctionVersion } from '@common/middlewares';
 import { NotImplementedError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services';
 import middy, { type MiddyfiedHandler } from '@middy/core';
@@ -38,6 +39,7 @@ export abstract class ScheduleOperation {
           correlationIdPath: 'requestContext.requestId',
         })
       )
+      .use(appendFunctionVersion(this.observability.logger))
       .use(captureLambdaHandler(this.observability.tracer))
       .use(
         logMetrics(this.observability.metrics as Metrics, {
