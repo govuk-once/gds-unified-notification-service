@@ -78,29 +78,52 @@ export async function fetchMtlsCertificates(): Promise<MtlsCertificates> {
     })
   );
 
-  // New certificate format has two dates separated by dots cn.{startDate}.{endDate}
-  const filtered = (secrets.SecretList ?? []).filter((x) => x.Name?.split('.').length == 3);
-  if (filtered.length !== 2) {
-    throw new Error(`Fetching certs from SM returned unexpected number of results, expected 2 got ${filtered.length}`);
+  const now = new Date();
+  const validSecrets = (secrets.SecretList ?? []).filter((x) => {
+    if (!x.Name) return false;
+
+    const parts = x.Name.split('.');
+    if (parts.length !== 3) return false;
+
+    const startDate = new Date(parts[1]);
+    const endDate = new Date(parts[2].split('/')[0]);
+
+    const isValidRange = Number.isFinite(startDate.getTime()) && Number.isFinite(endDate.getTime());
+    return isValidRange && now >= startDate && now <= endDate;
+  });
+
+  const validCertsByLatestExpiry = validSecrets
+    .filter((x) => x.Name!.endsWith('/crt'))
+    .sort((a, b) => {
+      const endDateA = new Date(a.Name!.split('.')[2].split('/')[0]).getTime();
+      const endDateB = new Date(b.Name!.split('.')[2].split('/')[0]).getTime();
+      return endDateB - endDateA;
+    });
+
+  if (validCertsByLatestExpiry.length === 0) {
+    throw new Error(`No valid cert found under ${secretPrefix}`);
   }
 
-  // Fetch the values for the filtered secrets
-  const result = await Promise.all(
-    filtered
-      .map((entry) => entry.Name!)
-      .map((SecretId) =>
-        smClient
-          .send(new GetSecretValueCommand({ SecretId }))
-          .then((result) => ({ [SecretId.split('/').pop()!.split('-').pop()!]: result.SecretString }))
-      )
-  );
+  for (const certName of validCertsByLatestExpiry) {
+    const baseName = certName.Name!.split('/').slice(0, -1).join('/');
+    const keyEntry = validSecrets.find((x) => x.Name === `${baseName}/private-key`);
 
-  const crt = result.find((x) => x.crt)?.crt;
-  const key = result.find((x) => x.key)?.key;
+    if (!keyEntry?.Name) {
+      console.error(`No matching key found for cert ${certName.Name!}`);
+      continue;
+    }
 
-  if (!crt || !key) {
-    throw new Error('mTLS certificates were not returned from parameter store.');
+    const [crt, key] = await Promise.all([
+      smClient.send(new GetSecretValueCommand({ SecretId: certName.Name! })).then((r) => r.SecretString),
+      smClient.send(new GetSecretValueCommand({ SecretId: keyEntry.Name })).then((r) => r.SecretString),
+    ]);
+
+    if (!crt || !key) {
+      console.error('mTLS certificates were not returned from Secrets Manager for the prefix');
+      continue;
+    }
+    return { crt, key };
   }
 
-  return { crt, key };
+  throw new Error('mTLS certificates were not returned from Secrets Manager.');
 }
