@@ -219,15 +219,6 @@ describe('GroupStoreDynamoRepository', async () => {
 
     it('should compare the users existing groups to the join request and log if the user is already part of that group', async () => {
       // Arrange
-      instance.getUsersGroups = vi.fn().mockResolvedValueOnce([
-        {
-          GroupID: groupsID,
-          CompositeID: `${mockJoinGroups[0].Namespace}/${mockJoinGroups[0].Group}/${mockJoinGroups[0].Subgroup}`,
-          Namespace: mockJoinGroups[0].Namespace,
-          Group: mockJoinGroups[0].Group,
-          Subgroup: mockJoinGroups[0].Subgroup,
-        },
-      ]);
       const usersGroups: IGroups[] = [
         {
           GroupID: groupsID,
@@ -239,13 +230,97 @@ describe('GroupStoreDynamoRepository', async () => {
       ];
 
       // Act
-      await instance.joinGroups(mockPushID, mockJoinGroups, usersGroups);
+      const result = await instance.joinGroups(mockPushID, mockJoinGroups, usersGroups);
 
       // Assert
       expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
         'Request tried to join a group user is already part of',
         { PushID: mockPushID, CompositeID: mockCompositeID }
       );
+      expect(instance.createRecordBatch).not.toHaveBeenCalled();
+      expect(result).toEqual(usersGroups);
+    });
+
+    it('should only create records for the groups the user is not already part of when the request is mixed', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(date));
+      const existingGroup: IGroups = {
+        GroupID: 'existing-group-id',
+        CompositeID: mockCompositeID,
+        Namespace: mockJoinGroups[0].Namespace,
+        Group: mockJoinGroups[0].Group,
+        Subgroup: mockJoinGroups[0].Subgroup,
+      };
+      const newGroup: IModifyGroups = {
+        Namespace: 'travel',
+        Group: 'spain',
+        Subgroup: 'DAILY',
+        Action: GroupActionEnum.JOIN,
+      };
+
+      // Act
+      const result = await instance.joinGroups(mockPushID, [mockJoinGroups[0], newGroup], [existingGroup]);
+
+      // Assert
+      expect(instance.createRecordBatch).toHaveBeenCalledWith([
+        {
+          PushID: mockPushID,
+          GroupID: groupsID,
+          CompositeID: 'travel/spain/DAILY',
+          Date: date,
+          Namespace: 'travel',
+          Group: 'spain',
+          Subgroup: 'DAILY',
+        },
+      ]);
+      expect(result).toEqual([
+        existingGroup,
+        {
+          GroupID: groupsID,
+          CompositeID: 'travel/spain/DAILY',
+          Namespace: 'travel',
+          Group: 'spain',
+          Subgroup: 'DAILY',
+        },
+      ]);
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should treat a group with and without a subgroup as different groups', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(date));
+      const noSubgroup: IModifyGroups = { ...mockJoinGroups[0], Subgroup: undefined };
+
+      // Act
+      const result = await instance.joinGroups(mockPushID, [noSubgroup, mockJoinGroups[0]], []);
+
+      // Assert
+      expect(result.map((g) => g.CompositeID)).toEqual(['travel/france', mockCompositeID]);
+      expect(observabilityMocks.logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should only create one record if the same group is requested more than once', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(date));
+      const usersGroups: IGroups[] = [];
+
+      // Act
+      const result = await instance.joinGroups(mockPushID, [mockJoinGroups[0], mockJoinGroups[0]], usersGroups);
+
+      // Assert
+      expect(instance.createRecordBatch).toHaveBeenCalledWith(groupsStoreRecord);
+      expect(result).toEqual([
+        {
+          GroupID: groupsID,
+          CompositeID: mockCompositeID,
+          Namespace: mockJoinGroups[0].Namespace,
+          Group: mockJoinGroups[0].Group,
+          Subgroup: mockJoinGroups[0].Subgroup,
+        },
+      ]);
     });
 
     it('should complete the function successfully if no groups to join were provided', async () => {
@@ -330,6 +405,113 @@ describe('GroupStoreDynamoRepository', async () => {
       // Assert
       expect(instance.deleteRecord).toHaveBeenCalledWith(groupsStoreRecord[0].GroupID, mockPushID);
       expect(result).toEqual([]);
+    });
+
+    it('should only delete a group once if the same group is requested more than once', async () => {
+      // Arrange
+      const usersGroups: IGroups[] = [
+        {
+          GroupID: groupsID,
+          CompositeID: `${mockLeaveGroups[0].Namespace}/${mockLeaveGroups[0].Group}/${mockLeaveGroups[0].Subgroup}`,
+          Namespace: mockLeaveGroups[0].Namespace,
+          Group: mockLeaveGroups[0].Group,
+          Subgroup: mockLeaveGroups[0].Subgroup,
+        },
+      ];
+
+      // Act
+      const result = await instance.leaveGroups(mockPushID, [mockLeaveGroups[0], mockLeaveGroups[0]], usersGroups);
+
+      // Assert
+      expect(instance.deleteRecord).toHaveBeenCalledTimes(1);
+      expect(instance.deleteRecord).toHaveBeenCalledWith(groupsID, mockPushID);
+      expect(result).toEqual([]);
+    });
+
+    it('should delete every record the user holds for a group they leave', async () => {
+      // Arrange
+      const compositeID = `${mockLeaveGroups[0].Namespace}/${mockLeaveGroups[0].Group}/${mockLeaveGroups[0].Subgroup}`;
+      const duplicateRows: IGroups[] = ['group-id-1', 'group-id-2'].map((GroupID) => ({
+        GroupID,
+        CompositeID: compositeID,
+        Namespace: mockLeaveGroups[0].Namespace,
+        Group: mockLeaveGroups[0].Group,
+        Subgroup: mockLeaveGroups[0].Subgroup,
+      }));
+
+      // Act
+      const result = await instance.leaveGroups(mockPushID, mockLeaveGroups, duplicateRows);
+
+      // Assert
+      expect(instance.deleteRecord).toHaveBeenCalledTimes(2);
+      expect(instance.deleteRecord).toHaveBeenCalledWith('group-id-1', mockPushID);
+      expect(instance.deleteRecord).toHaveBeenCalledWith('group-id-2', mockPushID);
+      expect(result).toEqual([]);
+    });
+
+    it('should only delete the groups the user is part of and keep the rest in order when the request is mixed', async () => {
+      // Arrange
+      const usersGroups: IGroups[] = [
+        { GroupID: 'keep-1', CompositeID: 'travel/spain', Namespace: 'travel', Group: 'spain', Subgroup: undefined },
+        {
+          GroupID: groupsID,
+          CompositeID: `${mockLeaveGroups[0].Namespace}/${mockLeaveGroups[0].Group}/${mockLeaveGroups[0].Subgroup}`,
+          Namespace: mockLeaveGroups[0].Namespace,
+          Group: mockLeaveGroups[0].Group,
+          Subgroup: mockLeaveGroups[0].Subgroup,
+        },
+        { GroupID: 'keep-2', CompositeID: 'travel/italy', Namespace: 'travel', Group: 'italy', Subgroup: undefined },
+      ];
+      const notAMember: IModifyGroups = { Namespace: 'travel', Group: 'germany', Action: GroupActionEnum.LEAVE };
+
+      // Act
+      const result = await instance.leaveGroups(mockPushID, [notAMember, mockLeaveGroups[0]], usersGroups);
+
+      // Assert
+      expect(instance.deleteRecord).toHaveBeenCalledTimes(1);
+      expect(instance.deleteRecord).toHaveBeenCalledWith(groupsID, mockPushID);
+      expect(result).toEqual([usersGroups[0], usersGroups[2]]);
+    });
+
+    it('should still attempt every delete and return the remaining groups if one delete fails', async () => {
+      // Arrange
+      instance.deleteRecord = vi.fn().mockRejectedValueOnce(new Error('delete failed')).mockResolvedValue(undefined);
+      const usersGroups: IGroups[] = [
+        { GroupID: 'leave-1', CompositeID: 'travel/spain', Namespace: 'travel', Group: 'spain', Subgroup: undefined },
+        { GroupID: 'leave-2', CompositeID: 'travel/italy', Namespace: 'travel', Group: 'italy', Subgroup: undefined },
+        { GroupID: 'keep-1', CompositeID: 'travel/greece', Namespace: 'travel', Group: 'greece', Subgroup: undefined },
+      ];
+      const toLeave: IModifyGroups[] = [
+        { Namespace: 'travel', Group: 'spain', Action: GroupActionEnum.LEAVE },
+        { Namespace: 'travel', Group: 'italy', Action: GroupActionEnum.LEAVE },
+      ];
+
+      // Act
+      const result = await instance.leaveGroups(mockPushID, toLeave, usersGroups);
+
+      // Assert
+      expect(instance.deleteRecord).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([usersGroups[2]]);
+    });
+
+    it('should ignore a group the user is not part of and keep their existing groups', async () => {
+      // Arrange
+      const usersGroups: IGroups[] = [
+        {
+          GroupID: groupsID,
+          CompositeID: 'travel/spain',
+          Namespace: 'travel',
+          Group: 'spain',
+          Subgroup: undefined,
+        },
+      ];
+
+      // Act
+      const result = await instance.leaveGroups(mockPushID, mockLeaveGroups, usersGroups);
+
+      // Assert
+      expect(instance.deleteRecord).not.toHaveBeenCalled();
+      expect(result).toEqual(usersGroups);
     });
 
     it('should complete the function successfully if no user groups were found', async () => {

@@ -1,9 +1,9 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
+import { IMessage } from '@common/models/interfaces';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels } from '@common/services';
-import { IMessage } from '@common/models/interfaces';
 import { Validation } from '@pso/handlers/sqs.validation/handler';
 import SSMParameters from '@shared/ssmParameter';
 import {
@@ -65,6 +65,10 @@ describe('Validation QueueHandler', async () => {
     handler = instance.handler();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('should have the correct operationId', () => {
     // Assert
     expect(instance.operationId).toBe('validation');
@@ -91,6 +95,7 @@ describe('Validation QueueHandler', async () => {
 
   it('should throw an error when the message title equals "FAIL_AT_VALIDATION".', async () => {
     // Arrange
+    vi.stubEnv('ENABLE_SIMULATED_ERRORS', 'true');
     const messageWithFailTrigger = {
       ...message,
       NotificationTitle: 'FAIL_AT_VALIDATION',
