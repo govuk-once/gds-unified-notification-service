@@ -53,9 +53,9 @@
     "@types/node": "^26.6.6",
     "@types/node-forge": "^1.3.14",
     "@typescript-eslint/parser": "^8.72.1",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "@vitest/eslint-plugin": "^1.6.28",
-    "@vitest/ui": "^5.0.5",
+    "@vitest/ui": "^5.1.0",
     "aws-cdk": "^2.1147.0",
     "aws-cdk-lib": "2.275.0",
     "aws-sdk-client-mock": "^4.1.0",
@@ -79,7 +79,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.1",
     "undici": "^8.12.4",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
