@@ -80,7 +80,6 @@ export async function fetchMtlsCertificates(): Promise<MtlsCertificates> {
 
   // New certificate format has two dates separated by dots cn.{startDate}.{endDate}
   const filtered = (secrets.SecretList ?? []).filter((x) => x.Name?.split('.').length == 3);
-
   if (filtered.length !== 2) {
     throw new Error(`Fetching certs from SM returned unexpected number of results, expected 2 got ${filtered.length}`);
   }

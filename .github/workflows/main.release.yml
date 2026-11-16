@@ -5,21 +5,19 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
-
-concurrency:
-  group: release
-  cancel-in-progress: false
-
 jobs:
   release:
     name: Semantic release
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    concurrency:
+      group: release-semantic
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     outputs:
       semVer: ${{ steps.release.outputs.semVer }}
 
@@ -45,9 +43,28 @@ jobs:
       - name: Version
         run: echo "The next version is ${{ steps.release.outputs.semVer }}"
 
+  sonar:
+    name: Sonar Scan
+    concurrency:
+      group: release-sonar
+      cancel-in-progress: false
+    uses: ./.github/workflows/_sonar.yml
+    secrets: inherit
+
+  pages:
+    name: Deploy to GitHub Pages
+    concurrency:
+      group: release-pages
+      cancel-in-progress: false
+    uses: ./.github/workflows/_pages.yml
+    secrets: inherit
+
   releaseToDev:
     needs: release
     name: Deploy to dev
+    concurrency:
+      group: release-dev
+      cancel-in-progress: false
     uses: ./.github/workflows/_deploy.yml
     with:
       ENVIRONMENT: dev
