@@ -1,9 +1,15 @@
 /* eslint-disable vitest/no-standalone-expect */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { NotificationStateEnum } from '@common/models';
+import { FetchErrorResponse } from '@common/services/FetchService';
 import { defineParameterType, Then } from '@cucumber/cucumber';
-import type CustomWorld from '@test/e2e/utils/world';
+import type CustomWorld from '@test/e2e/support/world';
 import { expect } from 'vitest';
+
+// ──────────────────────────────────────────────────
+// Outcome - whether the request the scenario sent
+// succeeded or failed, whatever the reosurce
+// ──────────────────────────────────────────────────
 
 enum ExpectedErrors {
   ConnectionError = 'a connection error',
@@ -50,7 +56,7 @@ Then('it should fail with {expectedError}', function (this: CustomWorld, expecte
       };
       const statusCode = statusCodeMap[expectedError];
       if (!statusCode) throw new Error(`Unhandled expected error: ${expectedError}`);
-      expect(this.result).toBeInstanceOf(Error);
+      expect(this.result).toBeInstanceOf(FetchErrorResponse);
       expect((this.result as Error).message).toEqual(`API [${this.method}] ${this.path} Failed with ${statusCode}`);
       break;
     }
@@ -58,6 +64,7 @@ Then('it should fail with {expectedError}', function (this: CustomWorld, expecte
 });
 
 Then('it should succeed', function (this: CustomWorld) {
+  if (!this.result) throw new Error('Result should be set in the When step');
   if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
   expect(this.result.status).toBe(this.expectedStatusCode);
   if (this.expectedResponseBody) {
@@ -74,13 +81,14 @@ defineParameterType({
 Then(
   'I expect response to contain {notificationStatusArray}',
   function (this: CustomWorld, notificationStatuses: NotificationStateEnum[]) {
+    if (!this.result) throw new Error('Result should be set in the When step');
     expect(this.result.body).toEqual(
       expect.arrayContaining(
         notificationStatuses.map((Status) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           expect.objectContaining({
             Status,
-            NotificationID: this.knownTestIDs.notificationID,
+            NotificationID: this.notificationID,
           })
         )
       )

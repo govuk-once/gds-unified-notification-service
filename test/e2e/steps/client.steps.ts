@@ -1,12 +1,15 @@
 import { defineParameterType, Given } from '@cucumber/cucumber';
-import type CustomWorld from '@test/e2e/utils/world';
+import { e2eUUID } from '@test/e2e/helpers/uuid';
+import CustomWorld from '@test/e2e/support/world';
 
-export enum APIConfigurations {
-  InsecureHTTP = 'the connection is insecure',
-  InvalidAPIKey = 'my API key is invalid',
-  MissingMTLS = 'with missing MTLS certificate',
-  CorrectConfig = 'correctly',
-}
+export const APIConfigurations = {
+  InsecureHTTP: 'the connection is insecure',
+  InvalidAPIKey: 'my API key is invalid',
+  MissingMTLS: 'with missing MTLS certificate',
+  CorrectConfig: 'correctly',
+} as const;
+
+type APIConfigurations = (typeof APIConfigurations)[keyof typeof APIConfigurations];
 
 defineParameterType({
   name: 'APIConfig',
@@ -37,31 +40,28 @@ const configureClient = (world: CustomWorld, client: string, apiConfig: APIConfi
 
   world.api = apiClients[client][apiConfig]();
 };
-let clientName: string | undefined;
+
 Given('a correctly configured {word} client', function (this: CustomWorld, client: string) {
   configureClient(this, client, APIConfigurations.CorrectConfig);
-  clientName = client;
+  this.clientName = client;
 });
+
 // ──────────────────────────────────────────────────
 // But — these steps are only used after a 'But' in
 // a feature file, to override the Given above.
 // ──────────────────────────────────────────────────
 
 Given('{APIConfig}', function (this: CustomWorld, apiConfig: APIConfigurations) {
-  if (!clientName) throw new Error('Configure a client first using "a correctly configured {client} client"');
-  configureClient(this, clientName, apiConfig);
+  if (!this.clientName) throw new Error('Configure a client first using "a correctly configured {client} client"');
+  configureClient(this, this.clientName, apiConfig);
 });
 
 Given('my push ID is missing', function (this: CustomWorld) {
-  this.pushIdState = 'missing';
+  this.pushID = '';
 });
 
 Given('the push ID belongs to another user', function (this: CustomWorld) {
-  this.pushIdState = "wrong user's";
-});
-
-Given('the notification does not exist', function (this: CustomWorld) {
-  this.notificationState = 'unknown';
+  this.pushID = e2eUUID('wrong');
 });
 
 Given('my MTLS certificate is missing', function (this: CustomWorld) {

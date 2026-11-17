@@ -47,6 +47,9 @@ Feature: Modify Groups
 
   Scenario: Leave a single group successfully
     Given a correctly configured FLEX client
+    And I have joined the following groups:
+      | Namespace | Group   | Subgroup   |
+      | travel    | France  | DAILY      |
     When I send a single request to modify the following groups:
       | Action | Namespace | Group   | Subgroup   |
       | leave  | travel    | France  | DAILY      |
@@ -62,6 +65,9 @@ Feature: Modify Groups
 
   Scenario: Leave one group and join another in one request
     Given a correctly configured FLEX client
+    And I have joined the following groups:
+      | Namespace | Group    | Subgroup  |
+      | travel    | Spain    | IMMEDIATE |
     When I send a single request to modify the following groups:
       | Action | Namespace | Group    | Subgroup  |
       | leave  | travel    | Spain    | IMMEDIATE |
@@ -70,6 +76,10 @@ Feature: Modify Groups
 
   Scenario: Leave multiple groups in one request
     Given a correctly configured FLEX client
+    And I have joined the following groups:
+      | Namespace | Group    | Subgroup  |
+      | travel    | Portugal | DAILY     |
+      | travel    | France   | DAILY     |
     When I send a single request to modify the following groups:
       | Action | Namespace | Group    | Subgroup  |
       | leave  | travel    | Portugal | DAILY     |
@@ -85,6 +95,9 @@ Feature: Modify Groups
 
   Scenario: Leave a group without a subgroup
     Given a correctly configured FLEX client
+    And I have joined the following groups:
+      | Namespace | Group    | Subgroup  |
+      | driving   | weather  |           |
     When I send a single request to modify the following groups:
       | Action | Namespace | Group    | Subgroup  |
       | leave  | driving   | weather  |           |

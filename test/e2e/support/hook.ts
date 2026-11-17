@@ -1,9 +1,9 @@
-import { BeforeAll, Before, setDefaultTimeout, setWorldConstructor, After } from '@cucumber/cucumber';
+import { After, AfterAll, Before, BeforeAll, setDefaultTimeout, setWorldConstructor } from '@cucumber/cucumber';
 import { config } from '@infra/cdk/config';
-import { prepareDispatchAgent } from '@test/e2e/utils/setup.e2e';
-import { Domains, resolveDomains, fetchApiKeys, ApiKeys } from '@shared/credentials';
+import { ApiKeys, Domains, fetchApiKeys, resolveDomains } from '@shared/credentials';
+import { prepareDispatchAgent } from '@test/e2e/helpers/client';
 import { Agent } from 'undici';
-import CustomWorld from './world';
+import CustomWorld from '@test/e2e/support/world';
 
 setWorldConstructor(CustomWorld);
 setDefaultTimeout(30 * 1000); // 30 second timeout
@@ -29,14 +29,6 @@ Before(function (this: CustomWorld) {
 Before({ tags: '@CIOnly' }, function () {
   const isCI = config.isE2ERunner || process.env.GITHUB_ACTIONS === 'true';
   if (!isCI) return 'skipped';
-});
-
-let messageExists = false;
-Before(async function (this: CustomWorld) {
-  if (!messageExists) {
-    await this.createNotificationIfNotFound();
-    messageExists = true;
-  }
 });
 
 After(async function (this: CustomWorld) {

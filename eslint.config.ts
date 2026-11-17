@@ -18,6 +18,7 @@ export default defineConfig([
     'node_modules',
     'packages/infrastructure/cdk/cdk.out',
     'docs/swagger-ui-bundle.js',
+    'test/e2e/support/register-tsx.mjs',
   ]),
   tseslint.configs.recommendedTypeChecked,
   vitest.configs.recommended,

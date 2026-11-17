@@ -1,21 +1,9 @@
 {
   "default": {
     "paths": ["test/e2e/features/"],
-    "import": [
-      "test/e2e/steps/**/*.ts",
-      "test/e2e/utils/setup.e2e.ts",
-      "test/e2e/utils/world.ts",
-      "test/e2e/utils/hook.ts"
-    ],
+    "import": ["test/e2e/support/register-tsx.mjs", "test/e2e/steps/**/*.ts", "test/e2e/support/*.ts"],
     "parallel": 5,
     "worldParameters": {},
-    "format": ["pretty"],
-    "formatOptions": {
-      "pretty": {
-        "includeFeatureLine": false,
-        "includeRuleLine": false,
-        "useStatusIcon": true
-      }
-    }
+    "format": ["progress-bar"]
   }
 }

@@ -1,23 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
-// Using relative over alias path for now until solution found
-import { iocGetNotificationDynamoRepository } from '@common/ioc';
-import { IMessage } from '@common/models/interfaces';
 import { FetchSigV4Service } from '@common/services/FetchSigV4Service';
 import { World } from '@cucumber/cucumber';
 import { config } from '@infra/cdk/config';
 import { ApiKeys, Domains } from '@shared/credentials';
-import { mockIMessageRecord_E2E } from '@test/mocks';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { FetchErrorResponse, FetchResponse, FetchService } from '@common/services/FetchService';
-import { v4 as uuid } from 'uuid';
 
 process.env.POWERTOOLS_LOG_LEVEL = 'ERROR';
 process.env.LOG_LEVEL = 'error';
 
 export default class CustomWorld extends World {
   public flexKeyMarker!: string;
+  public clientName!: string;
 
   public psoAPI!: FetchService;
   public psoAPIWithoutAPIKey!: FetchService;
@@ -28,30 +24,20 @@ export default class CustomWorld extends World {
   public flexAPIUsingInsecureProtocol!: FetchService;
 
   public api!: FetchSigV4Service | FetchService;
-  public pushIdState: string = 'valid';
-  public notificationState: string = 'existing';
 
-  public pushId!: string;
+  public pushID!: string;
+  public notificationID!: string;
   public expectedStatusCode?: number;
   public expectedResponseBody?: unknown;
   public method!: string;
   public path!: string;
   public result!: FetchResponse | FetchErrorResponse | undefined;
 
-  public messageRequest?: Omit<IMessage, 'OrganisationID'>[];
   public cleanups: (() => Promise<void>)[] = [];
 
   constructor(options: any) {
     super(options);
   }
-
-  public knownTestIDs = {
-    notificationID: '69aeaf44-1357-4053-99bc-b822b5df3f25',
-    pushID:
-      {
-        dev: `7s1EVFj6JYNF4JA_ClmeArf06BdsABRhJhDKgPNuY0M`,
-      }[config.env] ?? 'uns123',
-  };
 
   public applyDispatchConfig(httpsAgent: Agent, apiKey: ApiKeys, domains: Domains) {
     this.psoAPI = new FetchService({
@@ -105,40 +91,6 @@ export default class CustomWorld extends World {
         'x-api-key': apiKey.flexApiKey,
       },
     });
-  }
-
-  public async createNotificationIfNotFound() {
-    // Checks if a notification with the test ID already exists
-    // If not then a notification record in dynamoDB with expected statuses
-    const notificationsRepository = await iocGetNotificationDynamoRepository();
-    const message = await notificationsRepository.getRecord(this.knownTestIDs.notificationID);
-
-    if (message === null) {
-      console.log('No message record found, creating a new message in message table');
-      const messageRecord = mockIMessageRecord_E2E(this.knownTestIDs.notificationID, this.knownTestIDs.pushID);
-      await notificationsRepository.createRecord(messageRecord);
-    }
-  }
-
-  public resolvePushID(): string {
-    const states: Record<string, string> = {
-      valid: this.knownTestIDs.pushID,
-      "wrong user's": uuid(),
-      missing: '',
-    };
-    const value = states[this.pushIdState];
-    if (value === undefined) throw new Error(`Invalid push ID state: ${this.pushIdState}`);
-    return value;
-  }
-
-  public resolveNotificationID(): string {
-    const states: Record<string, string> = {
-      existing: this.knownTestIDs.notificationID,
-      unknown: uuid(),
-    };
-    const value = states[this.notificationState];
-    if (value === undefined) throw new Error(`Invalid notification state: ${this.notificationState}`);
-    return value;
   }
 
   public async sendRequest(method: string, body?: unknown) {
