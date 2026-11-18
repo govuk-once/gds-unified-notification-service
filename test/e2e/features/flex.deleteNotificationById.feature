@@ -5,7 +5,7 @@ Feature: Delete Notification
     Given a correctly configured FLEX client
     And a notification exists
     But <Condition>
-    When I attempt to delete a notification
+    When I attempt to delete the notification
     Then it should fail with <ExpectedError>
 
     @CIOnly
@@ -25,5 +25,11 @@ Feature: Delete Notification
   Scenario: Notification not found
     Given a correctly configured FLEX client
     But the notification does not exist
-    When I attempt to delete a notification
+    When I attempt to delete the notification
     Then it should fail with a not found error
+
+  Scenario: Deleted notification successfully
+    Given a correctly configured FLEX client
+    And a notification exists
+    When I attempt to delete the notification
+    Then it should succeed

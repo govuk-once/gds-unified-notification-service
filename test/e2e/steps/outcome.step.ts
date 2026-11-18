@@ -67,22 +67,9 @@ Then('it should succeed', function (this: CustomWorld) {
   if (!this.result) throw new Error('Result should be set in the When step');
   if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
   expect(this.result.status).toBe(this.expectedStatusCode);
-  if (this.expectedFields) {
-    expect.objectContaining(this.expectedFields);
+  for (const assert of this.assertions) {
+    assert(this.result.body);
   }
-});
-
-Then('it should succeed with a list', function (this: CustomWorld) {
-  if (!this.result) throw new Error('Result should be set in the When step');
-  if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
-  expect(this.result.status).toBe(this.expectedStatusCode);
-  expect(this.result.body).toMatchObject(this.expectedFields!);
-});
-
-Then('it should succeed with an empty list', function (this: CustomWorld) {
-  if (!this.result) throw new Error('Result should be set in the When step');
-  expect(this.result.status).toBe(200);
-  expect(this.result.body).toEqual([]);
 });
 
 defineParameterType({
@@ -96,16 +83,10 @@ Then(
   function (this: CustomWorld, notificationStatuses: NotificationStateEnum[]) {
     if (!this.result) throw new Error('Result should be set in the When step');
     expect(this.result.status).toBe(200);
-    expect(this.result.body).toEqual(
-      expect.arrayContaining(
-        notificationStatuses.map((Status) =>
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-          expect.objectContaining({
-            Status,
-            NotificationID: this.notificationID,
-          })
-        )
-      )
-    );
+    for (const Status of notificationStatuses) {
+      expect(this.result.body).toContainEqual(
+        expect.objectContaining({ Status, NotificationID: this.notificationID })
+      );
+    }
   }
 );

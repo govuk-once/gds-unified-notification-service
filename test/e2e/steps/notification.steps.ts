@@ -1,3 +1,4 @@
+/* eslint-disable vitest/no-standalone-expect */
 import { Given, When } from '@cucumber/cucumber';
 import { iocGetNotificationDynamoRepository } from '@common/ioc';
 import { createNotification, deleteNotification } from '@test/e2e/helpers/notification';
@@ -46,7 +47,8 @@ Given('the notification does not exist', function (this: CustomWorld) {
 // When
 // ──────────────────────────────────────────────────
 
-When('I attempt to delete a notification', async function (this: CustomWorld) {
+When('I attempt to delete the notification', async function (this: CustomWorld) {
+  this.expectedStatusCode = 204;
   this.path = `/notifications/${this.notificationID}?pushID=${this.pushID}`;
   await this.sendRequest('DELETE');
 });
@@ -59,16 +61,24 @@ When('I attempt to get the status of a notification', async function (this: Cust
 
 When('I attempt to get the notification', async function (this: CustomWorld) {
   this.expectedStatusCode = 200;
-  this.expectedFields = {
-    NotificationID: this.notificationID,
-  };
+  this.assertions.push((body) => {
+    expect(body).toEqual(expect.objectContaining({ NotificationID: this.notificationID }));
+  });
   this.path = `/notifications/${this.notificationID}/?externalUserID=${this.pushID}`;
   await this.sendRequest('GET');
 });
 
 When('I attempt to get notifications', async function (this: CustomWorld) {
   this.expectedStatusCode = 200;
-  this.expectedFields = this.notificationIDs.map((NotificationID) => ({ NotificationID }));
+  this.assertions.push((body) => {
+    if (this.notificationIDs.length === 0) {
+      expect(body).toEqual([]);
+    } else {
+      for (const NotificationID of this.notificationIDs) {
+        expect(body).toContainEqual(expect.objectContaining({ NotificationID }));
+      }
+    }
+  });
   this.path = `/notifications?externalUserID=${this.pushID}`;
   await this.sendRequest('GET');
 });

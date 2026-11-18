@@ -1,8 +1,10 @@
+/* eslint-disable vitest/no-standalone-expect */
 import { GroupActionEnum } from '@common/models/interfaces';
 import { DataTable, Given, When } from '@cucumber/cucumber';
 import { addCleanUp, joinGroups, clearSubscribedGroups, type GroupEntry } from '@test/e2e/helpers/groups';
 import type CustomWorld from '@test/e2e/support/world';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
+import { expect } from 'vitest';
 
 const buildGroupEntry = (Namespace: string, Group: string, Subgroup?: string, Action?: string) => {
   if (Subgroup === '') Subgroup = undefined;
@@ -50,7 +52,13 @@ When('I send a single request to modify the following groups:', async function (
   await this.sendRequest('POST', requestBody);
 
   this.expectedStatusCode = 200;
-  this.expectedFields = expectedGroups;
+  this.assertions.push((body) => {
+    for (const item of expectedGroups) {
+      expect(body).toContainEqual(
+        expect.objectContaining(item.Subgroup ? item : { Namespace: item.Namespace, Group: item.Group })
+      );
+    }
+  });
 });
 
 When('I attempt to modify groups without a request body', async function (this: CustomWorld) {
@@ -62,11 +70,7 @@ When('I attempt to get subscribed groups', async function (this: CustomWorld) {
   this.path = `/v1/groups${this.pushID ? `?pushID=${this.pushID}` : ''}`;
   await this.sendRequest('GET');
   this.expectedStatusCode = 200;
-  this.expectedFields = [
-    {
-      Namespace: 'travel',
-      Group: 'France',
-      Subgroup: 'DAILY',
-    },
-  ];
+  this.assertions.push((body) => {
+    expect(body).toContainEqual(expect.objectContaining({ Namespace: 'travel', Group: 'France', Subgroup: 'DAILY' }));
+  });
 });

@@ -22,12 +22,10 @@ Feature: Get Notifications
     Given a correctly configured FLEX client
     But the notification does not exist
     When I attempt to get notifications
-    Then it should succeed with an empty list
+    Then it should succeed
 
   Scenario: Successfully gets notifications in order
     Given a correctly configured FLEX client
     And multiple notifications exist
     When I attempt to get notifications
-    Then it should succeed with a list
-
-
+    Then it should succeed
