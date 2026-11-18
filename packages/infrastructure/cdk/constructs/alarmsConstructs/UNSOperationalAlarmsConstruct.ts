@@ -267,7 +267,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         threshold: OperationalAlarmThreshold.DLQ_DEPTH_MEDIUM,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 15,
-        datapointsToAlarm: 1,
+        datapointsToAlarm: 15,
       });
 
       this.addAlarm({
@@ -284,7 +284,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         threshold: OperationalAlarmThreshold.DLQ_DEPTH_HIGH,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 15,
-        datapointsToAlarm: 1,
+        datapointsToAlarm: 15,
       });
 
       // DLQ Oldest Message in Queue Alarm

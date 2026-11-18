@@ -52,14 +52,14 @@ Metric namespace for custom metrics: `NOTIFICATIONS_UNS_<ENV>` (e.g. `NOTIFICATI
 
 | Alarm | Priority | Condition | Runbook |
 | --- | --- | --- | --- |
-| `Api5xxErrorRateElevated` | P1 | 5xx rate > 1% over 5 min ⚠️ | [API Gateway Errors](./runbooks/api-gateway-errors.md) |
-| `Api4xxErrorRateElevated` | P2 | 4xx rate > 10% over 5 min ⚠️ | [API Gateway Errors](./runbooks/api-gateway-errors.md) |
+| `Api5xxErrorRateElevated` | P1 | 5xx rate > 1% over 5 min | [API Gateway Errors](./runbooks/api-gateway-errors.md) |
+| `Api4xxErrorRateElevated` | P2 | 4xx rate > 10% over 5 min | [API Gateway Errors](./runbooks/api-gateway-errors.md) |
 
 ### Authentication (PSO)
 
 | Alarm | Priority | Condition | Runbook |
 | --- | --- | --- | --- |
-| `MTLSDenialRateHigh` | P2 | `MTLS_AUTH_REQUESTS_DENIED_COUNT` / `MTLS_AUTH_REQUESTS_COUNT` > 0.1% over 5 min ⚠️ | [API Gateway Errors: Step 3](./runbooks/api-gateway-errors.md#step-3-mtls-specific-checks-pso-only) |
+| `MTLSDenialRateHigh` | P2 | `MTLS_AUTH_REQUESTS_DENIED_COUNT` / `MTLS_AUTH_REQUESTS_COUNT` > 0.1% over 5 min | [API Gateway Errors: Step 3](./runbooks/api-gateway-errors.md#step-3-mtls-specific-checks-pso-only) |
 | `RevokedCertificateDetected` | P2 | Any revoked-certificate denial, 2 of 2 five-minute periods | [API Gateway Errors: Step 3](./runbooks/api-gateway-errors.md#step-3-mtls-specific-checks-pso-only) |
 | `UnknownCertificateSpikeDetected` | P2 | > 5 unknown-certificate denials per 5 min, 5 of 5 periods | [API Gateway Errors: Step 3](./runbooks/api-gateway-errors.md#step-3-mtls-specific-checks-pso-only) |
 
@@ -76,28 +76,28 @@ Metric namespace for custom metrics: `NOTIFICATIONS_UNS_<ENV>` (e.g. `NOTIFICATI
 | Alarm | Priority | Condition | Runbook |
 | --- | --- | --- | --- |
 | `SqsQueueDepthHigh-<queue>` | P2 | > 1000 visible messages, 5 of 5 one-minute periods. One per queue | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
-| `ValidationFailureRateHigh` | P2 | `ANALYTICS_EVENT_VALIDATION_FAILED` / `ANALYTICS_EVENT_VALIDATING` > 5% over 5 min ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
-| `ProcessingFailureRateHigh` | P2 | `ANALYTICS_EVENT_PROCESSING_FAILED` / `ANALYTICS_EVENT_PROCESSING` > 5% over 5 min ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
-| `DispatchFailureRateHigh` | P2 | `ANALYTICS_EVENT_DISPATCHING_FAILED` / `ANALYTICS_EVENT_DISPATCHING` > 5% over 5 min ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
+| `ValidationFailureRateHigh` | P2 | `ANALYTICS_EVENT_VALIDATION_FAILED` / `ANALYTICS_EVENT_VALIDATING` > 5% over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
+| `ProcessingFailureRateHigh` | P2 | `ANALYTICS_EVENT_PROCESSING_FAILED` / `ANALYTICS_EVENT_PROCESSING` > 5% over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
+| `DispatchFailureRateHigh` | P2 | `ANALYTICS_EVENT_DISPATCHING_FAILED` / `ANALYTICS_EVENT_DISPATCHING` > 5% over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 | `ValidationDurationP95High` | P2 | p95 > 2000 ms over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 | `ProcessingDurationP95High` | P2 | p95 > 3000 ms over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
-| `DispatchDurationP95High` | P2 | p95 > 5000 ms over 5 min ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
+| `DispatchDurationP95High` | P2 | p95 > 5000 ms over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 | `GroupProcessingDurationP95PerMessageHigh` | P2 | p95 per message > 3000 ms over 5 min | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 | `DispatchRateLimitingEnforced` | P2 | `CIRCUIT_BREAKER_RATE_LIMITING_ENFORCED` ≥ 1, 2 of 2 one-minute periods | [Queue Backlog: Step 3](./runbooks/queue-backlog-and-dispatch-failures.md#step-3-circuit-breaker-and-rate-limiting) |
 | `{Validation,Processing,Dispatch,GroupProcessing}BatchItemFailures` | P3 | > 0, 2 of 2 one-minute periods | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 | `{Processing,GroupProcessing,Dispatch,Analytics}QueuePublishFailed` | P3 | > 0 in one minute | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
-| `dlqMessageCountMedium-<queue>` | P3 | > 10 visible DLQ messages in any 1 of 15 one-minute periods ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
-| `MessageCountHigh-<queue>` | P2 | > 1000 visible DLQ messages in any 1 of 15 one-minute periods ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
+| `dlqMessageCountMedium-<queue>` | P3 | > 10 visible DLQ messages for 15 consecutive minutes | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
+| `MessageCountHigh-<queue>` | P2 | > 1000 visible DLQ messages for 15 consecutive minutes | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 | `OldestMessageHigh-<queue>` | P2 | Oldest DLQ message older than 3 days | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md) |
 
 ### Integrations
 
 | Alarm | Priority | Scope | Condition | Runbook |
 | --- | --- | --- | --- | --- |
-| `OneSignalOffline` | P1 | PSO (downstream) | Provider HTTP error rate > 40% ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md#mitigating-a-downstream-adapter-failure) |
-| `UDPOffline` | P1 | PSO (upstream) | Provider HTTP error rate > 40% ⚠️ | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md#mitigating-a-downstream-adapter-failure) |
+| `OneSignalOffline` | P1 | PSO (downstream) | Provider HTTP error rate > 40% | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md#mitigating-a-downstream-adapter-failure) |
+| `UDPOffline` | P1 | PSO (upstream) | Provider HTTP error rate > 40% | [Queue Backlog](./runbooks/queue-backlog-and-dispatch-failures.md#mitigating-a-downstream-adapter-failure) |
 | `CircuitBreakerOpen` | P1 | PSO and Flex | `CIRCUIT_BREAKER_STATE` ≥ 1 in one minute | [Queue Backlog: Step 3](./runbooks/queue-backlog-and-dispatch-failures.md#step-3-circuit-breaker-and-rate-limiting) |
-| `LambdaErrorRateElevated-<lambda>` | P2 | Every PSO and Flex Lambda | `Errors` / `Invocations` > 1% over 5 min ⚠️ | [API Gateway Errors](./runbooks/api-gateway-errors.md) |
+| `LambdaErrorRateElevated-<lambda>` | P2 | Every PSO and Flex Lambda | `Errors` / `Invocations` > 1% over 5 min | [API Gateway Errors](./runbooks/api-gateway-errors.md) |
 
 ### Performance (PSO)
 
@@ -126,16 +126,6 @@ All alarms use `AWS/Lambda` standard metrics or CloudTrail log metric filters an
 **`IAMAccessDeniedRepeated`** — created once (via the PSO construct) using a CloudWatch Logs metric filter on the account-level CloudTrail log group, resolved automatically at synth time via `DescribeTrails`. Covers all assumed-role principals in the account. If no trail with CloudWatch Logs enabled is found in the region, a CDK warning is emitted and the alarm is not deployed.
 
 **`LambdaUnqualifiedInvocationDetected`** — created once (via the PSO construct) using a CloudWatch Logs metric filter on the same CloudTrail log group. All legitimate invocations use a versioned alias (`release_<version>`), so any unqualified invocation is unexpected. Requires CloudTrail Lambda data events to be enabled on the trail — management events alone do not capture `Invoke` calls.
-
----
-
-## Known discrepancies ⚠️
-
-Rows marked ⚠️ behave differently from what the threshold or description suggests. These are code issues to fix in the alarm constructs; this catalogue describes what is deployed today.
-
-1. **Rate alarms fire at one third of the stated percentage.** `addRateAlarm` computes `(FILL(failed, 0) / total) * 300`, not `* 100`. So a "1%" threshold fires at about 0.33%, and "40%" at about 13.3%. This affects every rate alarm: API 4xx/5xx, mTLS denial, stage failure rates, provider offline and Lambda error rate.
-2. **Rate alarms always evaluate over 5 minutes.** The `MathExpression` period is fixed at 5 minutes, which overrides the 1-minute metric period used by the provider alarms. `OneSignalOffline` and `UDPOffline` therefore evaluate over 5 minutes, not the 1 minute their description says.
-3. **DLQ count alarms** say "for 15 consecutive minutes" but use `datapointsToAlarm: 1` with `evaluationPeriods: 15`. A single breaching minute fires them.
 
 ---
 
