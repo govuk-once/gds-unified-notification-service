@@ -25,8 +25,7 @@ Record body (relevant fields only):
     "MessageBody": "MOCK_LONG_MESSAGE"
   },
   "GroupNotificationID": "1234",
-  "WorkerID": 0,
-  "CacheKey": "Worker/GroupProcessingWorker/1234/0",
+  "PushIDs": ["pushID1", "pushID2"],
   "APIGWExtendedID": "requestId",
   "ReceivedDateTime": "2026-08-01T12:00:00.000Z",
   "ValidatedDateTime": "2026-08-01T12:00:00.600Z"
@@ -35,11 +34,10 @@ Record body (relevant fields only):
 
 ### Infrastructure
 
-- **ElastiCache (Redis)**: `CacheService` reads the remaining push IDs from `CacheKey`, then writes the unprocessed remainder back to the same key.
-- **SSM**: reads `SSMParameters.Group.Dispatch.WorkerBatchSize` (default `100`), the number of push IDs handled per invocation.
+- **ElastiCache (Redis)**: not used for push IDs (they travel in the message). Used indirectly by `AnalyticsService`.
 - **DynamoDB**: `NotificationsDynamoRepository` (the Messages table), read/write. One record per built notification, with `RequestedDaysToExpire` carried over from `ExpiresInDays`.
-- **SQS**: publishes built notifications to the `dispatch` queue, analytics events (`PROCESSED`) to the `analytics` queue, and the original record back onto `groupprocessing` if push IDs remain.
-- **VPC**: VPC-attached, because it talks to ElastiCache.
+- **SQS**: publishes built notifications to the `dispatch` queue, and analytics events (`PROCESSED`) to the `analytics` queue.
+- **VPC**: VPC-attached, because `AnalyticsService` talks to ElastiCache.
 - Notification IDs are deterministic. `generateNotificationIDForGroupMessage(pushID, groupMessage)` (in [`checksumString.ts`](../../../common/utils/checksumString.ts)) hashes the push ID together with the group message, so a retried record produces the same IDs.
 
 ### Observability
@@ -57,18 +55,10 @@ The groups dashboard ([`UNSPSOGroupsFlow.ts`](../../../../infrastructure/cdk/con
 ```mermaid
 flowchart TD
     A[groupprocessing record] --> B[validateRecord]
-    B --> C["CacheService.get(CacheKey)"]
-    C --> D{Push IDs found?}
-    D -- No --> E[InternalServerError - record fails, SQS retries / DLQ]
-    D -- Yes --> F[Splice first WorkerBatchSize push IDs]
-    F --> G["CacheService.store(CacheKey, remainder)"]
-    G --> H[Build one notification per push ID]
+    B --> H[Build one notification per push ID in PushIDs]
     H --> I[NotificationsDynamoRepository.createRecordBatch]
     I --> J[Analytics: PROCESSED per notification]
     J --> K[DispatchQueueService.publishMessageBatch]
-    K --> L{Remainder empty?}
-    L -- No --> M[Re-publish same record to groupprocessing]
-    L -- Yes --> N[Done]
 ```
 
-> The remainder is written back to the cache **before** the batch is dispatched. If a record fails after that point, an SQS retry resumes from the remainder and the already-spliced push IDs are not reprocessed. Bear this in mind when investigating missing group notifications.
+> Each record carries its whole chunk of push IDs, so an SQS retry reprocesses the entire chunk. This is safe because notification IDs are deterministic (see above), so retries overwrite rather than duplicate records.

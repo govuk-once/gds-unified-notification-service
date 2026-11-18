@@ -42,10 +42,10 @@ describe('GroupProcessingWorker QueueHandler', async () => {
   let context: Context;
   let event: QueueEvent<IGroupMessageMetadata>;
 
-  const message = mockIGroupMessageMetadata();
+  const pushID_1 = 'pushID_1';
+  const message: IGroupMessageMetadata = { ...mockIGroupMessageMetadata(), PushIDs: [pushID_1] };
   const failedMessage = mockIFailedGroupMessageMetadata();
   const unidentifiableMessage = mockIUnidentifiableGroupMessageMetadata();
-  const pushID_1 = 'pushID_1';
 
   beforeEach(() => {
     // Reset all mocks
@@ -61,14 +61,9 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     mockParameterStore = resetMockParameterStore;
 
     // Mocking successful completion of service functions
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([pushID_1]);
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce([]);
-
     instance = new GroupProcessingWorker(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
       analyticsService: Promise.resolve(serviceMocks.analyticsServiceMock),
-      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
       dispatchQueue: Promise.resolve(serviceMocks.dispatchQueueServiceMock),
-      groupProcessingQueue: Promise.resolve(serviceMocks.groupProcessingQueueServiceMock),
       notificationsRepository: Promise.resolve(serviceMocks.notificationsDynamoRepositoryMock),
     }));
     handler = instance.handler();
@@ -120,40 +115,6 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([expectedProcessedMessage]);
   });
 
-  it('updates the cache with an empty array when all pushIDs are processed', async () => {
-    // Arrange
-    const event = mockQueueEvent(message);
-
-    // Act
-    await handler(event, context);
-
-    // Assert
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('Worker/GroupProcessingWorker/GRP_01/0', []);
-  });
-
-  it('updates the cache with any unprocessed pushIDs after splitting the array', async () => {
-    // Arrange
-    mockParameterStore[SSMParameters.Group.Dispatch.WorkerBatchSize.Path] = 1; // Simulate worker batch size of 1
-    serviceMocks.cacheServiceMock.get.mockReset();
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_1', 'pushID_2']);
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
-
-    // Act
-    await handler(event, context);
-
-    // Assert
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledWith('Worker/GroupProcessingWorker/GRP_01/0', [
-      'pushID_2',
-    ]);
-    expect(observabilityMocks.logger.debug).toHaveBeenCalledWith(
-      `Unprocessed pushIDs to be sent to group processing queue to be processed by the next worker`,
-      {
-        cacheKey: 'Worker/GroupProcessingWorker/GRP_01/0',
-        pushIDsToNextWorker: ['pushID_2'],
-      }
-    );
-  });
-
   it('creates records in the notification dynamo db with a checksum of the fields as the NotificationID for the processed messages', async () => {
     // Arrange
     vi.useRealTimers();
@@ -190,22 +151,6 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     );
   });
 
-  it('creates a new message to group processing worker if any pushIDs are unprocessed', async () => {
-    // Arrange
-    mockParameterStore[SSMParameters.Group.Dispatch.WorkerBatchSize.Path] = 1; // Simulate worker batch size of 1
-    serviceMocks.cacheServiceMock.get.mockReset();
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_0', 'pushID_1']);
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(['pushID_2']);
-
-    const event = mockQueueEvent(message);
-
-    // Act
-    await handler(event, context);
-
-    // Assert
-    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessage).toHaveBeenCalledWith(message);
-  });
-
   it('should add a metric for the performance run time.', async () => {
     // Arrange
     const event = mockQueueEvent(message);
@@ -221,35 +166,45 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     );
   });
 
-  it('does not create a new message to group processing worker if all pushIDs are processed', async () => {
+  it('processes every pushID in the message in a single invocation and never requeues to the group processing queue', async () => {
     // Arrange
-    const event = mockQueueEvent(message);
+    const pushIDs = ['pushID_1', 'pushID_2', 'pushID_3'];
+    const multiPushMessage = { ...message, PushIDs: pushIDs };
+    const event = mockQueueEvent(multiPushMessage);
 
     // Act
     await handler(event, context);
 
     // Assert
+    const expectedProcessedMessages = pushIDs.map((pushID) => mockIProcessedGroupMessage(multiPushMessage, pushID));
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith(expectedProcessedMessages);
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessage).not.toHaveBeenCalled();
   });
 
-  it('throws an error if the cache is misconfigured and does not return a list of pushIDs', async () => {
+  it('writes records for every pushID in the message to the notification table in a single repository call', async () => {
     // Arrange
-    serviceMocks.cacheServiceMock.get.mockReset();
-    serviceMocks.cacheServiceMock.get.mockResolvedValueOnce(undefined);
+    const pushIDs = Array.from({ length: 60 }, (_, i) => `pushID_${i}`);
+    const event = mockQueueEvent({ ...message, PushIDs: pushIDs });
+
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mock.calls[0][0]).toHaveLength(60);
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mock.calls[0][0]).toHaveLength(60);
+  });
+
+  it('throws an error if the message has no pushIDs', async () => {
+    // Arrange
+    const event = mockQueueEvent({ ...message, PushIDs: [] });
 
     // Act
     const result = handler(event, context);
 
     // Assert
-
-    await expect(result).rejects.toThrow(
-      new FullBatchFailureError([
-        new ServiceMisconfigurationError([
-          'List of pushIDs store in elasticache are misconfigured',
-          'CacheKey: Worker/GroupProcessingWorker/GRP_01/0',
-        ]),
-      ])
-    );
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
   });
 
   it('should return a list of all failed processes when it partial fails.', async () => {

@@ -93,8 +93,7 @@ const SSMParameters = {
   },
   Group: {
     Dispatch: {
-      WorkerCount: staticParam('group/dispatch/workerCount', 'numeric', '5'),
-      WorkerBatchSize: staticParam('group/dispatch/workerBatchSize', 'numeric', '100'),
+      ChunkSize: staticParam('group/dispatch/chunkSize', 'numeric', '1000'),
     },
   },
   Certificate: {

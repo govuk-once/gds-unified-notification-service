@@ -41,6 +41,8 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
 
   public async getUsersInGroup(namespace: string, group: string, subgroup?: string): Promise<string[]> {
     const compositeID = this.buildCompositeId(namespace, group, subgroup);
+    // TODO: getRecordsQuery issues a single Query and ignores LastEvaluatedKey, so groups larger than DynamoDB's 1MB
+    // response limit (roughly 3,500-4,000 members) are silently truncated and under-reported in UsersInGroup.
     const records = await this.getRecordsQuery({ field: 'CompositeID', value: compositeID }, 'CompositeIDIndex');
 
     return records ? records.map((record) => record.PushID) : [];
@@ -90,6 +92,9 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
 
     const joinedGroups = recordsToCreate.map((record) => this.toGroup(record));
 
+    // TODO: createRecordBatch is not atomic, so a failure part way through leaves some groups joined. Retrying the
+    // request is safe (already joined groups are skipped above); consider a TransactWriteItems variant if
+    // all-or-nothing behaviour is needed.
     await this.createRecordBatch(recordsToCreate);
     this.observability.logger.info('Joining groups', { pushID, groupsToJoin: joinedGroups });
 

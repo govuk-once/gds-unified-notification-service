@@ -1,5 +1,5 @@
 export * from './checksumString';
+export * from './chunkArray';
 export * from './inMemoryTTLCache';
 export * from './otel';
-export * from './splitArrayIntoChunks';
 export * from './zod';

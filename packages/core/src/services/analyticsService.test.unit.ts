@@ -158,6 +158,39 @@ describe('analyticsService', async () => {
         600
       );
     });
+
+    it('should log and not throw when the queue publish fails', async () => {
+      // Arrange
+      serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockRejectedValue(new Error('SQS down'));
+
+      // Act & Assert
+      await expect(
+        instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED)
+      ).resolves.toBeUndefined();
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Failed to publish analytics events, continuing',
+        expect.objectContaining({ status: NotificationStateEnum.VALIDATED, count: analyticsEvents.length })
+      );
+      expect(observabilityMocks.metrics.addMetric).not.toHaveBeenCalledWith(
+        MetricsLabels.ANALYTICS_EVENT_VALIDATED,
+        MetricUnit.Count,
+        expect.anything()
+      );
+    });
+
+    it('should log and not throw when caching an event fails', async () => {
+      // Arrange
+      serviceMocks.cacheServiceMock.appendToList.mockRejectedValue(new Error('Redis down'));
+
+      // Act & Assert
+      await expect(
+        instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED)
+      ).resolves.toBeUndefined();
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Failed to publish analytics events, continuing',
+        expect.any(Object)
+      );
+    });
   });
 
   describe('publishEvent', () => {
@@ -190,6 +223,18 @@ describe('analyticsService', async () => {
         Event: 'VALIDATED',
         OrganisationID: mockAnalyticsEvent.OrganisationID,
       });
+    });
+
+    it('should log and not throw when the queue publish fails', async () => {
+      // Arrange
+      serviceMocks.analyticsQueueServiceMock.publishMessage.mockRejectedValue(new Error('SQS down'));
+
+      // Act & Assert
+      await expect(instance.publishEvent(mockAnalyticsEvent, NotificationStateEnum.VALIDATED)).resolves.toBeUndefined();
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Failed to publish analytics events, continuing',
+        expect.objectContaining({ status: NotificationStateEnum.VALIDATED, count: 1 })
+      );
     });
 
     it('should publish an event to the analytics queue with campaignID when provided', async () => {

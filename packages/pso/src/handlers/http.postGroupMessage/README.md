@@ -1,6 +1,6 @@
 ## PostGroupMessage
 
-Feature-flagged (`config.featureFlag.groups` — infrastructure-level deployment gate) group-notification endpoint. Validates content, resolves group membership, chunks push IDs across workers, caches the chunks, and queues the work for downstream group processing.
+Feature-flagged (`config.featureFlag.groups` — infrastructure-level deployment gate) group-notification endpoint. Validates content, resolves group membership, splits push IDs into fixed-size chunks, and queues each chunk for downstream group processing.
 
 - **Type:** HTTP (API Gateway)
 - **Operation ID:** `postGroupMessage`
@@ -37,12 +37,11 @@ Feature-flagged (`config.featureFlag.groups` — infrastructure-level deployment
 ### Infrastructure
 
 - **DynamoDB** - `GroupStoreDynamoRepository` (the GroupStore table), read-only (`getUsersInGroup`).
-- **ElastiCache (Redis)** - `CacheService` stores chunked push-ID lists for each worker under `Worker/GroupProcessingWorker/{GroupNotificationID}/{workerID}`.
-- **SQS** - publishes batch metadata to the `groupprocessing` queue via `GroupProcessingQueueService.publishMessageBatch`.
-- **SSM** - reads `SSMParameters.Group.Dispatch.WorkerCount` to determine how many worker chunks to create.
+- **SQS** - publishes one message per chunk of push IDs (`PushIDs`) to the `groupprocessing` queue via `GroupProcessingQueueService.publishMessageBatch`.
+- **SSM** - reads `SSMParameters.Group.Dispatch.ChunkSize` (default `1000`), the number of push IDs per queue message.
 - The request schema rejects the whole request with `400` if two items share a `GroupNotificationID` (`Duplicate GroupNotificationIDs are not allowed`).
 - Content is validated in-process by `ValidationService.messageValidation`, same as `postMessage` (see [Configuration: Feature flags](../../../../docs/configuration.md#feature-flags)).
-- The cached chunks are consumed by [`sqs.groupProcessingWorker`](../sqs.groupProcessingWorker/README.md).
+- The queued chunks are consumed by [`sqs.groupProcessingWorker`](../sqs.groupProcessingWorker/README.md).
 
 ### Logic
 
@@ -54,10 +53,9 @@ flowchart TD
     B -- No --> C[400 Bad Request]
     B -- Yes --> D[Stamp OrganisationID from authorizer context]
     D --> E["ValidationService.messageValidation per item"]
-    E --> F[Read worker count from SSM]
+    E --> F[Read chunk size from SSM]
     F --> G["GroupStoreDynamoRepository.getUsersInGroup per item"]
-    G --> H[Split push IDs into worker-sized chunks]
-    H --> I["CacheService.store each chunk under Worker/GroupProcessingWorker key"]
-    I --> J["GroupProcessingQueueService.publishMessageBatch"]
+    G --> H[Split push IDs into chunks of ChunkSize]
+    H --> J["GroupProcessingQueueService.publishMessageBatch"]
     J --> K[202 + GroupNotificationID / UsersInGroup counts]
 ```

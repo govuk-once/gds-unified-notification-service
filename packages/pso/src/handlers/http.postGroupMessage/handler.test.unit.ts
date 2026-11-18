@@ -1,6 +1,7 @@
 import { ChannelsEnum } from '@common/models';
 import { mockIGroupMessage } from '@common/models/interfaces';
 import { PostGroupMessage } from '@pso/handlers/http.postGroupMessage/handler';
+import SSMParameters from '@shared/ssmParameter';
 import {
   iocSpies,
   mockAPIPostMessageEvent,
@@ -37,6 +38,7 @@ describe('PostGroupMessage Handler', async () => {
   // Test Fixtures
   let context: Context;
   let event: EventType;
+  let mockParameterStore: ReturnType<typeof mockServicesExpectedBehaviour>['resetMockParameterStore'];
 
   const groupMessage = mockIGroupMessage();
   const mockPushID = '57d7fb1a-f069-46cf-af16-6ebdc599a679';
@@ -51,11 +53,10 @@ describe('PostGroupMessage Handler', async () => {
     event = mockAPIPostMessageEvent([groupMessage]) as unknown as EventType;
 
     // Mock SSM store and services responses
-    mockServicesExpectedBehaviour(serviceMocks);
+    ({ resetMockParameterStore: mockParameterStore } = mockServicesExpectedBehaviour(serviceMocks));
 
     // Mocking successful completion of service functions
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup.mockResolvedValue([mockPushID]);
-    serviceMocks.cacheServiceMock.get.mockResolvedValue([mockPushID]);
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     vi.mocked(uuid as () => string)
@@ -63,7 +64,6 @@ describe('PostGroupMessage Handler', async () => {
       .mockReturnValueOnce(mockGroupNotificationID);
 
     instance = new PostGroupMessage(serviceMocks.configurationServiceMock, observabilityMocks, () => ({
-      cacheService: Promise.resolve(serviceMocks.cacheServiceMock),
       groupStoreDynamoRepository: Promise.resolve(serviceMocks.groupStoreDynamoRepositoryMock),
       groupProcessingQueue: Promise.resolve(serviceMocks.groupProcessingQueueServiceMock),
       validationService: Promise.resolve(serviceMocks.validationServiceMock),
@@ -129,7 +129,6 @@ describe('PostGroupMessage Handler', async () => {
     expect(JSON.parse(result.body)).toEqual([
       { GroupNotificationID: groupMessage.GroupNotificationID, UsersInGroup: 1 },
     ]);
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
   });
 
@@ -149,7 +148,6 @@ describe('PostGroupMessage Handler', async () => {
     // Assert
     expect(result.statusCode).toEqual(202);
     expect(JSON.parse(result.body)).toEqual([{ GroupNotificationID: mockGroupNotificationID, UsersInGroup: 1 }]);
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(1);
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
   });
 
@@ -173,115 +171,45 @@ describe('PostGroupMessage Handler', async () => {
       { GroupNotificationID: groupMessage.GroupNotificationID, UsersInGroup: 1 },
       { GroupNotificationID: GroupNotificationID_2, UsersInGroup: 1 },
     ]);
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenCalledTimes(2);
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(2);
   });
 
-  it('should split pushIDs into chunks based on worker number, add elasticache keys for each chunk, and send the chunks in a batch message with the group message.', async () => {
+  it('should split pushIDs into chunks of the configured size and send one queue message per chunk with the group message.', async () => {
     // Arrange
     vi.useFakeTimers();
-    const date = new Date('2026-01-01T12:30:00Z');
-    vi.setSystemTime(date);
-
-    const chunk_1 = ['push_1', 'push_2'];
-    const chunk_2 = ['push_3'];
-    const chunk_3 = ['push_4'];
-    const chunk_4 = ['push_5'];
-    const chunk_5 = ['push_6'];
+    vi.setSystemTime(new Date('2026-01-01T12:30:00Z'));
+    mockParameterStore[SSMParameters.Group.Dispatch.ChunkSize.Path] = 2;
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup.mockResolvedValueOnce([
       'push_1',
       'push_2',
       'push_3',
       'push_4',
       'push_5',
-      'push_6',
     ]);
-    serviceMocks.cacheServiceMock.get
-      .mockResolvedValueOnce(chunk_1)
-      .mockResolvedValueOnce(chunk_2)
-      .mockResolvedValueOnce(chunk_3)
-      .mockResolvedValueOnce(chunk_4)
-      .mockResolvedValueOnce(chunk_5);
 
     // Act
-    await handler(event, context);
+    const result = await handler(event, context);
 
     // Assert
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
-      1,
-      `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/0`,
-      chunk_1
-    );
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
-      2,
-      `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/1`,
-      chunk_2
-    );
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
-      3,
-      `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/2`,
-      chunk_3
-    );
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
-      4,
-      `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/3`,
-      chunk_4
-    );
-    expect(serviceMocks.cacheServiceMock.store).toHaveBeenNthCalledWith(
-      5,
-      `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/4`,
-      chunk_5
-    );
+    expect(JSON.parse(result.body)).toEqual([
+      { GroupNotificationID: groupMessage.GroupNotificationID, UsersInGroup: 5 },
+    ]);
+    const expectedMetadata = {
+      GroupMessage: { ...groupMessage, OrganisationID: 'ORG01' },
+      GroupNotificationID: groupMessage.GroupNotificationID,
+      APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+      ReceivedDateTime: new Date(1428582896000).toISOString(),
+      ValidatedDateTime: '2026-01-01T12:30:00.000Z',
+    };
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledTimes(1);
     expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenLastCalledWith([
-      {
-        GroupMessage: { ...groupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: groupMessage.GroupNotificationID,
-        WorkerID: 0,
-        CacheKey: `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/0`,
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        ReceivedDateTime: new Date(1428582896000).toISOString(),
-        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
-      },
-      {
-        GroupMessage: { ...groupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: groupMessage.GroupNotificationID,
-        WorkerID: 1,
-        CacheKey: `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/1`,
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        ReceivedDateTime: new Date(1428582896000).toISOString(),
-        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
-      },
-      {
-        GroupMessage: { ...groupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: groupMessage.GroupNotificationID,
-        WorkerID: 2,
-        CacheKey: `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/2`,
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        ReceivedDateTime: new Date(1428582896000).toISOString(),
-        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
-      },
-      {
-        GroupMessage: { ...groupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: groupMessage.GroupNotificationID,
-        WorkerID: 3,
-        CacheKey: `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/3`,
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        ReceivedDateTime: new Date(1428582896000).toISOString(),
-        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
-      },
-      {
-        GroupMessage: { ...groupMessage, OrganisationID: 'ORG01' },
-        GroupNotificationID: groupMessage.GroupNotificationID,
-        WorkerID: 4,
-        CacheKey: `Worker/GroupProcessingWorker/${groupMessage.GroupNotificationID}/4`,
-        APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-        ReceivedDateTime: new Date(1428582896000).toISOString(),
-        ValidatedDateTime: '2026-01-01T12:30:00.000Z',
-      },
+      { ...expectedMetadata, PushIDs: ['push_1', 'push_2'] },
+      { ...expectedMetadata, PushIDs: ['push_3', 'push_4'] },
+      { ...expectedMetadata, PushIDs: ['push_5'] },
     ]);
   });
 
-  it('should return a status 202 and response, as well as not storing anything in cache when there are no users in the group', async () => {
+  it('should return a status 202 and response, as well as publishing no queue messages when there are no users in the group', async () => {
     // Arrange
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup.mockResolvedValueOnce([]);
 
@@ -293,7 +221,7 @@ describe('PostGroupMessage Handler', async () => {
     expect(JSON.parse(result.body)).toEqual([
       { GroupNotificationID: groupMessage.GroupNotificationID, UsersInGroup: 0 },
     ]);
-    expect(serviceMocks.cacheServiceMock.store).not.toHaveBeenCalled();
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).toHaveBeenCalledWith([]);
   });
 
   it('should accept a group message with Channel set to PUSH_NOTIFICATION_AND_MESSAGE_CENTRE', async () => {

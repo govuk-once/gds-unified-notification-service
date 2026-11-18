@@ -1,6 +1,21 @@
-import { SendMessageBatchCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import {
+  SendMessageBatchCommand,
+  SendMessageBatchCommandOutput,
+  SendMessageCommand,
+  SQSClient,
+} from '@aws-sdk/client-sqs';
 import { SerializationError } from '@common/models/Errors/BadRequestError';
+import { InternalServerError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services/observabilityService';
+
+const MAX_MESSAGES_PER_SEND_CALL = 10;
+// SQS caps a SendMessageBatch request at 262,144 bytes in total; leave headroom for entry metadata
+const MAX_BYTES_PER_SEND_CALL = 250 * 1024;
+// Entries SQS reports as failed (with SenderFault false) are resent with exponential backoff before giving up
+const MAX_SEND_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 100;
+// Send calls are independent, so several are kept in flight at once to shorten large publishes
+const MAX_CONCURRENT_SEND_CALLS = 5;
 
 export const serializeRecordBodyToJson = <InputType>(body: InputType, observability: ObservabilityService): string => {
   if (typeof body === 'string') {
@@ -58,49 +73,121 @@ export abstract class QueueService<InputType> {
     }
   }
 
+  /**
+   * Serialises messages and packs them into groups, one group per SendMessageBatch API call. Each group is bounded by
+   * both the maximum number of messages (10) and the maximum total payload (256 KiB, with headroom) SQS allows per call.
+   * Messages are never split: a message is always sent whole, so this only decides which messages share an API call.
+   */
+  private groupMessagesIntoSendCalls(messages: InputType[]): string[][] {
+    const sendCalls: string[][] = [];
+    let currentCall: string[] = [];
+    let currentCallBytes = 0;
+
+    for (const message of messages) {
+      const body = serializeRecordBodyToJson<InputType>(message, this.observability);
+      const bodyBytes = Buffer.byteLength(body, 'utf8');
+
+      const callIsFull =
+        currentCall.length >= MAX_MESSAGES_PER_SEND_CALL || currentCallBytes + bodyBytes > MAX_BYTES_PER_SEND_CALL;
+      if (currentCall.length > 0 && callIsFull) {
+        sendCalls.push(currentCall);
+        currentCall = [];
+        currentCallBytes = 0;
+      }
+      currentCall.push(body);
+      currentCallBytes += bodyBytes;
+    }
+    if (currentCall.length > 0) {
+      sendCalls.push(currentCall);
+    }
+    return sendCalls;
+  }
+
   public async publishMessageBatch(messages: InputType[], delaySeconds = 0) {
     if (messages.length === 0) {
       this.observability.logger.info('No messages to publish to queue', { queueName: this.getQueueName() });
       return;
     }
 
-    const batchSize = 10;
-    for (let i = 0; i < messages.length; i += batchSize) {
-      const chunk = messages.slice(i, i + batchSize);
+    // Every send call is attempted, even when another one fails, so a failure never stops later messages being
+    // published. The first failure is rethrown once all calls have finished.
+    const sendCalls = this.groupMessagesIntoSendCalls(messages);
+    const failures: unknown[] = [];
+    let nextCallIndex = 0;
+    const runWorker = async () => {
+      while (nextCallIndex < sendCalls.length) {
+        const messageBodiesInCall = sendCalls[nextCallIndex++];
+        try {
+          await this.sendCallWithRetry(messageBodiesInCall, delaySeconds);
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_SEND_CALLS, sendCalls.length) }, runWorker));
 
-      // Adds an index to show which chunk of the batch is being processed
-      const entries = chunk.map((body, index) => ({
-        Id: index.toString(),
-        DelaySeconds: delaySeconds,
-        MessageBody: serializeRecordBodyToJson<InputType>(body, this.observability),
-      }));
+    if (failures.length > 0) {
+      throw failures[0];
+    }
+  }
 
+  /** Sends one SendMessageBatch call, resending the entries SQS rejects until they succeed or attempts run out. */
+  private async sendCallWithRetry(messageBodiesInCall: string[], delaySeconds: number) {
+    // Entry Ids only need to be unique within a single SendMessageBatch call
+    let pendingEntries = messageBodiesInCall.map((body, index) => ({
+      Id: index.toString(),
+      DelaySeconds: delaySeconds,
+      MessageBody: body,
+    }));
+
+    for (let attempt = 1; ; attempt++) {
+      let response: SendMessageBatchCommandOutput;
       try {
-        const command = new SendMessageBatchCommand({
-          QueueUrl: this.sqsQueueUrl,
-          Entries: entries,
-        });
-        const response = await this.client.send(command);
-
-        if (response.Successful?.length) {
-          this.observability.logger.info('Successfully published messages', {
-            successfulMessageCount: response.Successful.length,
-          });
-          this.addPublishingSuccessMetric(response.Successful.length);
-        }
-        if (response.Failed?.length) {
-          this.observability.logger.error('Failed to publish messages in batch', {
-            failedMessageCount: response.Failed.length,
-            failures: response.Failed,
-          });
-          this.addPublishingFailedMetric(response.Failed.length);
-        }
+        response = await this.client.send(
+          new SendMessageBatchCommand({ QueueUrl: this.sqsQueueUrl, Entries: pendingEntries })
+        );
       } catch (error) {
         this.observability.logger.error('Error publishing to SQS', {
           error: this.observability.formatError(error),
         });
         throw error;
       }
+
+      if (response.Successful?.length) {
+        this.observability.logger.info('Successfully published messages', {
+          successfulMessageCount: response.Successful.length,
+        });
+        this.addPublishingSuccessMetric(response.Successful.length);
+      }
+
+      const failures = response.Failed ?? [];
+      if (failures.length === 0) {
+        return;
+      }
+
+      // SQS accepted the call but rejected some entries. Only entries not at fault of the sender are worth resending
+      const canRetry = attempt < MAX_SEND_ATTEMPTS && failures.every((failure) => failure.SenderFault !== true);
+      if (!canRetry) {
+        this.observability.logger.error('Failed to publish messages in batch', {
+          failedMessageCount: failures.length,
+          failures,
+          attempts: attempt,
+        });
+        this.addPublishingFailedMetric(failures.length);
+        throw new InternalServerError([
+          `Failed to publish ${failures.length} message(s) to queue ${this.getQueueName()} after ${attempt} attempt(s)`,
+          ...failures.map((failure) => `${failure.Id}: ${failure.Code}`),
+        ]);
+      }
+
+      this.observability.logger.warn('Retrying messages that failed to publish in batch', {
+        failedMessageCount: failures.length,
+        failures,
+        attempt,
+      });
+      const failedIds = new Set(failures.map((failure) => failure.Id));
+      pendingEntries = pendingEntries.filter((entry) => failedIds.has(entry.Id));
+      await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
     }
   }
 }

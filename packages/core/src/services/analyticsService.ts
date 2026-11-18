@@ -74,24 +74,46 @@ export class AnalyticsService {
     }
 
     // Map events & reasons together based on index (expecting two arrays of same length)
-    this.observability.logger.info(`Events`, { events: messages });
+    this.observability.logger.info(`Events`, { count: messages.length, status });
 
     const events = messages.map((event, index) =>
       this.createEvent<T>(event, status, reasons ? reasons[index] : undefined)
     );
-    for (const event of events) {
-      await this.cacheAnalyticsEvent(event);
-    }
-    await this.queue.publishMessageBatch(events);
-
-    this.addAnalyticsEventMetricCount(status, events.length);
+    await this.publishWithoutThrowing(status, events, async () => {
+      await Promise.all([
+        ...events.map((event) => this.cacheAnalyticsEvent(event)),
+        this.queue.publishMessageBatch(events),
+      ]);
+    });
   }
 
   public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
     const event = this.createEvent(message, status, reason);
-    await this.cacheAnalyticsEvent(event);
-    await this.queue.publishMessage(event);
-    this.addAnalyticsEventMetricCount(status, 1);
+    await this.publishWithoutThrowing(status, [event], async () => {
+      await Promise.all([this.cacheAnalyticsEvent(event), this.queue.publishMessage(event)]);
+    });
+  }
+
+  /**
+   * Analytics must never fail the caller: a handler retrying (or failing a request) because an analytics event could not
+   * be recorded costs more than the lost event. Failures are logged here; the queue service also records its own
+   * publishing failure metrics.
+   */
+  private async publishWithoutThrowing(
+    status: NotificationStateEnum,
+    events: AnalyticsEvent[],
+    publish: () => Promise<void>
+  ) {
+    try {
+      await publish();
+      this.addAnalyticsEventMetricCount(status, events.length);
+    } catch (error) {
+      this.observability.logger.error('Failed to publish analytics events, continuing', {
+        status,
+        count: events.length,
+        error: this.observability.formatError(error),
+      });
+    }
   }
 
   private async cacheAnalyticsEvent(event: AnalyticsEvent) {
