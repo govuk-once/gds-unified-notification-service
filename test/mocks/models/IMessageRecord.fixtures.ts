@@ -59,6 +59,47 @@ export const mockIProcessedMessageRecord = (
   ExpirationDateTime: DateInSeconds.toUnix('2100-01-31T12:00:00.000Z'),
 });
 
+export const mockIMessageRecord_E2E_WithDispatchTime = (
+  notificationID: string,
+  pushID: string,
+  dispatchedDateTime: string
+): IMessageRecord => ({
+  NotificationID: notificationID,
+  MessageBody: 'Open Notification Centre to read your notifications',
+  MessageTitle: 'You have a new Message',
+  NotificationBody: 'Here is the Notification body.',
+  NotificationTitle: 'You have a new Notification',
+  DepartmentID: 'TEST01',
+  UserID: 'UserID',
+  ExternalUserID: pushID,
+  CampaignID: 'CAM_ID',
+  OrganisationID: 'UNS',
+  APIGWExtendedID: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
+  ReceivedDateTime: dispatchedDateTime,
+  ValidatedDateTime: dispatchedDateTime,
+  ProcessedDateTime: dispatchedDateTime,
+  DispatchedDateTime: dispatchedDateTime,
+  ExpirationDateTime: DateInSeconds.toUnix('2100-01-31T12:00:00.000Z'),
+  Events: [
+    {
+      EventID: `${notificationID}-evt-1`,
+      NotificationID: notificationID,
+      OrganisationID: 'UNS',
+      EventDateTime: dispatchedDateTime,
+      Event: NotificationStateEnum.VALIDATED_API_CALL,
+      CampaignID: 'CAM_ID',
+    },
+    {
+      EventID: `${notificationID}-evt-2`,
+      NotificationID: notificationID,
+      OrganisationID: 'UNS',
+      CampaignID: 'CAM_ID',
+      EventDateTime: dispatchedDateTime,
+      Event: NotificationStateEnum.DISPATCHED,
+    },
+  ],
+});
+
 export const mockIMessageRecord_E2E = (notificationID: string, pushID: string): IMessageRecord => ({
   NotificationID: notificationID,
   MessageBody: 'Open Notification Centre to read your notifications',

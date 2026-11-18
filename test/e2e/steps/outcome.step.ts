@@ -8,7 +8,7 @@ import { expect } from 'vitest';
 
 // ──────────────────────────────────────────────────
 // Outcome - whether the request the scenario sent
-// succeeded or failed, whatever the reosurce
+// succeeded or failed, whatever the resource
 // ──────────────────────────────────────────────────
 
 enum ExpectedErrors {
@@ -67,9 +67,22 @@ Then('it should succeed', function (this: CustomWorld) {
   if (!this.result) throw new Error('Result should be set in the When step');
   if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
   expect(this.result.status).toBe(this.expectedStatusCode);
-  if (this.expectedResponseBody) {
-    expect(this.result.body).toEqual(this.expectedResponseBody);
+  if (this.expectedFields) {
+    expect.objectContaining(this.expectedFields);
   }
+});
+
+Then('it should succeed with a list', function (this: CustomWorld) {
+  if (!this.result) throw new Error('Result should be set in the When step');
+  if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
+  expect(this.result.status).toBe(this.expectedStatusCode);
+  expect(this.result.body).toMatchObject(this.expectedFields!);
+});
+
+Then('it should succeed with an empty list', function (this: CustomWorld) {
+  if (!this.result) throw new Error('Result should be set in the When step');
+  expect(this.result.status).toBe(200);
+  expect(this.result.body).toEqual([]);
 });
 
 defineParameterType({
@@ -79,9 +92,10 @@ defineParameterType({
 });
 
 Then(
-  'I expect response to contain {notificationStatusArray}',
+  'it should succeed with statuses {notificationStatusArray}',
   function (this: CustomWorld, notificationStatuses: NotificationStateEnum[]) {
     if (!this.result) throw new Error('Result should be set in the When step');
+    expect(this.result.status).toBe(200);
     expect(this.result.body).toEqual(
       expect.arrayContaining(
         notificationStatuses.map((Status) =>

@@ -27,8 +27,9 @@ export default class CustomWorld extends World {
 
   public pushID!: string;
   public notificationID!: string;
+  public notificationIDs: string[] = [];
   public expectedStatusCode?: number;
-  public expectedResponseBody?: unknown;
+  public expectedFields?: unknown;
   public method!: string;
   public path!: string;
   public result!: FetchResponse | FetchErrorResponse | undefined;

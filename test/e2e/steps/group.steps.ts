@@ -50,7 +50,7 @@ When('I send a single request to modify the following groups:', async function (
   await this.sendRequest('POST', requestBody);
 
   this.expectedStatusCode = 200;
-  this.expectedResponseBody = expectedGroups;
+  this.expectedFields = expectedGroups;
 });
 
 When('I attempt to modify groups without a request body', async function (this: CustomWorld) {
@@ -61,9 +61,12 @@ When('I attempt to modify groups without a request body', async function (this: 
 When('I attempt to get subscribed groups', async function (this: CustomWorld) {
   this.path = `/v1/groups${this.pushID ? `?pushID=${this.pushID}` : ''}`;
   await this.sendRequest('GET');
-});
-
-When('I get the subscribed groups', async function (this: CustomWorld) {
-  this.path = `/v1/groups?pushID=${this.pushID}`;
-  await this.sendRequest('GET');
+  this.expectedStatusCode = 200;
+  this.expectedFields = [
+    {
+      Namespace: 'travel',
+      Group: 'France',
+      Subgroup: 'DAILY',
+    },
+  ];
 });

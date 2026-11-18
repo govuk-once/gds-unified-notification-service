@@ -27,5 +27,4 @@ Feature: Get Notification Status
     Given a correctly configured PSO client
     And a notification exists
     When I attempt to get the status of a notification
-    Then it should succeed
-    And I expect response to contain "VALIDATED_API_CALL, PROCESSING, PROCESSED, DISPATCHING, DISPATCHED"
+    Then it should succeed with statuses "VALIDATED_API_CALL, PROCESSING, PROCESSED, DISPATCHING, DISPATCHED"

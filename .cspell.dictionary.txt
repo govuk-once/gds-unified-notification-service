@@ -91,3 +91,5 @@ hasura
 RPUSH
 LRANGE
 sparkline
+notif
+noexs
