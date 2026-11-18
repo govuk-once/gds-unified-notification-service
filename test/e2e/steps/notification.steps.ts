@@ -55,6 +55,12 @@ When('I attempt to delete the notification', async function (this: CustomWorld) 
 
 When('I attempt to get the status of a notification', async function (this: CustomWorld) {
   this.expectedStatusCode = 200;
+  const expectedStatuses = ['VALIDATED_API_CALL', 'PROCESSING', 'PROCESSED', 'DISPATCHING', 'DISPATCHED'];
+  this.assertions.push((body) => {
+    for (const Status of expectedStatuses) {
+      expect(body).toContainEqual(expect.objectContaining({ Status, NotificationID: this.notificationID }));
+    }
+  });
   this.path = `/status/${this.notificationID}`;
   await this.sendRequest('GET');
 });
@@ -62,7 +68,7 @@ When('I attempt to get the status of a notification', async function (this: Cust
 When('I attempt to get the notification', async function (this: CustomWorld) {
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
-    expect(body).toEqual(expect.objectContaining({ NotificationID: this.notificationID }));
+    expect(body).toMatchObject({ NotificationID: this.notificationID });
   });
   this.path = `/notifications/${this.notificationID}/?externalUserID=${this.pushID}`;
   await this.sendRequest('GET');

@@ -1,6 +1,5 @@
 /* eslint-disable vitest/no-standalone-expect */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { NotificationStateEnum } from '@common/models';
 import { FetchErrorResponse } from '@common/services/FetchService';
 import { defineParameterType, Then } from '@cucumber/cucumber';
 import type CustomWorld from '@test/e2e/support/world';
@@ -71,22 +70,3 @@ Then('it should succeed', function (this: CustomWorld) {
     assert(this.result.body);
   }
 });
-
-defineParameterType({
-  name: 'notificationStatusArray',
-  regexp: /"([^"]+)"/,
-  transformer: (s) => s.split(',').map((v) => v.trim()) as NotificationStateEnum[],
-});
-
-Then(
-  'it should succeed with statuses {notificationStatusArray}',
-  function (this: CustomWorld, notificationStatuses: NotificationStateEnum[]) {
-    if (!this.result) throw new Error('Result should be set in the When step');
-    expect(this.result.status).toBe(200);
-    for (const Status of notificationStatuses) {
-      expect(this.result.body).toContainEqual(
-        expect.objectContaining({ Status, NotificationID: this.notificationID })
-      );
-    }
-  }
-);

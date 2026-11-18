@@ -71,6 +71,6 @@ When('I attempt to get subscribed groups', async function (this: CustomWorld) {
   await this.sendRequest('GET');
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
-    expect(body).toContainEqual(expect.objectContaining({ Namespace: 'travel', Group: 'France', Subgroup: 'DAILY' }));
+    expect(body).toEqual([{ Namespace: 'travel', Group: 'France', Subgroup: 'DAILY' }]);
   });
 });
