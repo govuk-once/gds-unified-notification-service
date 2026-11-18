@@ -110,6 +110,9 @@ export default class CustomWorld extends World {
         case 'PUT':
           this.result = await this.api.put({ path: this.path, body });
           break;
+        case 'PATCH':
+          this.result = await this.api.patch({ path: this.path, body });
+          break;
       }
     } catch (e) {
       this.result = e as FetchErrorResponse;

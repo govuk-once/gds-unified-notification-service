@@ -28,7 +28,20 @@ Given('I have joined the following groups:', async function (this: CustomWorld, 
 });
 
 // ──────────────────────────────────────────────────
-// When
+// When: GET /v1/groups
+// ──────────────────────────────────────────────────
+
+When('I attempt to get subscribed groups', async function (this: CustomWorld) {
+  this.path = `/v1/groups${this.pushID ? `?pushID=${this.pushID}` : ''}`;
+  await this.sendRequest('GET');
+  this.expectedStatusCode = 200;
+  this.assertions.push((body) => {
+    expect(body).toEqual([{ Namespace: 'travel', Group: 'France', Subgroup: 'DAILY' }]);
+  });
+});
+
+// ──────────────────────────────────────────────────
+// When: POST /v1/groups
 // ──────────────────────────────────────────────────
 
 When('I send a single request to modify the following groups:', async function (this: CustomWorld, table: DataTable) {
@@ -64,13 +77,4 @@ When('I send a single request to modify the following groups:', async function (
 When('I attempt to modify groups without a request body', async function (this: CustomWorld) {
   this.path = `/v1/groups?pushID=${this.pushID}`;
   await this.sendRequest('POST', {});
-});
-
-When('I attempt to get subscribed groups', async function (this: CustomWorld) {
-  this.path = `/v1/groups${this.pushID ? `?pushID=${this.pushID}` : ''}`;
-  await this.sendRequest('GET');
-  this.expectedStatusCode = 200;
-  this.assertions.push((body) => {
-    expect(body).toEqual([{ Namespace: 'travel', Group: 'France', Subgroup: 'DAILY' }]);
-  });
 });

@@ -6,7 +6,7 @@ import type CustomWorld from '@test/e2e/support/world';
 import { expect } from 'vitest';
 
 // ──────────────────────────────────────────────────
-// Outcome - whether the request the scenario sent
+// Outcome — whether the request the scenario sent
 // succeeded or failed, whatever the resource
 // ──────────────────────────────────────────────────
 
@@ -26,6 +26,23 @@ defineParameterType({
     /a connection error|a transport error|an authentication error|an unauthorised error|a validation error|a server error|a not found error/,
   transformer: (e) => e as ExpectedErrors,
 });
+
+// ──────────────────────────────────────────────────
+// Happy path
+// ──────────────────────────────────────────────────
+
+Then('it should succeed', function (this: CustomWorld) {
+  if (!this.result) throw new Error('Result should be set in the When step');
+  if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
+  expect(this.result.status).toBe(this.expectedStatusCode);
+  for (const assert of this.assertions) {
+    assert(this.result.body);
+  }
+});
+
+// ──────────────────────────────────────────────────
+// Sad path
+// ──────────────────────────────────────────────────
 
 Then('it should fail with {expectedError}', function (this: CustomWorld, expectedError: ExpectedErrors) {
   switch (expectedError) {
@@ -59,14 +76,5 @@ Then('it should fail with {expectedError}', function (this: CustomWorld, expecte
       expect((this.result as Error).message).toEqual(`API [${this.method}] ${this.path} Failed with ${statusCode}`);
       break;
     }
-  }
-});
-
-Then('it should succeed', function (this: CustomWorld) {
-  if (!this.result) throw new Error('Result should be set in the When step');
-  if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
-  expect(this.result.status).toBe(this.expectedStatusCode);
-  for (const assert of this.assertions) {
-    assert(this.result.body);
   }
 });

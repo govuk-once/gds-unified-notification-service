@@ -44,7 +44,7 @@ Given('the notification does not exist', function (this: CustomWorld) {
 });
 
 // ──────────────────────────────────────────────────
-// When
+// When: DELETE /notifications/:id
 // ──────────────────────────────────────────────────
 
 When('I attempt to delete the notification', async function (this: CustomWorld) {
@@ -53,26 +53,9 @@ When('I attempt to delete the notification', async function (this: CustomWorld) 
   await this.sendRequest('DELETE');
 });
 
-When('I attempt to get the status of a notification', async function (this: CustomWorld) {
-  this.expectedStatusCode = 200;
-  const expectedStatuses = ['VALIDATED_API_CALL', 'PROCESSING', 'PROCESSED', 'DISPATCHING', 'DISPATCHED'];
-  this.assertions.push((body) => {
-    for (const Status of expectedStatuses) {
-      expect(body).toContainEqual(expect.objectContaining({ Status, NotificationID: this.notificationID }));
-    }
-  });
-  this.path = `/status/${this.notificationID}`;
-  await this.sendRequest('GET');
-});
-
-When('I attempt to get the notification', async function (this: CustomWorld) {
-  this.expectedStatusCode = 200;
-  this.assertions.push((body) => {
-    expect(body).toMatchObject({ NotificationID: this.notificationID });
-  });
-  this.path = `/notifications/${this.notificationID}/?externalUserID=${this.pushID}`;
-  await this.sendRequest('GET');
-});
+// ──────────────────────────────────────────────────
+// When: GET /notifications
+// ──────────────────────────────────────────────────
 
 When('I attempt to get notifications', async function (this: CustomWorld) {
   this.expectedStatusCode = 200;
@@ -87,4 +70,48 @@ When('I attempt to get notifications', async function (this: CustomWorld) {
   });
   this.path = `/notifications?externalUserID=${this.pushID}`;
   await this.sendRequest('GET');
+});
+
+// ──────────────────────────────────────────────────
+// When: GET /notifications/:id
+// ──────────────────────────────────────────────────
+
+When('I attempt to get the notification', async function (this: CustomWorld) {
+  this.expectedStatusCode = 200;
+  this.assertions.push((body) => {
+    expect(body).toMatchObject({ NotificationID: this.notificationID });
+  });
+  this.path = `/notifications/${this.notificationID}/?externalUserID=${this.pushID}`;
+  await this.sendRequest('GET');
+});
+
+// ──────────────────────────────────────────────────
+// When: GET /status/:id
+// ──────────────────────────────────────────────────
+
+When('I attempt to get the status of a notification', async function (this: CustomWorld) {
+  this.expectedStatusCode = 200;
+  const expectedStatuses = ['VALIDATED_API_CALL', 'PROCESSING', 'PROCESSED', 'DISPATCHING', 'DISPATCHED'];
+  this.assertions.push((body) => {
+    for (const Status of expectedStatuses) {
+      expect(body).toContainEqual(expect.objectContaining({ Status, NotificationID: this.notificationID }));
+    }
+  });
+  this.path = `/status/${this.notificationID}`;
+  await this.sendRequest('GET');
+});
+
+// ──────────────────��───────────────────────────────
+// When: PATCH /notifications/:id/status
+// ──────────────────────────────────────────────────
+
+When('I attempt to patch the notification', async function (this: CustomWorld) {
+  this.expectedStatusCode = 202;
+  this.path = `/notifications/${this.notificationID}/status?pushID=${this.pushID}`;
+  await this.sendRequest('PATCH', { Status: 'READ' });
+});
+
+When('I attempt to patch the notification without a body', async function (this: CustomWorld) {
+  this.path = `/notifications/${this.notificationID}/status?pushID=${this.pushID}`;
+  await this.sendRequest('PATCH', {});
 });
