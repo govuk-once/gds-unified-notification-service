@@ -1,11 +1,11 @@
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { ISecurityGroup, ISubnet, IVpc } from 'aws-cdk-lib/aws-ec2';
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
-import { Code, CodeSigningConfig, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
+import { Alias, Code, CodeSigningConfig, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
@@ -52,6 +52,7 @@ export interface UNSLambdaConstructProps {
 
 export class UNSLambdaConstruct extends Construct {
   public readonly fn: NodejsFunction;
+  public readonly alias: Alias;
   public readonly integration: LambdaIntegration;
   public readonly role: Role;
   public readonly logGroup: LogGroup;
@@ -206,18 +207,24 @@ export class UNSLambdaConstruct extends Construct {
             deadLetterQueueEnabled: true,
           }
         : {}),
-      events: [
-        ...(props?.triggers?.queues ?? []).map(
-          (q) =>
-            new SqsEventSource(q, {
-              batchSize: 10,
-              reportBatchItemFailures: true,
-            })
-        ),
-      ],
     });
 
-    this.integration = new LambdaIntegration(this.fn);
+    // Alias name encodes the deployment version for observability.
+    // Using a per-version construct ID means CDK creates a new alias on each version change
+    // and destroys the previous one, keeping the alias list clean.
+    const aliasName = `release_${config.version.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 120)}`;
+    this.alias = new Alias(this, aliasName, {
+      aliasName,
+      version: this.fn.currentVersion,
+    });
+    this.alias.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+    // SQS event sources target the alias so invocations are qualified and detectable via CloudTrail data events.
+    for (const q of props.triggers?.queues ?? []) {
+      this.alias.addEventSource(new SqsEventSource(q, { batchSize: 10, reportBatchItemFailures: true }));
+    }
+
+    this.integration = new LambdaIntegration(this.alias);
 
     //// =====================================================
     // Scheduler
@@ -225,7 +232,7 @@ export class UNSLambdaConstruct extends Construct {
     for (const s of props?.triggers?.schedule ?? []) {
       new Rule(this, config.utils.namingHelper(`scheduler`, this.props.serviceName), {
         schedule: s,
-        targets: [new LambdaFunction(this.fn)],
+        targets: [new LambdaFunction(this.alias)],
       });
     }
 

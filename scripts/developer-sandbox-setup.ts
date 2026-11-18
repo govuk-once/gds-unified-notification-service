@@ -156,7 +156,7 @@ export const importSSMNamespace = async (env: string, label: string, namespaces:
 
 const script = async function () {
   try {
-    const cdk = `./infrastructure/cdk/.env`;
+    const cdk = `./packages/infrastructure/cdk/.env`;
 
     const { env, label } = getConfig();
 
