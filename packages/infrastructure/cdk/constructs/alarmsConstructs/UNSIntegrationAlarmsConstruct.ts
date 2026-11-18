@@ -57,6 +57,7 @@ export class UNSIntegrationAlarmsConstruct extends UNSAlarmsConstruct {
         total: providerMetric(MetricsLabels.PROVIDER_HTTP_CALLS),
         threshold: IntegrationAlarmThreshold.PROVIDER_HTTP_ERROR_RATE_PERCENTAGE,
         label: `${name} HTTP error rate (%)`,
+        period: AlarmPeriod.ONE_MINUTE,
       });
     }
 

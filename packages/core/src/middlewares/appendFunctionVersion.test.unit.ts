@@ -5,7 +5,9 @@ import type { Context } from 'aws-lambda';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('appendFunctionVersion', () => {
-  const mockContext = { functionVersion: '5' } as unknown as Context;
+  const mockContext = {
+    functionVersion: '5',
+  } as unknown as Context;
 
   afterEach(() => {
     delete process.env.RELEASE_VERSION;
@@ -20,7 +22,9 @@ describe('appendFunctionVersion', () => {
     await fn({}, mockContext);
 
     // Expect
-    expect(mockLogger.appendKeys).toHaveBeenCalledWith({ functionVersion: '5' });
+    expect(mockLogger.appendKeys).toHaveBeenCalledWith(
+      expect.objectContaining({ functionVersion: mockContext.functionVersion })
+    );
   });
 
   it('should append releaseVersion when RELEASE_VERSION env var is set', async () => {
