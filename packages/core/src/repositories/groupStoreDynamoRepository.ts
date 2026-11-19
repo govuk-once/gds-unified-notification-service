@@ -92,9 +92,6 @@ export class GroupStoreDynamoRepository extends DynamodbRepository<typeof IGroup
 
     const joinedGroups = recordsToCreate.map((record) => this.toGroup(record));
 
-    // TODO: createRecordBatch is not atomic, so a failure part way through leaves some groups joined. Retrying the
-    // request is safe (already joined groups are skipped above); consider a TransactWriteItems variant if
-    // all-or-nothing behaviour is needed.
     await this.createRecordBatch(recordsToCreate);
     this.observability.logger.info('Joining groups', { pushID, groupsToJoin: joinedGroups });
 

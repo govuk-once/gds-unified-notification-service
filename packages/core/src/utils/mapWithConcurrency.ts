@@ -33,7 +33,6 @@ export const mapWithConcurrency = async <T, R>(
     while (nextIndex < items.length && !(stopOnError && errors.length > 0)) {
       const index = nextIndex++;
       try {
-        // NOSONAR: tasks within a single worker run one after another by design, concurrency comes from the workers
         results[index] = await task(items[index], index);
       } catch (error) {
         errors.push(error);
