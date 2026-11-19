@@ -179,20 +179,18 @@ describe('GroupProcessingQueueService', async () => {
       });
     });
 
-    it('should attempt every send call and still throw when one of them fails', async () => {
+    it('should not start further send calls once one has failed, and still throw', async () => {
       // Arrange
-      awsClientMocks.sqsClientMock.send = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('SQS down'))
-        .mockResolvedValue({ Successful: [] });
-      const messages = Array.from({ length: 25 }, () => groupMessageMetadata);
+      awsClientMocks.sqsClientMock.send = vi.fn().mockRejectedValue(new Error('SQS down'));
+      // 100 messages need 10 send calls, but only the 5 allowed in flight are started
+      const messages = Array.from({ length: 100 }, () => groupMessageMetadata);
 
       // Act
       const outcome = await groupProcessingQueueService.publishMessageBatch(messages).catch((error: unknown) => error);
 
       // Assert
       expect(outcome).toEqual(new Error('SQS down'));
-      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(3);
+      expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(5);
     });
 
     it('should send calls concurrently, with a limit on how many are in flight', async () => {

@@ -21,6 +21,7 @@ import { IDynamoAttributes } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 import { zodErrorFormatter } from '@common/utils';
 import { chunkArray } from '@common/utils/chunkArray';
+import { mapWithConcurrency } from '@common/utils/mapWithConcurrency';
 import DateInSeconds from '@common/utils/dateInSeconds';
 import z, { ZodObject } from 'zod';
 
@@ -29,6 +30,8 @@ const MAX_BATCH_WRITE_ITEMS = 25;
 // Items DynamoDB reports as unprocessed (e.g. throttling) are resent with exponential backoff before giving up
 const MAX_BATCH_WRITE_ATTEMPTS = 3;
 const BATCH_WRITE_RETRY_BASE_DELAY_MS = 100;
+// Batch writes are independent, so a few are kept in flight at once. No new write is started after one fails
+const MAX_CONCURRENT_BATCH_WRITES = 5;
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   protected abstract recordSchema: RecordSchema;
@@ -102,9 +105,9 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   }
 
   /**
-   * Creates records in the table, splitting them into as many DynamoDB batch writes as needed. All records are
-   * validated before the first write, but the writes themselves are not atomic: if one fails, the records from
-   * earlier writes remain in the table.
+   * Creates records in the table, splitting them into as many DynamoDB batch writes as needed, a few of which run at
+   * once. All records are validated before the first write, but the writes themselves are not atomic: if one fails, no
+   * further writes are started but the records from writes already made or in flight remain in the table.
    */
   public async createRecordBatch(batchRecords: z.infer<RecordSchema>[]): Promise<void> {
     this.observability.logger.info('Creating records in table', {
@@ -133,9 +136,11 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       return [data];
     });
 
-    for (const recordsInWrite of chunkArray(parsedBatchRecords, MAX_BATCH_WRITE_ITEMS)) {
-      await this.batchWriteWithRetry(recordsInWrite);
-    }
+    await mapWithConcurrency(
+      chunkArray(parsedBatchRecords, MAX_BATCH_WRITE_ITEMS),
+      MAX_CONCURRENT_BATCH_WRITES,
+      (recordsInWrite) => this.batchWriteWithRetry(recordsInWrite)
+    );
 
     this.observability.logger.info('Successfully created records in table', { tableName: this.tableAttributes.name });
   }

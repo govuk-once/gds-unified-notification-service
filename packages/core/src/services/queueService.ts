@@ -7,6 +7,7 @@ import {
 import { SerializationError } from '@common/models/Errors/BadRequestError';
 import { InternalServerError } from '@common/models/Errors/InternalServerError';
 import { ObservabilityService } from '@common/services/observabilityService';
+import { mapWithConcurrency } from '@common/utils/mapWithConcurrency';
 
 const MAX_MESSAGES_PER_SEND_CALL = 10;
 // SQS caps a SendMessageBatch request at 262,144 bytes in total; leave headroom for entry metadata
@@ -109,26 +110,11 @@ export abstract class QueueService<InputType> {
       return;
     }
 
-    // Every send call is attempted, even when another one fails, so a failure never stops later messages being
-    // published. The first failure is rethrown once all calls have finished.
-    const sendCalls = this.groupMessagesIntoSendCalls(messages);
-    const failures: unknown[] = [];
-    let nextCallIndex = 0;
-    const runWorker = async () => {
-      while (nextCallIndex < sendCalls.length) {
-        const messageBodiesInCall = sendCalls[nextCallIndex++];
-        try {
-          await this.sendCallWithRetry(messageBodiesInCall, delaySeconds);
-        } catch (error) {
-          failures.push(error);
-        }
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_SEND_CALLS, sendCalls.length) }, runWorker));
-
-    if (failures.length > 0) {
-      throw failures[0];
-    }
+    // Callers retry the whole publish when this throws, so no new send call is started once one has failed (calls
+    // already in flight finish first) to avoid publishing messages that the retry would only send again.
+    await mapWithConcurrency(this.groupMessagesIntoSendCalls(messages), MAX_CONCURRENT_SEND_CALLS, (messageBodiesInCall) =>
+      this.sendCallWithRetry(messageBodiesInCall, delaySeconds)
+    );
   }
 
   /** Sends one SendMessageBatch call, resending the entries SQS rejects until they succeed or attempts run out. */

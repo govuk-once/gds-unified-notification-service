@@ -316,6 +316,19 @@ describe('NotificationsDynamoRepository', async () => {
       });
     });
 
+    it('should not start further batch writes once a write has failed', async () => {
+      // Arrange
+      const records: IMessageRecord[] = Array.from({ length: 300 }, () => messageRecord);
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockRejectedValue(new Error('Connection Failure'));
+
+      // Act
+      const result = instance.createRecordBatch(records);
+
+      // Assert: 12 batch writes are needed, but only the 5 allowed in flight were started
+      await expect(result).rejects.toThrow('Connection Failure');
+      expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledTimes(5);
+    });
+
     it('should log the table name and rethrow when the request fails', async () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
