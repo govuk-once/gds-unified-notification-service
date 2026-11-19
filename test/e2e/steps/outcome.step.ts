@@ -31,12 +31,12 @@ defineParameterType({
 // Happy path
 // ──────────────────────────────────────────────────
 
-Then('it should succeed', function (this: CustomWorld) {
+Then('it should succeed', async function (this: CustomWorld) {
   if (!this.result) throw new Error('Result should be set in the When step');
   if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
   expect(this.result.status).toBe(this.expectedStatusCode);
   for (const assert of this.assertions) {
-    assert(this.result.body);
+    await assert(this.result.body);
   }
 });
 
