@@ -172,7 +172,7 @@ describe('Validation QueueHandler', async () => {
 
     // Assert
     const validatedCalls = serviceMocks.analyticsServiceMock.publishEvent.mock.calls.filter(
-      ([, status]: [unknown, NotificationStateEnum]) => status === NotificationStateEnum.VALIDATED
+      ([, status]) => status === NotificationStateEnum.VALIDATED
     );
     expect(validatedCalls).toHaveLength(1);
   });

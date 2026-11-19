@@ -69,10 +69,9 @@ describe('GroupProcessingQueueService', async () => {
   });
 
   describe('publishMessageBatch', () => {
+    type SentCall = [{ input: { Entries: { Id: string; MessageBody: string }[] } }];
     const sentBatches = () =>
-      awsClientMocks.sqsClientMock.send.mock.calls.map(
-        ([command]: [{ input: { Entries: { Id: string; MessageBody: string }[] } }]) => command.input.Entries
-      );
+      (awsClientMocks.sqsClientMock.send.mock.calls as unknown as SentCall[]).map(([command]) => command.input.Entries);
 
     it('should send at most 10 entries per SendMessageBatch call', async () => {
       // Arrange
