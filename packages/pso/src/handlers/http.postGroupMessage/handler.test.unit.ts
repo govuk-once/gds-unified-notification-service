@@ -209,6 +209,18 @@ describe('PostGroupMessage Handler', async () => {
     ]);
   });
 
+  it.each([0, -1, 1.5])('should not publish any messages when the configured ChunkSize is invalid (%s)', async (chunkSize) => {
+    // Arrange
+    mockParameterStore[SSMParameters.Group.Dispatch.ChunkSize.Path] = chunkSize;
+
+    // Act
+    const result = await handler(event, context);
+
+    // Assert
+    expect(result.statusCode).toEqual(500);
+    expect(serviceMocks.groupProcessingQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
+  });
+
   it('should return a status 202 and response, as well as publishing no queue messages when there are no users in the group', async () => {
     // Arrange
     serviceMocks.groupStoreDynamoRepositoryMock.getUsersInGroup.mockResolvedValueOnce([]);

@@ -171,11 +171,62 @@ describe('analyticsService', async () => {
         'Failed to publish analytics events, continuing',
         expect.objectContaining({ status: NotificationStateEnum.VALIDATED, count: analyticsEvents.length })
       );
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+        MetricsLabels.ANALYTICS_PUBLISH_FAILED,
+        MetricUnit.Count,
+        analyticsEvents.length
+      );
       expect(observabilityMocks.metrics.addMetric).not.toHaveBeenCalledWith(
         MetricsLabels.ANALYTICS_EVENT_VALIDATED,
         MetricUnit.Count,
         expect.anything()
       );
+    });
+
+    it('should log every distinct failure when both the cache write and the queue publish fail', async () => {
+      // Arrange
+      serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockRejectedValue(new Error('SQS down'));
+      serviceMocks.cacheServiceMock.appendToList.mockRejectedValue(new Error('Redis down'));
+
+      // Act
+      await instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+        'Failed to publish analytics events, continuing',
+        expect.objectContaining({
+          failedOperations: analyticsEvents.length + 1,
+          errors: ['"Redis down"', '"SQS down"'],
+        })
+      );
+    });
+
+    it('should wait for every publish to finish even when one fails early', async () => {
+      // Arrange
+      let cacheWritesFinished = 0;
+      serviceMocks.analyticsQueueServiceMock.publishMessageBatch.mockRejectedValue(new Error('SQS down'));
+      serviceMocks.cacheServiceMock.appendToList.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        cacheWritesFinished++;
+      });
+
+      // Act
+      await instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED);
+
+      // Assert
+      expect(cacheWritesFinished).toBe(analyticsEvents.length);
+    });
+
+    it('should not throw when building an event fails', async () => {
+      // Arrange
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+
+      // Act & Assert
+      await expect(
+        instance.publishMultipleEvents(analyticsEvents, NotificationStateEnum.VALIDATED, [circular, circular])
+      ).resolves.toBeUndefined();
+      expect(serviceMocks.analyticsQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
     });
 
     it('should log and not throw when caching an event fails', async () => {
@@ -234,6 +285,11 @@ describe('analyticsService', async () => {
       expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
         'Failed to publish analytics events, continuing',
         expect.objectContaining({ status: NotificationStateEnum.VALIDATED, count: 1 })
+      );
+      expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
+        MetricsLabels.ANALYTICS_PUBLISH_FAILED,
+        MetricUnit.Count,
+        1
       );
     });
 

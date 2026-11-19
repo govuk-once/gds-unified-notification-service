@@ -195,6 +195,41 @@ describe('GroupProcessingWorker QueueHandler', async () => {
     expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mock.calls[0][0]).toHaveLength(60);
   });
 
+  it('still waits for analytics and rethrows the dispatch error when the dispatch publish fails', async () => {
+    // Arrange
+    let analyticsFinished = false;
+    serviceMocks.analyticsServiceMock.publishMultipleEvents.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      analyticsFinished = true;
+    });
+    const dispatchError = new Error('dispatch queue down');
+    serviceMocks.dispatchQueueServiceMock.publishMessageBatch.mockRejectedValue(dispatchError);
+
+    // Act
+    const result = handler(event, context);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(analyticsFinished).toBe(true);
+    expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+      'Error during record handling',
+      expect.objectContaining({ error: dispatchError.message })
+    );
+  });
+
+  it('does not dispatch or publish analytics when writing the records fails', async () => {
+    // Arrange
+    serviceMocks.notificationsDynamoRepositoryMock.createRecordBatch.mockRejectedValue(new Error('dynamo down'));
+
+    // Act
+    const result = handler(event, context);
+
+    // Assert
+    await expect(result).rejects.toThrow(FullBatchFailureError);
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessageBatch).not.toHaveBeenCalled();
+    expect(serviceMocks.analyticsServiceMock.publishMultipleEvents).not.toHaveBeenCalled();
+  });
+
   it('throws an error if the message has no pushIDs', async () => {
     // Arrange
     const event = mockQueueEvent({ ...message, PushIDs: [] });

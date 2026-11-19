@@ -309,10 +309,14 @@ describe('NotificationsDynamoRepository', async () => {
         // Assert
         expect(await outcome).toBeInstanceOf(InternalServerError);
         expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledTimes(3);
+        expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+          'Failed to write records to table, items still unprocessed after all attempts',
+          { tableName, unprocessedCount: 1, attempts: 3 }
+        );
       });
     });
 
-    it('should log an error if the request fails', async () => {
+    it('should log the table name and rethrow when the request fails', async () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
       const error = new Error('Connection Failure');
@@ -323,8 +327,9 @@ describe('NotificationsDynamoRepository', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failed to write records to table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
+        attempt: 1,
         error: error.message,
       });
     });

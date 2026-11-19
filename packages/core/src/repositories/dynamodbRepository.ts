@@ -10,7 +10,6 @@ import {
   ReturnConsumedCapacity,
   ScanCommandInput,
   UpdateItemCommandInput,
-  WriteRequest,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import {
@@ -113,6 +112,11 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       tableName: this.tableAttributes.name,
     });
 
+    if (batchRecords.length === 0) {
+      this.observability.logger.warn('Triggered createRecordBatch with an empty array');
+      return;
+    }
+
     const parsedBatchRecords = batchRecords.flatMap((record) => {
       const { data, error } = this.recordSchema.safeParse(record);
 
@@ -129,43 +133,41 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       return [data];
     });
 
-    try {
-      if (batchRecords.length === 0) {
-        this.observability.logger.warn('Triggered createRecordBatch with an empty array');
-        return;
-      }
-
-      const writeRequests = parsedBatchRecords.map((record) => ({
-        PutRequest: {
-          Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
-        },
-      }));
-      for (const requestsInWrite of chunkArray(writeRequests, MAX_BATCH_WRITE_ITEMS)) {
-        await this.batchWriteWithRetry(requestsInWrite);
-      }
-
-      this.observability.logger.info('Successfully created records in table', { tableName: this.tableAttributes.name });
-    } catch (error) {
-      this.observability.logger.error('Failure in creating records table', {
-        tableName: this.tableAttributes.name,
-        error: this.observability.formatError(error),
-      });
-      throw error;
+    for (const recordsInWrite of chunkArray(parsedBatchRecords, MAX_BATCH_WRITE_ITEMS)) {
+      await this.batchWriteWithRetry(recordsInWrite);
     }
+
+    this.observability.logger.info('Successfully created records in table', { tableName: this.tableAttributes.name });
   }
 
-  /** Sends one BatchWriteItem request (at most 25 items), resending any items DynamoDB leaves unprocessed. */
-  private async batchWriteWithRetry(writeRequests: WriteRequest[]): Promise<void> {
-    let requestItems: BatchWriteItemCommandInput['RequestItems'] = { [this.tableAttributes.name]: writeRequests };
+  /** Sends one BatchWriteItem request (at most 25 records), resending any items DynamoDB leaves unprocessed. */
+  private async batchWriteWithRetry(records: z.infer<RecordSchema>[]): Promise<void> {
+    let requestItems: BatchWriteItemCommandInput['RequestItems'];
 
     for (let attempt = 1; ; attempt++) {
-      const response: BatchWriteItemCommandOutput = await this.observeCapacity(
-        this.createRecordBatch.name,
-        this.client.batchWriteItem({
-          RequestItems: requestItems,
-          ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
-        })
-      );
+      let response: BatchWriteItemCommandOutput;
+      try {
+        // Marshalled on the first attempt only, later attempts resend the items DynamoDB left unprocessed
+        requestItems ??= {
+          [this.tableAttributes.name]: records.map((record) => ({
+            PutRequest: { Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }) },
+          })),
+        };
+        response = await this.observeCapacity(
+          this.createRecordBatch.name,
+          this.client.batchWriteItem({
+            RequestItems: requestItems,
+            ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
+          })
+        );
+      } catch (error) {
+        this.observability.logger.error('Failed to write records to table', {
+          tableName: this.tableAttributes.name,
+          attempt,
+          error: this.observability.formatError(error),
+        });
+        throw error;
+      }
 
       // DynamoDB can accept the call but leave some items unwritten (e.g. throttling), only resend those
       const unprocessedItems = response.UnprocessedItems?.[this.tableAttributes.name] ?? [];
@@ -173,6 +175,14 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
         return;
       }
       if (attempt >= MAX_BATCH_WRITE_ATTEMPTS) {
+        this.observability.logger.error(
+          'Failed to write records to table, items still unprocessed after all attempts',
+          {
+            tableName: this.tableAttributes.name,
+            unprocessedCount: unprocessedItems.length,
+            attempts: attempt,
+          }
+        );
         throw new InternalServerError([
           `Failed to create ${unprocessedItems.length} record(s) in table ${this.tableAttributes.name} after ${attempt} attempt(s)`,
         ]);

@@ -76,44 +76,57 @@ export class AnalyticsService {
     // Map events & reasons together based on index (expecting two arrays of same length)
     this.observability.logger.info(`Events`, { count: messages.length, status });
 
-    const events = messages.map((event, index) =>
-      this.createEvent<T>(event, status, reasons ? reasons[index] : undefined)
-    );
-    await this.publishWithoutThrowing(status, events, async () => {
-      await Promise.all([
-        ...events.map((event) => this.cacheAnalyticsEvent(event)),
-        this.queue.publishMessageBatch(events),
-      ]);
+    await this.publishWithoutThrowing(status, messages.length, () => {
+      const events = messages.map((event, index) =>
+        this.createEvent<T>(event, status, reasons ? reasons[index] : undefined)
+      );
+      return [...events.map((event) => this.cacheAnalyticsEvent(event)), this.queue.publishMessageBatch(events)];
     });
   }
 
   public async publishEvent<T>(message: AnalyticsEventFromIMessage, status: NotificationStateEnum, reason?: T) {
-    const event = this.createEvent(message, status, reason);
-    await this.publishWithoutThrowing(status, [event], async () => {
-      await Promise.all([this.cacheAnalyticsEvent(event), this.queue.publishMessage(event)]);
+    await this.publishWithoutThrowing(status, 1, () => {
+      const event = this.createEvent(message, status, reason);
+      return [this.cacheAnalyticsEvent(event), this.queue.publishMessage(event)];
     });
   }
 
   /**
    * Analytics must never fail the caller: a handler retrying (or failing a request) because an analytics event could not
-   * be recorded costs more than the lost event. Failures are logged here; the queue service also records its own
-   * publishing failure metrics.
+   * be recorded costs more than the lost event. Every publish is allowed to finish (so none is left running after the
+   * caller moves on) and each distinct failure is logged. Failures are also counted in the ANALYTICS_PUBLISH_FAILED
+   * metric so an outage can still be alarmed on.
    */
   private async publishWithoutThrowing(
     status: NotificationStateEnum,
-    events: AnalyticsEvent[],
-    publish: () => Promise<void>
+    count: number,
+    startPublishes: () => Promise<unknown>[]
   ) {
+    const errors: unknown[] = [];
     try {
-      await publish();
-      this.addAnalyticsEventMetricCount(status, events.length);
+      const results = await Promise.allSettled(startPublishes());
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          errors.push(result.reason);
+        }
+      }
     } catch (error) {
-      this.observability.logger.error('Failed to publish analytics events, continuing', {
-        status,
-        count: events.length,
-        error: this.observability.formatError(error),
-      });
+      // Starting the publishes failed (e.g. an event could not be built)
+      errors.push(error);
     }
+
+    if (errors.length === 0) {
+      this.addAnalyticsEventMetricCount(status, count);
+      return;
+    }
+
+    this.observability.metrics.addMetric(MetricsLabels.ANALYTICS_PUBLISH_FAILED, MetricUnit.Count, count);
+    this.observability.logger.error('Failed to publish analytics events, continuing', {
+      status,
+      count,
+      failedOperations: errors.length,
+      errors: [...new Set(errors.map((error) => JSON.stringify(this.observability.formatError(error))))],
+    });
   }
 
   private async cacheAnalyticsEvent(event: AnalyticsEvent) {
