@@ -104,6 +104,6 @@ When(
       : {};
 
     await this.sendRequest('POST', payload);
-    throw new Error(JSON.stringify(this.result, null, 2) + JSON.stringify(payload, null, 2));
+    // throw new Error(JSON.stringify(this.result, null, 2) + JSON.stringify(payload, null, 2));
   }
 );

@@ -124,7 +124,7 @@ export const mockIMessage_DisallowedDeeplinkProtocol = (_notificationID?: string
   { ...mockIMessage_NoOrgID(), DeeplinkURL: 'mailto://test@example.com' },
 ];
 
-export const mockIMessage_WithGroupNotificationID = (_notificatinoID?: string) => [
+export const mockIMessage_WithGroupNotificationID = (_notification?: string) => [
   {
     ...mockIMessage_NoOrgID(),
     GroupNotificationID: '4969d7db-23f4-46bc-be12-923056dfe887',
