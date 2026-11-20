@@ -124,6 +124,13 @@ export const mockIMessage_DisallowedDeeplinkProtocol = (_notificationID?: string
   { ...mockIMessage_NoOrgID(), DeeplinkURL: 'mailto://test@example.com' },
 ];
 
+export const mockIMessage_WithGroupNotificationID = (_notificatinoID?: string) => [
+  {
+    ...mockIMessage_NoOrgID(),
+    GroupNotificationID: '4969d7db-23f4-46bc-be12-923056dfe887',
+  },
+];
+
 export const mockIMessage_ValidMarkdown = (notificationID?: string) => [
   {
     ...mockIMessage_NoOrgID(notificationID),
@@ -156,7 +163,6 @@ export const mockIMessage_ChannelPushAndMessageCentre = (notificationID?: string
 export const mockIMessage_ChannelMessageCentreOnly = (notificationID?: string) => [
   { ...mockIMessage_NoOrgID(notificationID), Channel: 'MESSAGE_CENTRE_ONLY' },
 ];
-
 export const mockIMessageFields = (): IMessageFields => ({
   MessageTitle: 'You have a new Message',
   MessageBody: 'Open Notification Centre to read your notifications',

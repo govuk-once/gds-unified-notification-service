@@ -1,5 +1,5 @@
 /* eslint-disable vitest/no-standalone-expect */
-import { defineParameterType, When } from '@cucumber/cucumber';
+import { DataTable, defineParameterType, When } from '@cucumber/cucumber';
 import { deleteNotification } from '@test/e2e/helpers/notification';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
 import type CustomWorld from '@test/e2e/support/world';
@@ -25,6 +25,10 @@ const messageVariants: Record<string, (notificationID?: string) => unknown> = {
   'with duplicate NotificationIDs': mocks.mockIMessage_DuplicateNotificationIDs,
   'with a DeeplinkURL with a disallowed hostname': mocks.mockIMessage_DisallowedDeeplinkHostname,
   'with a DeeplinkURL with a disallowed protocol': mocks.mockIMessage_DisallowedDeeplinkProtocol,
+  // These are only for /v1/send-to-group
+  'with no Namespace': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
+  'with no Group': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
+  'with the same GroupNotificationID': (id?: string) => mocks.mockIMessage_WithGroupNotificationID(id),
   // Happy path — valid variations
   'with valid fields': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
   'with valid markdown': (id?: string) => mocks.mockIMessage_ValidMarkdown(id),
@@ -67,3 +71,39 @@ When('I attempt to send a notification {MessageVariant}', async function (this: 
     });
   }
 });
+
+// ──────────────────────────────────────────────────
+// When: POST /v1/send-to-group
+// ──────────────────────────────────────────────────
+
+When(
+  'I attempt to send {int} notification(s) {MessageVariant} to the following group:',
+  async function (this: CustomWorld, count: number, variant: string, table: DataTable) {
+    if (!Number.isInteger(count) || count < 1) {
+      throw new Error(`Notification count must be a positive integer; received ${count}`);
+    }
+
+    this.expectedStatusCode = 202;
+    this.path = '/v1/send-to-group';
+    this.notificationID = e2eUUID('group');
+
+    const { Namespace, Group, Subgroup } = table.hashes()[0];
+    const messages = messageVariants[variant](this.notificationID) as Record<string, unknown>[];
+    const message = messages ? messages[0] : {};
+    if (!message) throw new Error(`Message variant "${variant}" did not produce a message`);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { NotificationID, DepartmentID, UserID, ...messageBody } = message;
+    const payload = message
+      ? Array.from({ length: count }, () => ({
+          ...messageBody,
+          ...(variant !== 'with no Namespace' && { Namespace }),
+          ...(variant !== 'with no Group' && { Group }),
+          Subgroup,
+        }))
+      : {};
+
+    await this.sendRequest('POST', payload);
+    throw new Error(JSON.stringify(this.result, null, 2) + JSON.stringify(payload, null, 2));
+  }
+);
