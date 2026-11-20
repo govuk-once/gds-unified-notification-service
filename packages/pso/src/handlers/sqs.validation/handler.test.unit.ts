@@ -157,17 +157,24 @@ describe('Validation QueueHandler', async () => {
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: message.DepartmentID,
-        MessageBody: message.MessageBody,
-        MessageTitle: message.MessageTitle,
-        NotificationBody: message.NotificationBody,
         NotificationID: message.NotificationID,
-        NotificationTitle: message.NotificationTitle,
         UserID: message.UserID,
         CampaignID: message.CampaignID,
         OrganisationID: message.OrganisationID,
       },
       NotificationStateEnum.VALIDATED
     );
+  });
+
+  it('should publish the VALIDATED analytics event exactly once per record.', async () => {
+    // Act
+    await handler(event, context);
+
+    // Assert
+    const validatedCalls = serviceMocks.analyticsServiceMock.publishEvent.mock.calls.filter(
+      ([, status]) => status === NotificationStateEnum.VALIDATED
+    );
+    expect(validatedCalls).toHaveLength(1);
   });
 
   it('should send a message to processing queue', async () => {
@@ -207,11 +214,7 @@ describe('Validation QueueHandler', async () => {
     expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
       {
         DepartmentID: messageWithMarkdown.DepartmentID,
-        MessageBody: messageWithMarkdown.MessageBody,
-        MessageTitle: messageWithMarkdown.MessageTitle,
-        NotificationBody: messageWithMarkdown.NotificationBody,
         NotificationID: messageWithMarkdown.NotificationID,
-        NotificationTitle: messageWithMarkdown.NotificationTitle,
         UserID: messageWithMarkdown.UserID,
         CampaignID: messageWithMarkdown.CampaignID,
         OrganisationID: messageWithMarkdown.OrganisationID,

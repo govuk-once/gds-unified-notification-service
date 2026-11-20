@@ -70,8 +70,8 @@ every stage ─► analytics queue ─► sqs.analytics ─► Messages table ev
 | [`http.postMessage`](/packages/pso/src/handlers/http.postMessage/README.md) | Request + authorizer context | Messages table, `processing` queue | `VALIDATED_API_CALL` |
 | [`sqs.validation`](/packages/pso/src/handlers/sqs.validation/README.md) | `incoming` queue | Messages table, `processing` queue | `VALIDATING`, `VALIDATED`, `VALIDATION_FAILED` |
 | [`sqs.processing`](/packages/pso/src/handlers/sqs.processing/README.md) | `processing` queue | `dispatch` queue | `PROCESSING`, `PROCESSED`, `PROCESSING_FAILED` |
-| [`http.postGroupMessage`](/packages/pso/src/handlers/http.postGroupMessage/README.md) | GroupStore table | ElastiCache chunks, `groupprocessing` queue | |
-| [`sqs.groupProcessingWorker`](/packages/pso/src/handlers/sqs.groupProcessingWorker/README.md) | `groupprocessing` queue, ElastiCache | Messages table, `dispatch` queue | `PROCESSED` |
+| [`http.postGroupMessage`](/packages/pso/src/handlers/http.postGroupMessage/README.md) | GroupStore table | `groupprocessing` queue (chunks of push IDs) | |
+| [`sqs.groupProcessingWorker`](/packages/pso/src/handlers/sqs.groupProcessingWorker/README.md) | `groupprocessing` queue | Messages table, `dispatch` queue | `PROCESSED` |
 | [`sqs.dispatch`](/packages/pso/src/handlers/sqs.dispatch/README.md) | `dispatch` queue | Messages table, provider | `DISPATCHING`, `DISPATCHED`, `DISPATCHING_FAILED` |
 | [`sqs.analytics`](/packages/pso/src/handlers/sqs.analytics/README.md) | `analytics` queue | Messages table `Events`, Campaigns table, CloudWatch Logs | |
 
@@ -160,7 +160,7 @@ Use the Powertools logger on `this.observability.logger`. Don't use `console.*` 
 Conventions:
 
 - Pass context as the second argument (`logger.info('...', { NotificationID })`) instead of interpolating it into the message, so it can be queried in Logs Insights.
-- Include `NotificationID` (and `GroupNotificationID` / `CacheKey` for group work) on every log line about a specific notification.
+- Include `NotificationID` (and `GroupNotificationID` for group work) on every log line about a specific notification.
 - Never log message content, credentials or certificates. The logger's `jsonReplacerFn` in [`ioc.ts`](/packages/core/src/ioc.ts) masks `NotificationTitle`, `NotificationBody`, `MessageTitle`, `MessageBody`, `clientCertPem`, `CloudFront-Viewer-Cert-PEM`, `Authorization`, `x-api-key`, `apiKey`, `app_id` and `x-amz-security-token`. It matches on **exact key name**, so if you log an object containing a new sensitive field, add the key to that list in the same change.
 
 ---

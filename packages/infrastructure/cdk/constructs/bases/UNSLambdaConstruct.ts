@@ -23,6 +23,7 @@ export interface UNSLambdaConstructProps {
   readonly environment: Record<string, string>;
   readonly runtime?: Runtime;
   readonly memory?: number;
+  readonly timeoutSeconds?: number;
   readonly resources: {
     readonly kms: IKey;
     readonly vpc?: {
@@ -34,6 +35,7 @@ export interface UNSLambdaConstructProps {
   };
   readonly triggers?: {
     readonly queues?: Queue[];
+    readonly queueBatchSize?: number;
     readonly schedule?: Schedule[];
   };
   readonly iam?: {
@@ -169,7 +171,7 @@ export class UNSLambdaConstruct extends Construct {
       functionName,
       runtime: props.runtime ?? Runtime.NODEJS_22_X,
       memorySize: props.memory ?? 512,
-      timeout: Duration.seconds(30),
+      timeout: Duration.seconds(props.timeoutSeconds ?? 30),
       handler: 'index.handler',
       code: Code.fromAsset(props.bundlePath, {}),
       codeSigningConfig: props.signingConfig,
@@ -210,7 +212,7 @@ export class UNSLambdaConstruct extends Construct {
         ...(props?.triggers?.queues ?? []).map(
           (q) =>
             new SqsEventSource(q, {
-              batchSize: 10,
+              batchSize: props.triggers?.queueBatchSize ?? 10,
               reportBatchItemFailures: true,
             })
         ),

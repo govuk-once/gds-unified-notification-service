@@ -1,3 +1,4 @@
+import { InternalServerError } from '@common/models/Errors/InternalServerError';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { ParsingFailedError } from '@common/models';
 import { IDynamoAttributesSchema, IMessageRecord } from '@common/repositories/interfaces';
@@ -235,26 +236,100 @@ describe('NotificationsDynamoRepository', async () => {
       );
     });
 
-    it('should throw an error if record list is greater than 25', async () => {
+    it('should split records into batch writes of at most 25 items', async () => {
       // Arrange
-      const record: IMessageRecord[] = [];
-      for (let i = 0; i < 27; i++) {
-        record.push(messageRecord);
-      }
-      const error = new Error('To create batch records, array length must be no greater than 25');
+      const records: IMessageRecord[] = Array.from({ length: 60 }, () => messageRecord);
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockResolvedValue({});
 
       // Act
-      const result = instance.createRecordBatch(record);
+      await instance.createRecordBatch(records);
 
       // Assert
-      await expect(result).rejects.toThrow(error);
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
-        tableName: 'mockNotificationsDynamoRepositoryName',
-        error: error.message,
+      const writeSizes = vi
+        .mocked(awsClientMocks.dynamoDBClientMock.batchWriteItem)
+        .mock.calls.map(([input]) => input.RequestItems?.['mockNotificationsDynamoRepositoryName'].length);
+      expect(writeSizes).toEqual([25, 25, 10]);
+    });
+
+    it('should not write anything when any record in the list fails validation', async () => {
+      // Arrange
+      const records = [...Array.from({ length: 30 }, () => messageRecord), { ...messageRecord, NotificationID: 1 }];
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockResolvedValue({});
+
+      // Act
+      const result = instance.createRecordBatch(records as unknown as IMessageRecord[]);
+
+      // Assert
+      await expect(result).rejects.toThrow(ParsingFailedError);
+      expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).not.toHaveBeenCalled();
+    });
+
+    describe('when DynamoDB leaves items unprocessed', () => {
+      const tableName = 'mockNotificationsDynamoRepositoryName';
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('should resend only the unprocessed items and resolve once they are written', async () => {
+        // Arrange
+        const records: IMessageRecord[] = [messageRecord, messageRecord];
+        const unprocessed = [{ PutRequest: { Item: { NotificationID: { S: 'unprocessed' } } } }];
+        awsClientMocks.dynamoDBClientMock.batchWriteItem = vi
+          .fn()
+          .mockResolvedValueOnce({ UnprocessedItems: { [tableName]: unprocessed } })
+          .mockResolvedValueOnce({});
+
+        // Act
+        const result = instance.createRecordBatch(records);
+        await vi.runAllTimersAsync();
+        await result;
+
+        // Assert
+        expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledTimes(2);
+        expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenLastCalledWith(
+          expect.objectContaining({ RequestItems: { [tableName]: unprocessed } })
+        );
+      });
+
+      it('should throw when items are still unprocessed after all attempts', async () => {
+        // Arrange
+        const unprocessed = [{ PutRequest: { Item: { NotificationID: { S: 'unprocessed' } } } }];
+        awsClientMocks.dynamoDBClientMock.batchWriteItem = vi
+          .fn()
+          .mockResolvedValue({ UnprocessedItems: { [tableName]: unprocessed } });
+
+        // Act
+        const outcome = instance.createRecordBatch([messageRecord]).catch((error: unknown) => error);
+        await vi.runAllTimersAsync();
+
+        // Assert
+        expect(await outcome).toBeInstanceOf(InternalServerError);
+        expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledTimes(3);
+        expect(observabilityMocks.logger.error).toHaveBeenCalledWith(
+          'Failed to write records to table, items still unprocessed after all attempts',
+          { tableName, unprocessedCount: 1, attempts: 3 }
+        );
       });
     });
 
-    it('should log an error if the request fails', async () => {
+    it('should not start further batch writes once a write has failed', async () => {
+      // Arrange
+      const records: IMessageRecord[] = Array.from({ length: 300 }, () => messageRecord);
+      awsClientMocks.dynamoDBClientMock.batchWriteItem = vi.fn().mockRejectedValue(new Error('Connection Failure'));
+
+      // Act
+      const result = instance.createRecordBatch(records);
+
+      // Assert: 12 batch writes are needed, but only the 5 allowed in flight were started
+      await expect(result).rejects.toThrow('Connection Failure');
+      expect(awsClientMocks.dynamoDBClientMock.batchWriteItem).toHaveBeenCalledTimes(5);
+    });
+
+    it('should log the table name and rethrow when the request fails', async () => {
       // Arrange
       const record: IMessageRecord[] = [messageRecord];
       const error = new Error('Connection Failure');
@@ -265,8 +340,9 @@ describe('NotificationsDynamoRepository', async () => {
 
       // Assert
       await expect(result).rejects.toThrow(error);
-      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failure in creating records table', {
+      expect(observabilityMocks.logger.error).toHaveBeenCalledWith('Failed to write records to table', {
         tableName: 'mockNotificationsDynamoRepositoryName',
+        attempt: 1,
         error: error.message,
       });
     });

@@ -1,6 +1,8 @@
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   AttributeValue,
+  BatchWriteItemCommandInput,
+  BatchWriteItemCommandOutput,
   ConsumedCapacity,
   DeleteItemCommandInput,
   DynamoDB,
@@ -10,12 +12,26 @@ import {
   UpdateItemCommandInput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { ParsingFailedError, ServiceMisconfigurationError } from '@common/models/Errors/InternalServerError';
+import {
+  InternalServerError,
+  ParsingFailedError,
+  ServiceMisconfigurationError,
+} from '@common/models/Errors/InternalServerError';
 import { IDynamoAttributes } from '@common/repositories/interfaces/IDynamoKeys';
 import { ConfigurationService, MetricsLabels, ObservabilityService } from '@common/services';
 import { zodErrorFormatter } from '@common/utils';
+import { chunkArray } from '@common/utils/chunkArray';
+import { mapWithConcurrency } from '@common/utils/mapWithConcurrency';
 import DateInSeconds from '@common/utils/dateInSeconds';
 import z, { ZodObject } from 'zod';
+
+// DynamoDB BatchWriteItem accepts at most 25 items per request
+const MAX_BATCH_WRITE_ITEMS = 25;
+// Items DynamoDB reports as unprocessed (e.g. throttling) are resent with exponential backoff before giving up
+const MAX_BATCH_WRITE_ATTEMPTS = 3;
+const BATCH_WRITE_RETRY_BASE_DELAY_MS = 100;
+// Batch writes are independent, so a few are kept in flight at once. No new write is started after one fails
+const MAX_CONCURRENT_BATCH_WRITES = 5;
 
 export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
   protected abstract recordSchema: RecordSchema;
@@ -88,11 +104,21 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
     }
   }
 
+  /**
+   * Creates records in the table, splitting them into as many DynamoDB batch writes as needed, a few of which run at
+   * once. All records are validated before the first write, but the writes themselves are not atomic: if one fails, no
+   * further writes are started but the records from writes already made or in flight remain in the table.
+   */
   public async createRecordBatch(batchRecords: z.infer<RecordSchema>[]): Promise<void> {
     this.observability.logger.info('Creating records in table', {
       batchRecordLength: batchRecords.length,
       tableName: this.tableAttributes.name,
     });
+
+    if (batchRecords.length === 0) {
+      this.observability.logger.warn('Triggered createRecordBatch with an empty array');
+      return;
+    }
 
     const parsedBatchRecords = batchRecords.flatMap((record) => {
       const { data, error } = this.recordSchema.safeParse(record);
@@ -110,36 +136,70 @@ export abstract class DynamodbRepository<RecordSchema extends ZodObject> {
       return [data];
     });
 
-    try {
-      if (batchRecords.length === 0) {
-        this.observability.logger.warn('Triggered createRecordBatch with an empty array');
+    await mapWithConcurrency(
+      chunkArray(parsedBatchRecords, MAX_BATCH_WRITE_ITEMS),
+      MAX_CONCURRENT_BATCH_WRITES,
+      (recordsInWrite) => this.batchWriteWithRetry(recordsInWrite)
+    );
+
+    this.observability.logger.info('Successfully created records in table', { tableName: this.tableAttributes.name });
+  }
+
+  /** Sends one BatchWriteItem request (at most 25 records), resending any items DynamoDB leaves unprocessed. */
+  private async batchWriteWithRetry(records: z.infer<RecordSchema>[]): Promise<void> {
+    let requestItems: BatchWriteItemCommandInput['RequestItems'];
+
+    for (let attempt = 1; ; attempt++) {
+      let response: BatchWriteItemCommandOutput;
+      try {
+        // Marshalled on the first attempt only, later attempts resend the items DynamoDB left unprocessed
+        requestItems ??= {
+          [this.tableAttributes.name]: records.map((record) => ({
+            PutRequest: { Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }) },
+          })),
+        };
+        response = await this.observeCapacity(
+          this.createRecordBatch.name,
+          this.client.batchWriteItem({
+            RequestItems: requestItems,
+            ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
+          })
+        );
+      } catch (error) {
+        this.observability.logger.error('Failed to write records to table', {
+          tableName: this.tableAttributes.name,
+          attempt,
+          error: this.observability.formatError(error),
+        });
+        throw error;
+      }
+
+      // DynamoDB can accept the call but leave some items unwritten (e.g. throttling), only resend those
+      const unprocessedItems = response.UnprocessedItems?.[this.tableAttributes.name] ?? [];
+      if (unprocessedItems.length === 0) {
         return;
       }
-      if (batchRecords.length > 25) {
-        throw new Error('To create batch records, array length must be no greater than 25');
+      if (attempt >= MAX_BATCH_WRITE_ATTEMPTS) {
+        this.observability.logger.error(
+          'Failed to write records to table, items still unprocessed after all attempts',
+          {
+            tableName: this.tableAttributes.name,
+            unprocessedCount: unprocessedItems.length,
+            attempts: attempt,
+          }
+        );
+        throw new InternalServerError([
+          `Failed to create ${unprocessedItems.length} record(s) in table ${this.tableAttributes.name} after ${attempt} attempt(s)`,
+        ]);
       }
 
-      await this.observeCapacity(
-        this.createRecordBatch.name,
-        this.client.batchWriteItem({
-          RequestItems: {
-            [this.tableAttributes.name]: parsedBatchRecords.map((record) => ({
-              PutRequest: {
-                Item: marshall(this.beforeCreate(record), { removeUndefinedValues: true }),
-              },
-            })),
-          },
-          ReturnConsumedCapacity: ReturnConsumedCapacity.TOTAL,
-        })
-      );
-
-      this.observability.logger.info('Successfully created records in table', { tableName: this.tableAttributes.name });
-    } catch (error) {
-      this.observability.logger.error('Failure in creating records table', {
+      this.observability.logger.warn('Retrying records that were not processed by batch write', {
         tableName: this.tableAttributes.name,
-        error: this.observability.formatError(error),
+        unprocessedCount: unprocessedItems.length,
+        attempt,
       });
-      throw error;
+      requestItems = { [this.tableAttributes.name]: unprocessedItems };
+      await new Promise((resolve) => setTimeout(resolve, BATCH_WRITE_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
     }
   }
 
