@@ -112,8 +112,10 @@ export abstract class QueueService<InputType> {
 
     // Callers retry the whole publish when this throws, so no new send call is started once one has failed (calls
     // already in flight finish first) to avoid publishing messages that the retry would only send again.
-    await mapWithConcurrency(this.groupMessagesIntoSendCalls(messages), MAX_CONCURRENT_SEND_CALLS, (messageBodiesInCall) =>
-      this.sendCallWithRetry(messageBodiesInCall, delaySeconds)
+    await mapWithConcurrency(
+      this.groupMessagesIntoSendCalls(messages),
+      MAX_CONCURRENT_SEND_CALLS,
+      (messageBodiesInCall) => this.sendCallWithRetry(messageBodiesInCall, delaySeconds)
     );
   }
 

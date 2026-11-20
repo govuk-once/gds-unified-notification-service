@@ -8,6 +8,11 @@ import {
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models';
+import {
+  IGroupMessageMetadataSchema,
+  IIdentifiableGroupMessageSchema,
+  IProcessedMessage,
+} from '@common/models/interfaces';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import {
@@ -18,11 +23,6 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
-import {
-  IGroupMessageMetadataSchema,
-  IIdentifiableGroupMessageSchema,
-  IProcessedMessage,
-} from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
@@ -129,7 +129,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
     }));
     // TODO: reprocessing a chunk (SQS retry, e.g. after a timeout or a failed dispatch publish) is not a no-op:
     // - createRecordBatch uses unconditional puts, so it overwrites records that were already created and may have
-    //   progressed (e.g. DispatchedDateTime, Events), resetting their status until redispatched.
+    //   progressed (e.g. DispatchedDateTime, Events), resetting their status until dispatched again.
     // - every pushID in the chunk is published to the dispatch queue again, including ones already queued. Only the
     //   provider's idempotency key (NotificationID) prevents a duplicate push, and that only holds within its window.
     await this.notificationsRepository.createRecordBatch(messageRecords);
