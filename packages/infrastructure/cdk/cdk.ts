@@ -69,6 +69,8 @@ export const testingStack = config.deployE2ERunner
         kms: stack.common.kms,
 
         messagesTable: stack.common.dynamodb.messages.table,
+        campaignsTable: stack.common.dynamodb.campaigns.table,
+        groupStoreTable: stack.common.dynamodb.groupStore?.table,
       }
     )
   : undefined;
