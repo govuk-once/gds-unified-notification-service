@@ -72,8 +72,8 @@ Feature: Send Notification to Group
     When I attempt to send 1 notification <Variation> to the following group:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
+    And I attempt to get the campaign status for processed group notifications
     Then it should succeed
-    And all group notifications should be processed
 
     Examples: Base
       | Variation                                            |

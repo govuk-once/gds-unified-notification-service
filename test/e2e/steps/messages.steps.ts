@@ -94,7 +94,6 @@ When(
 
     if (rawResult === undefined) {
       await this.sendRequest('POST', {});
-      this.groupPushIDs = await getPushIDsForGroup(Namespace, Group, Subgroup);
       return;
     }
 
