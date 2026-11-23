@@ -1,8 +1,8 @@
+import { EnvVars } from '@infra/cdk/config';
+import { UNSVpcConstruct } from '@infra/cdk/constructs/bases/UNSVpcConstruct';
 import { CfnServerlessCache, CfnUser, CfnUserGroup } from 'aws-cdk-lib/aws-elasticache';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
-import { UNSVpcConstruct } from '@infra/cdk/constructs/bases/UNSVpcConstruct';
 
 export interface UNSElasticacheConstructProps {
   readonly name: string[];
@@ -30,6 +30,7 @@ export class UNSElasticacheConstruct extends Construct {
       },
       accessString: 'on ~* +@all',
     });
+    this.user.cfnOptions.deletionPolicy = config.deletionPolicy;
 
     // Valkey User Group assignment
     this.group = new CfnUserGroup(this, `group`, {
@@ -37,7 +38,8 @@ export class UNSElasticacheConstruct extends Construct {
       userGroupId: namingHelper(`elca`, `group`).replaceAll(`-`, ``),
       userIds: [this.user.userId],
     });
-    this.group.addDependency(this.user);
+    this.group.addResourceDependency(this.user);
+    this.group.cfnOptions.deletionPolicy = config.deletionPolicy;
 
     // Valkey Serverless Cluster setup
     this.cache = new CfnServerlessCache(this, `cache`, {
@@ -47,7 +49,10 @@ export class UNSElasticacheConstruct extends Construct {
       securityGroupIds: [props.vpc.securityGroups.privateEgress.securityGroupId],
       majorEngineVersion: '8',
       userGroupId: this.group.userGroupId,
-      kmsKeyId: props.kms.keyId,
+      // Ephemeral stacks use AWS-managed encryption: a fresh CMK requires the ElastiCache service to
+      // create a grant via kms:CreateGrant, which can fail silently and leave the cache in creating
+      // indefinitely. No production data lives in ephemeral, so AWS-managed encryption is acceptable.
+      kmsKeyId: config.isEphemeral ? undefined : props.kms.keyId,
       dailySnapshotTime: '04:00',
       snapshotRetentionLimit: 1,
       cacheUsageLimits: {
@@ -60,7 +65,8 @@ export class UNSElasticacheConstruct extends Construct {
         },
       },
     });
-    this.cache.addDependency(this.group);
+    this.cache.addResourceDependency(this.group);
+    this.cache.cfnOptions.deletionPolicy = config.deletionPolicy;
 
     this.arns = [this.cache.attrArn, this.user.attrArn, this.cache.attrArn];
   }

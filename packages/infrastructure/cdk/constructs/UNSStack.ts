@@ -7,7 +7,8 @@ import { UNSOrganisationsCommon } from '@infra/cdk/constructs/UNSOrganisations';
 import { UNSPSOResource } from '@infra/cdk/constructs/UNSPSOResources';
 import { UNSResourceContract } from '@infra/cdk/constructs/UNSResourceContract';
 import { applyCheckovSkipsS3Bucket, findResource } from '@infra/cdk/utils/applyCheckovSkip';
-import { CfnOutput, Stack, StackProps, Tags } from 'aws-cdk-lib';
+import { applyTag } from '@infra/cdk/utils/applyTag';
+import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 export class UNSStack extends Stack {
@@ -107,18 +108,11 @@ export class UNSStack extends Stack {
   }
 
   public applyTags(scope: Construct, config: EnvVars) {
-    // Certain resource types do not consistently respond when updated regularly with new tags
-    const problematicResourceTypes = [
-      `AWS::ElastiCache::User`,
-      `AWS::ElastiCache::UserGroup`,
-      `AWS::ElastiCache::ServerlessCache`,
-    ];
-
     // Apply all tags to all resources - except the problematic ones
     for (const [key, value] of Object.entries({
       ...config.defaultTags(),
     })) {
-      Tags.of(scope).add(key, value, { excludeResourceTypes: problematicResourceTypes });
+      applyTag(scope, key, value);
     }
 
     // Also add metadata as outputs to the cloudformation stack itself for improved traceability

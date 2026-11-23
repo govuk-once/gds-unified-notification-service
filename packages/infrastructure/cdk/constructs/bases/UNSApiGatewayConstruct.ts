@@ -122,7 +122,11 @@ export class UNSAPIGatewayGateway extends Construct {
     // Setup custom domain parameters via SSM configurations
     const rootDomain = config.ssm.hostedZoneName;
     const certificateArn = config.ssm.certificateArnRegional;
-    const subdomain = props.domain ? (config.isPersistentEnv ? props.domain : namingHelper(props.domain)) : null;
+    // Ephemeral stacks skip custom domains (and therefore CloudFront) entirely,
+    // avoiding the ~10 min DomainName + ~3 min CloudFront provisioning wait.
+    // The PSO mTLS authorizer switches to a header-based cert passthrough in ephemeral mode.
+    const subdomain =
+      props.domain && !config.isEphemeral ? (config.isPersistentEnv ? props.domain : namingHelper(props.domain)) : null;
     const fullDomain = subdomain ? `${subdomain}.${rootDomain}` : null;
 
     let hostedZone: route53.IHostedZone | null = null;
@@ -426,7 +430,7 @@ export class UNSAPIGatewayGateway extends Construct {
       restApiName: namingHelper(`apigw`, ...props.name),
       description: props.description,
       cloudWatchRole: true,
-      cloudWatchRoleRemovalPolicy: RemovalPolicy.RETAIN,
+      cloudWatchRoleRemovalPolicy: config.removalPolicy,
 
       deployOptions: {
         tracingEnabled: true,

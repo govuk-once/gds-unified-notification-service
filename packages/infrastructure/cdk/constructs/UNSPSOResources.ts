@@ -593,17 +593,21 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     // Define authorizer
+    // Ephemeral stacks skip CloudFront, so the cert arrives as x-test-cert-pem instead of the
+    // CloudFront-Viewer-Cert-* headers. Only x-api-key and the passthrough cert header are required.
     const authorizer = new RequestAuthorizer(this, config.utils.namingHelper(`mtlsRequestAuthorizer`), {
-      identitySources: [
-        // Identifying CloudFront source
-        IdentitySource.header(`x-origin-header`),
-        // Usage plan key
-        IdentitySource.header(`x-api-key`),
-        // mTLS headers are required
-        IdentitySource.header('CloudFront-Viewer-Cert-Subject'),
-        IdentitySource.header('CloudFront-Viewer-Cert-Pem'),
-        IdentitySource.header('CloudFront-Viewer-Cert-Validity'),
-      ],
+      identitySources: config.isEphemeral
+        ? [IdentitySource.header('x-api-key'), IdentitySource.header('CloudFront-Viewer-Cert-Pem')]
+        : [
+            // Identifying CloudFront source
+            IdentitySource.header(`x-origin-header`),
+            // Usage plan key
+            IdentitySource.header(`x-api-key`),
+            // mTLS headers are required
+            IdentitySource.header('CloudFront-Viewer-Cert-Subject'),
+            IdentitySource.header('CloudFront-Viewer-Cert-Pem'),
+            IdentitySource.header('CloudFront-Viewer-Cert-Validity'),
+          ],
       handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
       resultsCacheTtl: Duration.seconds(0),
     });

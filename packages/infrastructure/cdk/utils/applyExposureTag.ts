@@ -1,4 +1,4 @@
-import { Tags } from 'aws-cdk-lib';
+import { applyTag } from '@infra/cdk/utils/applyTag';
 import { Construct } from 'constructs';
 
 export const applyExposureTag = (
@@ -6,6 +6,6 @@ export const applyExposureTag = (
   exposure: 'Internet-Facing' | 'Perimeter' | 'Internal' | 'Isolated'
 ): void => {
   if (scope) {
-    Tags.of(scope).add('Exposure', exposure);
+    applyTag(scope, 'Exposure', exposure);
   }
 };

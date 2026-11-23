@@ -1,3 +1,5 @@
+import { EnvVars } from '@infra/cdk/config';
+import { applyCheckovSkipsRecursive } from '@infra/cdk/utils/applyCheckovSkip';
 import * as cdk from 'aws-cdk-lib';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -5,8 +7,7 @@ import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import * as customResources from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
-import { applyCheckovSkipsRecursive } from '@infra/cdk/utils/applyCheckovSkip';
+import { createHash } from 'node:crypto';
 
 export interface UNSCustomResourceConstructProps {
   name: string[];
@@ -35,37 +36,68 @@ export class UNSCustomResourceConstruct<
     this.config = config;
     const { constructNamingHelper, namingHelper } = config.utils;
 
-    // Create log group for custom lambda resource generator
-    const functionName = namingHelper('cdk-construct-lambda', ...props.name);
-    const loggroup = new LogGroup(this, `logs`, {
-      logGroupName: `/aws/lambda/${functionName}`,
-      retention: config.retention,
-      removalPolicy: config.removalPolicy,
-      encryptionKey: props.kms,
-    });
+    // Lambda names have a 64-char limit. Some callers embed a fully-qualified resource name
+    // (already env-prefixed) inside props.name, so namingHelper can double the prefix and
+    // exceed the limit. Truncate to 55 chars and append an 8-char hash to keep names unique.
+    const cap64 = (name: string) =>
+      name.length <= 64 ? name : `${name.slice(0, 55)}-${createHash('sha256').update(name).digest('hex').slice(0, 8)}`;
+
+    const functionName = cap64(namingHelper('cdk-construct-lambda', ...props.name));
+    const providerFunctionName = cap64(namingHelper('cdk-provider', ...props.name));
+
+    // Ephemeral stacks skip explicit log groups: the custom-resource Lambda executes during
+    // stack deletion, which auto-recreates the log group outside of CloudFormation. That orphaned
+    // group then blocks re-deployment of the same PR. Persistent stacks keep explicit log groups
+    // for KMS encryption, controlled retention, and removal policy.
+    const loggroup = !config.isEphemeral
+      ? new LogGroup(this, `logs`, {
+          logGroupName: `/aws/lambda/${functionName}`,
+          retention: config.retention,
+          removalPolicy: config.removalPolicy,
+          encryptionKey: props.kms,
+        })
+      : undefined;
+
+    const providerLogGroup = !config.isEphemeral
+      ? new LogGroup(this, `provider-logs`, {
+          logGroupName: `/aws/lambda/${providerFunctionName}`,
+          retention: config.retention,
+          removalPolicy: config.removalPolicy,
+          encryptionKey: props.kms,
+        })
+      : undefined;
 
     // Build the Custom Resource Lambda function to execute Key/CSR generation
     this.fn = new nodejs.NodejsFunction(this, 'cdk-constructor-lambda', {
+      functionName,
       runtime: lambda.Runtime.NODEJS_22_X,
       entry: `./customResourceFns/${props.tsFn}.ts`,
       handler: 'handler',
       timeout: cdk.Duration.seconds(30),
-      logGroup: loggroup,
+      ...(loggroup ? { logGroup: loggroup } : {}),
       bundling: {
         nodeModules: props.modules,
       },
       environmentEncryption: props.kms,
     });
-    loggroup.grantRead(this.fn);
-    loggroup.grantWrite(this.fn);
+    loggroup?.grantRead(this.fn);
+    loggroup?.grantWrite(this.fn);
 
     // Define the Custom Resource Provider lifecycle
     this.provider = new customResources.Provider(this, constructNamingHelper('provider'), {
       onEventHandler: this.fn,
-      logGroup: loggroup,
+      providerFunctionName,
+      ...(providerLogGroup ? { logGroup: providerLogGroup } : {}),
     });
-    loggroup.grantRead(this.provider.onEventHandler);
-    loggroup.grantWrite(this.provider.onEventHandler);
+    loggroup?.grantRead(this.provider.onEventHandler);
+    loggroup?.grantWrite(this.provider.onEventHandler);
+
+    // CDK's Provider sets implicit RETAIN on Lambda execution roles to ensure they survive
+    // custom-resource Delete callbacks during teardown. For ephemeral stacks this leaves
+    // orphaned roles after destruction, so we override with the environment removal policy.
+    // Safe: CloudFormation deletes roles after Lambdas, which are deleted after custom resources.
+    this.fn.role?.applyRemovalPolicy(config.removalPolicy);
+    this.provider.onEventHandler.role?.applyRemovalPolicy(config.removalPolicy);
 
     // Checkov skips for construct lambdas
     this.applyCheckovSkips(this.fn);

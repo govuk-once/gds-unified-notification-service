@@ -79,6 +79,9 @@ export class MtlsCertificateRevocationAuthorizer extends APIHandler {
     this.observability.metrics.addMetric(MetricsLabels.MTLS_AUTH_REQUESTS_COUNT, MetricUnit.Count, 1);
 
     const perm = _event?.headers?.['CloudFront-Viewer-Cert-PEM'];
+    // Scrub cert PEM from event headers immediately so it cannot surface in CloudWatch if the
+    // base handler or Middy middleware logs the full event on an unhandled error.
+    if (_event?.headers) delete (_event.headers as Record<string, string | undefined>)['CloudFront-Viewer-Cert-PEM'];
 
     if (perm == undefined) {
       this.observability.logger.error('Request without client cert perm has been presented', {

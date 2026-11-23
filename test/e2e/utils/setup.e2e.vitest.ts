@@ -18,6 +18,7 @@ let psoUrl = '';
 let flexUrl = '';
 let psoApiKey = '';
 let flexApiKey = '';
+let crt = '';
 
 const prepareBeforeAll = () => {
   try {
@@ -27,6 +28,7 @@ const prepareBeforeAll = () => {
     flexUrl = e2eCredentials.flexUrl;
     psoApiKey = e2eCredentials.psoApiKey;
     flexApiKey = e2eCredentials.flexApiKey;
+    crt = e2eCredentials.crt;
 
     if (!psoUrl || !flexUrl) {
       throw new Error(
@@ -60,6 +62,22 @@ export const isCI = inject('isCI');
 
 // Add clients to test implementation for e2d
 export const testFixtures = () => {
+  // In ephemeral stacks CloudFront is skipped: the cert PEM must be sent as CloudFront-Viewer-Cert-PEM
+  // directly. It is injected via a fetchImpl wrapper rather than defaultHeaders so it never lives in
+  // the serialisable FetchService config and cannot surface in Vitest failure output.
+  const psoNoMtlsUrl = config.isEphemeral ? `${config.utils.namingHelper('pso')}.${config.ssm.hostedZoneName}` : psoUrl;
+
+  const fetchWithCert = config.isEphemeral
+    ? (input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
+        undiciFetch(input, {
+          ...init,
+          headers: {
+            ...(init?.headers as Record<string, string>),
+            'CloudFront-Viewer-Cert-PEM': encodeURIComponent(crt),
+          },
+        })
+    : undiciFetch;
+
   return {
     psoAPI: new FetchService({
       baseUrl: `https://${psoUrl}`,
@@ -70,7 +88,7 @@ export const testFixtures = () => {
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
-      fetchImpl: undiciFetch,
+      fetchImpl: fetchWithCert,
     }),
     psoAPIWithoutAPIKey: new FetchService({
       baseUrl: `https://${psoUrl}`,
@@ -79,10 +97,10 @@ export const testFixtures = () => {
       fetchOptions: {
         dispatcher: httpsAgent as unknown as never,
       },
-      fetchImpl: undiciFetch,
+      fetchImpl: fetchWithCert,
     }),
     psoAPIWithoutMTLSCert: new FetchService({
-      baseUrl: `https://${psoUrl}`,
+      baseUrl: `https://${psoNoMtlsUrl}`,
       defaultHeaders: {
         'x-api-key': psoApiKey,
       },

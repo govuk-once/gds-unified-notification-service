@@ -13,16 +13,20 @@ export interface MtlsCertificates {
 }
 
 export const domainName = async (name: string, usePrivateDomain: boolean = false) => {
-  if (name === 'flex' && usePrivateDomain) {
+  const needsExecuteApiUrl = (name === 'flex' && usePrivateDomain) || (name === 'pso' && config.isEphemeral);
+
+  if (needsExecuteApiUrl) {
     const apiGwClient = new APIGatewayClient({ region: config.region });
-    const flexPrivateName = config.utils.namingHelper('apigw', 'flex-private');
+    const apiName =
+      name === 'pso' ? config.utils.namingHelper('apigw', 'pso') : config.utils.namingHelper('apigw', 'flex-private');
     const apis = await apiGwClient.send(new GetRestApisCommand({ limit: 500 }));
-    const api = apis.items?.find((a) => a.name === flexPrivateName);
+    const api = apis.items?.find((a) => a.name === apiName);
     if (!api?.id) {
-      throw new Error(`Could not find private flex API Gateway: ${flexPrivateName}`);
+      throw new Error(`Could not find ${name} API Gateway: ${apiName}`);
     }
     return `${api.id}.execute-api.${config.region}.amazonaws.com/api`;
   }
+
   const rootDomain = config.ssm.hostedZoneName;
   const subdomain = name
     ? config.isPersistentEnv || config.isEphemeral
