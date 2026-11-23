@@ -124,12 +124,13 @@ export const mockIMessage_DisallowedDeeplinkProtocol = (_notificationID?: string
   { ...mockIMessage_NoOrgID(), DeeplinkURL: 'mailto://test@example.com' },
 ];
 
-export const mockIMessage_WithGroupNotificationID = (_notification?: string) => [
-  {
-    ...mockIMessage_NoOrgID(),
-    GroupNotificationID: '4969d7db-23f4-46bc-be12-923056dfe887',
-  },
-];
+export const mockIMessage_DuplicateGroupNotificationIDs = () => {
+  const GroupNotificationID = '4969d7db-23f4-46bc-be12-923056dfe887';
+  return [
+    { ...mockIMessage_NoOrgID(), GroupNotificationID },
+    { ...mockIMessage_NoOrgID(), GroupNotificationID, NotificationTitle: 'Duplicate' },
+  ];
+};
 
 export const mockIMessage_ValidMarkdown = (notificationID?: string) => [
   {

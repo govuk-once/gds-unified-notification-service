@@ -7,7 +7,7 @@ Feature: Send Notification to Group
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
     But <Condition>
-    When I attempt to send 1 notification with valid fields to the following group:
+    When I attempt to send a notification with valid fields to the following group:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
     Then it should fail with <ExpectedError>
@@ -26,7 +26,7 @@ Feature: Send Notification to Group
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
-    When I attempt to send 1 notification <Condition> to the following group:
+    When I attempt to send a notification <Condition> to the following group:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
     Then it should fail with a validation error
@@ -59,7 +59,7 @@ Feature: Send Notification to Group
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
-    When I attempt to send 2 notifications with the same GroupNotificationID to the following group:
+    When I attempt to send a notification with the same GroupNotificationID to the following group:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
     Then it should fail with a validation error
@@ -69,7 +69,7 @@ Feature: Send Notification to Group
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
-    When I attempt to send 1 notification <Variation> to the following group:
+    When I attempt to send a notification <Variation> to the following group:
       | Namespace | Group   | Subgroup   |
       | UNS-E2E   | France  | DAILY      |
     And I attempt to get the campaign status for processed group notifications

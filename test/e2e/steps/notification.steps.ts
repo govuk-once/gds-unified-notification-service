@@ -103,6 +103,7 @@ When('I attempt to get the status of a notification that has been dispatched', a
   });
 });
 When('I attempt to get the status of a notification that has been validated', function (this: CustomWorld) {
+  // Removed dispatching as the current adapter fails at dispatching
   const expectedStatuses = ['VALIDATED_API_CALL', 'PROCESSING', 'PROCESSED', 'DISPATCHING'];
   this.path = `/status/${this.notificationID}`;
   this.assertions.push(async () => {

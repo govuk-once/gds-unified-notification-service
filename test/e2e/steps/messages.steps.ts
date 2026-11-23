@@ -30,7 +30,7 @@ const messageVariants: Record<string, (notificationID?: string) => unknown> = {
   // These are only for /v1/send-to-group
   'with no Namespace': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
   'with no Group': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
-  'with the same GroupNotificationID': (id?: string) => mocks.mockIMessage_WithGroupNotificationID(id),
+  'with the same GroupNotificationID': mocks.mockIMessage_DuplicateGroupNotificationIDs,
   // Happy path — valid variations
   'with valid fields': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
   'with valid markdown': (id?: string) => mocks.mockIMessage_ValidMarkdown(id),
@@ -79,12 +79,8 @@ When('I attempt to send a notification {MessageVariant}', async function (this: 
 // ──────────────────────────────────────────────────
 
 When(
-  'I attempt to send {int} notification(s) {MessageVariant} to the following group:',
-  async function (this: CustomWorld, count: number, variant: string, table: DataTable) {
-    if (!Number.isInteger(count) || count < 1) {
-      throw new Error(`Notification count must be a positive integer; received ${count}`);
-    }
-
+  'I attempt to send a notification {MessageVariant} to the following group:',
+  async function (this: CustomWorld, variant: string, table: DataTable) {
     this.expectedStatusCode = 202;
     this.path = '/v1/send-to-group';
     this.campaignID = generateTestCampaignID();
@@ -98,20 +94,23 @@ When(
     }
 
     const messages = (Array.isArray(rawResult) ? rawResult : [rawResult]) as Record<string, unknown>[];
-    const message = messages[0];
-    if (!message) throw new Error(`Message variant "${variant}" did not produce a message`);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { NotificationID, DepartmentID, UserID, ...messageBody } = message;
-    const payload = Array.from({ length: count }, () => ({
-      ...messageBody,
-      CampaignID: this.campaignID,
-      ...(variant !== 'with no Namespace' && { Namespace }),
-      ...(variant !== 'with no Group' && { Group }),
-      Subgroup,
-    }));
+    const payload = messages.map((msg) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { NotificationID, DepartmentID, UserID, ...messageBody } = msg;
+      return {
+        ...messageBody,
+        CampaignID: this.campaignID,
+        ...(variant !== 'with no Namespace' && { Namespace }),
+        ...(variant !== 'with no Group' && { Group }),
+        Subgroup,
+      };
+    });
 
     await this.sendRequest('POST', payload);
     this.groupPushIDs = await getPushIDsForGroup(Namespace, Group, Subgroup);
+
+    this.assertions.push((body) => {
+      expect(body).toHaveLength(payload.length);
+    });
   }
 );
