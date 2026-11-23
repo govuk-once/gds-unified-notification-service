@@ -1,4 +1,3 @@
-
 @Pso
 Feature: Send Notification to Group
 
@@ -6,11 +5,11 @@ Feature: Send Notification to Group
     Given a correctly configured PSO client
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
+      | UNS-E2E   | France  | DAILY      |
     But <Condition>
     When I attempt to send 1 notification with valid fields to the following group:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
+      | UNS-E2E   | France  | DAILY      |
     Then it should fail with <ExpectedError>
 
     Examples: Infrastructure test
@@ -26,10 +25,10 @@ Feature: Send Notification to Group
     Given a correctly configured PSO client
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
+      | UNS-E2E   | France  | DAILY      |
     When I attempt to send 1 notification <Condition> to the following group:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
+      | UNS-E2E   | France  | DAILY      |
     Then it should fail with a validation error
 
     Examples: Missing required fields
@@ -49,28 +48,43 @@ Feature: Send Notification to Group
       | with a float ExpiresInDays                           |
       | with an ExpiresInDays below the organisation minimum |
       | with an ExpiresInDays above the organisation maximum |
-      
+
     Examples: Missing Group fields
       | Condition                                            |
       | with no Namespace                                    |
       | with no Group                                        |
-    
-  Scenario: 
+
+  Scenario: Duplicate GroupNotificationIDs
     Given a correctly configured PSO client
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
-    When I attempt to send 2 notification with the same GroupNotificationID to the following group:
+      | UNS-E2E   | France  | DAILY      |
+    When I attempt to send 2 notifications with the same GroupNotificationID to the following group:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
+      | UNS-E2E   | France  | DAILY      |
     Then it should fail with a validation error
 
-  Scenario: 
+  Scenario Outline: Successfully sends a group notification & processes it
     Given a correctly configured PSO client
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
-    When I attempt to send 1 notification with valid fields to the following group:
+      | UNS-E2E   | France  | DAILY      |
+    When I attempt to send 1 notification <Variation> to the following group:
       | Namespace | Group   | Subgroup   |
-      | travel    | France  | DAILY      |
+      | UNS-E2E   | France  | DAILY      |
     Then it should succeed
+    And all group notifications should be processed
+
+    Examples: Base
+      | Variation                                            |
+      | with valid fields                                    |
+
+    Examples: ExpiresInDays
+      | Variation                                            |
+      | with ExpiresInDays at the organisation minimum       |
+      | with ExpiresInDays at the organisation maximum       |
+
+    Examples: Channel
+      | Variation                                            |
+      | with channel PUSH_NOTIFICATION_AND_MESSAGE_CENTRE    |
+      | with channel MESSAGE_CENTRE_ONLY                     |

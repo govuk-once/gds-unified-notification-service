@@ -26,6 +26,7 @@ export default class CustomWorld extends World {
   public api!: FetchSigV4Service | FetchService;
 
   public pushID!: string;
+  public groupPushIDs: string[] = [];
   public campaignID!: string;
   public notificationID!: string;
   public notificationIDs: string[] = [];

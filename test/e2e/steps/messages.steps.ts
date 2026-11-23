@@ -1,5 +1,7 @@
 /* eslint-disable vitest/no-standalone-expect */
 import { DataTable, defineParameterType, When } from '@cucumber/cucumber';
+import { generateTestCampaignID } from '@test/e2e/helpers/campaign';
+import { getPushIDsForGroup } from '@test/e2e/helpers/groups';
 import { deleteNotification } from '@test/e2e/helpers/notification';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
 import type CustomWorld from '@test/e2e/support/world';
@@ -85,25 +87,32 @@ When(
 
     this.expectedStatusCode = 202;
     this.path = '/v1/send-to-group';
-    this.notificationID = e2eUUID('group');
+    this.campaignID = generateTestCampaignID();
 
     const { Namespace, Group, Subgroup } = table.hashes()[0];
-    const messages = messageVariants[variant](this.notificationID) as Record<string, unknown>[];
-    const message = messages ? messages[0] : {};
+    const rawResult = messageVariants[variant]();
+
+    if (rawResult === undefined) {
+      await this.sendRequest('POST', {});
+      this.groupPushIDs = await getPushIDsForGroup(Namespace, Group, Subgroup);
+      return;
+    }
+
+    const messages = (Array.isArray(rawResult) ? rawResult : [rawResult]) as Record<string, unknown>[];
+    const message = messages[0];
     if (!message) throw new Error(`Message variant "${variant}" did not produce a message`);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { NotificationID, DepartmentID, UserID, ...messageBody } = message;
-    const payload = message
-      ? Array.from({ length: count }, () => ({
-          ...messageBody,
-          ...(variant !== 'with no Namespace' && { Namespace }),
-          ...(variant !== 'with no Group' && { Group }),
-          Subgroup,
-        }))
-      : {};
+    const payload = Array.from({ length: count }, () => ({
+      ...messageBody,
+      CampaignID: this.campaignID,
+      ...(variant !== 'with no Namespace' && { Namespace }),
+      ...(variant !== 'with no Group' && { Group }),
+      Subgroup,
+    }));
 
     await this.sendRequest('POST', payload);
-    // throw new Error(JSON.stringify(this.result, null, 2) + JSON.stringify(payload, null, 2));
+    this.groupPushIDs = await getPushIDsForGroup(Namespace, Group, Subgroup);
   }
 );

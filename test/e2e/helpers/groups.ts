@@ -1,3 +1,4 @@
+import { iocGetGroupStoreDynamoRepository } from '@common/ioc';
 import { GroupActionEnum, IModifyGroups } from '@common/models/interfaces';
 import CustomWorld from '@test/e2e/support/world';
 
@@ -36,4 +37,9 @@ export const addCleanUp = (world: CustomWorld, groups: GroupEntry[]) => {
       body: removeAction,
     });
   });
+};
+
+export const getPushIDsForGroup = async (namespace: string, group: string, subgroup?: string): Promise<string[]> => {
+  const groupRepository = await iocGetGroupStoreDynamoRepository();
+  return groupRepository.getUsersInGroup(namespace, group, subgroup);
 };
