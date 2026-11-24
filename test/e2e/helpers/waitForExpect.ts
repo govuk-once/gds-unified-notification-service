@@ -1,5 +1,7 @@
 import CustomWorld from '@test/e2e/support/world';
 
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const waitForExpect = async (
   world: CustomWorld,
   callback: () => Promise<void>,
@@ -17,7 +19,7 @@ export const waitForExpect = async (
         throw new Error(`Timeout after ${timeout}ms for path ${world.path}`);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, interval));
+      await sleep(interval);
     }
   }
 };
