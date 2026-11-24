@@ -1,4 +1,4 @@
-import { After, AfterAll, Before, BeforeAll, setDefaultTimeout, setWorldConstructor } from '@cucumber/cucumber';
+import { After, Before, BeforeAll, setDefaultTimeout, setWorldConstructor } from '@cucumber/cucumber';
 import { config } from '@infra/cdk/config';
 import { ApiKeys, Domains, fetchApiKeys, resolveDomains } from '@shared/credentials';
 import { prepareDispatchAgent } from '@test/e2e/helpers/client';
@@ -8,8 +8,11 @@ import CustomWorld from '@test/e2e/support/world';
 setWorldConstructor(CustomWorld);
 setDefaultTimeout(30 * 1000); // 30 second timeout
 
-// Cucumber creates a fresh World for each scenario
-// Run the async Before but cache the result so it only executes once:
+/*
+ * Cucumber creates a fresh World for each scenario.
+ * Cache the BeforeAll resources outside the World so each scenario can reuse them.
+ * NOTE: Cucumber runs BeforeAll once in each parallel worker.
+ */
 let dispatchAgent: Agent;
 let apiKeys: ApiKeys;
 let domains: Domains;

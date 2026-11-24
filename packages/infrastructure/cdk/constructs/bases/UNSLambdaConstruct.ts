@@ -196,6 +196,8 @@ export class UNSLambdaConstruct extends Construct {
         LOG_LEVEL: config.debugMode ? `DEBUG` : `INFO`,
         //
         RELEASE_VERSION: config.version,
+        // Enables FAIL_AT_* simulated errors in queue handlers - only where the e2e runner is deployed
+        ENABLE_SIMULATED_ERRORS: String(config.deployE2ERunner),
         ...props.environment,
       },
       ...(props.resources.dlq

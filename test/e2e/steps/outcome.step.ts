@@ -35,6 +35,7 @@ Then('it should succeed', async function (this: CustomWorld) {
   if (!this.result) throw new Error('Result should be set in the When step');
   if (!this.expectedStatusCode) throw new Error('Status code should be set in the When step');
   expect(this.result.status).toBe(this.expectedStatusCode);
+  // To validate the response body, push an assertion onto this.assertions in the relevant step.
   for (const assert of this.assertions) {
     await assert(this.result.body);
   }
@@ -70,8 +71,10 @@ Then('it should fail with {expectedError}', function (this: CustomWorld, expecte
         [ExpectedErrors.NotFoundError]: 404,
         [ExpectedErrors.ServerError]: 500,
       };
+
       const statusCode = statusCodeMap[expectedError];
       if (!statusCode) throw new Error(`Unhandled expected error: ${expectedError}`);
+
       expect(this.result).toBeInstanceOf(FetchErrorResponse);
       expect((this.result as Error).message).toEqual(`API [${this.method}] ${this.path} Failed with ${statusCode}`);
       break;

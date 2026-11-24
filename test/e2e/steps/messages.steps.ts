@@ -27,7 +27,7 @@ const messageVariants: Record<string, (notificationID?: string) => unknown> = {
   'with duplicate NotificationIDs': mocks.mockIMessage_DuplicateNotificationIDs,
   'with a DeeplinkURL with a disallowed hostname': mocks.mockIMessage_DisallowedDeeplinkHostname,
   'with a DeeplinkURL with a disallowed protocol': mocks.mockIMessage_DisallowedDeeplinkProtocol,
-  // These are only for /v1/send-to-group
+  // -> These are only for /v1/send-to-group
   'with no Namespace': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
   'with no Group': (id?: string) => [mocks.mockIMessage_NoOrgID(id)],
   'with the same GroupNotificationID': mocks.mockIMessage_DuplicateGroupNotificationIDs,
@@ -94,6 +94,8 @@ When(
     }
 
     const messages = (Array.isArray(rawResult) ? rawResult : [rawResult]) as Record<string, unknown>[];
+
+    // Convert each message into a group payload, omitting Namespace or Group for the matching validation variants
     const payload = messages.map((msg) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { NotificationID, DepartmentID, UserID, ...messageBody } = msg;

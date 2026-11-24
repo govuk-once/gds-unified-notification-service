@@ -24,6 +24,7 @@ Given('a notification exists', async function (this: CustomWorld) {
 Given('multiple notifications exist', async function (this: CustomWorld) {
   this.pushID = e2eUUID('multi');
 
+  // Give each notification a distinct dispatch time to test for ordering
   const ids = [e2eUUID('new'), e2eUUID('mid'), e2eUUID('old')];
   const timestamps = ['2026-01-01T12:00:00.000Z', '2026-01-01T11:00:00.000Z', '2026-01-01T10:00:00.000Z'];
   const repo = await iocGetNotificationDynamoRepository();

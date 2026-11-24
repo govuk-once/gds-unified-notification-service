@@ -47,7 +47,7 @@
     "@aws-sdk/client-sts": "^3.1162.0",
     "@cucumber/cucumber": "^13.3.0",
     "@eslint/js": "^10.0.1",
-    "@inquirer/prompts": "^8.7.5",
+    "@inquirer/prompts": "^8.8.0",
     "@semantic-release/exec": "^7.1.0",
     "@types/aws-lambda": "^8.10.164",
     "@types/http-errors": "^2.0.5",
@@ -62,7 +62,7 @@
     "aws-sdk-client-mock": "^4.1.0",
     "aws-sdk-client-mock-vitest": "^8.0.0",
     "cspell": "^10.4.0",
-    "dotenv": "^18.0.9",
+    "dotenv": "^18.0.10",
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
@@ -71,7 +71,7 @@
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "msw": "^3.0.3",
+    "msw": "^3.0.6",
     "npm-check-updates": "^23.1.1",
     "once-platform-constructs": "^1.2.0",
     "prettier": "3.9.10",
@@ -117,7 +117,7 @@
     "zod": "^4.6.7"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.67.4"
+    "@rollup/rollup-linux-x64-gnu": "^4.68.2"
   },
   "packageManager": "pnpm@12.18.0"
 }

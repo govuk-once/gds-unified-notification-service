@@ -22,7 +22,13 @@ export const getNotificationsByExternalPushID = async (pushID: string) => {
   return notificationsRepository.getProcessedMessages(pushID);
 };
 
-export const getNotification = async (world: CustomWorld) => {
-  const notificationsRepository = await iocGetNotificationDynamoRepository();
-  return notificationsRepository.getRecord(world.notificationID);
+export const deleteNotificationsByCampaign = async (pushIDs: string[], campaignID: string) => {
+  for (const pushID of pushIDs) {
+    const notifications = await getNotificationsByExternalPushID(pushID);
+    for (const notification of notifications) {
+      if (notification.CampaignID === campaignID) {
+        await deleteNotificationByID(notification.NotificationID);
+      }
+    }
+  }
 };

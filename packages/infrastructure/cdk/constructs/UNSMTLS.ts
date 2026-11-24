@@ -142,6 +142,7 @@ export class UNSMTLSCommon extends Construct {
             certificateId: certificateDetails.id,
             startDate: certificateDetails.startDate,
             expirationDate: certificateDetails.expirationDate,
+            revoked: certificateDetails.revoked,
             subject: {
               commonName: certificateDetails.commonName,
               organization: certificateDetails.organization,
