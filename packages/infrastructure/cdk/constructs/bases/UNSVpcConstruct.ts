@@ -109,10 +109,11 @@ export class UNSVpcConstruct<
     const privateEgress = new SecurityGroup(this, constructNamingHelper('sg', 'private'), {
       vpc: this.vpc,
       description: 'SecurityGroup with allow outbound',
-      allowAllOutbound: true,
+      allowAllOutbound: false,
     });
     privateEgress.addIngressRule(Peer.ipv4(this.vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
     privateEgress.addEgressRule(Peer.ipv4(this.vpc.vpcCidrBlock), Port.tcp(6379), 'Allow VPC Elasticache traffic');
+    privateEgress.addEgressRule(Peer.anyIpv4(), Port.tcp(443), 'Allow HTTPS egress');
 
     const privateIsolated = new SecurityGroup(this, constructNamingHelper('sg', 'isolated'), {
       vpc: this.vpc,
@@ -205,10 +206,28 @@ export class UNSVpcConstruct<
     });
 
     // Outbound Rules
-    networkAcl.addEntry(namingHelper('network-acl', 'allow-all-out'), {
-      ruleNumber: 100,
+    // HTTPS to anywhere: OneSignal, plus AWS gateway endpoints (DynamoDB/S3) which resolve to public prefix-list IPs
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-https-out'), {
+      ruleNumber: 101,
       cidr: AclCidr.anyIpv4(),
-      traffic: AclTraffic.allTraffic(),
+      traffic: AclTraffic.tcpPort(443),
+      direction: TrafficDirection.EGRESS,
+      ruleAction: Action.ALLOW,
+    });
+
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-elasticache-out'), {
+      ruleNumber: 111,
+      cidr: AclCidr.ipv4(this.vpc.vpcCidrBlock),
+      traffic: AclTraffic.tcpPort(6379),
+      direction: TrafficDirection.EGRESS,
+      ruleAction: Action.ALLOW,
+    });
+
+    // Replies (stateless ACL) from endpoints/ElastiCache to clients in other subnets
+    networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-vpc-out'), {
+      ruleNumber: 121,
+      cidr: AclCidr.ipv4(this.vpc.vpcCidrBlock),
+      traffic: AclTraffic.tcpPortRange(1024, 65535),
       direction: TrafficDirection.EGRESS,
       ruleAction: Action.ALLOW,
     });
