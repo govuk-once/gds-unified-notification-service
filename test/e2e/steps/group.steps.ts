@@ -11,6 +11,9 @@ const buildGroupEntry = (Namespace: string, Group: string, Subgroup?: string, Ac
   return { Namespace, Group, Subgroup, Action };
 };
 
+const uniqueNamespace = (namespace: string, pushID: string) =>
+  namespace ? `${namespace}-${pushID.slice(-8)}` : namespace;
+
 // ──────────────────────────────────────────────────
 // Given
 // ──────────────────────────────────────────────────
@@ -21,7 +24,7 @@ Given('I have joined the following groups:', async function (this: CustomWorld, 
 
   const groups: GroupEntry[] = table
     .hashes()
-    .map(({ Namespace, Group, Subgroup }) => buildGroupEntry(Namespace, Group, Subgroup));
+    .map(({ Namespace, Group, Subgroup }) => buildGroupEntry(uniqueNamespace(Namespace, this.pushID), Group, Subgroup));
 
   await joinGroups(this, groups);
   addCleanUp(this, groups);
@@ -36,7 +39,7 @@ When('I attempt to get subscribed groups', async function (this: CustomWorld) {
   await this.sendRequest('GET');
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
-    expect(body).toEqual([{ Namespace: 'travel', Group: 'France', Subgroup: 'DAILY' }]);
+    expect(body).toEqual([{ Namespace: uniqueNamespace('travel', this.pushID), Group: 'France', Subgroup: 'DAILY' }]);
   });
 });
 
@@ -53,7 +56,9 @@ When('I send a single request to modify the following groups:', async function (
 
   const requestBody = table
     .hashes()
-    .map(({ Action, Namespace, Group, Subgroup }) => buildGroupEntry(Namespace, Group, Subgroup, Action.toUpperCase()));
+    .map(({ Action, Namespace, Group, Subgroup }) =>
+      buildGroupEntry(uniqueNamespace(Namespace, this.pushID), Group, Subgroup, Action.toUpperCase())
+    );
 
   const expectedGroups = requestBody
     .filter((x) => x.Action === GroupActionEnum.JOIN)

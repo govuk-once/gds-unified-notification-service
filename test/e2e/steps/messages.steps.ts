@@ -85,7 +85,8 @@ When(
     this.path = '/v1/send-to-group';
     this.campaignID = generateTestCampaignID();
 
-    const { Namespace, Group, Subgroup } = table.hashes()[0];
+    const { Namespace: rawNamespace, Group, Subgroup } = table.hashes()[0];
+    const Namespace = this.pushID && rawNamespace ? `${rawNamespace}-${this.pushID.slice(-8)}` : rawNamespace;
     const rawResult = messageVariants[variant]();
 
     if (rawResult === undefined) {
