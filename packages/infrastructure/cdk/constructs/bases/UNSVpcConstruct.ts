@@ -208,7 +208,7 @@ export class UNSVpcConstruct<
     // Outbound Rules
     // HTTPS to anywhere: OneSignal, plus AWS gateway endpoints (DynamoDB/S3) which resolve to public prefix-list IPs
     networkAcl.addEntry(namingHelper('network-acl', 'allow-https-out'), {
-      ruleNumber: 100,
+      ruleNumber: 101,
       cidr: AclCidr.anyIpv4(),
       traffic: AclTraffic.tcpPort(443),
       direction: TrafficDirection.EGRESS,
@@ -216,7 +216,7 @@ export class UNSVpcConstruct<
     });
 
     networkAcl.addEntry(namingHelper('network-acl', 'allow-elasticache-out'), {
-      ruleNumber: 110,
+      ruleNumber: 111,
       cidr: AclCidr.ipv4(this.vpc.vpcCidrBlock),
       traffic: AclTraffic.tcpPort(6379),
       direction: TrafficDirection.EGRESS,
@@ -225,7 +225,7 @@ export class UNSVpcConstruct<
 
     // Replies (stateless ACL) from endpoints/ElastiCache to clients in other subnets
     networkAcl.addEntry(namingHelper('network-acl', 'allow-ephemeral-vpc-out'), {
-      ruleNumber: 120,
+      ruleNumber: 121,
       cidr: AclCidr.ipv4(this.vpc.vpcCidrBlock),
       traffic: AclTraffic.tcpPortRange(1024, 65535),
       direction: TrafficDirection.EGRESS,
