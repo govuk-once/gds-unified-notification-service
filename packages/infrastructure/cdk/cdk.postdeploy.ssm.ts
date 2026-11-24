@@ -29,9 +29,15 @@ await (async () => {
   }
 
   // Find flex private api gateway
-  const privateApiGw = ((await apiGwClient.send(new GetRestApisCommand({}))).items ?? []).find(
-    (x) => x.name == config.utils.namingHelper(`apigw`, `flex-private`)
-  );
+  const privateApiGw = (
+    (
+      await apiGwClient.send(
+        new GetRestApisCommand({
+          limit: 100,
+        })
+      )
+    ).items ?? []
+  ).find((x) => x.name == config.utils.namingHelper(`apigw`, `flex-private`));
   if (privateApiGw == undefined) {
     throw new Error(`Failed fetching private apigw used by flex`);
   }
