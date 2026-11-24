@@ -51,14 +51,21 @@ export interface UNSLambdaConstructProps {
 }
 
 export class UNSLambdaConstruct extends Construct {
+  static readonly TIMEOUT = Duration.seconds(30);
+
   public readonly fn: NodejsFunction;
   public readonly alias: Alias;
   public readonly integration: LambdaIntegration;
   public readonly role: Role;
   public readonly logGroup: LogGroup;
+  public readonly timeoutMs: number;
 
   public readonly config: EnvVars;
   public readonly props: UNSLambdaConstructProps;
+
+  lambdaRef(): { functionName: string; timeoutMs: number } {
+    return { functionName: this.fn.functionName, timeoutMs: this.timeoutMs };
+  }
 
   addPermissionsToRole(actions?: string[], resources?: string[]) {
     if (actions && actions.length > 0 && resources && resources.length > 0) {
@@ -77,6 +84,7 @@ export class UNSLambdaConstruct extends Construct {
     super(scope, constructNamingHelper(...props.name));
     this.config = config;
     this.props = props;
+    this.timeoutMs = UNSLambdaConstruct.TIMEOUT.toMilliseconds();
 
     const stack = Stack.of(this);
 
@@ -170,7 +178,7 @@ export class UNSLambdaConstruct extends Construct {
       functionName,
       runtime: props.runtime ?? Runtime.NODEJS_22_X,
       memorySize: props.memory ?? 512,
-      timeout: Duration.seconds(30),
+      timeout: UNSLambdaConstruct.TIMEOUT,
       handler: 'index.handler',
       code: Code.fromAsset(props.bundlePath, {}),
       codeSigningConfig: props.signingConfig,

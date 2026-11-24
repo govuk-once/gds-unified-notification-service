@@ -110,7 +110,7 @@ Metric namespace for custom metrics: `NOTIFICATIONS_UNS_<ENV>` (e.g. `NOTIFICATI
 | Alarm | Priority | Scope | Condition |
 | --- | --- | --- | --- |
 | `LambdaThrottlingDetected-<lambda>` | P2 | Every PSO and Flex Lambda | `Throttles` > 0, 2 of 2 one-minute periods |
-| `LambdaTimeoutProximityDetected-<lambda>` | P2 | Every PSO and Flex Lambda | Maximum `Duration` > 28,000 ms (93% of the 30 s hard timeout), 2 of 2 one-minute periods |
+| `LambdaTimeoutProximityDetected-<lambda>` | P2 | Every PSO and Flex Lambda | Maximum `Duration` > 90% of each Lambda's configured timeout (27,000 ms for the current 30 s default), 2 of 2 one-minute periods |
 | `LambdaConcurrencyAnomalyDetected-<lambda>` | P2 | Every PSO and Flex Lambda | `ConcurrentExecutions` maximum exceeds the 3σ anomaly upper band over 5 min |
 | `IAMAccessDeniedRepeated` | P1 | Account-wide | ≥ 5 AccessDenied CloudTrail events from assumed-role principals within a 5-minute window |
 | `LambdaUnqualifiedInvocationDetected` | P1 | Account-wide | Any CloudTrail `Invoke` event with no qualifier (i.e. `$LATEST` invoked directly) within a 5-minute window |

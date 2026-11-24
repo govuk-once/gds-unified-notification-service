@@ -7,7 +7,7 @@ import { AlarmPeriod, alarmPriority, UNSAlarmsConstruct, UNSAlarmsProps } from '
 
 export const SecurityAlarmThreshold = {
   LAMBDA_THROTTLE_COUNT: 0,
-  LAMBDA_TIMEOUT_PROXIMITY_MS: 28_000,
+  LAMBDA_TIMEOUT_PROXIMITY_PERCENT: 90,
   LAMBDA_CONCURRENCY_ANOMALY_STD_DEVS: 3,
   IAM_ACCESS_DENIED_COUNT: 5,
   LAMBDA_UNQUALIFIED_INVOCATION_COUNT: 1,
@@ -16,6 +16,7 @@ export const SecurityAlarmThreshold = {
 interface LambdaTarget {
   name: string;
   functionName: string;
+  timeoutMs: number;
 }
 
 interface UNSSecurityAlarmsProps extends UNSAlarmsProps {
@@ -37,7 +38,10 @@ export class UNSSecurityAlarmsConstruct extends UNSAlarmsConstruct {
 
     const { group, lambdas, cloudTrailLogGroupName } = props;
 
-    for (const { name, functionName } of lambdas) {
+    for (const { name, functionName, timeoutMs } of lambdas) {
+      const timeoutProximityMs = Math.round(
+        (timeoutMs * SecurityAlarmThreshold.LAMBDA_TIMEOUT_PROXIMITY_PERCENT) / 100
+      );
       // Lambda throttling — fires when any throttle is sustained across two consecutive minutes
       this.addAlarm({
         id: constructNamingHelper('lambdaThrottlingAlarm', group, name),
@@ -60,7 +64,7 @@ export class UNSSecurityAlarmsConstruct extends UNSAlarmsConstruct {
       this.addAlarm({
         id: constructNamingHelper('lambdaTimeoutProximityAlarm', group, name),
         name: namingHelper(alarmPriority.HIGH, group, 'LambdaTimeoutProximityDetected', name),
-        description: `Lambda ${name} maximum execution duration exceeded ${SecurityAlarmThreshold.LAMBDA_TIMEOUT_PROXIMITY_MS}ms, approaching the 30s hard timeout.`,
+        description: `Lambda ${name} maximum execution duration exceeded ${timeoutProximityMs}ms (${SecurityAlarmThreshold.LAMBDA_TIMEOUT_PROXIMITY_PERCENT}% of its ${timeoutMs}ms timeout).`,
         metric: new Metric({
           namespace: 'AWS/Lambda',
           metricName: 'Duration',
@@ -68,7 +72,7 @@ export class UNSSecurityAlarmsConstruct extends UNSAlarmsConstruct {
           statistic: Stats.MAXIMUM,
           period: AlarmPeriod.ONE_MINUTE,
         }),
-        threshold: SecurityAlarmThreshold.LAMBDA_TIMEOUT_PROXIMITY_MS,
+        threshold: timeoutProximityMs,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 2,
         datapointsToAlarm: 2,

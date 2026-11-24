@@ -68,9 +68,9 @@ export class UNSAlarmsStack extends Stack {
 
     this.performanceAlarmsConstructs = new UNSPerformanceAlarmsConstructs(pso, config, {
       lambdas: Object.entries(psoLambdas)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
         .filter(([name]) => !['postGroupMessage', 'groupProcessingWorker', 'analytics'].includes(name))
-        .map(([name, functionName]) => ({ name, functionName })),
+        .map(([name, { functionName }]) => ({ name, functionName })),
       alertTopic,
       group: psoServiceName,
     });
@@ -83,8 +83,8 @@ export class UNSAlarmsStack extends Stack {
         { name: 'UDP', provider: ProviderDimension.UDP, direction: 'upstream' },
       ],
       lambdas: Object.entries(psoLambdas)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
-        .map(([name, functionName]) => ({ name, functionName })),
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName }]) => ({ name, functionName })),
     });
 
     // PSO security alarms: Lambda throttling, timeout proximity, concurrency anomaly, and IAM AccessDenied.
@@ -93,8 +93,8 @@ export class UNSAlarmsStack extends Stack {
       alertTopic,
       group: psoServiceName,
       lambdas: Object.entries(psoLambdas)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
-        .map(([name, functionName]) => ({ name, functionName })),
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName, timeoutMs }]) => ({ name, functionName, timeoutMs })),
       cloudTrailLogGroupName: config.ssm.monitoring.cloudTrailLogGroupName,
     });
 
@@ -118,8 +118,8 @@ export class UNSAlarmsStack extends Stack {
       alertTopic,
       group: flexServiceName,
       lambdas: Object.entries(resources.flex.lambdaFunctionNames)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
-        .map(([name, functionName]) => ({ name, functionName })),
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName }]) => ({ name, functionName })),
     });
 
     // Flex security alarms: Lambda throttling, timeout proximity, and concurrency anomaly.
@@ -128,8 +128,8 @@ export class UNSAlarmsStack extends Stack {
       alertTopic,
       group: flexServiceName,
       lambdas: Object.entries(resources.flex.lambdaFunctionNames)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
-        .map(([name, functionName]) => ({ name, functionName })),
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName, timeoutMs }]) => ({ name, functionName, timeoutMs })),
     });
   }
 }

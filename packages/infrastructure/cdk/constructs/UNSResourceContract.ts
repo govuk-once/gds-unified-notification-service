@@ -16,11 +16,11 @@ export interface UNSResourceContract {
       groupProcessingDlq?: string;
       dispatchDlq?: string;
     };
-    lambdaFunctionNames: Record<string, string | undefined>;
+    lambdaFunctionNames: Record<string, { functionName: string; timeoutMs: number } | undefined>;
   };
   flex: {
     restApiName: string;
     wafName: string;
-    lambdaFunctionNames: Record<string, string | undefined>;
+    lambdaFunctionNames: Record<string, { functionName: string; timeoutMs: number } | undefined>;
   };
 }
