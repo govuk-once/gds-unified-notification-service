@@ -1,3 +1,5 @@
+import { EnvVars } from '@infra/cdk/config';
+import { applyCheckovSkipsRecursive } from '@infra/cdk/utils/applyCheckovSkip';
 import * as cdk from 'aws-cdk-lib';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -5,8 +7,6 @@ import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import * as customResources from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
-import { EnvVars } from '@infra/cdk/config';
-import { applyCheckovSkipsRecursive } from '@infra/cdk/utils/applyCheckovSkip';
 
 export interface UNSCustomResourceConstructProps {
   name: string[];
@@ -66,6 +66,9 @@ export class UNSCustomResourceConstruct<
     });
     loggroup.grantRead(this.provider.onEventHandler);
     loggroup.grantWrite(this.provider.onEventHandler);
+
+    this.fn.role?.applyRemovalPolicy(config.removalPolicy);
+    this.provider.onEventHandler.role?.applyRemovalPolicy(config.removalPolicy);
 
     // Checkov skips for construct lambdas
     this.applyCheckovSkips(this.fn);
