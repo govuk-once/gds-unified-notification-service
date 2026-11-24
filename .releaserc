@@ -1,61 +1,36 @@
 {
-  "branches": [
-    "main"
-  ],
-  "plugins": [
+  'branches': ['main'],
+  'plugins':
     [
-      "@semantic-release/commit-analyzer",
-      {
-        "preset": "angular",
-        "releaseRules": [
-          {
-            "type": "BREAKING",
-            "release": "major"
-          },
-          {
-            "type": "BREAKING CHANGE",
-            "release": "major"
-          },
-          {
-            "type": "feat",
-            "release": "minor"
-          },
-          {
-            "type": "*",
-            "release": "patch"
-          },
-          {
-            "message": "*",
-            "release": "patch"
-          }
-        ]
-      }
+      [
+        '@semantic-release/commit-analyzer',
+        {
+          'preset': 'angular',
+          'releaseRules':
+            [
+              { 'type': 'BREAKING', 'release': 'major' },
+              { 'type': 'BREAKING CHANGE', 'release': 'major' },
+              { 'type': 'feat', 'release': 'minor' },
+              { 'type': '*', 'release': 'patch' },
+              { 'message': '*', 'release': 'patch' },
+            ],
+        },
+      ],
+      ['@semantic-release/npm', { 'npmPublish': false }],
+      [
+        '@semantic-release/exec',
+        {
+          'verifyReleaseCmd': 'echo "semVer=${nextRelease.version}" >> $GITHUB_OUTPUT',
+          'prepareCmd': 'pnpm run changelog',
+        },
+      ],
+      [
+        '@semantic-release/github',
+        {
+          'successComment': false,
+          'failComment': false,
+          'assets': [{ 'path': 'CHANGELOG.md', 'label': 'Full Changelog' }],
+        },
+      ],
     ],
-    [
-      "@semantic-release/npm",
-      {
-        "npmPublish": false
-      }
-    ],
-    [
-      "@semantic-release/exec",
-      {
-        "verifyReleaseCmd": "echo \"semVer=${nextRelease.version}\" >> $GITHUB_OUTPUT",
-        "prepareCmd": "pnpm run changelog"
-      }
-    ],
-    [
-      "@semantic-release/github",
-      {
-        "successComment": false,
-        "failComment": false,
-        "assets": [
-          {
-            "path": "CHANGELOG.md",
-            "label": "Full Changelog"
-          }
-        ]
-      }
-    ]
-  ]
 }
