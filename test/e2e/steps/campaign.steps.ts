@@ -52,12 +52,13 @@ When('I attempt to get the campaign status for processed group notifications', f
   if (groupResult.UsersInGroup === 0) throw new Error('Cannot verify campaign status for an empty group');
 
   this.path = `/status/campaign/${this.campaignID}`;
+  const expectedCount = groupResult.UsersInGroup;
   this.assertions.push(async () => {
     await waitForExpect(
       this,
       async () => {
         const campaignStatus = await checkCampaignStatus(this.psoAPI, this.campaignID);
-        expect(campaignStatus.PROCESSED).toBeGreaterThanOrEqual(1);
+        expect(campaignStatus.PROCESSED).toBe(expectedCount);
       },
       25000,
       2000
