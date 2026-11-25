@@ -43,7 +43,7 @@ After(async function (this: CustomWorld) {
   if (failures.length > 0) {
     const details = failures
       .map(({ index, reason }) => {
-        const message = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason);
+        const message = reason instanceof Error ? `${reason.name}: ${reason.message}\n${reason.stack}` : String(reason);
         return `Cleanup ${index + 1}: ${message}`;
       })
       .join('\n');

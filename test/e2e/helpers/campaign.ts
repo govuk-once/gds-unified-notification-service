@@ -26,9 +26,16 @@ export const waitForCampaignInDynamo = async (compositeID: string, expectedCount
     async () => {
       const record = await campaignRepository.getRecord(compositeID);
       if (!record) throw new Error(`Campaign ${compositeID} not found in DynamoDB`);
-      if (!record.PROCESSED || record.PROCESSED < expectedCount) throw new Error('PROCESSED not ready');
-      if (!record.DISPATCHING || record.DISPATCHING < expectedCount) throw new Error('DISPATCHING not ready');
-      if (!record.DISPATCHED || record.DISPATCHED < expectedCount) throw new Error('DISPATCHED not ready');
+      const { PROCESSED, DISPATCHING, DISPATCHED } = record;
+      if (!PROCESSED || PROCESSED < expectedCount) {
+        throw new Error(`PROCESSED not ready (${PROCESSED ?? 0}/${expectedCount})`);
+      }
+      if (!DISPATCHING || DISPATCHING < expectedCount) {
+        throw new Error(`DISPATCHING not ready (${DISPATCHING ?? 0}/${expectedCount})`);
+      }
+      if (!DISPATCHED || DISPATCHED < expectedCount) {
+        throw new Error(`DISPATCHED not ready (${DISPATCHED ?? 0}/${expectedCount})`);
+      }
     },
     25000,
     2000,
