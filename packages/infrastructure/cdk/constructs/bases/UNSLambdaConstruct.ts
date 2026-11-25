@@ -220,7 +220,13 @@ export class UNSLambdaConstruct extends Construct {
     // Alias name encodes the deployment version for observability.
     // Using a per-version construct ID means CDK creates a new alias on each version change
     // and destroys the previous one, keeping the alias list clean.
-    const aliasName = `release_${config.version.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 120)}`;
+    //
+    // Lambda::Permission FunctionName = alias ARN, max 140 chars:
+    //   arn:aws:lambda:{region}:{12-digit-account}:function:{functionName}:{aliasName}
+    // With eu-west-2 and a 12-digit account that overhead is 47 chars constant.
+    const ARN_OVERHEAD = 47;
+    const maxAliasLength = 140 - ARN_OVERHEAD - functionName.length - 1; // -1 for the colon before aliasName
+    const aliasName = `release_${config.version.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, maxAliasLength - 8)}`; // 8 = 'release_'.length
     this.alias = new Alias(this, aliasName, {
       aliasName,
       version: this.fn.currentVersion,

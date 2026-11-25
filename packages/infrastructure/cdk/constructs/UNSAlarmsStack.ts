@@ -10,6 +10,9 @@ import { UNSPerformanceAlarmsConstructs } from '@infra/cdk/constructs/alarmsCons
 import { UNSWAFAlarmsConstruct } from '@infra/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
 import { UNSSecurityAlarmsConstruct } from '@infra/cdk/constructs/alarmsConstructs/UNSSecurityAlarmsConstruct';
 import { UNSResourceContract } from '@infra/cdk/constructs/UNSResourceContract';
+import { UNSPSOFlow } from '@infra/cdk/constructs/dashboards/UNSPSOFlow';
+import { UNSPSOGroupFlow } from '@infra/cdk/constructs/dashboards/UNSPSOGroupsFlow';
+import { UNSPSOUtilization } from '@infra/cdk/constructs/dashboards/UNSPSOUtilization';
 import { ProviderDimension } from '@common/services';
 
 export class UNSAlarmsStack extends Stack {
@@ -131,5 +134,32 @@ export class UNSAlarmsStack extends Stack {
         .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
         .map(([name, { functionName, timeoutMs }]) => ({ name, functionName, timeoutMs })),
     });
+
+    //// =====================================================
+    // Dashboards
+    //// =====================================================
+
+    new UNSPSOFlow(this, 'pso-flow-dashboards', config, {
+      wafName: resources.pso.wafName,
+      incomingQueueName: resources.pso.queueNames.incoming,
+      dispatchQueueName: resources.pso.queueNames.dispatch,
+      restApiName: resources.pso.restApiName,
+      processingFunctionName: resources.pso.lambdaFunctionNames.processing!.functionName,
+      dispatchFunctionName: resources.pso.lambdaFunctionNames.dispatch!.functionName,
+      postMessageLogGroupName: resources.pso.logGroupNames.postMessage,
+      processingLogGroupName: resources.pso.logGroupNames.processing,
+      dispatchLogGroupName: resources.pso.logGroupNames.dispatch,
+    });
+
+    new UNSPSOUtilization(this, 'pso-utilization-dashboards', config, {
+      restApiName: resources.pso.restApiName,
+    });
+
+    if (resources.pso.logGroupNames.postGroupMessage !== undefined) {
+      new UNSPSOGroupFlow(this, 'pso-group-flow-dashboards', config, {
+        postGroupMessageLogGroupName: resources.pso.logGroupNames.postGroupMessage,
+        groupProcessingWorkerLogGroupName: resources.pso.logGroupNames.groupProcessingWorker,
+      });
+    }
   }
 }
