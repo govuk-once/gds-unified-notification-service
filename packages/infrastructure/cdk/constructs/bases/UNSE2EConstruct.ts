@@ -9,6 +9,7 @@ import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ISecurityGroup, IVpc, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey, Key } from 'aws-cdk-lib/aws-kms';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 export interface UNSCodeBuildConstructProps {
   name: string[];
@@ -49,11 +50,22 @@ export class UNSE2EConstruct extends Construct {
       description: `Runs the e2e suite from inside the VPC - ${config.env}`,
     });
 
+    const logGroup = new LogGroup(this, constructNamingHelper(...props.name, 'lg'), {
+      logGroupName: `/aws/codebuild/${namingHelper(...props.name, 'project')}/build-logs`,
+      removalPolicy: config.removalPolicy,
+    });
+
     // Creates a project
     this.project = new Project(this, constructNamingHelper(...props.name, 'project'), {
       projectName: namingHelper(...props.name, 'project'),
       description: 'Runs the e2e test suite from within VPC',
       role: this.role,
+      logging: {
+        cloudWatch: {
+          enabled: true,
+          logGroup,
+        },
+      },
       environment: {
         buildImage: LinuxBuildImage.STANDARD_7_0,
         computeType: ComputeType.MEDIUM,
