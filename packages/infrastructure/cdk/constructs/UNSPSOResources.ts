@@ -604,7 +604,7 @@ export class UNSPSOResource extends Construct {
         IdentitySource.header('CloudFront-Viewer-Cert-Pem'),
         IdentitySource.header('CloudFront-Viewer-Cert-Validity'),
       ],
-      handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
+      handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.alias,
       resultsCacheTtl: Duration.seconds(0),
     });
 

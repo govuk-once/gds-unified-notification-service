@@ -8,6 +8,7 @@ import { UNSIntegrationAlarmsConstruct } from '@infra/cdk/constructs/alarmsConst
 import { UNSOperationalAlarmsConstruct } from '@infra/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct';
 import { UNSPerformanceAlarmsConstructs } from '@infra/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs';
 import { UNSWAFAlarmsConstruct } from '@infra/cdk/constructs/alarmsConstructs/UNSWAFAlarmsConstructs';
+import { UNSSecurityAlarmsConstruct } from '@infra/cdk/constructs/alarmsConstructs/UNSSecurityAlarmsConstruct';
 import { UNSResourceContract } from '@infra/cdk/constructs/UNSResourceContract';
 import { ProviderDimension } from '@common/services';
 
@@ -24,6 +25,9 @@ export class UNSAlarmsStack extends Stack {
 
   public readonly wafAlarmsPSOConstruct: UNSWAFAlarmsConstruct;
   public readonly wafAlarmsFlexConstruct: UNSWAFAlarmsConstruct;
+
+  public readonly securityAlarmsPSOConstruct: UNSSecurityAlarmsConstruct;
+  public readonly securityAlarmsFLEXConstruct: UNSSecurityAlarmsConstruct;
 
   constructor(scope: Construct, id: string, props: StackProps, config: EnvVars, resources: UNSResourceContract) {
     super(scope, id, props);
@@ -64,9 +68,9 @@ export class UNSAlarmsStack extends Stack {
 
     this.performanceAlarmsConstructs = new UNSPerformanceAlarmsConstructs(pso, config, {
       lambdas: Object.entries(psoLambdas)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
         .filter(([name]) => !['postGroupMessage', 'groupProcessingWorker', 'analytics'].includes(name))
-        .map(([name, functionName]) => ({ name, functionName })),
+        .map(([name, { functionName }]) => ({ name, functionName })),
       alertTopic,
       group: psoServiceName,
     });
@@ -79,8 +83,19 @@ export class UNSAlarmsStack extends Stack {
         { name: 'UDP', provider: ProviderDimension.UDP, direction: 'upstream' },
       ],
       lambdas: Object.entries(psoLambdas)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
-        .map(([name, functionName]) => ({ name, functionName })),
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName }]) => ({ name, functionName })),
+    });
+
+    // PSO security alarms: Lambda throttling, timeout proximity, concurrency anomaly, and IAM AccessDenied.
+    // cloudTrailLogGroupName is passed here (PSO) only — the IAM alarm is account-scoped, not per-service.
+    this.securityAlarmsPSOConstruct = new UNSSecurityAlarmsConstruct(pso, config, {
+      alertTopic,
+      group: psoServiceName,
+      lambdas: Object.entries(psoLambdas)
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName, timeoutMs }]) => ({ name, functionName, timeoutMs })),
+      cloudTrailLogGroupName: config.ssm.monitoring.cloudTrailLogGroupName,
     });
 
     // Flex Alarms
@@ -103,8 +118,18 @@ export class UNSAlarmsStack extends Stack {
       alertTopic,
       group: flexServiceName,
       lambdas: Object.entries(resources.flex.lambdaFunctionNames)
-        .filter((entry): entry is [string, string] => entry[1] !== undefined)
-        .map(([name, functionName]) => ({ name, functionName })),
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName }]) => ({ name, functionName })),
+    });
+
+    // Flex security alarms: Lambda throttling, timeout proximity, and concurrency anomaly.
+    // cloudTrailLogGroupName is intentionally omitted — the IAM AccessDenied alarm is created by the PSO construct.
+    this.securityAlarmsFLEXConstruct = new UNSSecurityAlarmsConstruct(flex, config, {
+      alertTopic,
+      group: flexServiceName,
+      lambdas: Object.entries(resources.flex.lambdaFunctionNames)
+        .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
+        .map(([name, { functionName, timeoutMs }]) => ({ name, functionName, timeoutMs })),
     });
   }
 }

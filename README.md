@@ -39,7 +39,7 @@ pnpm install
 
 1. Initialize CDK - relies on gds-cli being already configured
 
-This guided wizard derives a personal sandbox environment name from your git email and writes it to `infrastructure/cdk/.env`, ready for CDK.
+This guided wizard derives a personal sandbox environment name from your git email and writes it to `packages/infrastructure/cdk/.env`, ready for CDK.
 
 ```sh
 eval $(gds-cli aws once-notifications-development-admin -e)
@@ -79,7 +79,7 @@ First one authenticates your shell session with the sandbox aws account, second 
 pnpm run development:sandbox:setup
 ```
 
-This runs a guided wizard that generates `./infrastructure/cdk/.env` from the email configured in git, giving every developer their own uniquely named sandbox so you don't conflict when sharing the development account. It can also copy selected SSM parameters (e.g. dispatch and processing config) from `dev` into your sandbox.
+This runs a guided wizard that generates `./packages/infrastructure/cdk/.env` from the email configured in git, giving every developer their own uniquely named sandbox so you don't conflict when sharing the development account. It can also copy selected SSM parameters (e.g. dispatch and processing config) from `dev` into your sandbox.
 
 To fetch mTLS client certificates for local end-to-end testing or manual calls, run:
 
