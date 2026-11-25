@@ -629,6 +629,7 @@ export class UNSPSOResource extends Construct {
           limit: 20000,
         },
       },
+      // TODO: Refactor to use: orgMetadata instead of consumers
       usagePlans: getConsumers(config.env, config)
         .map((consumer) => ({ [consumer.organization]: {} }))
         .reduce((a, b) => ({ ...a, ...b }), {}),
