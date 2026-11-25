@@ -2,10 +2,21 @@ import { Duration } from 'aws-cdk-lib';
 import { Dashboard, GraphWidget, LogQueryWidget, MathExpression, Metric } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from '@infra/cdk/config';
-import { UNSPSOResource } from '@infra/cdk/constructs/UNSPSOResources';
+
+export interface UNSPSOFlowProps {
+  wafName: string;
+  incomingQueueName: string;
+  dispatchQueueName: string;
+  restApiName: string;
+  processingFunctionName: string;
+  dispatchFunctionName: string;
+  postMessageLogGroupName: string;
+  processingLogGroupName: string;
+  dispatchLogGroupName: string;
+}
 
 export class UNSPSOFlow extends Construct {
-  constructor(scope: Construct, id: string, config: EnvVars, refs: { pso: UNSPSOResource }) {
+  constructor(scope: Construct, id: string, config: EnvVars, props: UNSPSOFlowProps) {
     super(scope, id);
 
     const period = Duration.seconds(1);
@@ -23,7 +34,7 @@ export class UNSPSOFlow extends Construct {
           namespace: 'AWS/WAFV2',
           metricName: 'BlockedRequests',
           dimensionsMap: {
-            WebACL: refs.pso.gateway.waf.name!,
+            WebACL: props.wafName,
             Region: config.region,
             Rule: 'ALL',
           },
@@ -35,7 +46,7 @@ export class UNSPSOFlow extends Construct {
           namespace: 'AWS/WAFV2',
           metricName: 'AllowedRequests',
           dimensionsMap: {
-            WebACL: refs.pso.gateway.waf.name!,
+            WebACL: props.wafName,
             Region: config.region,
             Rule: 'ALL',
           },
@@ -56,21 +67,21 @@ export class UNSPSOFlow extends Construct {
         new Metric({
           namespace: 'AWS/SQS',
           metricName: 'NumberOfMessagesSent',
-          dimensionsMap: { QueueName: refs.pso.queues.incoming.queue.queueName },
+          dimensionsMap: { QueueName: props.incomingQueueName },
           statistic,
           period,
         }),
         new Metric({
           namespace: 'AWS/SQS',
           metricName: 'NumberOfMessagesReceived',
-          dimensionsMap: { QueueName: refs.pso.queues.incoming.queue.queueName },
+          dimensionsMap: { QueueName: props.incomingQueueName },
           statistic,
           period,
         }),
         new Metric({
           namespace: 'AWS/SQS',
           metricName: 'ApproximateNumberOfMessagesVisible',
-          dimensionsMap: { QueueName: refs.pso.queues.incoming.queue.queueName },
+          dimensionsMap: { QueueName: props.incomingQueueName },
           label: 'Queue Depth',
           statistic,
           period,
@@ -88,21 +99,21 @@ export class UNSPSOFlow extends Construct {
         new Metric({
           namespace: 'AWS/SQS',
           metricName: 'NumberOfMessagesSent',
-          dimensionsMap: { QueueName: refs.pso.queues.dispatch.queue.queueName },
+          dimensionsMap: { QueueName: props.dispatchQueueName },
           statistic,
           period,
         }),
         new Metric({
           namespace: 'AWS/SQS',
           metricName: 'NumberOfMessagesReceived',
-          dimensionsMap: { QueueName: refs.pso.queues.dispatch.queue.queueName },
+          dimensionsMap: { QueueName: props.dispatchQueueName },
           statistic,
           period,
         }),
         new Metric({
           namespace: 'AWS/SQS',
           metricName: 'ApproximateNumberOfMessagesVisible',
-          dimensionsMap: { QueueName: refs.pso.queues.dispatch.queue.queueName },
+          dimensionsMap: { QueueName: props.dispatchQueueName },
           label: 'Queue Depth',
           statistic,
           period,
@@ -131,7 +142,7 @@ export class UNSPSOFlow extends Construct {
     const apiGateway4xx = new Metric({
       namespace: 'AWS/ApiGateway',
       metricName: '4XXError',
-      dimensionsMap: { ApiName: refs.pso.gateway.restApi.restApiName },
+      dimensionsMap: { ApiName: props.restApiName },
       label: '4XX Error',
       statistic,
       period,
@@ -140,7 +151,7 @@ export class UNSPSOFlow extends Construct {
     const apiGateway5xx = new Metric({
       namespace: 'AWS/ApiGateway',
       metricName: '5XXError',
-      dimensionsMap: { ApiName: refs.pso.gateway.restApi.restApiName },
+      dimensionsMap: { ApiName: props.restApiName },
       label: '5XX Error',
       statistic,
       period,
@@ -150,7 +161,7 @@ export class UNSPSOFlow extends Construct {
     const apiGatewayCount = new Metric({
       namespace: 'AWS/ApiGateway',
       metricName: 'Count',
-      dimensionsMap: { ApiName: refs.pso.gateway.restApi.restApiName },
+      dimensionsMap: { ApiName: props.restApiName },
       label: 'Incoming',
       statistic,
       period,
@@ -188,14 +199,14 @@ export class UNSPSOFlow extends Construct {
         new Metric({
           namespace: 'AWS/Lambda',
           metricName: 'Invocations',
-          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.processing.fn.functionName },
+          dimensionsMap: { FunctionName: props.processingFunctionName },
           statistic,
           period,
         }),
         new Metric({
           namespace: 'AWS/Lambda',
           metricName: 'Errors',
-          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.processing.fn.functionName },
+          dimensionsMap: { FunctionName: props.processingFunctionName },
           statistic,
           period,
         }),
@@ -212,14 +223,14 @@ export class UNSPSOFlow extends Construct {
         new Metric({
           namespace: 'AWS/Lambda',
           metricName: 'Invocations',
-          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.dispatch.fn.functionName },
+          dimensionsMap: { FunctionName: props.dispatchFunctionName },
           statistic,
           period,
         }),
         new Metric({
           namespace: 'AWS/Lambda',
           metricName: 'Errors',
-          dimensionsMap: { FunctionName: refs.pso.lambdas.sqs.dispatch.fn.functionName },
+          dimensionsMap: { FunctionName: props.dispatchFunctionName },
           statistic,
           period,
         }),
@@ -231,7 +242,7 @@ export class UNSPSOFlow extends Construct {
       title: 'PostGroupMessage Lambda Log Group',
       width: 6,
       height: 15,
-      logGroupNames: [refs.pso.lambdas.http.postMessage.logGroup.logGroupName],
+      logGroupNames: [props.postMessageLogGroupName],
       queryLines: [
         'fields @timestamp, @message',
         'sort @timestamp desc',
@@ -245,7 +256,7 @@ export class UNSPSOFlow extends Construct {
       title: 'Processing Lambda Log Group',
       width: 6,
       height: 15,
-      logGroupNames: [refs.pso.lambdas.sqs.processing.logGroup.logGroupName],
+      logGroupNames: [props.processingLogGroupName],
       queryLines: [
         'fields @timestamp, @message',
         'sort @timestamp desc',
@@ -259,7 +270,7 @@ export class UNSPSOFlow extends Construct {
       title: 'Dispatch Lambda Log Group',
       width: 6,
       height: 15,
-      logGroupNames: [refs.pso.lambdas.sqs.dispatch.logGroup.logGroupName],
+      logGroupNames: [props.dispatchLogGroupName],
       queryLines: [
         'fields @timestamp, @message',
         'sort @timestamp desc',

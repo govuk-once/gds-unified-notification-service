@@ -4,9 +4,6 @@ import { UNSDynamoDb } from '@infra/cdk/constructs/bases/UNSDynamoDBConstruct';
 import { UNSLambdaConstruct } from '@infra/cdk/constructs/bases/UNSLambdaConstruct';
 import { UNSQueueConstruct } from '@infra/cdk/constructs/bases/UNSQueueConstruct';
 import { UNSSMWriterProvider } from '@infra/cdk/constructs/customResourceFnsConstructors/UNSSMWriterConstruct';
-import { UNSPSOFlow } from '@infra/cdk/constructs/dashboards/UNSPSOFlow';
-import { UNSPSOGroupFlow } from '@infra/cdk/constructs/dashboards/UNSPSOGroupsFlow';
-import { UNSPSOUtilization } from '@infra/cdk/constructs/dashboards/UNSPSOUtilization';
 import { UNSCommon } from '@infra/cdk/constructs/UNSCommon';
 import { UNSOrganisationsCommon } from '@infra/cdk/constructs/UNSOrganisations';
 import { getConsumers } from '@infra/cdk/consumers/consumers';
@@ -64,10 +61,7 @@ export class UNSPSOResource extends Construct {
   public readonly gateway: UNSAPIGatewayGateway;
 
   public readonly dashboards: {
-    flow: UNSPSOFlow;
-    utilization: UNSPSOUtilization;
     service: Dashboard;
-    groupFlow?: UNSPSOGroupFlow;
   };
 
   constructor(
@@ -609,7 +603,7 @@ export class UNSPSOResource extends Construct {
         IdentitySource.header('CloudFront-Viewer-Cert-Pem'),
         IdentitySource.header('CloudFront-Viewer-Cert-Validity'),
       ],
-      handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.fn,
+      handler: this.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.alias,
       resultsCacheTtl: Duration.seconds(0),
     });
 
@@ -640,6 +634,7 @@ export class UNSPSOResource extends Construct {
           limit: 20000,
         },
       },
+      // TODO: Refactor to use: orgMetadata instead of consumers
       usagePlans: getConsumers(config.env, config)
         .map((consumer) => ({ [consumer.organization]: {} }))
         .reduce((a, b) => ({ ...a, ...b }), {}),
@@ -670,12 +665,6 @@ export class UNSPSOResource extends Construct {
     //// =====================================================
 
     this.dashboards = {
-      utilization: new UNSPSOUtilization(this, `pso-utilization-dashboards`, config, {
-        pso: this,
-      }),
-      flow: new UNSPSOFlow(this, `pso-flow-dashboards`, config, {
-        pso: this,
-      }),
       service: new StandardServiceDashboardFactory(
         this,
         `pso`,
@@ -694,9 +683,6 @@ export class UNSPSOResource extends Construct {
         restApis: [this.gateway.restApi],
         tables: [refs.dynamodb.campaigns.table, refs.dynamodb.messages.table],
       }),
-      groupFlow: config.featureFlag.groups
-        ? new UNSPSOGroupFlow(this, 'pso-group-flow-dashboards', config, { pso: this })
-        : undefined,
     };
 
     //// =====================================================
