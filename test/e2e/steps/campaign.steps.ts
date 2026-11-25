@@ -59,6 +59,7 @@ When('I attempt to get the campaign status for processed group notifications', f
       async () => {
         const campaignStatus = await checkCampaignStatus(this.psoAPI, this.campaignID);
         expect(campaignStatus.PROCESSED).toBe(expectedCount);
+        expect(campaignStatus.DISPATCHED).toBe(expectedCount);
       },
       25000,
       2000
