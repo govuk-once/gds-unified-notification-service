@@ -417,7 +417,6 @@ export class UNSAPIGatewayGateway extends Construct {
     // Initialize API Gateway RestApi
     const loggroup = new LogGroup(this, namingHelper(`restapi`, ...props.name, `loggroup`), {
       logGroupName: `/aws/apigw/${namingHelper(...props.name)}`,
-      retention: RetentionDays.ONE_YEAR,
       encryptionKey: props.resources.kms,
       removalPolicy: config.removalPolicy,
     });

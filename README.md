@@ -1,6 +1,6 @@
 ## About The Project
 
-GDS Unified Notification Service
+GDS Unified Notification Service!
 This service is a notification system that will be used by multiple services within government.
 Notifications will be sent to the GOV.UK to either a user or a group of users.
 This service is ran with AWS using serverless architecture.
