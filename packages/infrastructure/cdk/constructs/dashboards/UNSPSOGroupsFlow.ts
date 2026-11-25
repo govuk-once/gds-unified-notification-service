@@ -3,7 +3,11 @@ import { Duration } from 'aws-cdk-lib';
 import { Dashboard, GraphWidget, LogQueryWidget, Metric } from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from '@infra/cdk/config';
-import { UNSPSOResource } from '@infra/cdk/constructs/UNSPSOResources';
+
+export interface UNSPSOGroupFlowProps {
+  postGroupMessageLogGroupName?: string;
+  groupProcessingWorkerLogGroupName?: string;
+}
 
 export class UNSPSOGroupFlow extends Construct {
   private createMetric(metricName: string, label: string, config: EnvVars) {
@@ -20,7 +24,7 @@ export class UNSPSOGroupFlow extends Construct {
     });
   }
 
-  constructor(scope: Construct, id: string, config: EnvVars, refs: { pso: UNSPSOResource }) {
+  constructor(scope: Construct, id: string, config: EnvVars, props: UNSPSOGroupFlowProps = {}) {
     super(scope, id);
 
     // Row 1: Group Processing Worker Started | Group Processing Worker Completed | Group Processing Worker Failed
@@ -103,12 +107,12 @@ export class UNSPSOGroupFlow extends Construct {
     dashboard.addWidgets(batchItemFailuresWidget, publishedSuccessfullyWidget, publishingFailedWidget);
 
     // Row 3: PostGroupMessage Lambda Log Group | GroupProcessingWorker Lambda Log Group
-    if (refs.pso.lambdas.http.postGroupMessage && refs.pso.lambdas.sqs.groupProcessingWorker?.logGroup.logGroupName) {
+    if (props.postGroupMessageLogGroupName && props.groupProcessingWorkerLogGroupName) {
       const postGroupMessageLogWidget = new LogQueryWidget({
         title: 'PostGroupMessage Lambda Log Group',
         width: 6,
         height: 15,
-        logGroupNames: [refs.pso.lambdas.http.postGroupMessage?.logGroup.logGroupName],
+        logGroupNames: [props.postGroupMessageLogGroupName],
         queryLines: [
           'fields @timestamp, @message',
           'sort @timestamp desc',
@@ -122,7 +126,7 @@ export class UNSPSOGroupFlow extends Construct {
         title: 'GroupProcessingWorker Lambda Log Group',
         width: 6,
         height: 15,
-        logGroupNames: [refs.pso.lambdas.sqs.groupProcessingWorker?.logGroup.logGroupName],
+        logGroupNames: [props.groupProcessingWorkerLogGroupName],
         queryLines: [
           'fields @timestamp, @message',
           'sort @timestamp desc',

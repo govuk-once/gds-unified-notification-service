@@ -17,6 +17,13 @@ export interface UNSResourceContract {
       dispatchDlq?: string;
     };
     lambdaFunctionNames: Record<string, { functionName: string; timeoutMs: number } | undefined>;
+    logGroupNames: {
+      postMessage: string;
+      processing: string;
+      dispatch: string;
+      postGroupMessage?: string;
+      groupProcessingWorker?: string;
+    };
   };
   flex: {
     restApiName: string;

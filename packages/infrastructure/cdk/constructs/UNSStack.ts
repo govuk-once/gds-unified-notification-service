@@ -75,6 +75,13 @@ export class UNSStack extends Stack {
           groupProcessingDlq: this.pso.queues.groupProcessing?.dlq?.queueName,
           dispatchDlq: this.pso.queues.dispatch.dlq?.queueName,
         },
+        logGroupNames: {
+          postMessage: this.pso.lambdas.http.postMessage.logGroup.logGroupName,
+          processing: this.pso.lambdas.sqs.processing.logGroup.logGroupName,
+          dispatch: this.pso.lambdas.sqs.dispatch.logGroup.logGroupName,
+          postGroupMessage: this.pso.lambdas.http.postGroupMessage?.logGroup.logGroupName,
+          groupProcessingWorker: this.pso.lambdas.sqs.groupProcessingWorker?.logGroup.logGroupName,
+        },
         lambdaFunctionNames: {
           mtlsCertificateRevocationAuthorizer:
             this.pso.lambdas.authorizers.mtlsCertificateRevocationAuthorizer.lambdaRef(),

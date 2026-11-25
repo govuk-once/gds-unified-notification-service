@@ -76,7 +76,9 @@ export const rollingCertificate = (props: {
 export type GroupedConsumerCertificates = ReturnType<typeof certificate>[];
 
 export const getConsumers = (env: string, config: EnvVars): GroupedConsumerCertificates => {
-  return config.isPersistentEnv ? getEnvCerts(env) : getEphemeralCerts(config);
+  return (config.isPersistentEnv ? getEnvCerts(env) : getEphemeralCerts(config)).filter(
+    (certificate) => certificate.expirationDate > new Date()
+  );
 };
 
 function getEnvCerts(env: string): GroupedConsumerCertificates {
