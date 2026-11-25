@@ -51,7 +51,7 @@ Feature: Send Notification
   Scenario Outline: Successfully sends a notification & acquires validated status
     Given a correctly configured PSO client
     When I attempt to send a notification <Variation>
-    And I attempt to get the status of a notification that has been validated
+    And I attempt to get the status of a notification
     Then it should succeed
 
     Examples: Base

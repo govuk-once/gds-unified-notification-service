@@ -8,9 +8,10 @@ import {
   deleteCampaign,
   generateTestCampaignID,
   TEST_ORG_ID,
+  waitForCampaignInDynamo,
 } from '@test/e2e/helpers/campaign';
 import { deleteNotificationsByCampaign } from '@test/e2e/helpers/notification';
-import { waitForExpect } from '@test/e2e/helpers/waitForExpect';
+import { waitFor } from '@test/e2e/helpers/waitFor';
 import CustomWorld from '@test/e2e/support/world';
 import { expect } from 'vitest';
 
@@ -54,19 +55,22 @@ When('I attempt to get the campaign status for processed group notifications', f
   this.path = `/status/campaign/${this.campaignID}`;
   const expectedCount = groupResult.UsersInGroup;
   this.assertions.push(async () => {
-    await waitForExpect(
-      this,
+    await waitFor(
       async () => {
         const campaignStatus = await checkCampaignStatus(this.psoAPI, this.campaignID);
         expect(campaignStatus.PROCESSED).toBe(expectedCount);
         expect(campaignStatus.DISPATCHED).toBe(expectedCount);
       },
       25000,
-      2000
+      2000,
+      this.path
     );
   });
 
   const campaign = mockCampaignRecord(TEST_ORG_ID, this.campaignID);
-  this.cleanups.push(() => deleteCampaign(campaign.CompositeID));
+  this.cleanups.push(async () => {
+    await waitForCampaignInDynamo(campaign.CompositeID, expectedCount);
+    await deleteCampaign(campaign.CompositeID);
+  });
   this.cleanups.push(() => deleteNotificationsByCampaign(this.groupPushIDs, this.campaignID));
 });

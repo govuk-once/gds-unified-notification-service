@@ -35,5 +35,21 @@ Before({ tags: '@CIOnly' }, function () {
 });
 
 After(async function (this: CustomWorld) {
-  await Promise.allSettled(this.cleanups.map((clean) => clean()));
+  const results = await Promise.allSettled(this.cleanups.map((clean) => clean()));
+  const failures = results.flatMap((result, index) =>
+    result.status === 'rejected' ? [{ index, reason: result.reason }] : []
+  );
+
+  if (failures.length > 0) {
+    const details = failures
+      .map(({ index, reason }) => {
+        const message = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason);
+        return `Cleanup ${index + 1}: ${message}`;
+      })
+      .join('\n');
+    throw new AggregateError(
+      failures.map(({ reason }) => reason as string),
+      `E2E cleanup failed (${failures.length}):\n${details}`
+    );
+  }
 });

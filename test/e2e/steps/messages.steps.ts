@@ -1,6 +1,7 @@
 /* eslint-disable vitest/no-standalone-expect */
 import { DataTable, defineParameterType, When } from '@cucumber/cucumber';
-import { generateTestCampaignID } from '@test/e2e/helpers/campaign';
+import { CampaignsDynamoRepository } from '@common/repositories';
+import { deleteCampaign, generateTestCampaignID, TEST_ORG_ID } from '@test/e2e/helpers/campaign';
 import { getPushIDsForGroup } from '@test/e2e/helpers/groups';
 import { deleteNotification } from '@test/e2e/helpers/notification';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
@@ -61,11 +62,21 @@ When('I attempt to send a notification {MessageVariant}', async function (this: 
   this.expectedStatusCode = 202;
   this.path = '/send';
   this.notificationID = e2eUUID('a0b1c');
+  this.campaignID = generateTestCampaignID() + variant;
   const payload = messageVariants[variant](this.notificationID) as Record<string, unknown>[];
+
+  for (const message of payload ?? []) {
+    message.CampaignID = this.campaignID;
+  }
 
   await this.sendRequest('POST', payload);
   if (payload) {
-    this.cleanups.push(() => deleteNotification(this));
+    const campaignID = this.campaignID;
+    const departmentID = payload[0].DepartmentID as string;
+    this.cleanups.push(async () => {
+      await deleteNotification(this);
+      await deleteCampaign(CampaignsDynamoRepository.buildCompositeID(TEST_ORG_ID, departmentID, campaignID));
+    });
     this.assertions.push((body) => {
       for (const msg of payload) {
         expect(body).toContainEqual(expect.objectContaining({ NotificationID: msg.NotificationID }));

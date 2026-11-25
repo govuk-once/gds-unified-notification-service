@@ -1,9 +1,10 @@
 /* eslint-disable vitest/no-standalone-expect */
 import { Given, When } from '@cucumber/cucumber';
+import { NotificationProcessingStateEnum } from '@common/models';
 import { iocGetNotificationDynamoRepository } from '@common/ioc';
 import { createNotification, deleteNotification } from '@test/e2e/helpers/notification';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
-import { waitForExpect } from '@test/e2e/helpers/waitForExpect';
+import { waitFor } from '@test/e2e/helpers/waitFor';
 import { mockIMessageRecord_E2E, mockIMessageRecord_E2E_WithDispatchTime } from '@test/mocks';
 import type CustomWorld from '@test/e2e/support/world';
 import { expect } from 'vitest';
@@ -91,25 +92,20 @@ When('I attempt to get the notification', async function (this: CustomWorld) {
 // When: GET /status/:id
 // ──────────────────────────────────────────────────
 
-When('I attempt to get the status of a notification that has been dispatched', async function (this: CustomWorld) {
+When('I attempt to get the status of a notification', async function (this: CustomWorld) {
   this.expectedStatusCode = 200;
   this.path = `/status/${this.notificationID}`;
   await this.sendRequest('GET');
 
-  const expectedStatuses = ['VALIDATED_API_CALL', 'PROCESSING', 'PROCESSED', 'DISPATCHING', 'DISPATCHED'];
-  this.assertions.push((body) => {
-    for (const Status of expectedStatuses) {
-      expect(body).toContainEqual(expect.objectContaining({ Status, NotificationID: this.notificationID }));
-    }
-  });
-});
-When('I attempt to get the status of a notification that has been validated', function (this: CustomWorld) {
-  // Removed dispatching as the current adapter fails at dispatching
-  const expectedStatuses = ['VALIDATED_API_CALL', 'PROCESSING', 'PROCESSED', 'DISPATCHING'];
-  this.path = `/status/${this.notificationID}`;
+  const expectedStatuses: NotificationProcessingStateEnum[] = [
+    NotificationProcessingStateEnum.VALIDATED_API_CALL,
+    NotificationProcessingStateEnum.PROCESSING,
+    NotificationProcessingStateEnum.PROCESSED,
+    NotificationProcessingStateEnum.DISPATCHING,
+    NotificationProcessingStateEnum.DISPATCHED,
+  ];
   this.assertions.push(async () => {
-    await waitForExpect(
-      this,
+    await waitFor(
       async () => {
         await this.sendRequest('GET');
         const body = this.result?.body;
@@ -118,7 +114,8 @@ When('I attempt to get the status of a notification that has been validated', fu
         }
       },
       28000,
-      4000
+      4000,
+      this.path
     );
   });
 });

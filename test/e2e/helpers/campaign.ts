@@ -1,8 +1,9 @@
 import { iocGetCampaignsDynamoRepository } from '@common/ioc';
-import { campaignStatusSchema } from '@common/models/interfaces';
+import { campaignStatusSchema, type CampaignStatus } from '@common/models/interfaces';
 import { FetchErrorResponse, type FetchService } from '@common/services/FetchService';
 import { ICampaignRecord } from '@common/repositories';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
+import { waitFor } from '@test/e2e/helpers/waitFor';
 
 export const TEST_ORG_ID = 'UNS';
 
@@ -19,10 +20,26 @@ export const deleteCampaign = async (compositeID: string) => {
   await campaignRepository.deleteRecord(compositeID);
 };
 
+export const waitForCampaignInDynamo = async (compositeID: string, expectedCount: number) => {
+  const campaignRepository = await iocGetCampaignsDynamoRepository();
+  await waitFor(
+    async () => {
+      const record = await campaignRepository.getRecord(compositeID);
+      if (!record) throw new Error(`Campaign ${compositeID} not found in DynamoDB`);
+      if (!record.PROCESSED || record.PROCESSED < expectedCount) throw new Error('PROCESSED not ready');
+      if (!record.DISPATCHING || record.DISPATCHING < expectedCount) throw new Error('DISPATCHING not ready');
+      if (!record.DISPATCHED || record.DISPATCHED < expectedCount) throw new Error('DISPATCHED not ready');
+    },
+    25000,
+    2000,
+    `campaign ${compositeID} in DynamoDB`
+  );
+};
+
 export const checkCampaignStatus = async (
   psoAPI: FetchService,
   campaignID: string
-): Promise<{ PROCESSED: number; DISPATCHED: number }> => {
+): Promise<CampaignStatus['ProcessingSummary']> => {
   try {
     const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
     const campaignStatus = campaignStatusSchema.parse(result.body);
@@ -30,8 +47,7 @@ export const checkCampaignStatus = async (
       throw new Error(`Campaign status returned ${campaignStatus.CampaignID} instead of ${campaignID}`);
     }
 
-    const { PROCESSED, DISPATCHED } = campaignStatus.ProcessingSummary;
-    return { PROCESSED, DISPATCHED };
+    return campaignStatus.ProcessingSummary;
   } catch (error) {
     if (error instanceof FetchErrorResponse && error.status === 404) {
       throw new Error(

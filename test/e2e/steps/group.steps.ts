@@ -65,9 +65,10 @@ When('I send a single request to modify the following groups:', async function (
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .map(({ Action, ...groupDetails }) => groupDetails);
 
-  addCleanUp(this, expectedGroups);
-
   await this.sendRequest('POST', requestBody);
+  if (this.result?.status === 200) {
+    addCleanUp(this, expectedGroups);
+  }
 
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
