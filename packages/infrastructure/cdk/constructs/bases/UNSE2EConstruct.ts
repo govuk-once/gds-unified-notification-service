@@ -82,7 +82,7 @@ export class UNSE2EConstruct extends Construct {
 
     // Access to DynamoDB (testing injects notifications)
     props.messagesTable.grantReadWriteData(this.role);
-    props.campaignsTable.grantWriteData(this.role);
+    props.campaignsTable.grantReadWriteData(this.role);
     props.groupStoreTable?.grantReadData(this.role);
 
     // Access to artifact registry
