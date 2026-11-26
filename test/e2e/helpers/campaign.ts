@@ -2,6 +2,7 @@ import { iocGetCampaignsDynamoRepository } from '@common/ioc';
 import { campaignStatusSchema, type CampaignStatus } from '@common/models/interfaces';
 import { FetchErrorResponse, type FetchService } from '@common/services/FetchService';
 import { ICampaignRecord } from '@common/repositories';
+import { NotificationProcessingStateEnum } from '@common/models';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
 import { waitFor } from '@test/e2e/helpers/waitFor';
 
@@ -20,21 +21,25 @@ export const deleteCampaign = async (compositeID: string) => {
   await campaignRepository.deleteRecord(compositeID);
 };
 
-export const waitForCampaignInDynamo = async (compositeID: string, expectedCount: number) => {
+/**
+ * Polls DynamoDB until the campaign record reaches the expected counts for the given states.
+ * Without this, cleanup deletes the record before all the analytics lambda is resolved -> orphan record
+ */
+export const waitForCampaignInDynamo = async (
+  compositeID: string,
+  expectedCount: number,
+  states: NotificationProcessingStateEnum[]
+) => {
   const campaignRepository = await iocGetCampaignsDynamoRepository();
   await waitFor(
     async () => {
       const record = await campaignRepository.getRecord(compositeID);
       if (!record) throw new Error(`Campaign ${compositeID} not found in DynamoDB`);
-      const { PROCESSED, DISPATCHING, DISPATCHED } = record;
-      if (!PROCESSED || PROCESSED < expectedCount) {
-        throw new Error(`PROCESSED not ready (${PROCESSED ?? 0}/${expectedCount})`);
-      }
-      if (!DISPATCHING || DISPATCHING < expectedCount) {
-        throw new Error(`DISPATCHING not ready (${DISPATCHING ?? 0}/${expectedCount})`);
-      }
-      if (!DISPATCHED || DISPATCHED < expectedCount) {
-        throw new Error(`DISPATCHED not ready (${DISPATCHED ?? 0}/${expectedCount})`);
+      for (const state of states) {
+        const count = record[state] ?? 0;
+        if (count < expectedCount) {
+          throw new Error(`${state} not ready (${count}/${expectedCount})`);
+        }
       }
     },
     25000,
@@ -43,6 +48,7 @@ export const waitForCampaignInDynamo = async (compositeID: string, expectedCount
   );
 };
 
+// Checks campaign status via the PSO API (ElastiCache) for e2e test assertions
 export const checkCampaignStatus = async (
   psoAPI: FetchService,
   campaignID: string

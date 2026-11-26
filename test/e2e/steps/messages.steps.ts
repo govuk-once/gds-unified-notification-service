@@ -1,7 +1,13 @@
 /* eslint-disable vitest/no-standalone-expect */
 import { DataTable, defineParameterType, When } from '@cucumber/cucumber';
 import { CampaignsDynamoRepository } from '@common/repositories';
-import { deleteCampaign, generateTestCampaignID, TEST_ORG_ID } from '@test/e2e/helpers/campaign';
+import { NotificationProcessingStateEnum } from '@common/models';
+import {
+  deleteCampaign,
+  generateTestCampaignID,
+  TEST_ORG_ID,
+  waitForCampaignInDynamo,
+} from '@test/e2e/helpers/campaign';
 import { getPushIDsForGroup } from '@test/e2e/helpers/groups';
 import { deleteNotification } from '@test/e2e/helpers/notification';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
@@ -73,9 +79,17 @@ When('I attempt to send a notification {MessageVariant}', async function (this: 
   if (payload) {
     const campaignID = this.campaignID;
     const departmentID = payload[0].DepartmentID as string;
+    const compositeID = CampaignsDynamoRepository.buildCompositeID(TEST_ORG_ID, departmentID, campaignID);
     this.cleanups.push(async () => {
       await deleteNotification(this);
-      await deleteCampaign(CampaignsDynamoRepository.buildCompositeID(TEST_ORG_ID, departmentID, campaignID));
+      await waitForCampaignInDynamo(compositeID, 1, [
+        NotificationProcessingStateEnum.VALIDATED,
+        NotificationProcessingStateEnum.PROCESSING,
+        NotificationProcessingStateEnum.PROCESSED,
+        NotificationProcessingStateEnum.DISPATCHING,
+        NotificationProcessingStateEnum.DISPATCHED,
+      ]);
+      await deleteCampaign(compositeID);
     });
     this.assertions.push((body) => {
       for (const msg of payload) {

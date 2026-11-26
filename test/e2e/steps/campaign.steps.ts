@@ -1,5 +1,6 @@
 /* eslint-disable vitest/no-standalone-expect */
 import { mockCampaignRecord } from '@common/repositories';
+import { NotificationProcessingStateEnum } from '@common/models';
 import { IGroupMessageSendResponseSchema } from '@common/models/interfaces';
 import { Given, When } from '@cucumber/cucumber';
 import {
@@ -69,7 +70,11 @@ When('I attempt to get the campaign status for processed group notifications', f
 
   const campaign = mockCampaignRecord(TEST_ORG_ID, this.campaignID);
   this.cleanups.push(async () => {
-    await waitForCampaignInDynamo(campaign.CompositeID, expectedCount);
+    await waitForCampaignInDynamo(campaign.CompositeID, expectedCount, [
+      NotificationProcessingStateEnum.PROCESSED,
+      NotificationProcessingStateEnum.DISPATCHING,
+      NotificationProcessingStateEnum.DISPATCHED,
+    ]);
     await deleteCampaign(campaign.CompositeID);
   });
   this.cleanups.push(() => deleteNotificationsByCampaign(this.groupPushIDs, this.campaignID));
