@@ -4,6 +4,6 @@
     "import": ["test/e2e/support/register-tsx.mjs", "test/e2e/steps/**/*.ts", "test/e2e/support/*.ts"],
     "parallel": 5,
     "worldParameters": {},
-    "format": ["progress-bar"]
+    "format": ["summary"]
   }
 }

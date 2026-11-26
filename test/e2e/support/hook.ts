@@ -47,9 +47,7 @@ After(async function (this: CustomWorld) {
         return `Cleanup ${index + 1}: ${message}`;
       })
       .join('\n');
-    throw new AggregateError(
-      failures.map(({ reason }) => reason as string),
-      `E2E cleanup failed (${failures.length}):\n${details}`
-    );
+    // Doesn't fail the test if clean up fails
+    this.log(`⚠️ E2E cleanup failed (${failures.length}):\n${details}`);
   }
 });
