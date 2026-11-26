@@ -76,19 +76,19 @@ When('I attempt to send a notification {MessageVariant}', async function (this: 
   }
 
   await this.sendRequest('POST', payload);
-  if (payload) {
+  if (payload && this.result?.status === 202) {
     const campaignID = this.campaignID;
     const departmentID = payload[0].DepartmentID as string;
     const compositeID = CampaignsDynamoRepository.buildCompositeID(TEST_ORG_ID, departmentID, campaignID);
     this.cleanups.push(async () => {
-      await deleteNotification(this);
       await waitForCampaignInDynamo(compositeID, 1, [
-        NotificationProcessingStateEnum.VALIDATED,
+        NotificationProcessingStateEnum.VALIDATED_API_CALL,
         NotificationProcessingStateEnum.PROCESSING,
         NotificationProcessingStateEnum.PROCESSED,
         NotificationProcessingStateEnum.DISPATCHING,
         NotificationProcessingStateEnum.DISPATCHED,
       ]);
+      await deleteNotification(this);
       await deleteCampaign(compositeID);
     });
     this.assertions.push((body) => {

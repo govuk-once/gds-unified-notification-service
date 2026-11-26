@@ -42,7 +42,7 @@ export const waitForCampaignInDynamo = async (
         }
       }
     },
-    25000,
+    2800,
     2000,
     `campaign ${compositeID} in DynamoDB`
   );
