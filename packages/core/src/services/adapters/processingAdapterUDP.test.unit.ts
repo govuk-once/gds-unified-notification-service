@@ -62,7 +62,7 @@ describe('ProcessingAdapterUDP', async () => {
           'requesting-service-user-id': request.userID,
         },
       });
-      expect(result).toEqual({ request, externalUserID: pushID });
+      expect(result).toEqual({ request, externalUserID: pushID, consentStatus: 'accepted' });
       expect(observabilityMocks.recordProviderHttpMetric).toHaveBeenCalledWith(ProviderDimension.UDP, 'call');
     });
 
@@ -84,7 +84,7 @@ describe('ProcessingAdapterUDP', async () => {
       const result = await instance.send(request);
 
       // Assert
-      expect(result).toEqual({ request, externalUserID: notificationID });
+      expect(result).toEqual({ request, externalUserID: notificationID, consentStatus: 'accepted' });
     });
 
     it('should throw NoLinkingIdFound when the fetch call fails with a 404', async () => {

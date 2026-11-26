@@ -3,4 +3,5 @@ import { ProcessingAdapterRequest } from '@common/services/interfaces/processing
 export type ProcessingAdapterResult = {
   request: ProcessingAdapterRequest;
   externalUserID: string;
+  consentStatus?: string;
 };

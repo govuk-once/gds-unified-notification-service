@@ -1,6 +1,6 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
-import { ServiceMisconfigurationError, SimulatedError } from '@common/models';
+import { NotificationStateEnum, ServiceMisconfigurationError, SimulatedError } from '@common/models';
 import { IProcessedMessage } from '@common/models/interfaces';
 import { QueueEvent } from '@common/operations/queueOperation';
 import { CircuitBreakerOpenError, MetricsLabels, NotificationAdapterResult } from '@common/services';
@@ -154,6 +154,51 @@ describe('Dispatch QueueHandler', async () => {
       NotificationTitle: message.NotificationTitle,
       NotificationBody: message.NotificationBody,
     });
+  });
+
+  it('should pass ConsentStatus to the notification service when it is set on the message', async () => {
+    // Arrange
+    const messageWithConsent = { ...message, ConsentStatus: 'opted_in' };
+    const event = mockQueueEvent(messageWithConsent);
+
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(serviceMocks.notificationServiceMock.send).toHaveBeenCalledWith(
+      expect.objectContaining({ ConsentStatus: 'opted_in' })
+    );
+  });
+
+  it('should publish an analytics event for each additionalStatus returned by the notification service', async () => {
+    // Arrange
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
+      requestId: '123',
+      additionalStatuses: [NotificationStateEnum.DISPATCHED_TO_MESSAGE_CENTER_ONLY_DUE_TO_MISSING_OS_SUBSCRIPTION],
+    } as unknown as NotificationAdapterResult);
+
+    // Act
+    await handler(event, context);
+
+    // Assert
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ NotificationID: message.NotificationID }),
+      NotificationStateEnum.DISPATCHED_TO_MESSAGE_CENTER_ONLY_DUE_TO_MISSING_OS_SUBSCRIPTION
+    );
+  });
+
+  it('should not publish additional analytics events when additionalStatuses is empty', async () => {
+    // Arrange
+    serviceMocks.notificationServiceMock.send.mockResolvedValue({
+      requestId: '123',
+      additionalStatuses: [],
+    } as unknown as NotificationAdapterResult);
+
+    // Act
+    await handler(event, context);
+
+    // Assert — only the standard DISPATCHING and DISPATCHED events fire
+    expect(serviceMocks.analyticsServiceMock.publishEvent).toHaveBeenCalledTimes(2);
   });
 
   it('should trigger notification service for valid messages - with deeplink when feature flag is on', async () => {

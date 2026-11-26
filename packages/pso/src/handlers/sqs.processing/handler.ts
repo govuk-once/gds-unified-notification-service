@@ -8,6 +8,13 @@ import {
   iocGetObservabilityService,
   iocGetProcessingService,
 } from '@common/ioc';
+import { IProcessedMessage } from '@common/models/interfaces';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+  IMessageSchema,
+} from '@common/models/interfaces/IMessage';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -19,13 +26,6 @@ import {
   ObservabilityService,
 } from '@common/services';
 import { ProcessingService } from '@common/services/processingService';
-import { IProcessedMessage } from '@common/models/interfaces';
-import {
-  extractIdentifiers,
-  IIdentifiableMessage,
-  IIdentifiableMessageSchema,
-  IMessageSchema,
-} from '@common/models/interfaces/IMessage';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
@@ -96,7 +96,11 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema, ty
     });
 
     this.observability.logger.info('UDP Result:', { result });
-    const processedMessages: IProcessedMessage = { ...message, ExternalUserID: result.externalUserID };
+    const processedMessages: IProcessedMessage = {
+      ...message,
+      ExternalUserID: result.externalUserID,
+      ConsentStatus: result.consentStatus,
+    };
 
     // Update stored rows in notifications message
     this.observability.logger.info('Updating entry with timestamp', extractIdentifiers(processedMessages));
@@ -106,6 +110,7 @@ export class Processing extends BatchQueueOperation<typeof requestBodySchema, ty
       ...extractIdentifiers(processedMessages),
       ExternalUserID: processedMessages.ExternalUserID,
       ProcessedDateTime: new Date().toISOString(),
+      ConsentStatus: result.consentStatus,
     });
 
     // Push processed messages to Dispatch queue

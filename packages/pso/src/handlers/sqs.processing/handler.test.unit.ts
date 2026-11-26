@@ -1,9 +1,9 @@
 import { FullBatchFailureError } from '@aws-lambda-powertools/batch';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { NotificationStateEnum, ProcessingAdapterError, ServiceMisconfigurationError } from '@common/models';
+import { IMessage } from '@common/models/interfaces';
 import { QueueEvent } from '@common/operations';
 import { MetricsLabels, ProcessingAdapterRequest, ProcessingAdapterResult } from '@common/services';
-import { IMessage } from '@common/models/interfaces';
 import { Processing } from '@pso/handlers/sqs.processing/handler';
 import SSMParameters from '@shared/ssmParameter';
 import {
@@ -72,6 +72,7 @@ describe('Processing QueueHandler', async () => {
         return await Promise.resolve({
           request: request,
           externalUserID: request.userID,
+          consentStatus: 'unknown',
         });
       }
     );
@@ -187,6 +188,7 @@ describe('Processing QueueHandler', async () => {
       ExternalUserID: message.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: message.CampaignID,
       OrganisationID: message.OrganisationID,
+      ConsentStatus: 'unknown',
     });
   });
 
@@ -216,6 +218,7 @@ describe('Processing QueueHandler', async () => {
       ExternalUserID: message.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: message.CampaignID,
       OrganisationID: message.OrganisationID,
+      ConsentStatus: 'unknown',
     });
     expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith({
       DepartmentID: message2.DepartmentID,
@@ -228,6 +231,7 @@ describe('Processing QueueHandler', async () => {
       ExternalUserID: message2.UserID, // Placeholder 1:1 mapping between UserID & ExternalUserID while UDP is mocked,
       CampaignID: message2.CampaignID,
       OrganisationID: message2.OrganisationID,
+      ConsentStatus: 'unknown',
     });
   });
 
@@ -364,5 +368,48 @@ describe('Processing QueueHandler', async () => {
         OrganisationID: failedMessage.OrganisationID,
       },
     });
+  });
+
+  it('should include ConsentStatus in updateRecord when processing service returns a consent state', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const date = new Date();
+    vi.setSystemTime(date);
+    serviceMocks.processingServiceMock.send.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async (req: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> => ({
+        request: req,
+        externalUserID: req.userID,
+        consentStatus: 'opted_in',
+      })
+    );
+
+    // Act
+    await handler(mockQueueEvent(message), context);
+
+    // Assert
+    expect(serviceMocks.notificationsDynamoRepositoryMock.updateRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ ConsentStatus: 'opted_in' })
+    );
+  });
+
+  it('should include ConsentStatus in dispatch queue message when processing service returns a consent state', async () => {
+    // Arrange
+    serviceMocks.processingServiceMock.send.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async (req: ProcessingAdapterRequest): Promise<ProcessingAdapterResult> => ({
+        request: req,
+        externalUserID: req.userID,
+        consentStatus: 'opted_in',
+      })
+    );
+
+    // Act
+    await handler(mockQueueEvent(message), context);
+
+    // Assert
+    expect(serviceMocks.dispatchQueueServiceMock.publishMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ ConsentStatus: 'opted_in' })
+    );
   });
 });

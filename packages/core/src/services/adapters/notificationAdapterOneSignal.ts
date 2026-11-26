@@ -1,4 +1,4 @@
-import { ChannelsEnum } from '@common/models';
+import { ChannelsEnum, NotificationStateEnum } from '@common/models';
 import { DispatchAdapterError } from '@common/models/Errors/BadGatewayError';
 import { NoDispatchIdFound } from '@common/models/Errors/NotFoundError';
 import {
@@ -65,11 +65,19 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
     };
     this.observability.recordProviderHttpMetric(ProviderDimension.ONESIGNAL, 'call');
 
+    const additionalStatuses: NotificationStateEnum[] = [];
     if (request.Channel === ChannelsEnum.MESSAGE_CENTRE_ONLY) {
       this.observability.logger.info('Notification is MESSAGE_CENTRE_ONLY, skipping request to OneSignal', metadata);
       return {
         notification: request,
       };
+    }
+
+    if (request.ConsentStatus == 'unknown' || request.ConsentStatus == undefined) {
+      this.observability.logger.warn(`Consent state was not in expected state`, {
+        ...metadata,
+        ConsentStatus: request.ConsentStatus,
+      });
     }
 
     try {
@@ -102,7 +110,6 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
       });
 
       this.observability.logger.info('Successfully sent notification using OneSignal adapter', metadata);
-
       // Detect hidden failures
       if ((Array.isArray(result.body.errors) && result.body.errors.length > 0) || result.body.id == '') {
         this.observability.logger.error('Failed to dispatch notification using OneSignal adapter - received 200 code', {
@@ -111,19 +118,34 @@ export class NotificationAdapterOneSignal implements NotificationAdapter {
           response: result.body,
         });
 
-        if (result.status === 404) {
-          throw new NoDispatchIdFound([`User ${request.ExternalUserID} does not exist in OneSignal service`]);
+        if (
+          Array.isArray(result.body.errors) &&
+          result.body.errors.every((e) => e == 'All included players are not subscribed')
+        ) {
+          this.observability.logger.warn(`OneSignal Subscription missing - confirm consent state`, {
+            ...metadata,
+            ConsentStatus: request.ConsentStatus,
+            ExternalUserID: request.ExternalUserID,
+          });
+          additionalStatuses.push(
+            NotificationStateEnum.DISPATCHED_TO_MESSAGE_CENTER_ONLY_DUE_TO_MISSING_OS_SUBSCRIPTION
+          );
+        } else {
+          if (result.status === 404) {
+            throw new NoDispatchIdFound([`User ${request.ExternalUserID} does not exist in OneSignal service`]);
+          }
+          const errors = result.body.errors;
+          const errorPayload = Array.isArray(errors)
+            ? errors
+            : ['Failed to dispatch notification using OneSignal adapter - received 200 code'];
+          throw new DispatchAdapterError(errorPayload);
         }
-        const errors = result.body.errors;
-        const errorPayload = Array.isArray(errors)
-          ? errors
-          : ['Failed to dispatch notification using OneSignal adapter - received 200 code'];
-        throw new DispatchAdapterError(errorPayload);
       }
 
       return {
         notification: request,
         requestId: result.body.id,
+        additionalStatuses,
       };
     } catch (e) {
       return this.errorHandler(request, e);
