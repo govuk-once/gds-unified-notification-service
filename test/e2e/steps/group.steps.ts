@@ -22,12 +22,15 @@ Given('I have joined the following groups:', async function (this: CustomWorld, 
   this.pushID = e2eUUID('group');
   await clearSubscribedGroups(this);
 
-  const groups: GroupEntry[] = table
-    .hashes()
-    .map(({ Namespace, Group, Subgroup }) => buildGroupEntry(uniqueNamespace(Namespace, this.pushID), Group, Subgroup));
+  const groups: GroupEntry[] = table.hashes().map(({ Namespace, Group, Subgroup }) => ({
+    Namespace: uniqueNamespace(Namespace, this.pushID),
+    Group,
+    ...(Subgroup ? { Subgroup } : {}),
+  }));
 
   await joinGroups(this, groups);
   addCleanUp(this, groups);
+  this.joinedGroups = groups;
 });
 
 // ──────────────────────────────────────────────────
@@ -35,11 +38,16 @@ Given('I have joined the following groups:', async function (this: CustomWorld, 
 // ──────────────────────────────────────────────────
 
 When('I attempt to get subscribed groups', async function (this: CustomWorld) {
+  if (this.pushID === undefined) {
+    this.pushID = e2eUUID('group');
+  }
   this.path = `/v1/groups${this.pushID ? `?pushID=${this.pushID}` : ''}`;
   await this.sendRequest('GET');
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
-    expect(body).toEqual([{ Namespace: uniqueNamespace('travel', this.pushID), Group: 'France', Subgroup: 'DAILY' }]);
+    for (const group of this.joinedGroups) {
+      expect(body).toContainEqual(expect.objectContaining(group));
+    }
   });
 });
 

@@ -23,6 +23,7 @@ Feature: Send Notification
 
     Examples: Missing required fields
       | Condition                                            |
+      | with no UserID                                       |
       | with no NotificationTitle                            |
       | with no NotificationBody                             |
       | with no request body                                 |

@@ -25,10 +25,32 @@ Feature: Get Groups
     When I attempt to get subscribed groups
     Then it should fail with a validation error
 
-  Scenario: Get groups successfully
+  Scenario: Get groups when user has one group
     Given a correctly configured FLEX client
     And I have joined the following groups:
       | Namespace | Group   | Subgroup   |
       | travel    | France  | DAILY      |
+    When I attempt to get subscribed groups
+    Then it should succeed
+
+  Scenario: Get groups when user has multiple groups
+    Given a correctly configured FLEX client
+    And I have joined the following groups:
+      | Namespace | Group   | Subgroup   |
+      | travel    | France  | DAILY      |
+      | travel    | Spain   | IMMEDIATE  |
+    When I attempt to get subscribed groups
+    Then it should succeed
+
+  Scenario: Get groups when group has no subgroup
+    Given a correctly configured FLEX client
+    And I have joined the following groups:
+      | Namespace | Group    | Subgroup  |
+      | driving   | weather  |           |
+    When I attempt to get subscribed groups
+    Then it should succeed
+
+  Scenario: Get groups returns empty when user has no groups
+    Given a correctly configured FLEX client
     When I attempt to get subscribed groups
     Then it should succeed

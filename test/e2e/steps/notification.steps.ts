@@ -1,6 +1,8 @@
 /* eslint-disable vitest/no-standalone-expect */
 import { Given, When } from '@cucumber/cucumber';
 import { NotificationProcessingStateEnum } from '@common/models';
+import { IFlexNotificationSchema } from '@common/models/interfaces';
+import z from 'zod';
 import { iocGetNotificationDynamoRepository } from '@common/ioc';
 import { createNotification, deleteNotification } from '@test/e2e/helpers/notification';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
@@ -66,9 +68,10 @@ When('I attempt to get notifications', async function (this: CustomWorld) {
     if (this.notificationIDs.length === 0) {
       expect(body).toEqual([]);
     } else {
-      for (const NotificationID of this.notificationIDs) {
-        expect(body).toContainEqual(expect.objectContaining({ NotificationID }));
-      }
+      // Checks the sorted order of NotificaionIDs
+      const notifications = z.array(IFlexNotificationSchema).parse(body);
+      const notificationIDOrder = notifications.map((n) => n.NotificationID);
+      expect(notificationIDOrder).toEqual(this.notificationIDs);
     }
   });
   this.path = `/notifications?externalUserID=${this.pushID}`;

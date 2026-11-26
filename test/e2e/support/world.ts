@@ -7,6 +7,7 @@ import { config } from '@infra/cdk/config';
 import { ApiKeys, Domains } from '@shared/credentials';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { FetchErrorResponse, FetchResponse, FetchService } from '@common/services/FetchService';
+import type { GroupEntry } from '@test/e2e/helpers/groups';
 
 process.env.POWERTOOLS_LOG_LEVEL = 'ERROR';
 process.env.LOG_LEVEL = 'error';
@@ -27,6 +28,7 @@ export default class CustomWorld extends World {
 
   public pushID!: string;
   public groupPushIDs: string[] = [];
+  public joinedGroups: GroupEntry[] = [];
   public campaignID!: string;
   public notificationID!: string;
   public notificationIDs: string[] = [];
