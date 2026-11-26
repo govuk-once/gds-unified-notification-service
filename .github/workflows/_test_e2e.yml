@@ -82,7 +82,7 @@ jobs:
           BUILD_ID: ${{ steps.start.outputs.build_id }}
         run: |
           echo "::group::📝 View AWS CodeBuild Logs"
-          aws logs tail /aws/codebuild/$PROJECT_NAME --log-stream-names "${BUILD_ID#*:}"
+          aws logs tail /aws/codebuild/$PROJECT_NAME/build-logs --log-stream-names "${BUILD_ID#*:}"
           echo "::endgroup::"
 
           echo "" 
