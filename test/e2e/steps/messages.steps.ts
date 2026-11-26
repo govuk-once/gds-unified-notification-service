@@ -2,6 +2,7 @@
 import { DataTable, defineParameterType, When } from '@cucumber/cucumber';
 import { CampaignsDynamoRepository } from '@common/repositories';
 import { NotificationProcessingStateEnum } from '@common/models';
+import { pushErrorAssertions, validationErrorVariants } from '@test/e2e/helpers/errorAssertions';
 import {
   deleteCampaign,
   generateTestCampaignID,
@@ -96,6 +97,8 @@ When('I attempt to send a notification {MessageVariant}', async function (this: 
         expect(body).toContainEqual(expect.objectContaining({ NotificationID: msg.NotificationID }));
       }
     });
+  } else {
+    pushErrorAssertions(this, variant);
   }
 });
 
@@ -116,6 +119,7 @@ When(
 
     if (rawResult === undefined) {
       await this.sendRequest('POST', {});
+      pushErrorAssertions(this, variant);
       return;
     }
 
@@ -135,10 +139,14 @@ When(
     });
 
     await this.sendRequest('POST', payload);
-    this.groupPushIDs = await getPushIDsForGroup(Namespace, Group, Subgroup);
 
-    this.assertions.push((body) => {
-      expect(body).toHaveLength(payload.length);
-    });
+    if (variant in validationErrorVariants) {
+      pushErrorAssertions(this, variant);
+    } else {
+      this.groupPushIDs = await getPushIDsForGroup(Namespace, Group, Subgroup);
+      this.assertions.push((body) => {
+        expect(body).toHaveLength(payload.length);
+      });
+    }
   }
 );

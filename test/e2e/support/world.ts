@@ -34,6 +34,7 @@ export default class CustomWorld extends World {
   public notificationIDs: string[] = [];
   public expectedStatusCode?: number;
   public assertions: ((body: unknown) => void | Promise<void>)[] = [];
+  public errorAssertions: ((body: unknown) => void | Promise<void>)[] = [];
   public method!: string;
   public path!: string;
   public result!: FetchResponse | FetchErrorResponse | undefined;

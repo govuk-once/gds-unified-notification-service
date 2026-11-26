@@ -45,7 +45,7 @@ Then('it should succeed', async function (this: CustomWorld) {
 // Sad path
 // ──────────────────────────────────────────────────
 
-Then('it should fail with {expectedError}', function (this: CustomWorld, expectedError: ExpectedErrors) {
+Then('it should fail with {expectedError}', async function (this: CustomWorld, expectedError: ExpectedErrors) {
   switch (expectedError) {
     case ExpectedErrors.ConnectionError:
       expect(this.result).toMatchObject({
@@ -77,6 +77,10 @@ Then('it should fail with {expectedError}', function (this: CustomWorld, expecte
 
       expect(this.result).toBeInstanceOf(FetchErrorResponse);
       expect((this.result as Error).message).toEqual(`API [${this.method}] ${this.path} Failed with ${statusCode}`);
+
+      for (const assert of this.errorAssertions) {
+        await assert((this.result as FetchErrorResponse).body);
+      }
       break;
     }
   }

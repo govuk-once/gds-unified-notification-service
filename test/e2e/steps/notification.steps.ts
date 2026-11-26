@@ -68,7 +68,7 @@ When('I attempt to get notifications', async function (this: CustomWorld) {
     if (this.notificationIDs.length === 0) {
       expect(body).toEqual([]);
     } else {
-      // Checks the sorted order of NotificaionIDs
+      // Checks the sorted order of NotificationIDs
       const notifications = z.array(IFlexNotificationSchema).parse(body);
       const notificationIDOrder = notifications.map((n) => n.NotificationID);
       expect(notificationIDOrder).toEqual(this.notificationIDs);
