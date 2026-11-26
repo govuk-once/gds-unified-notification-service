@@ -90,15 +90,16 @@ export class UNSAlarmsStack extends Stack {
         .map(([name, { functionName }]) => ({ name, functionName })),
     });
 
-    // PSO security alarms: Lambda throttling, timeout proximity, concurrency anomaly, and IAM AccessDenied.
-    // cloudTrailLogGroupName is passed here (PSO) only — the IAM alarm is account-scoped, not per-service.
+    // PSO security alarms: Lambda throttling, timeout proximity, concurrency anomaly, IAM AccessDenied,
+    // and unqualified Lambda invocation. includeAccountScopedAlarms is set here (PSO) only — these
+    // are account-level detections routed via EventBridge, not per-service.
     this.securityAlarmsPSOConstruct = new UNSSecurityAlarmsConstruct(pso, config, {
       alertTopic,
       group: psoServiceName,
       lambdas: Object.entries(psoLambdas)
         .filter((entry): entry is [string, { functionName: string; timeoutMs: number }] => entry[1] !== undefined)
         .map(([name, { functionName, timeoutMs }]) => ({ name, functionName, timeoutMs })),
-      cloudTrailLogGroupName: config.ssm.monitoring.cloudTrailLogGroupName,
+      includeAccountScopedAlarms: true,
     });
 
     // Flex Alarms
@@ -125,8 +126,8 @@ export class UNSAlarmsStack extends Stack {
         .map(([name, { functionName }]) => ({ name, functionName })),
     });
 
-    // Flex security alarms: Lambda throttling, timeout proximity, and concurrency anomaly.
-    // cloudTrailLogGroupName is intentionally omitted — the IAM AccessDenied alarm is created by the PSO construct.
+    // Flex security alarms: Lambda throttling, timeout proximity, and concurrency anomaly only.
+    // Account-scoped alarms (IAM AccessDenied, unqualified invocation) are created by the PSO construct.
     this.securityAlarmsFLEXConstruct = new UNSSecurityAlarmsConstruct(flex, config, {
       alertTopic,
       group: flexServiceName,

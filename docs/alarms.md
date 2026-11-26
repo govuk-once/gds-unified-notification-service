@@ -16,7 +16,7 @@ All alarms live in a dedicated stack, [`UNSAlarmsStack`](/packages/infrastructur
 | `UNSOperationalAlarmsConstruct` | [`UNSOperationalAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSOperationalAlarmsConstruct.ts) | Queue depth, DLQs, per-stage failure rates and durations, publish failures, PSO only |
 | `UNSPerformanceAlarmsConstructs` | [`UNSPerformanceAlarmsConstructs.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSPerformanceAlarmsConstructs.ts) | Lambda cold starts, PSO only |
 | `UNSIntegrationAlarmsConstruct` | [`UNSIntegrationAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSIntegrationAlarmsConstruct.ts) | Provider HTTP error rates, circuit breaker, per-Lambda error rates, PSO and Flex |
-| `UNSSecurityAlarmsConstruct` | [`UNSSecurityAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSSecurityAlarmsConstruct.ts) | Lambda throttling, timeout proximity, concurrency anomalies, IAM AccessDenied, PSO and Flex |
+| `UNSSecurityAlarmsConstruct` | [`UNSSecurityAlarmsConstruct.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSSecurityAlarmsConstruct.ts) | Lambda throttling, timeout proximity, concurrency anomalies, IAM AccessDenied, unqualified Lambda invocation, PSO and Flex |
 
 Shared helpers (priorities, periods, rate and anomaly alarm builders) live in [`UNSAlarmConstructs.ts`](/packages/infrastructure/cdk/constructs/alarmsConstructs/UNSAlarmConstructs.ts).
 
@@ -113,9 +113,9 @@ Metric namespace for custom metrics: `NOTIFICATIONS_UNS_<ENV>` (e.g. `NOTIFICATI
 | `LambdaTimeoutProximityDetected-<lambda>` | P2 | Every PSO and Flex Lambda | Maximum `Duration` > 90% of each Lambda's configured timeout (27,000 ms for the current 30 s default), 2 of 2 one-minute periods |
 | `LambdaConcurrencyAnomalyDetected-<lambda>` | P2 | Every PSO and Flex Lambda | `ConcurrentExecutions` maximum exceeds the 3σ anomaly upper band over 5 min |
 | `IAMAccessDeniedRepeated` | P1 | Account-wide | ≥ 5 AccessDenied CloudTrail events from assumed-role principals within a 5-minute window |
-| `LambdaUnqualifiedInvocationDetected` | P1 | Account-wide | Any CloudTrail `Invoke` event with no qualifier (i.e. `$LATEST` invoked directly) within a 5-minute window |
+| `LambdaUnqualifiedInvocationDetected-<lambda>` | P2 | Every PSO and Flex Lambda | `functionVersion = "$LATEST"` in the Lambda's own log group within a 5-minute window |
 
-All alarms use `AWS/Lambda` standard metrics or CloudTrail log metric filters and are delivered through the existing `alertTopic`.
+Lambda throttling, timeout proximity, concurrency anomaly, cold start, and integration alarms use `AWS/Lambda` or custom CloudWatch metrics. `IAMAccessDeniedRepeated` is sourced via an EventBridge rule feeding into an owned log group (`/aws/events/{prefix}-security-events`). `LambdaUnqualifiedInvocationDetected` uses a metric filter on each Lambda's own log group. All alarms notify through the existing `alertTopic`.
 
 **`LambdaThrottlingDetected`** — requires 2 consecutive breaching minutes to filter out single transient throttles during traffic spikes.
 
@@ -123,9 +123,9 @@ All alarms use `AWS/Lambda` standard metrics or CloudTrail log metric filters an
 
 **`LambdaConcurrencyAnomalyDetected`** — anomaly detection needs approximately two weeks of history to establish a reliable baseline. Alarms for newly deployed functions or infrequently invoked functions (such as `analyticsExport`) may produce false positives while the model trains; suppress or raise the standard-deviation threshold manually in those cases until a baseline is available.
 
-**`IAMAccessDeniedRepeated`** — created once (via the PSO construct) using a CloudWatch Logs metric filter on the account-level CloudTrail log group, resolved automatically at synth time via `DescribeTrails`. Covers all assumed-role principals in the account. If no trail with CloudWatch Logs enabled is found in the region, a CDK warning is emitted and the alarm is not deployed.
+**`IAMAccessDeniedRepeated`** — created once (via the PSO construct). An EventBridge rule matches CloudTrail management events where `errorCode = "AccessDenied"` and `userIdentity.type = "AssumedRole"`, routing them into an owned CloudWatch log group (`/aws/events/{prefix}-security-events`). A metric filter on that log group feeds the alarm. CloudTrail management events are delivered to EventBridge in every AWS account automatically, so this detection works with org-level trails without requiring permissions on the trail's log group.
 
-**`LambdaUnqualifiedInvocationDetected`** — created once (via the PSO construct) using a CloudWatch Logs metric filter on the same CloudTrail log group. All legitimate invocations use a versioned alias (`release_<version>`), so any unqualified invocation is unexpected. Requires CloudTrail Lambda data events to be enabled on the trail — management events alone do not capture `Invoke` calls.
+**`LambdaUnqualifiedInvocationDetected`** — created per Lambda (PSO and Flex). Lambda Powertools logs `functionVersion` on every invocation; when invoked through an alias this resolves to the pinned version number, and is only `"$LATEST"` when the function is called without a qualifier. A metric filter on each Lambda's existing log group (`/aws/lambda/{functionName}`) matches `{ $.functionVersion = "$LATEST" }`. Requires no CloudTrail data events and fires in any environment.
 
 ---
 
@@ -142,7 +142,7 @@ All alarms use `AWS/Lambda` standard metrics or CloudTrail log metric filters an
 
 All Lambda functions are invoked via a deployment-scoped alias (`release_<version>`). API Gateway integrations, SQS event source mappings, and EventBridge schedule targets all reference the alias ARN.
 
-The `LambdaUnqualifiedInvocationDetected` alarm (see [Security](#security-pso-and-flex) above) detects any `Invoke` call that bypasses the alias and hits `$LATEST` directly. It uses a CloudWatch Logs metric filter on the CloudTrail log group with the pattern `{ ($.eventName = "Invoke") && ($.requestParameters.qualifier NOT EXISTS) }`. CloudTrail Lambda data events must be enabled on the account trail for the filter to receive events — management events alone do not capture `Invoke` calls.
+The `LambdaUnqualifiedInvocationDetected` alarm (see [Security](#security-pso-and-flex) above) detects any invocation that bypasses the alias and hits `$LATEST` directly. It uses a metric filter on each Lambda's own CloudWatch log group matching `{ $.functionVersion = "$LATEST" }`, which Lambda Powertools emits on every invocation. When invoked through a versioned alias the field resolves to the alias's pinned version number, so `"$LATEST"` is an unambiguous signal of a direct unqualified call. No CloudTrail data events are required.
 
 ---
 

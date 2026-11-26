@@ -1,4 +1,3 @@
-import { CloudTrailClient, DescribeTrailsCommand } from '@aws-sdk/client-cloudtrail';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import SSMParameters from '@shared/ssmParameter';
 import { CfnDeletionPolicy, Duration, RemovalPolicy } from 'aws-cdk-lib';
@@ -53,22 +52,6 @@ export const fromSSM = async (key: string, fallback?: string | null) => {
 
 export const fromSSMJSON = async <T>(key: string, fallbackToSerialize?: T) => {
   return JSON.parse((await fromSSM(key, JSON.stringify(fallbackToSerialize))) as string) as T;
-};
-
-const resolveCloudTrailLogGroupName = async (awsRegion: string): Promise<string | null> => {
-  try {
-    const response = await new CloudTrailClient({ region: awsRegion }).send(
-      // includeShadowTrails: false restricts to trails homed in this region.
-      // Drop the flag if your org-level trail is homed in a different region (e.g. Control Tower us-east-1).
-      new DescribeTrailsCommand({ includeShadowTrails: false })
-    );
-    const trail = response.trailList?.find((t) => t.CloudWatchLogsLogGroupArn);
-    if (!trail?.CloudWatchLogsLogGroupArn) return null;
-    // ARN format: arn:aws:logs:<region>:<account>:log-group:<name>:*
-    return trail.CloudWatchLogsLogGroupArn.split(':log-group:')[1]?.replace(':*', '') ?? null;
-  } catch {
-    return null;
-  }
 };
 
 if (process.env.env == undefined) {
@@ -170,10 +153,6 @@ export const config = {
       `/${namespace}/${SSMParameters.Certificate.Consumers.Path}`,
       {}
     ),
-
-    monitoring: {
-      cloudTrailLogGroupName: await resolveCloudTrailLogGroupName(region),
-    },
   },
 
   // Feature flag for travel alerts and deeplinkUrls
