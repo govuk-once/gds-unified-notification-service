@@ -1,6 +1,7 @@
 ---
+name: ticket
 description: Draft a well-scoped JIRA ticket through iterative questioning
-user_invocable: true
+argument-hint: [topic]
 ---
 
 # JIRA Ticket Drafter
@@ -48,15 +49,9 @@ Challenge the user on:
 
 ## Vertical slicing
 
-When a ticket touches multiple independently deliverable layers, **prompt the user** with a suggestion to split. For example:
+When a ticket touches multiple independently deliverable layers, suggest splitting — but only when each slice is separately testable and the overhead of extra PRs, reviews, and deployments is worth it. Some tickets span multiple layers but are tightly coupled enough that splitting creates more churn than value. Use judgment: flag the option, explain the tradeoff, and let the user decide.
 
-> "This ticket covers a new DynamoDB table, a new Lambda handler, API Gateway route, and SQS integration. Would you like to split this into separate tickets per layer so each is individually measurable and deployable? For example:
->
-> 1. Infra: DynamoDB table + IAM
-> 2. Lambda handler + unit tests
-> 3. API Gateway integration + e2e tests"
-
-Only suggest splitting when it genuinely aids measurability. Don't split for the sake of it.
+> "This ticket covers a new DynamoDB table, a new Lambda handler, API Gateway route, and SQS integration. These layers could be split into separate tickets if each is individually testable, but if they're tightly coupled you may prefer one ticket. Would you like to split, or keep it together?"
 
 ## Policies
 
@@ -64,7 +59,7 @@ Only suggest splitting when it genuinely aids measurability. Don't split for the
 - **GitHub and CI/CD awareness.** This project uses GitHub with CI/CD pipelines, Husky pre-commit hooks, and commit message validation via `scripts/validate-commit-msg.ts`. Factor this into acceptance criteria where relevant (e.g., "CI passes", "no lint errors").
 - **Don't solutionise.** Confirm feasibility, flag risks, but don't prescribe implementation. The ticket describes _what_, not _how_.
 - **Avoid excessive file/policy references** unless directly pertinent to the ticket's scope.
-- **Personas for user stories are limited to:** Developer, Security Engineer, QA Tester, Mobile App Developer. Do not invent other personas.
+- **User stories are optional.** Use only when a user-facing benefit genuinely adds clarity beyond what the ACs already capture. When used, limit to one or two and restrict personas to: Developer, Security Engineer, QA Tester, Mobile App Developer. Do not invent other personas.
 
 ## Output
 
@@ -73,24 +68,31 @@ When the frontier is empty — every branch visited, nothing left assumed — pr
 ```markdown
 # Description / Why
 
-{{ Simple summary of the task at hand, and its benefits to the project }}
+{{ One paragraph (two max) covering what the change is, why it's needed, and how it will be solved at a high level. No implementation detail. }}
 
 # What
 
-{{ Simple rundown of tasks needed to complete this ticket in bullet point form }}
+{{ Atomic, independently understandable tasks in bullet point form. Each bullet is one clear action. }}
 
-# Acceptance Criteria / User Stories
+# Acceptance Criteria
 
-{{ Simple bullet point list, showcasing how we'll know when the task is done, in form of acceptance criteria and/or user stories }}
+- **AC1:** {{ first criterion — testable, binary pass/fail }}
+- **AC2:** {{ second criterion }}
+
+# Decisions & Context
+
+{{ Key decisions made during scoping, flagged risks, explicit out-of-scope calls, and dependency notes. This section is intended for refinement and can be dropped before the ticket goes live. }}
 ```
 
 Rules for the output:
 
-- Keep it concise. Each section should be scannable, not a wall of text.
-- Acceptance criteria should be testable and unambiguous.
-- User stories use the format: _"As a [persona], I [want/can/expect] ..."_ — only use the four allowed personas.
-- If the ticket warrants it, add a brief `# Out of Scope` section after the main template.
-- Do not overly emphasise steps, keep formatting light and not overbearing, do not use semicolons, em dashes etc. Use rich text only where relevant
+- **Description / Why:** one paragraph, two at most. No walls of text. Covers the what, why, and high-level how.
+- **What:** keep tasks atomic — one action per bullet. If a bullet could be a ticket on its own, it probably should be. Aim for 3–7 bullets; flag to the user if more are genuinely needed.
+- **Acceptance Criteria:** every criterion numbered **AC1, AC2, AC3, ...** in bold, followed by a colon. No unnumbered criteria. Each AC must be independently testable and binary (passes or fails — no "mostly works").
+- **User stories** are optional — add one or two only when a user-facing benefit adds clarity beyond what the ACs capture. Format: _"As a [persona], I [want/can/expect] ..."_ Append under Acceptance Criteria, not as a separate section.
+- **Decisions & Context:** summarise key decisions, tradeoffs, and out-of-scope calls from the rounds. Label each clearly (e.g. "Decided: ...", "Out of scope: ...", "Risk: ..."). Keep each entry to one sentence.
+- If there is genuinely nothing notable to put in Decisions & Context, omit the section.
+- Do not use semicolons, em dashes, or heavy formatting. Use rich text only where it aids clarity.
 
 Before presenting the final ticket, summarise the key decisions made during the rounds so the user can confirm before you write it up.
 
