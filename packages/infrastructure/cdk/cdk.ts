@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import * as cdk from 'aws-cdk-lib';
+import { UNSAdminPortalStack } from '@infra/cdk/constructs/UNSAdminPortalStack';
 import { UNSTestingStack } from '@infra/cdk/constructs/UNSTestingStack';
+import * as cdk from 'aws-cdk-lib';
 import { config } from './config';
 import { UNSAlarmsStack } from './constructs/UNSAlarmsStack';
 import { UNSGlobalStack } from './constructs/UNSGlobalStack';
@@ -67,10 +68,26 @@ export const testingStack = config.deployE2ERunner
         vpc: stack.common.vpc.vpc,
         securityGroups: [stack.common.vpc.securityGroups.privateEgress],
         kms: stack.common.kms,
-
         messagesTable: stack.common.dynamodb.messages.table,
       }
     )
   : undefined;
+
+export const adminPortalStack = config.featureFlag.adminPortal
+  ? new UNSAdminPortalStack(
+      app,
+      config.utils.namingHelper('admin-portal-stack'),
+      {
+        env: {
+          account: process.env.CDK_DEFAULT_ACCOUNT,
+          region: process.env.CDK_DEFAULT_REGION,
+        },
+      },
+      config,
+      stack.resourceNames()
+    )
+  : undefined;
+
 alarmsStack.addStackDependency(stack);
 testingStack?.addStackDependency(stack);
+adminPortalStack?.addStackDependency(stack);
