@@ -107,7 +107,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
     this.addRateAlarm({
       id: constructNamingHelper('dispatchFailureRateAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchFailureRateHigh'),
-      description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS}% over a 5-minute window.`,
+      description: `Dispatch failure rate exceeded ${OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE}% over a 5-minute window.`,
       failed: this.customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING_FAILED, Stats.SUM),
       total: this.customMetric(MetricsLabels.ANALYTICS_EVENT_DISPATCHING, Stats.SUM),
       threshold: OperationalAlarmThreshold.FAILURE_RATE_PERCENTAGE,
@@ -158,7 +158,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
     this.addAlarm({
       id: constructNamingHelper('dispatchDurationAlarm', group),
       name: namingHelper(alarmPriority.HIGH, group, 'DispatchDurationP95High'),
-      description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.PROCESSING_DURATION_P95_MS} ms over a 5-minute window.`,
+      description: `Dispatch p95 duration exceeded ${OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS} ms over a 5-minute window.`,
       metric: this.customMetric(MetricsLabels.DISPATCH_DURATION, P95_STATISTIC, AlarmPeriod.FIVE_MINUTES),
       threshold: OperationalAlarmThreshold.DISPATCH_DURATION_P95_MS,
       comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
@@ -267,7 +267,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         threshold: OperationalAlarmThreshold.DLQ_DEPTH_MEDIUM,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 15,
-        datapointsToAlarm: 1,
+        datapointsToAlarm: 15,
       });
 
       this.addAlarm({
@@ -284,7 +284,7 @@ export class UNSOperationalAlarmsConstruct extends UNSAlarmsConstruct {
         threshold: OperationalAlarmThreshold.DLQ_DEPTH_HIGH,
         comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 15,
-        datapointsToAlarm: 1,
+        datapointsToAlarm: 15,
       });
 
       // DLQ Oldest Message in Queue Alarm

@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run build*)",
+      "Bash(pnpm run lint*)",
+      "Bash(pnpm run pre-commit)",
+      "Bash(pnpm run spellcheck)",
+      "Bash(pnpm run test:unit*)",
+      "Bash(mise info *)",
+      "Bash(mise ls *)",
+      "Bash(git ls-tree *)",
+      "Bash(xargs ls)",
+      "Skill(update-config)"
+    ],
+    "deny": [
+      "Bash(pnpm run cdk*)",
+      "Bash(pnpm run development*)",
+      "Bash(pnpm run test:e2e*)",
+      "Bash(pnpm run semantic*)",
+      "Bash(pnpm run checkov)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | { read -r f; export PATH=\"./node_modules/.bin:$PATH\"; case \"$f\" in *.ts|*.tsx|*.js|*.mjs|*.cjs) eslint --fix \"$f\" && prettier --write \"$f\";; *) prettier --write --ignore-unknown \"$f\";; esac; } 2>/dev/null || true",
+            "statusMessage": "Linting..."
+          }
+        ]
+      }
+    ]
+  }
+}

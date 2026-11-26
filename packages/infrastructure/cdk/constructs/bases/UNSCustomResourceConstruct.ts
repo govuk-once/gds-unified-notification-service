@@ -71,6 +71,10 @@ export class UNSCustomResourceConstruct<
     this.applyCheckovSkips(this.fn);
     this.applyCheckovSkips(this.provider);
     this.applyCheckovSkips(this.provider.onEventHandler);
+
+    // Prevent CDK from creating countless roles in lower environments
+    this.provider.onEventHandler.role?.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
+    this.provider.isCompleteHandler?.role?.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
   }
 
   public use(caller: Construct, props: InputType, additionalProps?: UNSCustomResourceConstructAdditionalProps) {

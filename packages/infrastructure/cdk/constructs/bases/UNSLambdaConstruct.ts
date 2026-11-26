@@ -1,11 +1,11 @@
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { ISecurityGroup, ISubnet, IVpc } from 'aws-cdk-lib/aws-ec2';
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { IKey } from 'aws-cdk-lib/aws-kms';
-import { Code, CodeSigningConfig, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
+import { Alias, Code, CodeSigningConfig, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
@@ -51,13 +51,21 @@ export interface UNSLambdaConstructProps {
 }
 
 export class UNSLambdaConstruct extends Construct {
+  static readonly TIMEOUT = Duration.seconds(30);
+
   public readonly fn: NodejsFunction;
+  public readonly alias: Alias;
   public readonly integration: LambdaIntegration;
   public readonly role: Role;
   public readonly logGroup: LogGroup;
+  public readonly timeoutMs: number;
 
   public readonly config: EnvVars;
   public readonly props: UNSLambdaConstructProps;
+
+  lambdaRef(): { functionName: string; timeoutMs: number } {
+    return { functionName: this.fn.functionName, timeoutMs: this.timeoutMs };
+  }
 
   addPermissionsToRole(actions?: string[], resources?: string[]) {
     if (actions && actions.length > 0 && resources && resources.length > 0) {
@@ -76,6 +84,7 @@ export class UNSLambdaConstruct extends Construct {
     super(scope, constructNamingHelper(...props.name));
     this.config = config;
     this.props = props;
+    this.timeoutMs = UNSLambdaConstruct.TIMEOUT.toMilliseconds();
 
     const stack = Stack.of(this);
 
@@ -169,7 +178,7 @@ export class UNSLambdaConstruct extends Construct {
       functionName,
       runtime: props.runtime ?? Runtime.NODEJS_22_X,
       memorySize: props.memory ?? 512,
-      timeout: Duration.seconds(30),
+      timeout: UNSLambdaConstruct.TIMEOUT,
       handler: 'index.handler',
       code: Code.fromAsset(props.bundlePath, {}),
       codeSigningConfig: props.signingConfig,
@@ -206,18 +215,30 @@ export class UNSLambdaConstruct extends Construct {
             deadLetterQueueEnabled: true,
           }
         : {}),
-      events: [
-        ...(props?.triggers?.queues ?? []).map(
-          (q) =>
-            new SqsEventSource(q, {
-              batchSize: 10,
-              reportBatchItemFailures: true,
-            })
-        ),
-      ],
     });
 
-    this.integration = new LambdaIntegration(this.fn);
+    // Alias name encodes the deployment version for observability.
+    // Using a per-version construct ID means CDK creates a new alias on each version change
+    // and destroys the previous one, keeping the alias list clean.
+    //
+    // Lambda::Permission FunctionName = alias ARN, max 140 chars:
+    //   arn:aws:lambda:{region}:{12-digit-account}:function:{functionName}:{aliasName}
+    // With eu-west-2 and a 12-digit account that overhead is 47 chars constant.
+    const ARN_OVERHEAD = 47;
+    const maxAliasLength = 140 - ARN_OVERHEAD - functionName.length - 1; // -1 for the colon before aliasName
+    const aliasName = `release_${config.version.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, maxAliasLength - 8)}`; // 8 = 'release_'.length
+    this.alias = new Alias(this, aliasName, {
+      aliasName,
+      version: this.fn.currentVersion,
+    });
+    this.alias.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+    // SQS event sources target the alias so invocations are qualified and detectable via CloudTrail data events.
+    for (const q of props.triggers?.queues ?? []) {
+      this.alias.addEventSource(new SqsEventSource(q, { batchSize: 10, reportBatchItemFailures: true }));
+    }
+
+    this.integration = new LambdaIntegration(this.alias);
 
     //// =====================================================
     // Scheduler
@@ -225,7 +246,7 @@ export class UNSLambdaConstruct extends Construct {
     for (const s of props?.triggers?.schedule ?? []) {
       new Rule(this, config.utils.namingHelper(`scheduler`, this.props.serviceName), {
         schedule: s,
-        targets: [new LambdaFunction(this.fn)],
+        targets: [new LambdaFunction(this.alias)],
       });
     }
 

@@ -112,11 +112,12 @@ export class UNSAlarmsConstruct extends Construct {
     total: IMetric;
     threshold: number;
     label: string;
+    period?: Duration;
   }): Alarm {
     const errorRate = new MathExpression({
-      expression: '(FILL(failed, 0) / total) * 300',
+      expression: '(FILL(failed, 0) / total) * 100',
       usingMetrics: { failed: props.failed, total: props.total },
-      period: AlarmPeriod.FIVE_MINUTES,
+      period: props.period ?? AlarmPeriod.FIVE_MINUTES,
       label: props.label,
     });
 

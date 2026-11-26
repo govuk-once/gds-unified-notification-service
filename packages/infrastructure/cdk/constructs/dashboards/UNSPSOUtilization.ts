@@ -3,12 +3,15 @@ import { Duration } from 'aws-cdk-lib';
 import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { EnvVars } from '@infra/cdk/config';
-import { UNSPSOResource } from '@infra/cdk/constructs/UNSPSOResources';
+
+export interface UNSPSOUtilizationProps {
+  restApiName: string;
+}
 
 export class UNSPSOUtilization extends Construct {
-  constructor(scope: Construct, id: string, config: EnvVars, refs: { pso: UNSPSOResource }) {
+  constructor(scope: Construct, id: string, config: EnvVars, props: UNSPSOUtilizationProps) {
     super(scope, id);
-    const apiName = refs.pso.gateway.restApi.restApiName;
+    const apiName = props.restApiName;
 
     const createIncomingMetrics = (period: Duration) => {
       const incoming = new cw.Metric({
