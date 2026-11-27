@@ -84,7 +84,7 @@ export const adminPortalStack = config.featureFlag.adminPortal
         },
       },
       config,
-      stack.resourceNames()
+      { global: globalStack, common: stack.common }
     )
   : undefined;
 

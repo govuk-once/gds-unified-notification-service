@@ -13,6 +13,7 @@ export default mergeConfig(
         'packages/core/src/**/*.{test,test.unit}.ts',
         'packages/pso/src/**/*.{test,test.unit}.ts',
         'packages/flex/src/**/*.{test,test.unit}.ts',
+        'packages/portal-backend/src/**/*.{test,test.unit}.ts',
       ],
       setupFiles: ['test/unit/setup.unit.vitest.ts'],
     },

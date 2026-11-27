@@ -31,7 +31,7 @@ export default mergeConfig(
           functions: 80,
           lines: 80,
         },
-        include: ['packages/{core,flex,pso}/src/**/*.ts'],
+        include: ['packages/{core,flex,pso,portal-backend}/src/**/*.ts'],
         exclude: ['**/*.{test,test.unit,mocks,util}.ts', 'packages/core/src/ioc.ts'],
         reporter: [process.env.VITEST_DETAILED_COVERAGE == 'true' ? 'text' : 'text-summary', 'lcov'],
       },

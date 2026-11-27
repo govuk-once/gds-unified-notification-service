@@ -432,6 +432,14 @@ importers:
 
   packages/infrastructure: {}
 
+  packages/portal-backend:
+    dependencies:
+      '@gds-uns/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/portal-frontend: {}
+
   packages/pso:
     dependencies:
       '@gds-uns/core':

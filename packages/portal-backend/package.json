@@ -1,0 +1,12 @@
+{
+  "name": "@gds-uns/portal-backend",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsx ../../scripts/build.ts --handler portal-backend"
+  },
+  "dependencies": {
+    "@gds-uns/core": "workspace:*"
+  }
+}
