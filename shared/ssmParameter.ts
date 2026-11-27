@@ -104,6 +104,14 @@ const SSMParameters = {
     Account: staticParam('flex/account', 'string', 'null'),
     Vpce: staticParam('flex/vpce', 'string', 'null'),
   },
+  Portal: {
+    Cognito: {
+      UserPoolId: infraParam('portal/cognito/userPoolId', 'string'),
+      UserPoolClientId: infraParam('portal/cognito/userPoolClientId', 'string'),
+      Domain: infraParam('portal/cognito/domain', 'string'),
+      SignInUrl: infraParam('portal/cognito/signInUrl', 'string'),
+    },
+  },
   AnalyticsExport: {
     LogGroup: {
       Name: infraParam('analytics/export/loggroup/name', 'string'),

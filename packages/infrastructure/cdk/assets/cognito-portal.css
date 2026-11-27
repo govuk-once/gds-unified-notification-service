@@ -1,0 +1,54 @@
+.banner-customizable {
+  background-color: #0b0c0c;
+  padding: 10px 15px;
+}
+
+.background-customizable {
+  background-color: #f3f2f1;
+}
+
+.label-customizable {
+  font-weight: 700;
+  color: #0b0c0c;
+}
+
+.textDescription-customizable {
+  font-size: 19px;
+  color: #0b0c0c;
+}
+
+.inputField-customizable {
+  border: 2px solid #0b0c0c;
+  color: #0b0c0c;
+  background-color: #ffffff;
+}
+
+.inputField-customizable:focus {
+  border-color: #ffdd00;
+  outline: 3px solid #ffdd00;
+}
+
+.submitButton-customizable {
+  background-color: #00703c;
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: bold;
+}
+
+.submitButton-customizable:hover {
+  background-color: #005a30;
+  color: #ffffff;
+}
+
+.errorMessage-customizable {
+  color: #d4351c;
+  font-size: 16px;
+}
+
+.passwordCheck-notValid-customizable {
+  color: #d4351c;
+}
+
+.passwordCheck-valid-customizable {
+  color: #00703c;
+}

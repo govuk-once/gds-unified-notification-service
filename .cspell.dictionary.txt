@@ -90,6 +90,7 @@ tradeoffs
 treeify
 truststore
 unnamespaced
+userpool
 valkey
 vars
 vitest
