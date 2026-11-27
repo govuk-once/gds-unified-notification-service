@@ -39,6 +39,10 @@
       "@shared": ["./shared"],
       "@test/*": ["./test/*"],
       "@test": ["./test"],
+      "@portal-backend/*": ["./packages/portal-backend/src/*"],
+      "@portal-backend": ["./packages/portal-backend/src"],
+      "@portal-frontend/*": ["./packages/portal-frontend/src/*"],
+      "@portal-frontend": ["./packages/portal-frontend/src"],
       "@infra/*": ["./packages/infrastructure/*"],
       "@infra": ["./packages/infrastructure"]
     }

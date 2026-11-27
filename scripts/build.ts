@@ -5,7 +5,7 @@ import { Colors, execute } from 'scripts/helpers';
 import { parseArgs } from 'node:util';
 import { mkdirSync } from 'node:fs';
 
-const ALLOWED_HANDLERS = ['pso', 'flex'];
+const ALLOWED_HANDLERS = ['pso', 'flex', 'portal-backend'];
 const ROOT = dirname(import.meta.dirname);
 const OUT_DIR = resolve(ROOT, 'dist');
 
