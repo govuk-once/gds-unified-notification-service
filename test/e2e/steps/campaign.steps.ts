@@ -1,6 +1,6 @@
 import { mockCampaignRecord } from '@common/repositories';
 import { NotificationProcessingStateEnum } from '@common/models';
-import { IGroupMessageSendResponseSchema } from '@common/models/interfaces';
+import { GetCampaignStatusResponse, PostGroupMessageResponseSchema } from '@common/models/interfaces';
 import { Given, When } from '@cucumber/cucumber';
 import {
   waitForCampaignStatus,
@@ -37,6 +37,9 @@ When('I attempt to get the campaign status', async function (this: CustomWorld) 
   this.path = `/status/campaign/${this.campaignID}`;
 
   await this.sendRequest('GET');
+  this.assertions.push((body) => {
+    GetCampaignStatusResponse.parse(body);
+  });
 });
 
 // ──────────────────────────────────────────────────
@@ -46,7 +49,7 @@ When('I attempt to get the campaign status', async function (this: CustomWorld) 
 When('I attempt to get the campaign status for processed group notifications', function (this: CustomWorld) {
   if (!this.campaignID) throw new Error('Campaign ID should be set before checking campaign status');
 
-  const [groupResult] = IGroupMessageSendResponseSchema.parse(this.result?.body);
+  const [groupResult] = PostGroupMessageResponseSchema.parse(this.result?.body);
   if (!groupResult) throw new Error('Group-send response did not contain a result');
   if (groupResult.UsersInGroup === 0) throw new Error('Cannot verify campaign status for an empty group');
 

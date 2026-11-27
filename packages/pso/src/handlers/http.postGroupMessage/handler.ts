@@ -22,7 +22,7 @@ import {
   IGroupMessage,
   IGroupMessageMetadata,
   IGroupMessageSchema,
-  IGroupMessageSendResponseSchema,
+  PostGroupMessageResponseSchema,
 } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
@@ -80,12 +80,12 @@ const authorizerSchema = psoAuthorizerSchema;
 
 export class PostGroupMessage extends APIHandler<
   typeof requestBodySchema,
-  typeof IGroupMessageSendResponseSchema,
+  typeof PostGroupMessageResponseSchema,
   typeof authorizerSchema
 > {
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;
-  public responseBodySchema = IGroupMessageSendResponseSchema;
+  public responseBodySchema = PostGroupMessageResponseSchema;
   public authorizerSchema = authorizerSchema;
 
   public readonly cacheService!: CacheService;
@@ -105,7 +105,7 @@ export class PostGroupMessage extends APIHandler<
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof IGroupMessageSendResponseSchema>>> {
+  ): Promise<ITypedRequestResponse<z.infer<typeof PostGroupMessageResponseSchema>>> {
     this.observability.logger.info('Received request', {
       path: event.path,
       organisationID: event.requestContext.authorizer.Organization,

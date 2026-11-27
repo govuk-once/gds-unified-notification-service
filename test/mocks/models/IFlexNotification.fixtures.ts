@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models';
-import { IFlexNotification } from '@common/models/interfaces';
+import { GetNotificationResponse } from '@common/models/interfaces';
 
-export const mockIFlexNotification = (): IFlexNotification => ({
+export const mockGetNotificationResponse = (): GetNotificationResponse => ({
   DispatchedDateTime: '2026-01-01T12:00:03.000Z',
   MessageBody: 'Open Notification Centre to read your notifications',
   MessageTitle: 'You have a new Message',

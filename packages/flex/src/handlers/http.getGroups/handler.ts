@@ -10,17 +10,12 @@ import {
 import { BadRequestError } from '@common/models/Errors/BadRequestError';
 import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { ConfigurationService, ObservabilityService } from '@common/services';
+import { GetGroupsResponseSchema } from '@common/models/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(
-  z.object({
-    Namespace: z.string(),
-    Group: z.string(),
-    Subgroup: z.string().optional(),
-  })
-);
+const responseBodySchema = GetGroupsResponseSchema;
 
 export class GetGroups extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getGroups';

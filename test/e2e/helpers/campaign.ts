@@ -1,7 +1,7 @@
-/* eslint-disable vitest/no-standalone-expect */
 import { iocGetCampaignsDynamoRepository } from '@common/ioc';
-import { campaignStatusSchema, type CampaignStatus } from '@common/models/interfaces';
-import { FetchErrorResponse, type FetchService } from '@common/services/FetchService';
+import { GetCampaignStatusResponse } from '@common/models/interfaces';
+
+import { FetchErrorResponse } from '@common/services/FetchService';
 import { ICampaignRecord } from '@common/repositories';
 import { NotificationProcessingStateEnum } from '@common/models';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
@@ -63,7 +63,7 @@ export const waitForCampaignStatus = (world: CustomWorld, expectedCounts: Campai
       try {
         // Send api request to get the campaign status
         const result = await world.psoAPI.get({ path: `/status/campaign/${world.campaignID}` });
-        const campaignStatus = campaignStatusSchema.parse(result.body);
+        const campaignStatus = GetCampaignStatusResponse.parse(result.body);
         if (campaignStatus.CampaignID !== world.campaignID) {
           throw new Error(`Campaign status returned ${campaignStatus.CampaignID} instead of ${world.campaignID}`);
         }

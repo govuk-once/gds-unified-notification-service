@@ -1,10 +1,10 @@
 import z from 'zod';
 
-export const IGroupMessageSendResponseSchema = z.array(
+export const PostGroupMessageResponseSchema = z.array(
   z.object({
     GroupNotificationID: z.string(),
     UsersInGroup: z.int().min(0),
   })
 );
 
-export type IGroupMessageSendResponse = z.infer<typeof IGroupMessageSendResponseSchema>;
+export type PostGroupMessageResponse = z.infer<typeof PostGroupMessageResponseSchema>;

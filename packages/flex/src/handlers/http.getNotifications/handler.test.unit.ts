@@ -5,7 +5,7 @@ import {
   mockEventContext,
   mockFlexAPIEvent,
   mockIAnalytics,
-  mockIFlexNotification,
+  mockGetNotificationResponse,
   mockIOrganisationRecord,
   mockIProcessedMessage,
   mockIProcessedMessageRecord,
@@ -72,7 +72,7 @@ describe('getNotifications Handler', async () => {
 
   it('should return 200 with status ok and return a notification', async () => {
     // Arrange
-    const expectResponse = mockIFlexNotification();
+    const expectResponse = mockGetNotificationResponse();
 
     // Act
     const result = await handler(event, context);
@@ -84,7 +84,7 @@ describe('getNotifications Handler', async () => {
 
   it('should return 200 and use cache events if they are not present in the message record', async () => {
     // Arrange
-    const expectResponse = mockIFlexNotification();
+    const expectResponse = mockGetNotificationResponse();
     serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([
       {
         ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.READ),
@@ -110,8 +110,8 @@ describe('getNotifications Handler', async () => {
       },
     ]);
 
-    const expectResponse_1 = mockIFlexNotification();
-    const expectResponse_2 = mockIFlexNotification();
+    const expectResponse_1 = mockGetNotificationResponse();
+    const expectResponse_2 = mockGetNotificationResponse();
     expectResponse_2.NotificationID = 'efe72235-d02a-45a9-b9d4-a04ff992fcc4';
 
     serviceMocks.cacheServiceMock.getList = vi
@@ -139,7 +139,7 @@ describe('getNotifications Handler', async () => {
 
   it('should return 200 and use message record only if cached events is an empty array', async () => {
     // Arrange
-    const expectResponse = mockIFlexNotification();
+    const expectResponse = mockGetNotificationResponse();
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessages.mockResolvedValueOnce([
       {
         ...messageRecord,

@@ -15,12 +15,12 @@ import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@c
 import { CacheService, ConfigurationService, ObservabilityService } from '@common/services';
 import { filters } from '@common/utils/array';
 import DateInSeconds from '@common/utils/dateInSeconds';
-import { IFlexNotificationSchema, IMessageRecordToIFlexNotification, IAnalytics } from '@common/models/interfaces';
+import { GetNotificationResponseSchema, toGetNotificationResponse, IAnalytics } from '@common/models/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(IFlexNotificationSchema);
+const responseBodySchema = z.array(GetNotificationResponseSchema);
 
 export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotifications';
@@ -84,9 +84,7 @@ export class GetNotifications extends FlexAPIHandler<typeof requestBodySchema, t
         }
         return true;
       })
-      .map((n) =>
-        IMessageRecordToIFlexNotification(n, organisations, this.observability, cachedEvents[n.NotificationID] ?? [])
-      )
+      .map((n) => toGetNotificationResponse(n, organisations, this.observability, cachedEvents[n.NotificationID] ?? []))
       .filter(filters.isDefined)
       .filter((n) => n.Status !== NotificationDispatchedStateEnum.HIDDEN)
       .sort((a, b) => {

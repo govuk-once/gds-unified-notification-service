@@ -1,5 +1,5 @@
 /* eslint-disable vitest/no-standalone-expect */
-import { GroupActionEnum } from '@common/models/interfaces';
+import { GetGroupsResponseSchema, GroupActionEnum } from '@common/models/interfaces';
 import { DataTable, Given, When } from '@cucumber/cucumber';
 import { addCleanUp, joinGroups, clearSubscribedGroups, type GroupEntry } from '@test/e2e/helpers/groups';
 import type CustomWorld from '@test/e2e/support/world';
@@ -45,8 +45,9 @@ When('I attempt to get subscribed groups', async function (this: CustomWorld) {
   await this.sendRequest('GET');
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
+    const groups = GetGroupsResponseSchema.parse(body);
     for (const group of this.joinedGroups) {
-      expect(body).toContainEqual(expect.objectContaining(group));
+      expect(groups).toContainEqual(expect.objectContaining(group));
     }
   });
 });
@@ -80,8 +81,9 @@ When('I send a single request to modify the following groups:', async function (
 
   this.expectedStatusCode = 200;
   this.assertions.push((body) => {
+    const groups = GetGroupsResponseSchema.parse(body);
     for (const item of expectedGroups) {
-      expect(body).toContainEqual(
+      expect(groups).toContainEqual(
         expect.objectContaining(item.Subgroup ? item : { Namespace: item.Namespace, Group: item.Group })
       );
     }
