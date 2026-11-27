@@ -95,6 +95,7 @@ export class ProcessingAdapterUDP implements ProcessingAdapter {
       return {
         request,
         externalUserID: data.data.notificationId ?? data.data.pushId,
+        consentStatus: data.data.consentStatus,
       };
     } catch (error) {
       this.errorHandler(request, error);

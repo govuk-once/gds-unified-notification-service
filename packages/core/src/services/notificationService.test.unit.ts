@@ -284,7 +284,7 @@ describe('NotificationService', async () => {
       const result = await instance.send(requestWithChannel);
 
       // Assert
-      expect(result).toEqual({ notification: requestWithChannel, requestId: 'abc-123' });
+      expect(result).toEqual({ notification: requestWithChannel, requestId: 'abc-123', additionalStatuses: [] });
       expect(postSpy).toHaveBeenCalled();
     });
   });

@@ -17,6 +17,7 @@ export const INotificationStatusSchema = z.object({
     NotificationStateEnum.DISPATCHING,
     NotificationStateEnum.DISPATCHED,
     NotificationStateEnum.DISPATCHING_FAILED,
+    NotificationStateEnum.DISPATCHED_TO_MESSAGE_CENTER_ONLY_DUE_TO_MISSING_OS_SUBSCRIPTION,
     NotificationStateEnum.READ,
     NotificationStateEnum.MARKED_AS_UNREAD,
     NotificationStateEnum.HIDDEN,

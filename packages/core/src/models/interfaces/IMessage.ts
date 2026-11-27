@@ -53,6 +53,7 @@ export type IMessage = z.infer<typeof IMessageSchema>;
 export const IProcessedMessageSchema = IMessageSchema.extend({
   UserID: z.string().optional(),
   ExternalUserID: z.string(),
+  ConsentStatus: z.string().optional(),
 });
 export type IProcessedMessage = z.infer<typeof IProcessedMessageSchema>;
 

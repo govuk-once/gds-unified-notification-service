@@ -1,6 +1,6 @@
 import { ChannelsEnum } from '@common/models';
-import DateInSeconds from '@common/utils/dateInSeconds';
 import { IAnalyticsSchema } from '@common/models/interfaces/IAnalyticsSchema';
+import DateInSeconds from '@common/utils/dateInSeconds';
 import * as z from 'zod';
 
 export const IMessageRecordSchema = z.object({
@@ -16,6 +16,7 @@ export const IMessageRecordSchema = z.object({
   // Tracing IDs
   ExternalResponseID: z.string().optional(),
   APIGWExtendedID: z.string().optional(),
+  ConsentStatus: z.string().optional(),
 
   // Contents
   NotificationTitle: z.string(),

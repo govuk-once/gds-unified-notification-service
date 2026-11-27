@@ -10,6 +10,12 @@ import {
   iocGetObservabilityService,
 } from '@common/ioc';
 import { RateLimitingError } from '@common/models/Errors/TooManyRequestsError';
+import { IProcessedMessageSchema } from '@common/models/interfaces';
+import {
+  extractIdentifiers,
+  IIdentifiableMessage,
+  IIdentifiableMessageSchema,
+} from '@common/models/interfaces/IMessage';
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
 import { NotificationsDynamoRepository } from '@common/repositories';
@@ -22,12 +28,6 @@ import {
   NotificationService,
   ObservabilityService,
 } from '@common/services';
-import { IProcessedMessageSchema } from '@common/models/interfaces';
-import {
-  extractIdentifiers,
-  IIdentifiableMessage,
-  IIdentifiableMessageSchema,
-} from '@common/models/interfaces/IMessage';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
@@ -92,10 +92,16 @@ export class Dispatch extends BatchQueueOperation<typeof requestBodySchema, type
           NotificationID: message.NotificationID,
           NotificationTitle: message.NotificationTitle,
           NotificationBody: message.NotificationBody,
+          ConsentStatus: message.ConsentStatus,
           DeeplinkURL: featureEnabledDeepLinkUrl ? message.DeeplinkURL : undefined,
           Channel: featureEnabledChannelControls ? message.Channel : undefined,
         })
     );
+
+    for (const status of result.additionalStatuses ?? []) {
+      await this.analyticsService.publishEvent(extractIdentifiers(message), status);
+    }
+
     this.observability.logger.info('Notification dispatched', {
       ...extractIdentifiers(message),
       ProviderRequestID: result.requestId,

@@ -1,6 +1,7 @@
 import { ProviderDimension } from '@common/index';
 import { DispatchAdapterError, NoDispatchIdFound } from '@common/models';
 import { ChannelsEnum } from '@common/models/ChannelsEnum';
+import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import { FetchErrorResponse } from '@common/services/FetchService';
 import { iocSpies, mockNotificationAdapterRequest, mockServicesExpectedBehaviour } from '@test/mocks';
 import { NotificationAdapterOneSignal } from './notificationAdapterOneSignal';
@@ -69,7 +70,7 @@ describe('NotificationAdapterOneSignal', async () => {
           },
         },
       });
-      expect(result).toEqual({ notification: request, requestId: 'test-response-id' });
+      expect(result).toEqual({ notification: request, requestId: 'test-response-id', additionalStatuses: [] });
       expect(observabilityMocks.recordProviderHttpMetric).toHaveBeenCalledWith(ProviderDimension.ONESIGNAL, 'call');
     });
 
@@ -124,6 +125,67 @@ describe('NotificationAdapterOneSignal', async () => {
           }),
         })
       );
+    });
+
+    it('should log a warning when ConsentStatus is undefined', async () => {
+      // Arrange
+      postMock.mockResolvedValue(responseBody);
+      // Act
+      await instance.send(request);
+      // Assert
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Consent state was not in expected state', {
+        NotificationID: request.NotificationID,
+        ConsentStatus: undefined,
+      });
+    });
+
+    it('should log a warning when ConsentStatus is "unknown"', async () => {
+      // Arrange
+      postMock.mockResolvedValue(responseBody);
+      const req = { ...request, ConsentStatus: 'unknown' };
+      // Act
+      await instance.send(req);
+      // Assert
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith('Consent state was not in expected state', {
+        NotificationID: req.NotificationID,
+        ConsentStatus: 'unknown',
+      });
+    });
+
+    it('should warn and not throw when all errors are "All included players are not subscribed"', async () => {
+      // Arrange
+      const subscriptionMissingResponse = {
+        status: 200,
+        body: {
+          id: '',
+          errors: ['All included players are not subscribed'],
+        },
+      };
+      postMock.mockResolvedValueOnce(subscriptionMissingResponse);
+      const req = { ...request, ConsentStatus: 'opted_in' };
+      // Act
+      const result = await instance.send(req);
+      // Assert
+      expect(result.additionalStatuses).toContain(
+        NotificationStateEnum.DISPATCHED_TO_MESSAGE_CENTER_ONLY_DUE_TO_MISSING_OS_SUBSCRIPTION
+      );
+      expect(observabilityMocks.logger.warn).toHaveBeenCalledWith(
+        'OneSignal Subscription missing - confirm consent state',
+        {
+          NotificationID: req.NotificationID,
+          ConsentStatus: req.ConsentStatus,
+          ExternalUserID: req.ExternalUserID,
+        }
+      );
+    });
+
+    it('should return an empty additionalStatuses on a successful dispatch', async () => {
+      // Arrange
+      postMock.mockResolvedValue(responseBody);
+      // Act
+      const result = await instance.send(request);
+      // Assert
+      expect(result.additionalStatuses).toEqual([]);
     });
 
     it('should throw NoDispatchIdFound when the response resolves with a 404 status and errors in the body', async () => {

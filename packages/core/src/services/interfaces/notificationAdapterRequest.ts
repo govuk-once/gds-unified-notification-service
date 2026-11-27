@@ -7,4 +7,5 @@ export interface NotificationAdapterRequest {
   NotificationBody: string;
   Channel?: ChannelsEnum;
   DeeplinkURL?: string;
+  ConsentStatus?: string;
 }
