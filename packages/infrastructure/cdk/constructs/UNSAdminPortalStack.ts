@@ -49,7 +49,7 @@ export class UNSAdminPortalStack extends Stack {
       description: `API Gateway for Admin Portal`,
       domain: 'portal',
       waf: {
-        cloudfrontWebAclArn: resources.global.cloudfrontWebAclArn,
+        cloudfrontWebAclArn: config.isEphemeral ? undefined : resources.global.cloudfrontWebAclArn,
       },
       resources: {
         kms,
