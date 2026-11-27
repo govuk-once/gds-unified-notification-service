@@ -24,6 +24,10 @@ import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { StandardServiceDashboardFactory } from 'once-platform-constructs';
 
+// Each groupprocessing record is a whole chunk of pushIDs, so the worker needs longer than the 30s default
+// TODO: 120s is an estimate. Tune this and Group.Dispatch.ChunkSize from measured worker durations in a real environment
+const groupProcessingWorkerTimeoutSeconds = 120;
+
 export class UNSPSOResource extends Construct {
   public readonly serviceName = 'pso';
   public readonly queues: {
@@ -117,6 +121,10 @@ export class UNSPSOResource extends Construct {
             name: ['groupprocessing'],
             tags: {},
             messageRetentionSeconds: Duration.days(7).toSeconds(),
+            // Each message carries a chunk of pushIDs (Group.Dispatch.ChunkSize), so needs the SQS maximum of 256 KiB
+            maxMessageSizeBytes: 262144,
+            // At least 6x the groupProcessingWorker timeout
+            visibilityTimeoutSeconds: groupProcessingWorkerTimeoutSeconds * 6,
             resources: {
               kmsKey: refs.kms,
             },
@@ -408,7 +416,6 @@ export class UNSPSOResource extends Construct {
         environment: {},
         resources: {
           kms: refs.kms,
-          vpc: basePrivateVPC,
         },
         iam: {
           ssmNamespaces: [config.namespace],
@@ -416,7 +423,6 @@ export class UNSPSOResource extends Construct {
           dynamodb: {
             messages: refs.dynamodb.groupStore.permissions.readOnly,
           },
-          elasticache: refs.elasticache.arns,
         },
       });
     }
@@ -470,6 +476,7 @@ export class UNSPSOResource extends Construct {
       config.featureFlag.groups && this.queues.groupProcessing && refs.dynamodb.groupStore
         ? new UNSLambdaConstruct(this, config, {
             ...baseSQS(`groupProcessingWorker`),
+            timeoutSeconds: groupProcessingWorkerTimeoutSeconds,
             environment: {},
             resources: {
               kms: refs.kms,
@@ -478,11 +485,7 @@ export class UNSPSOResource extends Construct {
             },
             iam: {
               ssmNamespaces: [config.namespace],
-              sqsSend: [
-                this.queues.groupProcessing.queue.queueArn,
-                this.queues.dispatch.queue.queueArn,
-                this.queues.analytics.queue.queueArn,
-              ],
+              sqsSend: [this.queues.dispatch.queue.queueArn, this.queues.analytics.queue.queueArn],
               dynamodb: {
                 messages: refs.dynamodb.messages.permissions.readAndWrite,
               },
@@ -490,6 +493,8 @@ export class UNSPSOResource extends Construct {
             },
             triggers: {
               queues: [this.queues.groupProcessing.queue],
+              // Each record is a chunk of up to Group.Dispatch.ChunkSize pushIDs
+              queueBatchSize: 1,
             },
           })
         : undefined;

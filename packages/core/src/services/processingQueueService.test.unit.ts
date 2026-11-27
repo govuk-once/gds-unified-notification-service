@@ -1,3 +1,4 @@
+import { InternalServerError } from '@common/models/Errors/InternalServerError';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import { MetricsLabels } from '@common/services/observabilityService';
 import { ProcessingQueueService } from '@common/services/processingQueueService';
@@ -150,7 +151,7 @@ describe('ProcessingQueueService', async () => {
       );
     });
 
-    it('should send a batch of messages, logs any that were failed to be sent, and adds a metric.', async () => {
+    it('should log, add a metric and throw without retrying when SQS rejects an entry because of a sender fault.', async () => {
       // Arrange
       const message_0 = {
         NotificationID: '2536bd9b-611b-453c-ba3d-e34783e4c9d1',
@@ -175,13 +176,14 @@ describe('ProcessingQueueService', async () => {
 
       awsClientMocks.sqsClientMock.send = vi.fn().mockResolvedValueOnce({
         Successful: [{ MessageId: 'message_0', Id: '0', MD5OfMessageBody: 'X' }],
-        Failed: [{ Id: '1', SenderFault: false, Code: 'MockCode' }],
+        Failed: [{ Id: '1', SenderFault: true, Code: 'MockCode' }],
       });
 
       // Act
-      await processingQueueService.publishMessageBatch([message_0, message_1]);
+      const result = processingQueueService.publishMessageBatch([message_0, message_1]);
 
       // Assert
+      await expect(result).rejects.toThrow(InternalServerError);
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledTimes(1);
       expect(awsClientMocks.sqsClientMock.send).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -208,9 +210,10 @@ describe('ProcessingQueueService', async () => {
           {
             Code: 'MockCode',
             Id: '1',
-            SenderFault: false,
+            SenderFault: true,
           },
         ],
+        attempts: 1,
       });
       expect(observabilityMocks.metrics.addMetric).toHaveBeenCalledWith(
         MetricsLabels.QUEUE_PROCESSING_PUBLISHED_FAILED,

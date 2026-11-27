@@ -1,10 +1,8 @@
 import {
   APIHandler,
-  CacheService,
   ConfigurationService,
   GroupStoreDynamoRepository,
   HandlerDependencies,
-  iocGetCacheService,
   iocGetConfigurationService,
   iocGetGroupProcessingQueueService,
   iocGetGroupStoreDynamoRepository,
@@ -17,7 +15,7 @@ import {
 import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer';
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
-import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
+import { chunkArray } from '@common/utils/chunkArray';
 import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
@@ -84,7 +82,6 @@ export class PostGroupMessage extends APIHandler<
   public responseBodySchema = responseBodySchema;
   public authorizerSchema = authorizerSchema;
 
-  public readonly cacheService!: CacheService;
   public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly groupStoreDynamoRepository!: GroupStoreDynamoRepository;
   public readonly validationService!: ValidationService;
@@ -110,6 +107,8 @@ export class PostGroupMessage extends APIHandler<
     const organisationID = event.requestContext.authorizer.Organization;
     const organisationConfig = event.requestContext.authorizer.OrganisationConfig;
 
+    // TODO: when the client omits GroupNotificationID the schema generates a random one per request, so a client retry
+    // produces different notification IDs and is not deduplicated. Consider requiring it or deriving it deterministically.
     const messages: IGroupMessage[] = event.body.map((body) => ({
       ...body,
       OrganisationID: organisationID,
@@ -118,8 +117,8 @@ export class PostGroupMessage extends APIHandler<
     // Validates all messages & reject request when contents or configurations are unsupported
     this.validationService.messageValidation(messages, organisationConfig);
 
-    // Get the number of workers to be used to process the group message
-    const numberOfWorkers = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerCount);
+    // Get the number of pushIDs to send to the group processing worker in each queue message
+    const chunkSize = await this.config.getParameter(SSMParameters.Group.Dispatch.ChunkSize);
 
     const responses: { GroupNotificationID: string; UsersInGroup: number }[] = [];
     for (const message of messages) {
@@ -128,44 +127,20 @@ export class PostGroupMessage extends APIHandler<
         message.Group,
         message.Subgroup
       );
-      const chunksOfPushIDs = splitArrayIntoChunks(pushIds, numberOfWorkers);
-      this.observability.logger.debug('Chunk of PushIDS', { chunksOfPushIDs });
 
-      const batch: IGroupMessageMetadata[] = [];
-      for (let workerID = 0; workerID < chunksOfPushIDs.length; workerID++) {
-        const chunk = chunksOfPushIDs[workerID];
-        // If the chunk is empty, break the loop to avoid creating an empty cache entry and batch message
-        if (chunk.length === 0) {
-          break;
-        }
-
-        const cacheKey = `Worker/GroupProcessingWorker/${message.GroupNotificationID}/${workerID}`;
-        this.observability.logger.debug('Storing list of pushIDs to process in cache for group processing worker.', {
-          cacheKey,
-          pushIDs: chunk,
-        });
-        await this.cacheService.store(cacheKey, chunk);
-
-        batch.push({
-          GroupMessage: message,
-          GroupNotificationID: message.GroupNotificationID,
-          WorkerID: workerID,
-          CacheKey: cacheKey,
-          APIGWExtendedID: event.requestContext.requestId,
-          ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
-          ValidatedDateTime: new Date().toISOString(),
-        });
-
-        // Log to verify the CacheKey has been correctly stored and configured
-        const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
-        this.observability.logger.debug('Verifying CacheKey and length of pushIDs for the batch in the cache.', {
-          cacheKey,
-          pushIDs: elasticacheValue,
-        });
-      }
+      const batch: IGroupMessageMetadata[] = chunkArray(pushIds, chunkSize).map((chunk) => ({
+        GroupMessage: message,
+        GroupNotificationID: message.GroupNotificationID,
+        PushIDs: chunk,
+        APIGWExtendedID: event.requestContext.requestId,
+        ReceivedDateTime: new Date(event.requestContext.requestTimeEpoch).toISOString(),
+        ValidatedDateTime: new Date().toISOString(),
+      }));
 
       this.observability.logger.debug('Requeuing validated group message to group process queue.', {
         GroupNotificationID: message.GroupNotificationID,
+        usersInGroup: pushIds.length,
+        chunks: batch.length,
       });
       await this.groupProcessingQueue.publishMessageBatch(batch);
       responses.push({ GroupNotificationID: message.GroupNotificationID, UsersInGroup: pushIds.length });
@@ -185,7 +160,6 @@ export class PostGroupMessage extends APIHandler<
 }
 
 export const handler = new PostGroupMessage(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
-  cacheService: iocGetCacheService().connect(),
   groupProcessingQueue: iocGetGroupProcessingQueueService(),
   groupStoreDynamoRepository: iocGetGroupStoreDynamoRepository(),
   validationService: iocGetValidationService(),

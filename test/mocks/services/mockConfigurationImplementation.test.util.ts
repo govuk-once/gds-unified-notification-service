@@ -39,8 +39,7 @@ export const mockDefaultConfig = (): Record<string, string | boolean | number | 
     [SSMParameters.Config.Dispatch.CircuitBreaker.WindowDuration.Path]: 60,
     [SSMParameters.Config.Dispatch.CircuitBreaker.HalfOpenAfter.Path]: 30,
     [SSMParameters.Config.Dispatch.CircuitBreaker.RateLimitWhenOpen.Path]: 5,
-    [SSMParameters.Group.Dispatch.WorkerCount.Path]: 5,
-    [SSMParameters.Group.Dispatch.WorkerBatchSize.Path]: 1,
+    [SSMParameters.Group.Dispatch.ChunkSize.Path]: 1000,
     // Nested objects
     [SSMParameters.Table.Message.Attributes.Path]: {
       attributes: ['DepartmentID', 'NotificationID'],

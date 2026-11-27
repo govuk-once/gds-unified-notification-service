@@ -83,8 +83,7 @@ Before processing a batch, each SQS stage checks `config/common/enabled` and the
 
 | Path | Default | Purpose |
 | --- | --- | --- |
-| `group/dispatch/workerCount` | `5` | Chunks `postGroupMessage` splits a group into |
-| `group/dispatch/workerBatchSize` | `100` | Push IDs per `groupProcessingWorker` invocation |
+| `group/dispatch/chunkSize` | `1000` | Push IDs per `groupprocessing` SQS message (one `groupProcessingWorker` invocation per message). A message must stay under the queue's 256 KiB limit (about 39 KB per 1000 UUID push IDs plus the group message body), so lower this if bodies are large or the worker approaches its timeout |
 
 ### Slack alerts and release announcements
 

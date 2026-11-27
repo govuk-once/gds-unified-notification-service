@@ -2,32 +2,27 @@ import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import {
   HandlerDependencies,
   iocGetAnalyticsService,
-  iocGetCacheService,
   iocGetConfigurationService,
   iocGetDispatchQueueService,
-  iocGetGroupProcessingQueueService,
   iocGetNotificationDynamoRepository,
   iocGetObservabilityService,
 } from '@common/ioc';
 import { NotificationStateEnum } from '@common/models';
-import { InternalServerError } from '@common/models/Errors/InternalServerError';
-import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
-import { NotificationsDynamoRepository } from '@common/repositories';
-import {
-  AnalyticsService,
-  CacheService,
-  ConfigurationService,
-  DispatchQueueService,
-  MetricsLabels,
-  ObservabilityService,
-} from '@common/services';
-import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
-import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
 import {
   IGroupMessageMetadataSchema,
   IIdentifiableGroupMessageSchema,
   IProcessedMessage,
 } from '@common/models/interfaces';
+import { BatchQueueOperation } from '@common/operations/batchQueueOperation';
+import { NotificationsDynamoRepository } from '@common/repositories';
+import {
+  AnalyticsService,
+  ConfigurationService,
+  DispatchQueueService,
+  MetricsLabels,
+  ObservabilityService,
+} from '@common/services';
+import { generateNotificationIDForGroupMessage } from '@common/utils/checksumString';
 import SSMParameters from '@shared/ssmParameter';
 import { SQSRecord } from 'aws-lambda';
 import z from 'zod';
@@ -42,10 +37,9 @@ const identifiableRecordSchema = z.object({
  * 
  * Lambda handling processing of group messages
  * - Validates input 
- * - Retrieves pushIDs of users in batch from elasticache
+ * - Reads the chunk of pushIDs carried in the message
  * - Builds message template using the group message and the pushIDs
  * - Pushes group messages into dispatch queue
- * - Requeues any unprocessed pushIDs
  * 
  * Sample event:
 {
@@ -53,7 +47,7 @@ const identifiableRecordSchema = z.object({
     {
       "messageId": "mockMessageId",
       "receiptHandle": "mockReceiptHandle",
-      "body": "{\n\"GroupMessage\": {\n    \"Namespace\": \"namespace\",\n    \"Group\": \"group\",\n    \"Subgroup\": \"subgroup\",\n    \"GroupNotificationID\": \"1234\",\n    \"OrganisationID\": \"ORG_01\",\n    \"NotificationTitle\": \"Travel Alert Update\",\n    \"NotificationBody\": \"You have a new message in the message center.\",\n    \"MessageTitle\": \"MOCK_LONG_TITLE\",\n    \"MessageBody\": \"MOCK_LONG_MESSAGE\"\n  },\n\"GroupNotificationID\": \"1234\",\n\"WorkerID\": 0,\n\"CacheKey\": \"Worker/GroupProcessingWorker/1234/0\",\n\"APIGWExtendedID\": \"requestId\",\n\"ReceivedDateTime\": \"2026-08-01T:12:00:00.000Z\",\n\"ValidatedDateTime\": \"2026-08-01T:12:00:00.600Z\"\n}",
+      "body": "{\n\"GroupMessage\": {\n    \"Namespace\": \"namespace\",\n    \"Group\": \"group\",\n    \"Subgroup\": \"subgroup\",\n    \"GroupNotificationID\": \"1234\",\n    \"OrganisationID\": \"ORG_01\",\n    \"NotificationTitle\": \"Travel Alert Update\",\n    \"NotificationBody\": \"You have a new message in the message center.\",\n    \"MessageTitle\": \"MOCK_LONG_TITLE\",\n    \"MessageBody\": \"MOCK_LONG_MESSAGE\"\n  },\n\"GroupNotificationID\": \"1234\",\n\"PushIDs\": [\"pushID1\", \"pushID2\"],\n\"APIGWExtendedID\": \"requestId\",\n\"ReceivedDateTime\": \"2026-08-01T:12:00:00.000Z\",\n\"ValidatedDateTime\": \"2026-08-01T:12:00:00.600Z\"\n}",
       "attributes": {
         "ApproximateReceiveCount": "2",
         "SentTimestamp": "202601021513",
@@ -80,9 +74,7 @@ export class GroupProcessingWorker extends BatchQueueOperation<
   public readonly identifiableRecordSchema = identifiableRecordSchema;
 
   public readonly analyticsService!: AnalyticsService;
-  public readonly cacheService!: CacheService;
   public readonly dispatchQueue!: DispatchQueueService;
-  public readonly groupProcessingQueue!: GroupProcessingQueueService;
   public readonly notificationsRepository!: NotificationsDynamoRepository;
 
   constructor(
@@ -99,43 +91,8 @@ export class GroupProcessingWorker extends BatchQueueOperation<
     const data = await this.validateRecord(record);
 
     const groupMessage = data.body.GroupMessage;
-    const cacheKey = data.body.CacheKey;
-    const workerBatchSize = await this.config.getParameter(SSMParameters.Group.Dispatch.WorkerBatchSize);
-
-    // Retrieve pushIDs from cache
-    this.observability.logger.debug('Retrieving list of pushIDs to process from cache.');
+    const pushIDs = data.body.PushIDs;
     const start = performance.now();
-
-    const unprocessedPushIDs = await this.cacheService.get<string[]>(cacheKey);
-    if (!unprocessedPushIDs) {
-      throw new InternalServerError([
-        'List of pushIDs store in elasticache are misconfigured',
-        `CacheKey: ${cacheKey}`,
-      ]);
-    }
-    this.observability.logger.debug('PushIDs returned from cache', {
-      pushIDs: unprocessedPushIDs,
-      cacheKey,
-    });
-
-    this.observability.logger.debug('Splicing list of pushIDs to a max size of worker batch size');
-    const pushIDs = unprocessedPushIDs.splice(0, workerBatchSize);
-    this.observability.logger.debug('pushIDs to be processed in this batch', {
-      pushIDsToBeProcessed: pushIDs,
-      cacheKey,
-    });
-
-    // Updating cache with unprocessed pushIDs and verifying it has been updated
-    await this.cacheService.store(cacheKey, unprocessedPushIDs);
-
-    const elasticacheValue = await this.cacheService.get<string[]>(cacheKey);
-    this.observability.logger.debug(
-      'Unprocessed pushIDs to be sent to group processing queue to be processed by the next worker',
-      {
-        pushIDsToNextWorker: elasticacheValue,
-        cacheKey,
-      }
-    );
 
     // Build group messages to users -
     const processedMessages: IProcessedMessage[] = [];
@@ -160,40 +117,41 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 
     // Add record of group notifications to message table
     this.observability.logger.debug('Adding record of notification to message table');
-    await this.notificationsRepository.createRecordBatch(
-      processedMessages.map(({ ExpiresInDays, ...body }) => ({
-        ...body,
-        APIGWExtendedID: data.body.APIGWExtendedID,
-        ReceivedDateTime: data.body.ReceivedDateTime,
-        ValidatedDateTime: data.body.ValidatedDateTime,
-        ProcessedDateTime: new Date().toISOString(),
-        RequestedDaysToExpire: ExpiresInDays,
-        Events: [],
-      }))
-    );
+    const processedDateTime = new Date().toISOString();
+    const messageRecords = processedMessages.map(({ ExpiresInDays, ...body }) => ({
+      ...body,
+      APIGWExtendedID: data.body.APIGWExtendedID,
+      ReceivedDateTime: data.body.ReceivedDateTime,
+      ValidatedDateTime: data.body.ValidatedDateTime,
+      ProcessedDateTime: processedDateTime,
+      RequestedDaysToExpire: ExpiresInDays,
+      Events: [],
+    }));
+    // TODO: reprocessing a chunk (SQS retry, e.g. after a timeout or a failed dispatch publish) is not a no-op:
+    // - createRecordBatch uses unconditional puts, so it overwrites records that were already created and may have
+    //   progressed (e.g. DispatchedDateTime, Events), resetting their status until dispatched again.
+    // - every pushID in the chunk is published to the dispatch queue again, including ones already queued. Only the
+    //   provider's idempotency key (NotificationID) prevents a duplicate push, and that only holds within its window.
+    await this.notificationsRepository.createRecordBatch(messageRecords);
 
-    // Create analytics event for successful processing of group message
-    this.observability.logger.debug('Creating analytics events for each processed message');
-    await this.analyticsService.publishMultipleEvents(processedMessages, NotificationStateEnum.PROCESSED);
-
-    // Push processed messages to Dispatch queue
+    // Publish analytics alongside the dispatch publish rather than before it, so neither waits on the other.
+    // Analytics never throws, so it cannot mask or cause a dispatch failure.
     this.observability.logger.info('Successful processed batch of pushIDs, sending to dispatch queue');
-    await this.dispatchQueue.publishMessageBatch(processedMessages);
+    const analyticsPublished = this.analyticsService.publishMultipleEvents(
+      processedMessages,
+      NotificationStateEnum.PROCESSED
+    );
+    try {
+      await this.dispatchQueue.publishMessageBatch(processedMessages);
+    } finally {
+      await analyticsPublished;
+    }
 
     this.observability.metrics.addMetric(
       MetricsLabels.GROUP_PROCESSING_DURATION_PER_MESSAGE,
       MetricUnit.Milliseconds,
-      (performance.now() - start) / Math.max(pushIDs.length, 1)
+      (performance.now() - start) / pushIDs.length
     );
-
-    // Requeue if any pushIDs are unprocessed
-    if (unprocessedPushIDs.length > 0) {
-      this.observability.logger.debug('Requeue unprocessed pushIDs', {
-        cacheKey,
-        LengthPushIDs: unprocessedPushIDs.length,
-      });
-      await this.groupProcessingQueue.publishMessage(data.body);
-    }
   };
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -223,8 +181,6 @@ export class GroupProcessingWorker extends BatchQueueOperation<
 // IoC
 export const handler = new GroupProcessingWorker(iocGetConfigurationService(), iocGetObservabilityService(), () => ({
   analyticsService: iocGetAnalyticsService(),
-  cacheService: iocGetCacheService().connect(),
   dispatchQueue: iocGetDispatchQueueService(),
-  groupProcessingQueue: iocGetGroupProcessingQueueService(),
   notificationsRepository: iocGetNotificationDynamoRepository(),
 })).handler();

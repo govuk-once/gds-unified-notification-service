@@ -112,9 +112,6 @@ export class Validation extends BatchQueueOperation<typeof requestBodySchema, ty
       Events: [],
     });
 
-    // Publish analytics
-    await this.analyticsService.publishEvent(message, NotificationStateEnum.VALIDATED);
-
     // Publish messages to the next stage
     await this.processingQueue.publishMessage(message);
   };

@@ -23,6 +23,7 @@ export interface UNSLambdaConstructProps {
   readonly environment: Record<string, string>;
   readonly runtime?: Runtime;
   readonly memory?: number;
+  readonly timeoutSeconds?: number;
   readonly resources: {
     readonly kms: IKey;
     readonly vpc?: {
@@ -34,6 +35,7 @@ export interface UNSLambdaConstructProps {
   };
   readonly triggers?: {
     readonly queues?: Queue[];
+    readonly queueBatchSize?: number;
     readonly schedule?: Schedule[];
   };
   readonly iam?: {
@@ -84,7 +86,9 @@ export class UNSLambdaConstruct extends Construct {
     super(scope, constructNamingHelper(...props.name));
     this.config = config;
     this.props = props;
-    this.timeoutMs = UNSLambdaConstruct.TIMEOUT.toMilliseconds();
+    const timeout =
+      props.timeoutSeconds === undefined ? UNSLambdaConstruct.TIMEOUT : Duration.seconds(props.timeoutSeconds);
+    this.timeoutMs = timeout.toMilliseconds();
 
     const stack = Stack.of(this);
 
@@ -178,7 +182,7 @@ export class UNSLambdaConstruct extends Construct {
       functionName,
       runtime: props.runtime ?? Runtime.NODEJS_22_X,
       memorySize: props.memory ?? 512,
-      timeout: UNSLambdaConstruct.TIMEOUT,
+      timeout,
       handler: 'index.handler',
       code: Code.fromAsset(props.bundlePath, {}),
       codeSigningConfig: props.signingConfig,
@@ -235,10 +239,12 @@ export class UNSLambdaConstruct extends Construct {
 
     // SQS event sources target the alias so invocations are qualified and detectable via CloudTrail data events.
     for (const q of props.triggers?.queues ?? []) {
-      this.alias.addEventSource(new SqsEventSource(q, { batchSize: 10, reportBatchItemFailures: true }));
+      this.alias.addEventSource(
+        new SqsEventSource(q, { batchSize: props.triggers?.queueBatchSize ?? 10, reportBatchItemFailures: true })
+      );
     }
 
-    this.integration = new LambdaIntegration(this.alias);
+    this.integration = new LambdaIntegration(this.fn);
 
     //// =====================================================
     // Scheduler
