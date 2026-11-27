@@ -115,7 +115,7 @@
     "zod": "^4.6.7"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.68.2"
+    "@rollup/rollup-linux-x64-gnu": "^4.68.7"
   },
   "packageManager": "pnpm@12.18.0"
 }
