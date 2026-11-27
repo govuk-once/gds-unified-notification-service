@@ -157,6 +157,7 @@ export const config = {
 
   // Feature flag for travel alerts and deeplinkUrls
   featureFlag: {
+    adminPortal: env !== 'prod',
     messageRetention: env !== 'prod',
     // Following feature flags are now to be enabled across the board
     groups: true,
