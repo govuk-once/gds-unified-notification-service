@@ -13,7 +13,7 @@ type APIConfigurations = (typeof APIConfigurations)[keyof typeof APIConfiguratio
 
 defineParameterType({
   name: 'APIConfig',
-  regexp: /the connection is insecure|my API key is invalid|with missing MTLS certificate|correctly/,
+  regexp: new RegExp(Object.values(APIConfigurations).join('|')),
   transformer: (s) => s as APIConfigurations,
 });
 
@@ -30,7 +30,6 @@ const configureClient = (world: CustomWorld, client: string, apiConfig: APIConfi
     PSO: {
       [APIConfigurations.InsecureHTTP]: () => world.psoAPIUsingInsecureProtocol,
       [APIConfigurations.InvalidAPIKey]: () => world.psoAPIWithoutAPIKey,
-      [APIConfigurations.MissingMTLS]: () => world.psoAPIWithoutMTLSCert,
       [APIConfigurations.CorrectConfig]: () => world.psoAPI,
     },
   };
