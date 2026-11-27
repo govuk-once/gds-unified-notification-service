@@ -1,7 +1,7 @@
 import { NotificationStateEnum } from '@common/models/NotificationStateEnum';
 import z from 'zod';
 
-export const INotificationStatusSchema = z.object({
+export const GetNotificationStatusResponse = z.object({
   NotificationID: z.string(),
   EventTimestamp: z.string(),
   Status: z.enum([
@@ -23,4 +23,4 @@ export const INotificationStatusSchema = z.object({
   ]),
 });
 
-export type INotificationStatus = z.infer<typeof INotificationStatusSchema>;
+export type NotificationStatus = z.infer<typeof GetNotificationStatusResponse>;

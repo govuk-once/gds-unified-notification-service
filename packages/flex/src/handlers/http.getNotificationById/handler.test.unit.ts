@@ -5,7 +5,7 @@ import {
   mockEventContext,
   mockFlexAPIEvent,
   mockIAnalytics,
-  mockIFlexNotification,
+  mockGetNotificationResponse,
   mockIOrganisationRecord,
   mockIProcessedMessage,
   mockIProcessedMessageRecord,
@@ -86,7 +86,7 @@ describe('GetNotificationById Handler', async () => {
 
   it('should return 200 with status ok and return a notification', async () => {
     // Arrange
-    const expectedResponse = mockIFlexNotification();
+    const expectedResponse = mockGetNotificationResponse();
 
     // Act
     const result = await handler(event, context);
@@ -106,7 +106,7 @@ describe('GetNotificationById Handler', async () => {
         pushID: externalUserID,
       },
     }) as unknown as EventType;
-    const expectedResponse = mockIFlexNotification();
+    const expectedResponse = mockGetNotificationResponse();
 
     // Act
     const result = await handler(eventWithPushID, context);
@@ -118,7 +118,7 @@ describe('GetNotificationById Handler', async () => {
 
   it('should return 200 and use notification events when cached events are all present in notification', async () => {
     // Arrange
-    const expectedResponse = mockIFlexNotification();
+    const expectedResponse = mockGetNotificationResponse();
     serviceMocks.cacheServiceMock.getList = vi.fn().mockResolvedValueOnce([
       {
         ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
@@ -141,7 +141,7 @@ describe('GetNotificationById Handler', async () => {
 
   it('should return 200 and use cache events if they are not present in the message record', async () => {
     // Arrange
-    const expectedResponse = mockIFlexNotification();
+    const expectedResponse = mockGetNotificationResponse();
     messageRecord.Events = [
       {
         ...mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e5', NotificationStateEnum.RECEIVED),
@@ -165,7 +165,7 @@ describe('GetNotificationById Handler', async () => {
 
   it('should return 200 and message record events only if cached events is an empty array', async () => {
     // Arrange
-    const expectedResponse = mockIFlexNotification();
+    const expectedResponse = mockGetNotificationResponse();
     serviceMocks.notificationsDynamoRepositoryMock.getProcessedMessageByID.mockResolvedValueOnce({
       ...messageRecord,
       Events: [mockIAnalytics('eb456589-f3e2-4384-9344-853ad05147e6', NotificationStateEnum.RECEIVED)],

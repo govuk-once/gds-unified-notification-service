@@ -18,7 +18,12 @@ import { psoAuthorizerSchema } from '@common/middlewares/interfaces/IAuthorizer'
 import { GroupProcessingQueueService } from '@common/services/groupProcessingQueueService';
 import { ValidationService } from '@common/services/validationService';
 import { splitArrayIntoChunks } from '@common/utils/splitArrayIntoChunks';
-import { IGroupMessage, IGroupMessageMetadata, IGroupMessageSchema } from '@common/models/interfaces';
+import {
+  IGroupMessage,
+  IGroupMessageMetadata,
+  IGroupMessageSchema,
+  PostGroupMessageResponseSchema,
+} from '@common/models/interfaces';
 import SSMParameters from '@shared/ssmParameter';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
@@ -42,7 +47,6 @@ const requestBodySchema = z
       seen.add(id);
     }
   });
-const responseBodySchema = z.array(z.object({ GroupNotificationID: z.string(), UsersInGroup: z.int().min(0) }));
 const authorizerSchema = psoAuthorizerSchema;
 
 /**
@@ -76,12 +80,12 @@ const authorizerSchema = psoAuthorizerSchema;
 
 export class PostGroupMessage extends APIHandler<
   typeof requestBodySchema,
-  typeof responseBodySchema,
+  typeof PostGroupMessageResponseSchema,
   typeof authorizerSchema
 > {
   public operationId: string = 'postGroupMessage';
   public requestBodySchema = requestBodySchema;
-  public responseBodySchema = responseBodySchema;
+  public responseBodySchema = PostGroupMessageResponseSchema;
   public authorizerSchema = authorizerSchema;
 
   public readonly cacheService!: CacheService;
@@ -101,7 +105,7 @@ export class PostGroupMessage extends APIHandler<
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>, z.infer<typeof authorizerSchema>>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof responseBodySchema>>> {
+  ): Promise<ITypedRequestResponse<z.infer<typeof PostGroupMessageResponseSchema>>> {
     this.observability.logger.info('Received request', {
       path: event.path,
       organisationID: event.requestContext.authorizer.Organization,

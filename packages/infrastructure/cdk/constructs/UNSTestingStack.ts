@@ -12,6 +12,8 @@ export interface UNSTestingContract {
   readonly kms: IKey;
 
   readonly messagesTable: Table;
+  readonly campaignsTable: Table;
+  readonly groupStoreTable?: Table;
 }
 
 export class UNSTestingStack extends Stack {

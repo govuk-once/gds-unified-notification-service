@@ -15,16 +15,19 @@ import { FlexAPIHandler } from '@common/operations/flexApiHandler';
 import { NotificationsDynamoRepository, OrganisationsDynamoRepository } from '@common/repositories';
 import { CacheService, ConfigurationService, ObservabilityService } from '@common/services';
 import DateInSeconds from '@common/utils/dateInSeconds';
-import { IFlexNotificationSchema, IMessageRecordToIFlexNotification, IAnalytics } from '@common/models/interfaces';
+import { GetNotificationResponseSchema, toGetNotificationResponse, IAnalytics } from '@common/models/interfaces';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
 
-export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySchema, typeof IFlexNotificationSchema> {
+export class GetFlexNotificationById extends FlexAPIHandler<
+  typeof requestBodySchema,
+  typeof GetNotificationResponseSchema
+> {
   public operationId: string = 'getNotificationById';
   public requestBodySchema = requestBodySchema;
-  public responseBodySchema = IFlexNotificationSchema;
+  public responseBodySchema = GetNotificationResponseSchema;
 
   public notificationsDynamoRepository!: NotificationsDynamoRepository;
   public organisationsDynamoRepository!: OrganisationsDynamoRepository;
@@ -42,7 +45,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
   public async implementation(
     event: ITypedRequestEvent<z.infer<typeof requestBodySchema>>,
     context: Context
-  ): Promise<ITypedRequestResponse<z.infer<typeof IFlexNotificationSchema>>> {
+  ): Promise<ITypedRequestResponse<z.infer<typeof GetNotificationResponseSchema>>> {
     this.observability.logger.info('Received request', {
       path: event.path,
       notificationID: event.pathParameters?.notificationID,
@@ -96,7 +99,7 @@ export class GetFlexNotificationById extends FlexAPIHandler<typeof requestBodySc
     const cachedEvents = await this.cacheService.getList<IAnalytics>(
       this.cacheService.analyticsEventKey(notification.NotificationID)
     );
-    const notificationResponse = IMessageRecordToIFlexNotification(
+    const notificationResponse = toGetNotificationResponse(
       notification,
       organisations,
       this.observability,

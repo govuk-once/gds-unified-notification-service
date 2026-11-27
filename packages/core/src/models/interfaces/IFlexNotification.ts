@@ -5,7 +5,7 @@ import { ObservabilityService } from '@common/services';
 import { IAnalytics } from '@common/models/interfaces/IAnalyticsSchema';
 import z from 'zod';
 
-export const IFlexNotificationSchema = IMessageRecordSchema.pick({
+export const GetNotificationResponseSchema = IMessageRecordSchema.pick({
   NotificationID: true,
   NotificationTitle: true,
   NotificationBody: true,
@@ -24,14 +24,14 @@ export const IFlexNotificationSchema = IMessageRecordSchema.pick({
     MessageBody: record.MessageBody ?? record.NotificationBody,
   }));
 
-export type IFlexNotification = z.infer<typeof IFlexNotificationSchema>;
+export type GetNotificationResponse = z.infer<typeof GetNotificationResponseSchema>;
 
-export const IMessageRecordToIFlexNotification = (
+export const toGetNotificationResponse = (
   item: IProcessedMessageRecord,
   organisations: IOrganisationRecord[],
   observability: ObservabilityService,
   cachedEvents: IAnalytics[]
-): IFlexNotification | undefined => {
+): GetNotificationResponse | undefined => {
   // Compared dynamo record to cached events and adds any missing events to response
   if (cachedEvents?.length > 0) {
     observability.logger.info(`Retrieved events from cache`, {
@@ -64,7 +64,7 @@ export const IMessageRecordToIFlexNotification = (
   }
 
   // Drop unnecessary properties
-  return IFlexNotificationSchema.parse({
+  return GetNotificationResponseSchema.parse({
     // Explicitly map
     NotificationID: item.NotificationID,
     NotificationTitle: item.NotificationTitle,

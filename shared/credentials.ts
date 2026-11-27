@@ -12,6 +12,10 @@ export interface MtlsCertificates {
   key: string;
 }
 
+export interface Domains {
+  flex: string;
+  pso: string;
+}
 export const domainName = async (name: string, usePrivateDomain: boolean = false) => {
   if (name === 'flex' && usePrivateDomain) {
     const apiGwClient = new APIGatewayClient({ region: config.region });
@@ -30,6 +34,12 @@ export const domainName = async (name: string, usePrivateDomain: boolean = false
       : config.utils.namingHelper(name)
     : null;
   return `${subdomain}.${rootDomain}`;
+};
+
+export const resolveDomains = async (usePrivateGateway: boolean): Promise<Domains> => {
+  const pso = await domainName(`pso`);
+  const flex = await domainName(`flex`, usePrivateGateway);
+  return { pso, flex };
 };
 
 export async function fetchApiKeys(flexKeyMarker: string): Promise<ApiKeys> {

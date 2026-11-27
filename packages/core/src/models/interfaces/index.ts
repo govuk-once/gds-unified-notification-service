@@ -3,6 +3,8 @@ export * from './ICampaignStatus';
 export * from './IFlexNotification';
 export * from './IGroupMessage';
 export * from './IGroupMessageMetadata';
+export * from './IGroupMessageSendResponse';
+export * from './IGetGroups';
 export * from './IGroups';
 export * from './IMessage';
 export * from './IModifyGroups';

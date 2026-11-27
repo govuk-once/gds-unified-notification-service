@@ -18,6 +18,8 @@ export interface UNSCodeBuildConstructProps {
   kms: IKey;
 
   messagesTable: Table;
+  campaignsTable: Table;
+  groupStoreTable?: Table;
 }
 export class UNSE2EConstruct extends Construct {
   public readonly project: Project;
@@ -92,6 +94,8 @@ export class UNSE2EConstruct extends Construct {
 
     // Access to DynamoDB (testing injects notifications)
     props.messagesTable.grantReadWriteData(this.role);
+    props.campaignsTable.grantReadWriteData(this.role);
+    props.groupStoreTable?.grantReadData(this.role);
 
     // Access to artifact registry
     this.role.addToPolicy(

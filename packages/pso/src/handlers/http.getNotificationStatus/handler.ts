@@ -11,12 +11,12 @@ import { NotFoundError } from '@common/models/Errors/NotFoundError';
 import { NotificationsDynamoRepository } from '@common/repositories';
 import { CacheService, ObservabilityService } from '@common/services';
 import { IAnalytics } from '@common/models/interfaces';
-import { INotificationStatusSchema } from '@common/models/interfaces/INotificationStatus';
+import { GetNotificationStatusResponse } from '@common/models/interfaces/INotificationStatus';
 import type { Context } from 'aws-lambda';
 import z from 'zod';
 
 const requestBodySchema = z.any();
-const responseBodySchema = z.array(INotificationStatusSchema);
+const responseBodySchema = z.array(GetNotificationStatusResponse);
 
 export class GetNotificationStatus extends APIHandler<typeof requestBodySchema, typeof responseBodySchema> {
   public operationId: string = 'getNotificationStatus';

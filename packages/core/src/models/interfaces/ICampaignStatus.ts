@@ -1,6 +1,6 @@
 import z from 'zod';
 
-export const campaignStatusSchema = z.object({
+export const GetCampaignStatusResponse = z.object({
   CampaignID: z.string(),
   DepartmentID: z.string(),
   ProcessingSummary: z.object({
@@ -14,4 +14,4 @@ export const campaignStatusSchema = z.object({
     HIDDEN: z.number(),
   }),
 });
-export type CampaignStatus = z.infer<typeof campaignStatusSchema>;
+export type CampaignStatus = z.infer<typeof GetCampaignStatusResponse>;
