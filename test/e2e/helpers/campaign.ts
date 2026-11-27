@@ -1,3 +1,4 @@
+/* eslint-disable vitest/no-standalone-expect */
 import { iocGetCampaignsDynamoRepository } from '@common/ioc';
 import { campaignStatusSchema, type CampaignStatus } from '@common/models/interfaces';
 import { FetchErrorResponse, type FetchService } from '@common/services/FetchService';
@@ -5,6 +6,8 @@ import { ICampaignRecord } from '@common/repositories';
 import { NotificationProcessingStateEnum } from '@common/models';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
 import { waitFor } from '@test/e2e/helpers/waitFor';
+import CustomWorld from '@test/e2e/support/world';
+import { expect } from 'vitest';
 
 export const TEST_ORG_ID = 'UNS';
 
@@ -48,25 +51,36 @@ export const waitForCampaignInDynamo = async (
   );
 };
 
-// Checks campaign status via the PSO API (ElastiCache) for e2e test assertions
-export const checkCampaignStatus = async (
-  psoAPI: FetchService,
-  campaignID: string
-): Promise<CampaignStatus['ProcessingSummary']> => {
-  try {
-    const result = await psoAPI.get({ path: `/status/campaign/${campaignID}` });
-    const campaignStatus = campaignStatusSchema.parse(result.body);
-    if (campaignStatus.CampaignID !== campaignID) {
-      throw new Error(`Campaign status returned ${campaignStatus.CampaignID} instead of ${campaignID}`);
-    }
+export interface CampaignCheck {
+  PROCESSED: number;
+  DISPATCHED: number;
+}
 
-    return campaignStatus.ProcessingSummary;
-  } catch (error) {
-    if (error instanceof FetchErrorResponse && error.status === 404) {
-      throw new Error(
-        `Campaign ${campaignID} not found yet (404) - retrying - campaign status = ${JSON.stringify(campaignStatusSchema, null, 2)}`
-      );
-    }
-    throw error;
-  }
-};
+// Checks campaign status via the PSO API (ElastiCache) for e2e test assertions
+export const waitForCampaignStatus = (world: CustomWorld, expectedCounts: CampaignCheck): Promise<void> =>
+  waitFor(
+    async () => {
+      try {
+        // Send api request to get the campaign status
+        const result = await world.psoAPI.get({ path: `/status/campaign/${world.campaignID}` });
+        const campaignStatus = campaignStatusSchema.parse(result.body);
+        if (campaignStatus.CampaignID !== world.campaignID) {
+          throw new Error(`Campaign status returned ${campaignStatus.CampaignID} instead of ${world.campaignID}`);
+        }
+
+        // Check the expected counts with sent counts of statuses
+        expect(campaignStatus.ProcessingSummary.PROCESSED).toBe(expectedCounts.PROCESSED);
+        expect(campaignStatus.ProcessingSummary.DISPATCHED).toBe(expectedCounts.DISPATCHED);
+      } catch (error) {
+        if (error instanceof FetchErrorResponse && error.status === 404) {
+          throw new Error(
+            `Campaign ${world.campaignID} not found yet (404) - retrying - response = ${JSON.stringify(error.body)}`
+          );
+        }
+        throw error;
+      }
+    },
+    28000,
+    2000,
+    world.path
+  );

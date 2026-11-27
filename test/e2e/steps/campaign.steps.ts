@@ -1,10 +1,9 @@
-/* eslint-disable vitest/no-standalone-expect */
 import { mockCampaignRecord } from '@common/repositories';
 import { NotificationProcessingStateEnum } from '@common/models';
 import { IGroupMessageSendResponseSchema } from '@common/models/interfaces';
 import { Given, When } from '@cucumber/cucumber';
 import {
-  checkCampaignStatus,
+  waitForCampaignStatus,
   createCampaign,
   deleteCampaign,
   generateTestCampaignID,
@@ -12,9 +11,7 @@ import {
   waitForCampaignInDynamo,
 } from '@test/e2e/helpers/campaign';
 import { deleteNotificationsByCampaign } from '@test/e2e/helpers/notification';
-import { waitFor } from '@test/e2e/helpers/waitFor';
 import CustomWorld from '@test/e2e/support/world';
-import { expect } from 'vitest';
 
 // ──────────────────────────────────────────────────
 // Given
@@ -55,18 +52,12 @@ When('I attempt to get the campaign status for processed group notifications', f
 
   this.path = `/status/campaign/${this.campaignID}`;
   const expectedCount = groupResult.UsersInGroup;
-  this.assertions.push(async () => {
-    await waitFor(
-      async () => {
-        const campaignStatus = await checkCampaignStatus(this.psoAPI, this.campaignID);
-        expect(campaignStatus.PROCESSED).toBe(expectedCount);
-        expect(campaignStatus.DISPATCHED).toBe(expectedCount);
-      },
-      25000,
-      2000,
-      this.path
-    );
-  });
+  this.assertions.push(() =>
+    waitForCampaignStatus(this, {
+      PROCESSED: expectedCount,
+      DISPATCHED: expectedCount,
+    })
+  );
 
   const campaign = mockCampaignRecord(TEST_ORG_ID, this.campaignID);
   this.cleanups.push(async () => {
