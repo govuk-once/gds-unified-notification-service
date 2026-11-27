@@ -8,6 +8,7 @@ const errorResponseSchema = z.object({
   Errors: z.array(z.string()),
 });
 
+// Add each validation variant here, then pass the same key to pushErrorAssertions; every listed substring must appear in Errors.
 export const validationErrorVariants: Record<string, string[]> = {
   'with no UserID': ['UserID'],
   'with no NotificationTitle': ['NotificationTitle'],
@@ -25,6 +26,7 @@ export const validationErrorVariants: Record<string, string[]> = {
   'with no Namespace': ['Namespace'],
   'with no Group': ['Group'],
   'with the same GroupNotificationID': ['Duplicate GroupNotificationIDs'],
+  INVALID_STATUS: ['Status', '"READ"', '"MARKED_AS_UNREAD"', '"RECEIVED"'],
 };
 
 export const pushErrorAssertions = (world: CustomWorld, variant: string) => {

@@ -5,7 +5,7 @@ Feature: Patch Notification by ID
     Given a correctly configured FLEX client
     And a notification exists
     But <Condition>
-    When I attempt to patch the notification
+    When I attempt to update the notification status to READ
     Then it should fail with <ExpectedError>
 
     @CIOnly
@@ -25,7 +25,7 @@ Feature: Patch Notification by ID
   Scenario: Notification not found
     Given a correctly configured FLEX client
     But the notification does not exist
-    When I attempt to patch the notification
+    When I attempt to update the notification status to READ
     Then it should fail with a not found error
 
   Scenario: Fails when request body is missing
@@ -34,8 +34,20 @@ Feature: Patch Notification by ID
     When I attempt to patch the notification without a body
     Then it should fail with a validation error
 
-  Scenario: Successfully patches notification status
+  Scenario: Fails when notification status is invalid
     Given a correctly configured FLEX client
     And a notification exists
-    When I attempt to patch the notification
+    When I attempt to update the notification status to INVALID_STATUS
+    Then it should fail with a validation error
+
+  Scenario Outline: Successfully updates notification status
+    Given a correctly configured FLEX client
+    And a notification exists
+    When I attempt to update the notification status to <Status>
     Then it should succeed
+
+    Examples:
+      | Status           |
+      | READ             |
+      | MARKED_AS_UNREAD |
+      | RECEIVED         |

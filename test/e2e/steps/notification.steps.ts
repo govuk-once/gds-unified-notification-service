@@ -5,6 +5,7 @@ import { IFlexNotificationSchema } from '@common/models/interfaces';
 import z from 'zod';
 import { iocGetNotificationDynamoRepository } from '@common/ioc';
 import { createNotification, deleteNotification } from '@test/e2e/helpers/notification';
+import { pushErrorAssertions } from '@test/e2e/helpers/errorAssertions';
 import { e2eUUID } from '@test/e2e/helpers/uuid';
 import { waitFor } from '@test/e2e/helpers/waitFor';
 import { mockIMessageRecord_E2E, mockIMessageRecord_E2E_WithDispatchTime } from '@test/mocks';
@@ -127,10 +128,11 @@ When('I attempt to get the status of a notification', async function (this: Cust
 // When: PATCH /notifications/:id/status
 // ──────────────────────────────────────────────────
 
-When('I attempt to patch the notification', async function (this: CustomWorld) {
+When('I attempt to update the notification status to {word}', async function (this: CustomWorld, status: string) {
   this.expectedStatusCode = 202;
   this.path = `/notifications/${this.notificationID}/status?pushID=${this.pushID}`;
-  await this.sendRequest('PATCH', { Status: 'READ' });
+  await this.sendRequest('PATCH', { Status: status });
+  if (status === 'INVALID_STATUS') pushErrorAssertions(this, status);
 });
 
 When('I attempt to patch the notification without a body', async function (this: CustomWorld) {
